@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatSort, MatSortModule } from '@angular/material/sort';
@@ -14,6 +14,9 @@ import { SelectionModel } from '@angular/cdk/collections';
 import { WorkflowService } from '../workflow.service';
 import { Workflow } from '../workflow.model';
 import { WorkflowForm } from '../workflow-form/workflow-form';
+import { ConfirmService } from '../../../core/confirm.service';
+import { NotifyService } from '../../../core/notify.service';
+import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
 
 /**
  * Écran « Règles de Workflow » — liste (mat-table : tri, pagination, filtre,
@@ -24,14 +27,16 @@ import { WorkflowForm } from '../workflow-form/workflow-form';
   imports: [
     MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule, MatIconModule,
     MatCheckboxModule, MatMenuModule, MatFormFieldModule, MatInputModule,
-    MatTooltipModule, MatDialogModule,
+    MatTooltipModule, MatDialogModule, SkeletonTable,
   ],
   templateUrl: './workflow-list.html',
   styleUrl: './workflow-list.scss',
 })
-export class WorkflowList implements OnInit, AfterViewInit {
+export class WorkflowList implements OnInit {
   private service = inject(WorkflowService);
   private dialog = inject(MatDialog);
+  private confirm = inject(ConfirmService);
+  private notify = inject(NotifyService);
 
   dataSource = new MatTableDataSource<Workflow>([]);
   selection = new SelectionModel<Workflow>(true, []);
@@ -53,17 +58,12 @@ export class WorkflowList implements OnInit, AfterViewInit {
     'actions',
   ]);
 
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-  @ViewChild(MatSort) sort!: MatSort;
+  @ViewChild(MatPaginator) set paginator(p: MatPaginator) { if (p) this.dataSource.paginator = p; }
+  @ViewChild(MatSort) set sort(s: MatSort) { if (s) this.dataSource.sort = s; }
 
   ngOnInit(): void {
     this.dataSource.filterPredicate = (w, f) => w.name.toLowerCase().includes(f);
     this.load();
-  }
-
-  ngAfterViewInit(): void {
-    this.dataSource.paginator = this.paginator;
-    this.dataSource.sort = this.sort;
   }
 
   load(): void {
@@ -109,26 +109,44 @@ export class WorkflowList implements OnInit, AfterViewInit {
     const ref = this.dialog.open(WorkflowForm, {
       data: { workflow: w }, width: '660px', maxWidth: '95vw', autoFocus: false,
     });
-    ref.afterClosed().subscribe(saved => { if (saved) this.load(); });
+    ref.afterClosed().subscribe(saved => {
+      if (saved) {
+        this.notify.success(w ? 'Règle mise à jour.' : 'Règle créée.');
+        this.load();
+      }
+    });
   }
 
   remove(w: Workflow): void {
-    if (!confirm(`Supprimer « ${w.name} » ?`)) return;
-    this.service.delete(w.id).subscribe(() => this.load());
+    this.confirm.ask({
+      title: 'Supprimer la règle',
+      message: `Voulez-vous supprimer « ${w.name} » ? Elle sera placée dans la corbeille.`,
+      confirmLabel: 'Supprimer', danger: true,
+    }).subscribe(ok => {
+      if (!ok) return;
+      this.service.delete(w.id).subscribe(() => { this.notify.success('Règle supprimée.'); this.load(); });
+    });
   }
 
   restoreOne(w: Workflow): void {
-    this.service.restore(w.id).subscribe(() => this.load());
+    this.service.restore(w.id).subscribe(() => { this.notify.success('Règle restaurée.'); this.load(); });
   }
 
   bulk(): void {
     const ids = this.selection.selected.map(w => w.id);
     if (!ids.length) return;
-    const verb = this.archiveView() ? 'restaurer' : 'supprimer';
-    if (!confirm(`Voulez-vous ${verb} ${ids.length} élément(s) ?`)) return;
-    const action = this.archiveView()
-      ? this.service.multipleRestore(ids)
-      : this.service.multipleDelete(ids);
-    action.subscribe(() => this.load());
+    const restoring = this.archiveView();
+    this.confirm.ask({
+      title: restoring ? 'Restaurer la sélection' : 'Supprimer la sélection',
+      message: `Voulez-vous ${restoring ? 'restaurer' : 'supprimer'} ${ids.length} élément(s) ?`,
+      confirmLabel: restoring ? 'Restaurer' : 'Supprimer',
+      danger: !restoring,
+    }).subscribe(ok => {
+      if (!ok) return;
+      (restoring ? this.service.multipleRestore(ids) : this.service.multipleDelete(ids)).subscribe(() => {
+        this.notify.success(`${ids.length} élément(s) ${restoring ? 'restauré(s)' : 'supprimé(s)'}.`);
+        this.load();
+      });
+    });
   }
 }

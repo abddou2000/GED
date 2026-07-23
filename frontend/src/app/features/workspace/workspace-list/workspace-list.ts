@@ -15,6 +15,9 @@ import { SelectionModel } from '@angular/cdk/collections';
 import { WorkspaceService } from '../workspace.service';
 import { SelectOption, TreeNode, WorkSpace } from '../workspace.model';
 import { WorkspaceForm } from '../workspace-form/workspace-form';
+import { ConfirmService } from '../../../core/confirm.service';
+import { NotifyService } from '../../../core/notify.service';
+import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
 
 /**
  * Écran « Espaces de travail » — 2 vues (Tableau / Arbre), CRUD, déplacement,
@@ -25,7 +28,7 @@ import { WorkspaceForm } from '../workspace-form/workspace-form';
   imports: [
     NgTemplateOutlet, FormsModule, MatTableModule, MatPaginatorModule, MatSortModule,
     MatButtonModule, MatButtonToggleModule, MatIconModule, MatCheckboxModule, MatMenuModule,
-    MatTooltipModule, MatDialogModule,
+    MatTooltipModule, MatDialogModule, SkeletonTable,
   ],
   templateUrl: './workspace-list.html',
   styleUrl: './workspace-list.scss',
@@ -33,6 +36,8 @@ import { WorkspaceForm } from '../workspace-form/workspace-form';
 export class WorkspaceList implements OnInit {
   private service = inject(WorkspaceService);
   private dialog = inject(MatDialog);
+  private confirm = inject(ConfirmService);
+  private notify = inject(NotifyService);
 
   view = signal<'table' | 'tree'>('table');
 
@@ -40,6 +45,7 @@ export class WorkspaceList implements OnInit {
   dataSource = new MatTableDataSource<WorkSpace>([]);
   selection = new SelectionModel<WorkSpace>(true, []);
   archiveView = signal(false);
+  loading = signal(true);
   displayedColumns = ['select', 'id', 'code', 'name', 'parent', 'workflow', 'owner', 'status', 'actions'];
 
   @ViewChild(MatPaginator) set paginator(p: MatPaginator) { if (p) this.dataSource.paginator = p; }
@@ -60,8 +66,12 @@ export class WorkspaceList implements OnInit {
   load(): void {
     if (this.view() === 'tree') { this.loadTree(); return; }
     this.selection.clear();
+    this.loading.set(true);
     const call = this.archiveView() ? this.service.trashed(0, 1000, '') : this.service.list(0, 1000, '');
-    call.subscribe(res => this.dataSource.data = res.content);
+    call.subscribe({
+      next: res => { this.dataSource.data = res.content; this.loading.set(false); },
+      error: () => { this.loading.set(false); this.notify.error('Impossible de charger les espaces.'); },
+    });
   }
 
   loadTree(): void {
@@ -94,10 +104,19 @@ export class WorkspaceList implements OnInit {
   bulk(): void {
     const ids = this.selection.selected.map(w => w.id);
     if (!ids.length) return;
-    const verb = this.archiveView() ? 'restaurer' : 'supprimer';
-    if (!confirm(`Voulez-vous ${verb} ${ids.length} dossier(s) ?`)) return;
-    (this.archiveView() ? this.service.multipleRestore(ids) : this.service.multipleDelete(ids))
-      .subscribe(() => this.load());
+    const restoring = this.archiveView();
+    this.confirm.ask({
+      title: restoring ? 'Restaurer la sélection' : 'Supprimer la sélection',
+      message: `Voulez-vous ${restoring ? 'restaurer' : 'supprimer'} ${ids.length} dossier(s) ?`,
+      confirmLabel: restoring ? 'Restaurer' : 'Supprimer',
+      danger: !restoring,
+    }).subscribe(ok => {
+      if (!ok) return;
+      (restoring ? this.service.multipleRestore(ids) : this.service.multipleDelete(ids)).subscribe(() => {
+        this.notify.success(`${ids.length} dossier(s) ${restoring ? 'restauré(s)' : 'supprimé(s)'}.`);
+        this.load();
+      });
+    });
   }
 
   /* =================== arbre =================== */
@@ -124,23 +143,34 @@ export class WorkspaceList implements OnInit {
     const ref = this.dialog.open(WorkspaceForm, {
       data: { workspace: w, parentId }, width: '540px', maxWidth: '95vw', autoFocus: false,
     });
-    ref.afterClosed().subscribe(saved => { if (saved) this.load(); });
+    ref.afterClosed().subscribe(saved => {
+      if (saved) {
+        this.notify.success(w ? 'Espace mis à jour.' : 'Espace créé.');
+        this.load();
+      }
+    });
   }
 
   remove(id: number, name: string): void {
-    if (!confirm(`Supprimer « ${name} » ?`)) return;
-    this.service.delete(id).subscribe(() => this.load());
+    this.confirm.ask({
+      title: 'Supprimer l\'espace',
+      message: `Voulez-vous supprimer « ${name} » ? Il sera placé dans la corbeille.`,
+      confirmLabel: 'Supprimer', danger: true,
+    }).subscribe(ok => {
+      if (!ok) return;
+      this.service.delete(id).subscribe(() => { this.notify.success('Espace supprimé.'); this.load(); });
+    });
   }
   restoreOne(id: number): void {
-    this.service.restore(id).subscribe(() => this.load());
+    this.service.restore(id).subscribe(() => { this.notify.success('Espace restauré.'); this.load(); });
   }
   archiveOne(id: number): void {
-    this.service.archive(id).subscribe(() => this.load());
+    this.service.archive(id).subscribe(() => { this.notify.success('Statut mis à jour.'); this.load(); });
   }
   moveTo(id: number, parentId: number | null): void {
     this.service.move(id, parentId).subscribe({
-      next: () => this.load(),
-      error: err => alert(err?.error?.message ?? 'Déplacement impossible.'),
+      next: () => { this.notify.success('Espace déplacé.'); this.load(); },
+      error: err => this.notify.error(err?.error?.message ?? 'Déplacement impossible.'),
     });
   }
 }

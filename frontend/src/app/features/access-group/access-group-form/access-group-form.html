@@ -1,0 +1,67 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Modifier le groupe d\'accès' : 'Créer un groupe d\'accès' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="ag-form">
+
+    <!-- Section 1 — Identification -->
+    <h3 class="section">Identification</h3>
+    <div class="row">
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Code</mat-label>
+        <input matInput formControlName="code" placeholder="Ex. AG-ADMIN" />
+        @if (form.get('code')?.touched && form.get('code')?.invalid) {
+          <mat-error>Le code est obligatoire</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Nom de group</mat-label>
+        <input matInput formControlName="name" placeholder="Entrez le nom du groupe" />
+        @if (form.get('name')?.touched && form.get('name')?.invalid) {
+          <mat-error>Le nom est obligatoire</mat-error>
+        }
+      </mat-form-field>
+    </div>
+
+    <!-- Section 2 — Liste des droits GED -->
+    <h3 class="section">Liste des droits GED</h3>
+    <div class="rights">
+      @for (r of rightKeys; track r.key) {
+        <mat-slide-toggle [checked]="isOn(r.key)" (change)="onRightChange(r.key, $event.checked)">
+          {{ r.label }}
+        </mat-slide-toggle>
+      }
+    </div>
+
+    <!-- Section 3 — Utilisateurs & Workspaces -->
+    <h3 class="section">Liste des utilisateurs &amp; Workspaces</h3>
+    <div class="row">
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Liste des WorkSpaces</mat-label>
+        <mat-select formControlName="workspaceIds" multiple>
+          @for (w of workspaces(); track w.id) {
+            <mat-option [value]="w.id">{{ w.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Liste des utilisateurs</mat-label>
+        <mat-select formControlName="userIds" multiple>
+          @for (e of employes(); track e.id) {
+            <mat-option [value]="e.id">{{ e.fullName }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    @if (serverError()) {
+      <div class="server-error">{{ serverError() }}</div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Annuler</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+    {{ loading() ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Ajouter') }}
+  </button>
+</mat-dialog-actions>

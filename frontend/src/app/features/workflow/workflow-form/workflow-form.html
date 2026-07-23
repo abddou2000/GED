@@ -16,7 +16,7 @@
     <div class="steps-head">
       <span class="steps-title">Workflow Steps</span>
       <button mat-stroked-button type="button" (click)="addStep()">
-        <mat-icon>add</mat-icon> Add Step
+        <mat-icon svgIcon="add"></mat-icon> Add Step
       </button>
     </div>
 
@@ -27,7 +27,7 @@
     <div cdkDropList (cdkDropListDropped)="drop($event)" class="steps-list">
       @for (step of steps.controls; track $index; let i = $index) {
         <div class="step-row" cdkDrag [formGroup]="stepGroup(i)">
-          <mat-icon class="drag-handle" cdkDragHandle>drag_indicator</mat-icon>
+          <mat-icon class="drag-handle" cdkDragHandle svgIcon="drag"></mat-icon>
           <span class="step-num">{{ i + 1 }}</span>
 
           <mat-form-field appearance="outline" class="grow">
@@ -52,7 +52,7 @@
           </mat-form-field>
 
           <button mat-icon-button type="button" class="del" (click)="removeStep(i)" matTooltip="Retirer">
-            <mat-icon>close</mat-icon>
+            <mat-icon svgIcon="close"></mat-icon>
           </button>
         </div>
       }

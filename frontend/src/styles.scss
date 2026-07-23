@@ -1,5 +1,6 @@
 // Thème Angular Material (structure : typographie Roboto + densité) ; les couleurs
-// sont re-mappées sur la charte beige/noir via les variables système Material.
+// sont re-mappées sur la charte CCISTTA « Clair & moderne » (marine / cramoisi / vert)
+// via les variables système Material.
 @use '@angular/material' as mat;
 
 html {
@@ -9,59 +10,66 @@ html {
       primary: mat.$azure-palette,
       tertiary: mat.$azure-palette,
     ),
-    typography: Roboto,
+    typography: (
+      plain-family: ('Inter Variable', sans-serif),
+      brand-family: ('Inter Variable', sans-serif),
+    ),
     density: -1,
   ));
 }
 
-/* Icônes (PrimeIcons — gratuit / MIT) */
-@import 'primeicons/primeicons.css';
+/* Police Inter (variable, en local — pas de CDN) */
+@import '@fontsource-variable/inter/index.css';
 
 /* ============================================================
-   Charte GED — beige / blanc cassé / noir
+   Charte GED — CCISTTA « Clair & moderne »
+   marine (#16406b) · cramoisi (#9e1b32) · vert (#1e7a46)
+   fond clair, surfaces blanches, filets fins
    ============================================================ */
 :root {
-  --bg: #f4f1ea;
-  --surface: #fbf9f4;
-  --surface-0: #ffffff;
-  --ink: #1a1712;
-  --ink-soft: #6b6357;
-  --beige: #e7dec9;
-  --beige-deep: #c9b896;
-  --line: #e3dccf;
-  --ok: #6b7a4a;
-  --pending: #b08a3e;
-  --danger: #a44a34;
+  --bg: #f7f8fa;          /* fond de page / zone de contenu */
+  --surface: #f2f4f7;     /* survol de ligne, fond recherche, tags */
+  --surface-0: #ffffff;   /* cartes, barre latérale */
+  --ink: #1a1f24;         /* texte principal */
+  --ink-soft: #5f6b78;    /* texte secondaire */
+  --beige: #f2f4f7;       /* (héritage) → en-tête de tableau gris clair */
+  --beige-deep: #e2e6ea;  /* (héritage) → bordure basse d'en-tête */
+  --line: #e6e9ed;        /* filet hairline */
+  --ok: #1e7a46;          /* vert — statut positif */
+  --pending: #b0812e;
+  --danger: #9e1b32;      /* cramoisi — suppression / danger */
+
+  --accent-tint: #f3eaec; /* fond crémeux cramoisi (nav active) */
 
   /* re-mappage Angular Material sur la charte */
-  --mat-sys-primary: #1a1712;
-  --mat-sys-on-primary: #f4f1ea;
-  --mat-sys-primary-container: #2e2a24;
-  --mat-sys-on-primary-container: #f4f1ea;
-  --mat-sys-secondary: #6b6357;
-  --mat-sys-on-secondary: #f4f1ea;
-  --mat-sys-tertiary: #8a7f6b;
-  --mat-sys-surface: #fbf9f4;
-  --mat-sys-surface-dim: #ece6da;
+  --mat-sys-primary: #9e1b32;              /* cramoisi = action principale */
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: #f3eaec;
+  --mat-sys-on-primary-container: #9e1b32;
+  --mat-sys-secondary: #16406b;            /* marine */
+  --mat-sys-on-secondary: #ffffff;
+  --mat-sys-tertiary: #5f6b78;
+  --mat-sys-surface: #ffffff;
+  --mat-sys-surface-dim: #eef0f3;
   --mat-sys-surface-bright: #ffffff;
   --mat-sys-surface-container-lowest: #ffffff;
-  --mat-sys-surface-container-low: #fbf9f4;
-  --mat-sys-surface-container: #f4f1ea;
-  --mat-sys-surface-container-high: #efe9dd;
-  --mat-sys-surface-container-highest: #e7dec9;
-  --mat-sys-on-surface: #1a1712;
-  --mat-sys-on-surface-variant: #6b6357;
-  --mat-sys-background: #f4f1ea;
-  --mat-sys-on-background: #1a1712;
-  --mat-sys-outline: #c9b896;
-  --mat-sys-outline-variant: #e3dccf;
-  --mat-sys-error: #a44a34;
-  --mat-sys-on-error: #f4f1ea;
+  --mat-sys-surface-container-low: #fbfcfd;
+  --mat-sys-surface-container: #f2f4f7;
+  --mat-sys-surface-container-high: #edf0f3;
+  --mat-sys-surface-container-highest: #e6e9ed;
+  --mat-sys-on-surface: #1a1f24;
+  --mat-sys-on-surface-variant: #5f6b78;
+  --mat-sys-background: #f7f8fa;
+  --mat-sys-on-background: #1a1f24;
+  --mat-sys-outline: #c2c8cf;
+  --mat-sys-outline-variant: #e6e9ed;
+  --mat-sys-error: #9e1b32;
+  --mat-sys-on-error: #ffffff;
 
-  --navy: #1a1712;
-  --navy-2: #2e2a24;
-  --gold: #c9b896;
-  --muted: #6b6357;
+  --navy: #16406b;
+  --navy-2: #0e2a47;
+  --gold: #9e1b32;   /* (héritage) → accent cramoisi (bordure nav active) */
+  --muted: #5f6b78;
 }
 
 * { box-sizing: border-box; }
@@ -71,6 +79,45 @@ body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
-  font-family: Roboto, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: 'Inter Variable', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Chiffres alignés (ID, tailles) dans les tableaux — détail « produit soigné » */
+table.mat-mdc-table td, table.mat-mdc-table th { font-variant-numeric: tabular-nums; }
+
+/* Micro-transitions douces sur les éléments interactifs (jamais de rebond) */
+.sidebar nav a,
+tr.mat-mdc-row,
+.tag,
+.trow,
+button.mdc-button,
+button.mat-mdc-icon-button,
+.mat-mdc-menu-item {
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+
+/* ---------- Toasts (snackbar) ---------- */
+.ged-snack .mdc-snackbar__surface {
+  border-radius: 10px !important;
+  min-width: unset !important;
+  box-shadow: 0 8px 24px rgba(16, 40, 68, .18) !important;
+}
+.ged-snack .mdc-snackbar__label { color: #fff !important; font-weight: 500; font-size: 13.5px; }
+.ged-snack .mat-mdc-snack-bar-action { color: #fff !important; opacity: .85; }
+.ged-snack-success .mdc-snackbar__surface { background: #1e7a46 !important; }
+.ged-snack-error .mdc-snackbar__surface { background: #9e1b32 !important; }
+
+/* ---------- Révélation des actions au survol de la ligne ---------- */
+td.col-actions .mat-mdc-icon-button,
+td.c-act .mat-mdc-icon-button {
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+tr.mat-mdc-row:hover td.col-actions .mat-mdc-icon-button,
+tr.mat-mdc-row:hover td.c-act .mat-mdc-icon-button,
+td.col-actions:focus-within .mat-mdc-icon-button,
+td.c-act:focus-within .mat-mdc-icon-button {
+  opacity: 1;
 }

@@ -1,0 +1,21 @@
+.sk { padding: 6px 2px 10px; }
+
+.sk-row {
+  display: flex; align-items: center; gap: 24px;
+  padding: 12px 8px; border-bottom: 1px solid var(--line);
+}
+
+.sk-cell {
+  height: 12px; border-radius: 6px; display: inline-block;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #eef0f3 25%, #e3e7ec 37%, #eef0f3 63%);
+  background-size: 400% 100%;
+  animation: sk-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes sk-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}

@@ -1,0 +1,22 @@
+.confirm { padding: 8px 6px 2px; min-width: 320px; text-align: center; }
+
+.ic {
+  width: 52px; height: 52px; border-radius: 50%; margin: 4px auto 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: #eef2f7; color: var(--navy);
+}
+.ic mat-icon { width: 26px; height: 26px; font-size: 26px; }
+.confirm.danger .ic { background: #fbecec; color: var(--danger); }
+
+h2 { margin: 0 0 6px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+
+mat-dialog-content {
+  color: var(--ink-soft); font-size: 14px; line-height: 1.55;
+  padding: 0 8px 6px; overflow: visible;
+}
+
+mat-dialog-actions { padding: 12px 8px 6px; gap: 6px; justify-content: center; }
+
+.danger-btn {
+  background: var(--danger) !important; color: #fff !important;
+}

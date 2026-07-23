@@ -1,0 +1,118 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Groupe d'accès</h1>
+      <p class="breadcrumb">Accueil - Listes des Groupes d'accès</p>
+    </div>
+    <button mat-flat-button color="primary" (click)="create()">
+      <mat-icon svgIcon="add"></mat-icon> Créer un groupe
+    </button>
+  </div>
+
+  <div class="card">
+    <!-- Barre d'outils -->
+    <div class="toolbar">
+      <div class="left">
+        <div class="search">
+          <mat-icon svgIcon="search"></mat-icon>
+          <input placeholder="Rechercher…" #si (input)="applySearch(si.value)" />
+        </div>
+      </div>
+      <div class="right">
+        @if (selection.selected.length > 0) {
+          <button mat-stroked-button class="bulk" (click)="bulk()">
+            <mat-icon [svgIcon]="archiveView() ? 'restore' : 'delete'"></mat-icon>
+            {{ archiveView() ? 'Restaurer' : 'Supprimer' }} ({{ selection.selected.length }})
+          </button>
+        }
+        <button mat-icon-button (click)="load()" matTooltip="Rafraîchir"><mat-icon svgIcon="refresh"></mat-icon></button>
+        <button mat-stroked-button (click)="toggleArchive()">
+          <mat-icon svgIcon="archive"></mat-icon> {{ archiveView() ? 'Actifs' : 'Corbeille' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Tableau -->
+    <div class="table-wrap">
+      @if (loading()) {
+        <app-skeleton-table [rows]="6" [cols]="8"></app-skeleton-table>
+      } @else {
+      <table mat-table [dataSource]="dataSource" matSort class="ag-table">
+
+        <ng-container matColumnDef="select">
+          <th mat-header-cell *matHeaderCellDef class="c-chk">
+            <mat-checkbox [checked]="isAllSelected()" (change)="toggleAll()"></mat-checkbox>
+          </th>
+          <td mat-cell *matCellDef="let g" class="c-chk">
+            <mat-checkbox [checked]="selection.isSelected(g)" (change)="selection.toggle(g)"></mat-checkbox>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="id">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="c-id">ID</th>
+          <td mat-cell *matCellDef="let g" class="c-id">{{ g.id }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="code">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th>
+          <td mat-cell *matCellDef="let g">{{ g.code }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Nom</th>
+          <td mat-cell *matCellDef="let g" class="c-name">{{ g.name }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="rights">
+          <th mat-header-cell *matHeaderCellDef>Droits</th>
+          <td mat-cell *matCellDef="let g">
+            <span class="tags">
+              @for (label of activeRights(g); track label) {
+                <span class="tag">{{ label }}</span>
+              }
+              @if (!activeRights(g).length) { <span class="muted">—</span> }
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="workspaces">
+          <th mat-header-cell *matHeaderCellDef class="c-num">Workspaces</th>
+          <td mat-cell *matCellDef="let g" class="c-num">{{ g.workspacesCount }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="users">
+          <th mat-header-cell *matHeaderCellDef class="c-num">Utilisateurs</th>
+          <td mat-cell *matCellDef="let g" class="c-num">{{ g.usersCount }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef class="c-act">Actions</th>
+          <td mat-cell *matCellDef="let g" class="c-act">
+            @if (archiveView()) {
+              <button mat-icon-button (click)="restoreOne(g.id)" matTooltip="Restaurer"><mat-icon svgIcon="restore"></mat-icon></button>
+            } @else {
+              <button mat-icon-button (click)="edit(g.id)" matTooltip="Modifier"><mat-icon svgIcon="edit"></mat-icon></button>
+              <button mat-icon-button class="danger" (click)="remove(g.id, g.name)" matTooltip="Supprimer"><mat-icon svgIcon="delete"></mat-icon></button>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+
+        <tr class="no-data-row" *matNoDataRow>
+          <td class="no-data" [attr.colspan]="displayedColumns.length">
+            <div class="empty-state">
+              <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+              <span class="empty-title">Aucun groupe d'accès</span>
+              <span class="empty-sub">Créez un groupe pour définir qui accède à quels espaces.</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <mat-paginator [pageSizeOptions]="[10, 25, 50]" [pageSize]="10" showFirstLastButtons></mat-paginator>
+      }
+    </div>
+  </div>
+</div>
