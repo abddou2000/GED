@@ -5,15 +5,11 @@ import com.ipt.ged.workflow.WorkflowGed;
 import java.util.List;
 
 /**
- * Données renvoyées au frontend pour une règle — alignées sur les colonnes du design :
- * ID, Nom de la règle, Étapes, Espace de travail, Statut, Dernière modification.
+ * Données renvoyées au frontend pour une règle de workflow.
  */
 public record WorkflowResponse(
         Long id,
         String name,
-        String status,
-        String espaceDeTravail,
-        String lastModified,
         List<StepResponse> steps,
         List<String> workspaces
 ) {
@@ -34,13 +30,6 @@ public record WorkflowResponse(
                         s.getLabel(),
                         s.getStepOrder()))
                 .toList();
-        return new WorkflowResponse(
-                w.getId(),
-                w.getName(),
-                w.getStatus(),
-                w.getWorkspaceName(),
-                w.getLastModified(),
-                steps,
-                List.of());
+        return new WorkflowResponse(w.getId(), w.getName(), steps, List.of());
     }
 }

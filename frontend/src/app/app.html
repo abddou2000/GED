@@ -1,49 +1,19 @@
 <div class="app-shell">
-  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="brand">GED</div>
-
-    <nav class="menu">
-      <span class="item">Tableau de bord</span>
-      <span class="item">Documents</span>
-      <span class="item">Espaces de travail</span>
-      <span class="item">Groupes d'accès</span>
-
-      <div class="sep"></div>
-
-      <span class="item">Index</span>
-      <span class="item">Plan d'indexation</span>
-      <span class="item">Types de document</span>
-      <span class="item">Étiquettes</span>
-      <span class="item">Téléversement</span>
-      <span class="item">Mes workflows</span>
-      <a class="item" routerLink="/regles-de-workflow" routerLinkActive="active">Règles de Workflow</a>
+    <nav>
+      <a routerLink="/regles-de-workflow" routerLinkActive="active">Règles de Workflow</a>
+      <span class="soon">Espaces de travail</span>
+      <span class="soon">Groupe d'accès</span>
+      <span class="soon">Index</span>
+      <span class="soon">Plan d'indexation</span>
+      <span class="soon">Type de document</span>
+      <span class="soon">Étiquette</span>
+      <span class="soon">Téléverser un document</span>
+      <span class="soon">Mes workflow</span>
     </nav>
   </aside>
-
-  <!-- Zone principale -->
-  <div class="main">
-    <!-- Barre du haut -->
-    <header class="topbar">
-      <div class="global-search">
-        <mat-icon>search</mat-icon>
-        <input type="text" placeholder="Rechercher dans GED..." />
-      </div>
-      <div class="topbar-right">
-        <span class="tb-link">Aide</span>
-        <span class="tb-link">Notifications</span>
-        <div class="user">
-          <div class="user-info">
-            <span class="user-name">Karim Admin</span>
-            <span class="user-role">Administrateur</span>
-          </div>
-          <mat-icon>expand_more</mat-icon>
-        </div>
-      </div>
-    </header>
-
-    <main class="content">
-      <router-outlet />
-    </main>
-  </div>
+  <main class="content">
+    <router-outlet />
+  </main>
 </div>

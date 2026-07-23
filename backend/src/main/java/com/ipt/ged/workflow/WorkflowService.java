@@ -54,14 +54,9 @@ public class WorkflowService {
         return WorkflowResponse.from(load(id));
     }
 
-    private static final java.time.format.DateTimeFormatter DISPLAY_FMT =
-            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-                    .withZone(java.time.ZoneId.systemDefault());
-
     @Transactional
     public WorkflowResponse create(WorkflowRequest request) {
         WorkflowGed workflow = new WorkflowGed(request.name());
-        workflow.setLastModified(DISPLAY_FMT.format(java.time.Instant.now()));
         applySteps(workflow, request);
         return WorkflowResponse.from(workflowRepository.save(workflow));
     }
@@ -70,7 +65,6 @@ public class WorkflowService {
     public WorkflowResponse update(Long id, WorkflowRequest request) {
         WorkflowGed workflow = load(id);
         workflow.setName(request.name());
-        workflow.setLastModified(DISPLAY_FMT.format(java.time.Instant.now()));
         workflow.clearSteps();      // remplacement total (comme l'application d'origine)
         applySteps(workflow, request);
         return WorkflowResponse.from(workflowRepository.save(workflow));

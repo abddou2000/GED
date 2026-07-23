@@ -26,19 +26,7 @@ public class WorkflowGed extends Auditable {
     @Column(nullable = false)
     private String name;
 
-    /** Statut métier affiché en pastille : ACTIVE | DRAFT. */
-    @Column(nullable = false)
-    private String status = "ACTIVE";
-
-    /** Espace de travail rattaché (nom affiché dans la liste). */
-    @Column
-    private String workspaceName;
-
-    /** Date de dernière modification, pré-formatée pour l'affichage (ex. « 23/07/2026 10:24 »). */
-    @Column
-    private String lastModified;
-
-    /** Corbeille : true = archivé/supprimé de façon réversible (onglet « Archivées »). */
+    /** Corbeille : true = archivé/supprimé de façon réversible. */
     @Column(nullable = false)
     private boolean deleted = false;
 

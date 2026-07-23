@@ -1,5 +1,5 @@
-// Thème Angular Material (structure : typographie + densité) ; les couleurs
-// sont re-mappées sur la charte via les variables système Material (--mat-sys-*).
+// Thème Angular Material (structure : typographie Roboto + densité) ; les couleurs
+// sont re-mappées sur la charte beige/noir via les variables système Material.
 @use '@angular/material' as mat;
 
 html {
@@ -18,50 +18,50 @@ html {
 @import 'primeicons/primeicons.css';
 
 /* ============================================================
-   Charte GED — off-white / noir / gris + statuts (maquette)
+   Charte GED — beige / blanc cassé / noir
    ============================================================ */
 :root {
-  --bg: #f6f5f2;            /* fond général (off-white chaud) */
-  --surface: #ffffff;      /* cartes / sidebar / topbar */
-  --ink: #1a1a1a;          /* texte principal (quasi noir) */
-  --ink-soft: #6d6d6d;     /* texte secondaire (gris) */
-  --ink-faint: #9a9a97;    /* labels discrets */
-  --line: #ececea;         /* bordures fines */
-  --line-soft: #f1f0ed;    /* séparateurs très légers */
-  --hover: #f5f4f1;        /* survol lignes / items */
-  --black: #141414;        /* boutons primaires / actif */
+  --bg: #f4f1ea;
+  --surface: #fbf9f4;
+  --surface-0: #ffffff;
+  --ink: #1a1712;
+  --ink-soft: #6b6357;
+  --beige: #e7dec9;
+  --beige-deep: #c9b896;
+  --line: #e3dccf;
+  --ok: #6b7a4a;
+  --pending: #b08a3e;
+  --danger: #a44a34;
 
-  /* étiquettes d'étapes */
-  --tag-bg: #f3f2ef;
-  --tag-ink: #4a4a48;
-  --tag-line: #e7e5e0;
-
-  /* statuts (pastilles) */
-  --ok-bg: #e7f3ec;   --ok-ink: #2f7d46;
-  --draft-bg: #fbf1dd; --draft-ink: #a9791b;
-
-  /* --- re-mappage Angular Material sur la charte --- */
-  --mat-sys-primary: #141414;
-  --mat-sys-on-primary: #ffffff;
-  --mat-sys-primary-container: #141414;
-  --mat-sys-on-primary-container: #ffffff;
-  --mat-sys-secondary: #6d6d6d;
-  --mat-sys-surface: #ffffff;
+  /* re-mappage Angular Material sur la charte */
+  --mat-sys-primary: #1a1712;
+  --mat-sys-on-primary: #f4f1ea;
+  --mat-sys-primary-container: #2e2a24;
+  --mat-sys-on-primary-container: #f4f1ea;
+  --mat-sys-secondary: #6b6357;
+  --mat-sys-on-secondary: #f4f1ea;
+  --mat-sys-tertiary: #8a7f6b;
+  --mat-sys-surface: #fbf9f4;
+  --mat-sys-surface-dim: #ece6da;
+  --mat-sys-surface-bright: #ffffff;
   --mat-sys-surface-container-lowest: #ffffff;
-  --mat-sys-surface-container-low: #faf9f7;
-  --mat-sys-surface-container: #f6f5f2;
-  --mat-sys-surface-container-high: #f1f0ed;
-  --mat-sys-surface-container-highest: #ececea;
-  --mat-sys-on-surface: #1a1a1a;
-  --mat-sys-on-surface-variant: #6d6d6d;
-  --mat-sys-background: #f6f5f2;
-  --mat-sys-on-background: #1a1a1a;
-  --mat-sys-outline: #d9d8d4;
-  --mat-sys-outline-variant: #ececea;
-  --mat-sys-error: #b23b2e;
-  --mat-sys-on-error: #ffffff;
-  --mat-sys-corner-medium: 10px;
-  --mat-sys-corner-large: 14px;
+  --mat-sys-surface-container-low: #fbf9f4;
+  --mat-sys-surface-container: #f4f1ea;
+  --mat-sys-surface-container-high: #efe9dd;
+  --mat-sys-surface-container-highest: #e7dec9;
+  --mat-sys-on-surface: #1a1712;
+  --mat-sys-on-surface-variant: #6b6357;
+  --mat-sys-background: #f4f1ea;
+  --mat-sys-on-background: #1a1712;
+  --mat-sys-outline: #c9b896;
+  --mat-sys-outline-variant: #e3dccf;
+  --mat-sys-error: #a44a34;
+  --mat-sys-on-error: #f4f1ea;
+
+  --navy: #1a1712;
+  --navy-2: #2e2a24;
+  --gold: #c9b896;
+  --muted: #6b6357;
 }
 
 * { box-sizing: border-box; }

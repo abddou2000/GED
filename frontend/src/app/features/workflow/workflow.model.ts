@@ -7,16 +7,12 @@ export interface PageResult<T> {
   totalPages: number;
 }
 
-/** Un circuit de validation tel que renvoyé par l'API. */
+/** Une règle de workflow telle que renvoyée par l'API. */
 export interface Workflow {
   id: number;
   name: string;
-  status: string;            // ACTIVE | DRAFT
-  espaceDeTravail: string | null;
-  lastModified: string | null;
   steps: WorkflowStep[];
   workspaces: string[];
-  archived?: boolean;   // marqueur client (onglet Archivées)
 }
 
 export interface WorkflowStep {
@@ -27,7 +23,7 @@ export interface WorkflowStep {
   stepOrder: number;
 }
 
-/** Corps envoyé pour créer / modifier un circuit. */
+/** Corps envoyé pour créer / modifier une règle. */
 export interface WorkflowRequest {
   name: string;
   steps: WorkflowStepRequest[];
