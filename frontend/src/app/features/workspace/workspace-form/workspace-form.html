@@ -1,0 +1,82 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Modifier l\'espace de travail' : 'Créer un espace de travail' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="ws-form">
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Code</mat-label>
+      <input matInput formControlName="code" placeholder="Ex. WS-COMPTA" />
+      @if (form.get('code')?.touched && form.get('code')?.invalid) {
+        <mat-error>Le code est obligatoire</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Nom du Workspace</mat-label>
+      <input matInput formControlName="name" placeholder="Entrez le nom du Workspace" />
+      @if (form.get('name')?.touched && form.get('name')?.invalid) {
+        <mat-error>Le nom est obligatoire</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Description</mat-label>
+      <textarea matInput formControlName="description" rows="2" placeholder="Entrez une description"></textarea>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Règles de Workflow</mat-label>
+      <mat-select formControlName="workflowId">
+        @for (wf of workflows(); track wf.id) {
+          <mat-option [value]="wf.id">{{ wf.name }}</mat-option>
+        }
+      </mat-select>
+      @if (form.get('workflowId')?.touched && form.get('workflowId')?.invalid) {
+        <mat-error>La règle de workflow est obligatoire</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Utilisateur Propriétaire</mat-label>
+      <mat-select formControlName="employeId">
+        @for (e of employes(); track e.id) {
+          <mat-option [value]="e.id">{{ e.fullName }}</mat-option>
+        }
+      </mat-select>
+      @if (form.get('employeId')?.touched && form.get('employeId')?.invalid) {
+        <mat-error>Le propriétaire est obligatoire</mat-error>
+      }
+    </mat-form-field>
+
+    @if (!hideParent) {
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Espace de travail parent</mat-label>
+        <mat-select formControlName="parentId">
+          <mat-option [value]="null">— Aucun (racine) —</mat-option>
+          @for (p of parents(); track p.id) {
+            <mat-option [value]="p.id">{{ p.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Statut</mat-label>
+      <mat-select formControlName="status">
+        <mat-option value="ACTIF">Actif</mat-option>
+        <mat-option value="INACTIF">Inactif</mat-option>
+        <mat-option value="ARCHIVE">Archivé</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    @if (serverError()) {
+      <div class="server-error">{{ serverError() }}</div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Annuler</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+    {{ loading() ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Ajouter') }}
+  </button>
+</mat-dialog-actions>

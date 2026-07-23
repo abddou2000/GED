@@ -1,0 +1,7 @@
+.ws-form { display: flex; flex-direction: column; gap: 2px; min-width: 460px; }
+.full { width: 100%; }
+
+.server-error {
+  background: #f8ece8; color: var(--danger); border: 1px solid #e3c3b8;
+  padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 4px;
+}
