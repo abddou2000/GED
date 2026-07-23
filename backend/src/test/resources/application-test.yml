@@ -1,0 +1,14 @@
+# Profil de TEST — base H2 en mémoire, isolée (recréée à chaque exécution).
+spring:
+  datasource:
+    url: jdbc:h2:mem:gedtest;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  h2:
+    console:
+      enabled: false

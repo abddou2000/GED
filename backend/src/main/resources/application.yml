@@ -1,0 +1,27 @@
+# ============================================================
+#  Configuration commune GED — profil actif : dev (H2) par défaut
+#  Bascule vers MySQL en prod : lancer avec  -Dspring.profiles.active=prod
+# ============================================================
+spring:
+  application:
+    name: ged
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      # Taille max des fichiers téléversés (documents GED)
+      max-file-size: 100MB
+      max-request-size: 120MB
+
+server:
+  port: 8080
+
+# Emplacement de stockage des fichiers de la GED
+ged:
+  storage:
+    root: ./storage/ged        # dossier racine des documents
+    temp: ./storage/temp       # PDF convertis / fichiers temporaires
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

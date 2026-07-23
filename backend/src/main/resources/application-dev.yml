@@ -1,0 +1,27 @@
+# ============================================================
+#  Profil DEV — base H2 sur fichier (zéro installation)
+#  Console H2 :  http://localhost:8080/h2-console
+#  JDBC URL   :  jdbc:h2:file:./data/ged   (user: sa / pas de mot de passe)
+# ============================================================
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/ged;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update      # crée / met à jour le schéma automatiquement en dev
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG

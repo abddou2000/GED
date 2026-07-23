@@ -1,0 +1,133 @@
+<div class="page">
+
+  <!-- En-tête -->
+  <div class="page-head">
+    <div class="head-titles">
+      <h1>Règles de Workflow</h1>
+      <p>Configurez et structurez les circuits de validation documentaire.</p>
+    </div>
+    <div class="head-actions">
+      <button class="ghost-btn">Archiver</button>
+      <button class="ghost-btn">Exporter</button>
+      <button class="primary-btn" (click)="create()">Créer une règle</button>
+    </div>
+  </div>
+
+  <!-- Onglets -->
+  <div class="tabs">
+    <button class="tab" [class.active]="tab() === 'toutes'" (click)="setTab('toutes')">Toutes ({{ counts().toutes }})</button>
+    <button class="tab" [class.active]="tab() === 'actives'" (click)="setTab('actives')">Actives ({{ counts().actives }})</button>
+    <button class="tab" [class.active]="tab() === 'brouillons'" (click)="setTab('brouillons')">Brouillons ({{ counts().brouillons }})</button>
+    <button class="tab" [class.active]="tab() === 'archivees'" (click)="setTab('archivees')">Archivées ({{ counts().archivees }})</button>
+  </div>
+
+  <!-- Barre de filtres -->
+  <div class="filters">
+    <div class="f-search">
+      <mat-icon>search</mat-icon>
+      <input type="text" placeholder="Rechercher une règle..." [ngModel]="search()" (ngModelChange)="onSearch($event)" />
+    </div>
+
+    <div class="f-field">
+      <label>Statut</label>
+      <select [ngModel]="statut()" (ngModelChange)="setStatut($event)">
+        <option>Tous</option><option>Active</option><option>Brouillon</option><option>Archivée</option>
+      </select>
+    </div>
+
+    <div class="f-field">
+      <label>Espace de travail</label>
+      <select [ngModel]="espace()" (ngModelChange)="setEspace($event)">
+        @for (e of espaces(); track e) { <option>{{ e }}</option> }
+      </select>
+    </div>
+
+    <div class="f-field">
+      <label>Tri</label>
+      <select [ngModel]="tri()" (ngModelChange)="setTri($event)">
+        <option value="recent">Plus récent</option>
+        <option value="ancien">Plus ancien</option>
+        <option value="nom">Nom (A-Z)</option>
+      </select>
+    </div>
+
+    <button class="reset" (click)="reset()">Réinitialiser</button>
+  </div>
+
+  <!-- Tableau -->
+  <div class="table-card">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th class="c-chk"><mat-checkbox [checked]="allPageSelected()" (change)="toggleAllPage()"></mat-checkbox></th>
+          <th class="c-id">ID</th>
+          <th>Nom de la règle</th>
+          <th>Étapes</th>
+          <th>Espace de travail</th>
+          <th>Statut</th>
+          <th>Dernière modification</th>
+          <th class="c-act">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (w of pageRows(); track w.id) {
+          <tr>
+            <td class="c-chk"><mat-checkbox [checked]="isSelected(w.id)" (change)="toggle(w.id)"></mat-checkbox></td>
+            <td class="c-id">{{ ('00' + w.id).slice(-3) }}</td>
+            <td class="c-name">{{ w.name }}</td>
+            <td>
+              <div class="steps">
+                @for (s of w.steps; track s.stepOrder) { <span class="tag">{{ s.label }}</span> }
+                <span class="tag plus">+</span>
+              </div>
+            </td>
+            <td class="c-ws">{{ w.espaceDeTravail || '—' }}</td>
+            <td>
+              <span class="pill" [class]="statusOf(w).cls">{{ statusOf(w).label }}</span>
+            </td>
+            <td class="c-date">
+              @if (w.lastModified) {
+                <div class="d-main">{{ w.lastModified.split(' ')[0] }}</div>
+                <div class="d-time">{{ w.lastModified.split(' ')[1] }}</div>
+              } @else { — }
+            </td>
+            <td class="c-act">
+              <button class="dots" [matMenuTriggerFor]="menu" matTooltip="Actions"><mat-icon>more_vert</mat-icon></button>
+              <mat-menu #menu="matMenu">
+                @if (w.archived) {
+                  <button mat-menu-item (click)="restoreOne(w)"><mat-icon>restore</mat-icon><span>Restaurer</span></button>
+                } @else {
+                  <button mat-menu-item (click)="edit(w)"><mat-icon>edit</mat-icon><span>Modifier</span></button>
+                  <button mat-menu-item (click)="remove(w)"><mat-icon>delete</mat-icon><span>Supprimer</span></button>
+                }
+              </mat-menu>
+            </td>
+          </tr>
+        }
+        @if (pageRows().length === 0) {
+          <tr><td colspan="8" class="empty">Aucune Donnée Trouvée</td></tr>
+        }
+      </tbody>
+    </table>
+
+    <!-- Pied -->
+    <div class="foot">
+      <div class="foot-left">Affichage de {{ rangeStart() }} à {{ rangeEnd() }} sur {{ total() }} résultats</div>
+      <div class="foot-right">
+        <span class="rpp-label">Lignes par page</span>
+        <select class="rpp" [ngModel]="pageSize()" (ngModelChange)="setPageSize(+$event)">
+          <option [ngValue]="10">10</option>
+          <option [ngValue]="25">25</option>
+          <option [ngValue]="50">50</option>
+        </select>
+        <div class="pager">
+          <button class="pg prev" (click)="goToPage(page() - 1)" [disabled]="page() === 0">Précédent</button>
+          @for (p of pages(); track p) {
+            <button class="pg num" [class.active]="p === page()" (click)="goToPage(p)">{{ p + 1 }}</button>
+          }
+          <button class="pg next" (click)="goToPage(page() + 1)" [disabled]="page() === totalPages() - 1">Suivant ›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

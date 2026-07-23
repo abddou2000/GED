@@ -1,0 +1,72 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Modifier Règles de Workflow' : 'Créer Règles de Workflow' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="wf-form">
+
+    <!-- Workflow Name -->
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Workflow Name</mat-label>
+      <input matInput formControlName="name" placeholder="Enter workflow name" />
+      @if (form.get('name')?.touched && form.get('name')?.invalid) {
+        <mat-error>Name is required</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Workflow Steps -->
+    <div class="steps-head">
+      <span class="steps-title">Workflow Steps</span>
+      <button mat-stroked-button type="button" (click)="addStep()">
+        <mat-icon>add</mat-icon> Add Step
+      </button>
+    </div>
+
+    @if (steps.length === 0) {
+      <div class="empty">No steps added yet. Click 'Add Step' to create your workflow.</div>
+    }
+
+    <div cdkDropList (cdkDropListDropped)="drop($event)" class="steps-list">
+      @for (step of steps.controls; track $index; let i = $index) {
+        <div class="step-row" cdkDrag [formGroup]="stepGroup(i)">
+          <mat-icon class="drag-handle" cdkDragHandle>drag_indicator</mat-icon>
+          <span class="step-num">{{ i + 1 }}</span>
+
+          <mat-form-field appearance="outline" class="grow">
+            <mat-label>Step {{ i + 1 }} - User</mat-label>
+            <mat-select formControlName="employeId"
+                        (selectionChange)="onEmployeChange(i, $event.value)">
+              @for (emp of employes(); track emp.id) {
+                <mat-option [value]="emp.id">{{ emp.fullName }}</mat-option>
+              }
+            </mat-select>
+            @if (step.get('employeId')?.touched && step.get('employeId')?.invalid) {
+              <mat-error>User is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="grow">
+            <mat-label>Label</mat-label>
+            <input matInput formControlName="label" placeholder="Enter step label" />
+            @if (step.get('label')?.touched && step.get('label')?.invalid) {
+              <mat-error>Label is required</mat-error>
+            }
+          </mat-form-field>
+
+          <button mat-icon-button type="button" class="del" (click)="removeStep(i)" matTooltip="Retirer">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+
+    @if (serverError()) {
+      <div class="server-error">{{ serverError() }}</div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Annuler</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+    {{ loading() ? 'Enregistrement…' : (isEdit ? 'Modifier' : 'Créer') }}
+  </button>
+</mat-dialog-actions>
