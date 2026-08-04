@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Accueil · GED — Variante B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="zellige-bg" aria-hidden="true"></div>
+
+  <div class="shell" data-shell>
+    <!-- La barre supérieure et les onglets sont posés par shell.js -->
+
+    <main class="page">
+      <!-- En-tête -->
+      <div class="head">
+        <div data-in style="--d:60ms">
+          <h1>Bonjour, Sara</h1>
+          <p class="date">Mardi 28 juillet 2026 · Service documentation</p>
+        </div>
+        <a class="cta" href="#" data-in style="--d:150ms">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 12h14" /><path d="M12 5v14" />
+          </svg>
+          Déposer un document
+        </a>
+      </div>
+
+      <div class="rule"></div>
+
+      <!-- Indicateurs : bandeau segmenté -->
+      <section class="metrics" data-in style="--d:240ms">
+        <div class="metric">
+          <div class="k">Dossiers actifs</div>
+          <div class="v" data-count="6">6</div>
+          <div class="d">espaces de travail</div>
+          <div class="bar"><i style="width:72%; --jd:600ms"></i></div>
+        </div>
+        <div class="metric">
+          <div class="k">Documents</div>
+          <div class="v" data-count="2">2</div>
+          <div class="d">déposés ce mois</div>
+          <div class="bar"><i style="width:24%; --jd:700ms"></i></div>
+        </div>
+        <div class="metric alert">
+          <div class="k">À signer</div>
+          <div class="v" data-count="3">3</div>
+          <div class="d">en attente de votre visa</div>
+          <div class="bar"><i style="width:48%; --jd:800ms"></i></div>
+        </div>
+        <div class="metric">
+          <div class="k">Groupes d'accès</div>
+          <div class="v" data-count="3">3</div>
+          <div class="d">définis</div>
+          <div class="bar"><i style="width:38%; --jd:900ms"></i></div>
+        </div>
+      </section>
+
+      <!-- Contenu -->
+      <div class="grid">
+        <!-- Registre : à valider -->
+        <section class="panel" data-in style="--d:340ms">
+          <div class="panel-h">
+            <h2>À valider</h2>
+            <a href="#">Tout voir</a>
+          </div>
+          <div class="panel-b">
+            <ul class="rows">
+              <li>
+                <span class="ref">01</span>
+                <span>
+                  <span class="ttl">Facture circuit.pdf</span>
+                  <span class="meta">Comptabilité · étape 2 sur 3 · déposé il y a 2 h</span>
+                </span>
+                <span class="tag wait"><i class="dot"></i>À signer</span>
+              </li>
+              <li>
+                <span class="ref">02</span>
+                <span>
+                  <span class="ttl">Facture janvier.pdf</span>
+                  <span class="meta">Comptabilité · étape 1 sur 3 · déposé hier</span>
+                </span>
+                <span class="tag wait"><i class="dot"></i>À signer</span>
+              </li>
+              <li>
+                <span class="ref">03</span>
+                <span>
+                  <span class="ttl">Convention formation.pdf</span>
+                  <span class="meta">Direction · étape 3 sur 3 · déposé le 24/07</span>
+                </span>
+                <span class="tag wait"><i class="dot"></i>À signer</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- Raccourcis -->
+        <section class="panel" data-in style="--d:420ms">
+          <div class="panel-h"><h2>Raccourcis</h2></div>
+          <div class="panel-b">
+            <ul class="links">
+              <li>
+                <a href="#">
+                  <span class="ic">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 3v12" /><path d="m17 8-5-5-5 5" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    </svg>
+                  </span>
+                  <span>
+                    <span class="ln" style="display:block">Déposer un document</span>
+                    <span class="lh">Téléverser et lancer le circuit</span>
+                  </span>
+                  <span class="go">›</span>
+                </a>
+              </li>
+              <li>
+                <a href="#">
+                  <span class="ic">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 10v6" /><path d="M9 13h6" />
+                      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+                    </svg>
+                  </span>
+                  <span>
+                    <span class="ln" style="display:block">Créer un espace</span>
+                    <span class="lh">Nouvel espace de travail</span>
+                  </span>
+                  <span class="go">›</span>
+                </a>
+              </li>
+              <li>
+                <a href="#">
+                  <span class="ic">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" />
+                    </svg>
+                  </span>
+                  <span>
+                    <span class="ln" style="display:block">Mes workflow</span>
+                    <span class="lh">Tout ce que je dois valider</span>
+                  </span>
+                  <span class="go">›</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+
+      <!-- Activité récente -->
+      <div class="grid" style="grid-template-columns:1fr; margin-top:22px">
+        <section class="panel" data-in style="--d:500ms">
+          <div class="panel-h">
+            <h2>Activité récente</h2>
+            <a href="#">Tout voir</a>
+          </div>
+          <div class="panel-b">
+            <ul class="rows">
+              <li>
+                <span class="ref">—</span>
+                <span>
+                  <span class="ttl">Facture circuit.pdf</span>
+                  <span class="meta">Facture · Comptabilité · 0 Ko · déposé par Sara Bennani</span>
+                </span>
+                <span class="tag"><i class="dot"></i>Déposé</span>
+              </li>
+              <li>
+                <span class="ref">—</span>
+                <span>
+                  <span class="ttl">Facture janvier.pdf</span>
+                  <span class="meta">Facture · Comptabilité · 0 Ko · déposé par Sara Bennani</span>
+                </span>
+                <span class="tag"><i class="dot"></i>Déposé</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="shell.js"></script>
+</body>
+</html>

@@ -1,90 +1,15 @@
-.page { max-width: 1200px; margin: 0 auto; padding: 24px 24px 40px; }
+/* Spécifique — Règles de workflow. Le commun (page, carte, tableau, tags,
+   barre d'outils, recherche, état vide) vient de src/app/core/_ui.scss */
 
-.page-head {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 16px; margin-bottom: 16px;
-}
-.page-head h1 {
-  margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--ink);
-}
-.breadcrumb { margin: 4px 0 0; font-size: 12.5px; color: var(--ink-soft); }
-
-.card {
-  background: var(--surface-0);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 14px 16px 4px;
-  box-shadow: 0 1px 3px rgba(16, 40, 68, .06);
-  min-height: calc(100vh - 150px);
-}
 .card.fullscreen {
   position: fixed; inset: 0; z-index: 40; border-radius: 0;
   max-width: none; overflow-y: auto; min-height: 0;
 }
 
-/* Barre d'outils */
-.toolbar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
-}
-.toolbar .left { display: flex; align-items: center; gap: 6px; }
-.toolbar .right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .search { width: 300px; }
+.name { font-weight: 600; }
+
 .col-menu-title {
   font-weight: 600; font-size: 12.5px; color: var(--ink);
   padding: 8px 14px 6px; border-bottom: 1px solid var(--line);
 }
-.bulk { color: var(--danger) !important; }
-
-/* Tableau */
-.table-wrap { overflow-x: auto; }
-.wf-table { width: 100%; background: transparent; }
-
-.wf-table th.mat-mdc-header-cell {
-  background: var(--beige);
-  color: var(--ink-soft);
-  font-weight: 600;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  border-bottom: 1px solid var(--beige-deep);
-  padding-top: 11px; padding-bottom: 11px;
-}
-.wf-table td.mat-mdc-cell {
-  font-size: 13.5px;
-  color: var(--ink);
-  border-bottom: 1px solid var(--line);
-  padding-top: 11px; padding-bottom: 11px;
-}
-.wf-table tr.mat-mdc-row:hover { background: var(--surface); }
-
-.col-select { width: 44px; }
-.col-id { width: 64px; }
-.col-actions { width: 108px; text-align: right; }
-.name { font-weight: 600; }
-.muted { color: var(--ink-soft); }
-
-/* Tags des étapes (teinte marine, sobre) */
-.tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.tag {
-  background: #eef2f7; border: 1px solid #dbe4ee;
-  color: var(--navy); border-radius: 6px; padding: 2px 9px; font-size: 12px; font-weight: 500;
-}
-
-.danger { color: var(--danger); }
-
-/* Empty state soigné */
-.no-data { padding: 8px 0; }
-.empty-state {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; padding: 44px 0; color: var(--ink-soft);
-}
-.empty-state .empty-ic {
-  width: 44px; height: 44px; color: var(--beige-deep);
-}
-.empty-state .empty-ic mat-icon { width: 44px; height: 44px; font-size: 44px; }
-.empty-state .empty-title { font-size: 14px; font-weight: 600; color: var(--ink); }
-.empty-state .empty-sub { font-size: 12.5px; color: var(--ink-soft); }
-
-/* Densité de la barre de recherche */
-::ng-deep .search .mat-mdc-text-field-wrapper { background: var(--surface); }

@@ -1,0 +1,231 @@
+/* ============================================================
+   _ui.scss — Langage visuel commun GED (design system, direction A)
+   Importé globalement par styles.scss. Source unique du style des
+   écrans : cartes, tableaux, chips, pastilles, avatars, états vides.
+   Aucune duplication par écran, aucun !important.
+   ============================================================ */
+
+/* ---------- Layout d'écran ---------- */
+/* Coque à hauteur fixe (pas de défilement de page, cf. styles.scss/shell.scss) :
+   .page occupe toute la hauteur donnée par .content et la répartit en colonne
+   — titre et tuiles gardent leur taille naturelle, .card prend le reste. */
+.page {
+  max-width: none; padding: 0 24px 32px;   /* pleine largeur — style UBold */
+  flex: 1; min-height: 0;   /* percentage height ne s'impose pas de façon fiable
+                               sur un enfant flex ; flex:1 le fait toujours */
+  display: flex; flex-direction: column;
+  /* Filet de sécurité : un écran qui empile plusieurs cartes au-delà de la
+     hauteur disponible défile ici, à l'intérieur du cadre — la coque, elle,
+     ne bouge jamais. */
+  overflow-y: auto;
+}
+
+/* Barre de titre de page — style UBold (.page-title-head, min-height 70px) */
+.page-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-4); min-height: 70px; margin-bottom: 0;
+  flex: 0 0 auto;
+}
+.page-head h1 {
+  margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0;
+  color: var(--ink);            /* titre sombre — pas coloré (UBold) */
+}
+.breadcrumb { margin: 3px 0 0; font-size: 12px; color: var(--faint); }
+
+/* app-stat-tiles (quand présent) garde sa hauteur naturelle, ne rétrécit pas */
+app-stat-tiles { flex: 0 0 auto; }
+
+/* ---------- Carte / panneau — style UBold (sans bordure, ombre douce) ---------- */
+.card {
+  background: var(--surface-0); border: 0; border-radius: var(--r-card);
+  padding: 22px 24px 14px; box-shadow: var(--sh-card);
+  display: flex; flex-direction: column;
+  /* Par défaut une carte prend la hauteur de son contenu : un écran qui en
+     empile plusieurs (réglages, recherche) ne doit pas les voir se partager
+     l'espace à parts égales et s'écraser mutuellement. */
+  flex: 0 0 auto;
+}
+
+/* Seule la carte qui porte une pagination s'étire pour occuper le reste : elle
+   seule a besoin d'un bas de cadre fixe où l'épingler. Viser « une carte qui
+   contient un tableau » serait trop large — les groupes de résultats de la
+   recherche en contiennent un chacun et se partageraient la hauteur. */
+.card:has(> .mat-mdc-paginator) { flex: 1; min-height: 0; }
+
+/* .table-wrap est la SEULE zone qui défile en interne si trop de lignes —
+   jamais la page entière (topbar/menu/titre/tuiles) qui, elle, ne bouge pas.
+   Le paginateur vit hors de .table-wrap (frère dans .card, cf. markup des
+   écrans de liste) pour ne jamais partir en défilement avec le tableau. */
+.table-wrap { flex: 1; min-height: 0; overflow-y: auto; }
+.mat-mdc-paginator { flex: 0 0 auto; }
+
+/* ---------- Barre d'outils = en-tête de carte UBold (filet pointillé pleine largeur) ---------- */
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3); flex-wrap: wrap;
+  margin: -22px -24px 16px; padding: 14px 24px;
+  border-bottom: 1px dashed var(--line);
+}
+.toolbar .left { display: flex; align-items: center; gap: 6px; }
+.toolbar .right, .tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.search {
+  display: flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: 6px 10px; background: var(--surface); width: 260px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.search:focus-within { border-color: var(--navy); box-shadow: 0 0 0 3px var(--marine-050); }
+.search mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--ink-soft); }
+.search input { border: none; outline: none; background: transparent; width: 100%; font-size: 14px; color: var(--ink); }
+button.mat-mdc-outlined-button.bulk { color: var(--danger); }
+
+/* ---------- Tableaux (global) ---------- */
+.table-wrap { overflow-x: auto; }
+.mat-mdc-table { width: 100%; background: transparent; }
+/* En-tête de tableau — style UBold (thead-sm : gris très clair, minuscule, majuscules) */
+.mat-mdc-table th.mat-mdc-header-cell {
+  background: rgba(238, 242, 247, .45); color: var(--ink-soft); font-weight: 600; font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: .03em;
+  border-bottom: 1px solid var(--line); padding-top: 10px; padding-bottom: 10px;
+}
+/* Densité des listes : ces écrans sont des files de travail où l'on enchaîne
+   des dizaines de lignes. Voir plus de lignes d'un coup vaut mieux qu'aérer une
+   ligne isolée — d'où un rythme vertical serré, appliqué à toutes les listes. */
+.mat-mdc-table td.mat-mdc-cell {
+  font-size: 13.5px; color: var(--ink); border-bottom: 1px solid var(--line-soft);
+  padding-top: 7px; padding-bottom: 7px;
+}
+
+/* Boutons d'action compacts dans la colonne dédiée (les deux conventions de
+   nommage). Réglé par les tokens Material — l'API prévue pour cela — plutôt
+   qu'en forçant les règles internes du composant. */
+.c-act, .col-actions {
+  --mat-button-filled-container-height: 30px;
+  --mat-button-outlined-container-height: 30px;
+  --mat-icon-button-state-layer-size: 34px;
+}
+.c-act .mat-mdc-button-base:not(.mat-mdc-icon-button),
+.col-actions .mat-mdc-button-base:not(.mat-mdc-icon-button) {
+  font-size: 12.5px; letter-spacing: 0; padding: 0 12px; min-width: 0;
+}
+/* Survol de ligne — style UBold (pas de zébrure) */
+.mat-mdc-table tr.mat-mdc-row:hover { background: var(--row-hover); }
+
+/* Révélation des actions de ligne au survol (souris) ; toujours visibles au
+   clavier (focus) et sur écran tactile. */
+@media (hover: hover) {
+  .mat-mdc-table td.c-act .mat-mdc-icon-button,
+  .mat-mdc-table td.col-actions .mat-mdc-icon-button {
+    opacity: .32; transition: opacity .15s ease;
+  }
+  .mat-mdc-table tr.mat-mdc-row:hover td.c-act .mat-mdc-icon-button,
+  .mat-mdc-table tr.mat-mdc-row:hover td.col-actions .mat-mdc-icon-button,
+  .mat-mdc-table td.c-act:focus-within .mat-mdc-icon-button,
+  .mat-mdc-table td.col-actions:focus-within .mat-mdc-icon-button {
+    opacity: 1;
+  }
+}
+
+/* largeurs de colonnes (les deux conventions de nommage) */
+.c-chk, .col-select { width: 44px; }
+.c-id, .col-id { width: 60px; }
+.c-name { font-weight: 600; }
+.c-num { width: 96px; text-align: center; white-space: nowrap; }
+/* `width` n'est qu'une indication en table-layout auto : quand les autres
+   colonnes sont larges, la cellule d'actions est comprimée sous la taille de ses
+   boutons, qui passent alors à la ligne et doublent la hauteur de toutes les
+   lignes. `nowrap` rend son contenu insécable, ce qui lui garantit sa place. */
+.c-act, .col-actions { width: 120px; text-align: right; white-space: nowrap; }
+.muted { color: var(--ink-soft); }
+
+/* Couleurs des actions de ligne (modifier / archiver / supprimer). Classe
+   doublée (spécificité 0,0,2,0) : Angular Material fixe déjà `color` sur
+   `.mat-mdc-icon-button` et `.mat-mdc-menu-item` avec la même spécificité
+   qu'une classe simple (0,0,1,0) — à égalité, la règle chargée en dernier
+   l'emporte, ce qui n'est pas garanti être la nôtre. Doubler la classe
+   gagne dans tous les cas, sans !important. */
+.danger.danger { color: var(--danger); }
+.act-edit.act-edit { color: var(--primary); }
+/* Accent neutre (or) pour une action administrative comme « archiver » —
+   pas d'ambre : ce ton reste réservé au sens « en attente / à traiter »
+   ailleurs dans l'app (tuiles, badges), pour ne pas le diluer. */
+.act-accent.act-accent { color: var(--cramoisi); }
+/* Approuver / rejeter : le couple vert-rouge, seul code couleur universellement
+   compris sans libellé — indispensable dès lors que l'action n'a plus de texte. */
+.act-ok.act-ok { color: var(--vert); }
+
+/* ---------- Cellules riches ---------- */
+.cell-doc { display: flex; align-items: center; gap: 11px; }
+/* Pastille de fichier — décorative : elle ne doit pas dicter la hauteur de ligne */
+.fico {
+  width: 28px; height: 28px; border-radius: var(--r-sm); flex: 0 0 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--marine-700); color: #fff;
+}
+.fico mat-icon { width: 15px; height: 15px; font-size: 15px; }
+.doc-txt .d-name { font-weight: 600; color: var(--ink); }
+.doc-txt .d-sub { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+.owner { display: flex; align-items: center; gap: 9px; }
+.oav, .avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex: 0 0 28px; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;
+}
+
+/* Pile d'avatars (membres) — chevauchement */
+.avatar-stack { display: inline-flex; align-items: center; }
+.avatar-stack .oav {
+  width: 26px; height: 26px; flex: 0 0 26px; margin-left: -8px;
+  border: 2px solid var(--surface-0); box-sizing: content-box;
+}
+.avatar-stack .oav:first-child { margin-left: 0; }
+.avatar-stack .oav.more { background: var(--surface); color: var(--ink-soft); font-weight: 700; }
+
+/* ---------- Chips / pastilles ---------- */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Une étiquette ne se coupe jamais en deux lignes : « Droits d'accès » scindé en
+   « Droits » / « d'accès » se lit comme deux étiquettes et gonfle la ligne. */
+.tag {
+  display: inline-block; background: var(--marine-050); border: 1px solid var(--marine-100); color: var(--navy);
+  border-radius: var(--r-sm); padding: 2px 9px; font-size: 12px; font-weight: 500;
+  white-space: nowrap;
+}
+.tag.more { background: var(--surface); border-color: var(--line); color: var(--ink-soft); }
+.chip-marine {
+  display: inline-block; background: var(--marine-050); border: 1px solid var(--marine-100); color: var(--navy);
+  border-radius: var(--r-pill); padding: 3px 11px; font-size: 12px; font-weight: 600;
+}
+.pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 4px 11px; border-radius: var(--r-pill); font-size: 12px; font-weight: 600;
+}
+.pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+.st-actif, .st-ok { background: var(--ok-050); color: var(--ok); }
+.st-actif .dot, .st-ok .dot { background: var(--ok); }
+.st-arch, .st-pending { background: var(--ambre-050); color: var(--ambre); }
+.st-arch .dot, .st-pending .dot { background: var(--ambre); }
+.st-inactif { background: #eef0f3; color: var(--ink-soft); }
+.st-inactif .dot { background: var(--ink-soft); }
+.st-ko { background: var(--danger-050); color: var(--danger); }
+.st-ko .dot { background: var(--danger); }
+
+/* ---------- État vide ---------- */
+.no-data { padding: 8px 0; }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 44px 0; color: var(--ink-soft);
+}
+.empty-state .empty-ic mat-icon { width: 44px; height: 44px; font-size: 44px; color: var(--beige-deep); }
+.empty-state .empty-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.empty-state .empty-sub { font-size: 12.5px; color: var(--ink-soft); }
+
+/* ---------- Libellé de section (formulaires) ---------- */
+.section-label, .section {
+  margin: 12px 0 8px; font-size: 11.5px; font-weight: 600;
+  color: var(--navy); text-transform: uppercase; letter-spacing: .05em;
+}
+.section:first-child { margin-top: 2px; }
+
+/* ---------- Erreur serveur (formulaires) ---------- */
+.server-error {
+  color: var(--danger); font-size: 13px; margin-top: 8px;
+  background: var(--danger-050); border: 1px solid #f2d3d0; border-radius: var(--r-sm); padding: 8px 10px;
+}

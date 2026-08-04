@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Plan d'indexation · GED — Variante B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="zellige-bg" aria-hidden="true"></div>
+
+  <div class="shell" data-shell>
+    <main class="page">
+      <div class="head">
+        <div data-in style="--d:60ms">
+          <h1>Plan d'indexation</h1>
+          <p class="fil"><a href="accueil.html">Accueil</a> · Chartes de nommage</p>
+        </div>
+        <a class="cta" href="#" data-in style="--d:150ms">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 12h14" /><path d="M12 5v14" />
+          </svg>
+          Créer un plan
+        </a>
+      </div>
+
+      <div class="rule"></div>
+
+      <section class="panel" data-in style="--d:240ms">
+        <div class="outils">
+          <div class="cherche">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input type="search" placeholder="Rechercher un plan…" aria-label="Rechercher"
+                   data-filtre="#reg-plans" />
+          </div>
+        </div>
+
+        <div class="registre-wrap">
+          <table class="registre" id="reg-plans">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Plan</th>
+                <th>Index, dans l'ordre</th>
+                <th>Séparateur</th>
+                <th>Mode</th>
+                <th class="c-act fin">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="num">PLAN-FACT</td>
+                <td>
+                  <span class="nom">Fiche Facture</span>
+                  <span class="sous mono">numéro de facture_date d'émission_fournisseur_priorité</span>
+                </td>
+                <td>
+                  <span class="jeton">1 · Numéro de facture</span>
+                  <span class="jeton">2 · Date d'émission</span>
+                  <span class="jeton">3 · Fournisseur</span>
+                  <span class="jeton">4 · Priorité</span>
+                </td>
+                <td class="mono">_</td>
+                <td><span class="etat ok">Automatique</span></td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td class="num">PLAN-CONV</td>
+                <td>
+                  <span class="nom">Fiche Convention</span>
+                  <span class="sous mono">DATE D'ÉMISSION-FOURNISSEUR</span>
+                </td>
+                <td>
+                  <span class="jeton">1 · Date d'émission</span>
+                  <span class="jeton">2 · Fournisseur</span>
+                </td>
+                <td class="mono">-</td>
+                <td><span class="etat arret">Manuel</span></td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="vide" hidden>
+            <div class="t">Aucun plan ne correspond</div>
+            <div class="s">Élargissez la recherche ou videz le champ.</div>
+          </div>
+        </div>
+
+        <div class="pied"><span><span data-compte>2</span> plan(s) affiché(s)</span></div>
+      </section>
+
+      <section class="panel" data-in style="margin-top:26px; --d:320ms">
+        <div class="panel-h"><h2>Piège à connaître</h2></div>
+        <div class="panel-b" style="padding:16px 20px 20px">
+          <p style="margin:0; font-size:13.5px; color:var(--encre-2)">
+            Le séparateur ne doit jamais apparaître dans une valeur. Le plan
+            <strong>Fiche Convention</strong> utilise <code class="mono">-</code> alors qu'il
+            contient une date ISO (<span class="mono">2026-06-10</span>) : le découpage du nom de
+            fichier partirait en morceaux. Préférez <code class="mono">_</code> dès qu'un plan
+            comporte une date.
+          </p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="shell.js"></script>
+</body>
+</html>

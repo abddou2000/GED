@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Type de document · GED — Variante B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="zellige-bg" aria-hidden="true"></div>
+
+  <div class="shell" data-shell>
+    <main class="page">
+      <div class="head">
+        <div data-in style="--d:60ms">
+          <h1>Type de document</h1>
+          <p class="fil"><a href="accueil.html">Accueil</a> · Types et contraintes</p>
+        </div>
+        <a class="cta" href="#" data-in style="--d:150ms">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 12h14" /><path d="M12 5v14" />
+          </svg>
+          Créer un type
+        </a>
+      </div>
+
+      <div class="rule"></div>
+
+      <section class="panel" data-in style="--d:240ms">
+        <div class="outils">
+          <div class="cherche">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input type="search" placeholder="Rechercher un type…" aria-label="Rechercher"
+                   data-filtre="#reg-types" />
+          </div>
+          <div class="droite"><button class="bouton" type="button">Corbeille</button></div>
+        </div>
+
+        <div class="bulk" data-bulk hidden>
+          <span><span data-bulk-count>0</span> type(s) sélectionné(s)</span>
+          <div class="droite"><button class="bouton danger" type="button">Supprimer</button></div>
+        </div>
+
+        <div class="registre-wrap">
+          <table class="registre" id="reg-types" data-selectable>
+            <thead>
+              <tr>
+                <th class="c-sel"><input type="checkbox" aria-label="Tout sélectionner" /></th>
+                <th>Code</th>
+                <th>Type</th>
+                <th>Espace</th>
+                <th>Plan d'indexation</th>
+                <th>Formats</th>
+                <th>Taille max</th>
+                <th class="c-act fin">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td class="num">TD-FACT</td>
+                <td><span class="nom">Facture</span><span class="sous">Factures fournisseurs</span></td>
+                <td>Comptabilité</td>
+                <td>Fiche Facture</td>
+                <td><span class="jeton">pdf</span><span class="jeton">docx</span></td>
+                <td class="num">5 Mo</td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td class="num">TD-CONV</td>
+                <td><span class="nom">Convention</span><span class="sous">Conventions de partenariat</span></td>
+                <td>Direction</td>
+                <td>Fiche Convention</td>
+                <td><span class="jeton">pdf</span></td>
+                <td class="num">10 Mo</td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td class="num">TD-CR</td>
+                <td><span class="nom">Compte rendu</span><span class="sous">Procès-verbaux de réunion</span></td>
+                <td>Direction</td>
+                <td><span style="color:var(--encre-3)">Aucun</span></td>
+                <td><span class="jeton">pdf</span><span class="jeton">docx</span></td>
+                <td class="num">5 Mo</td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td class="num">TD-CONT</td>
+                <td><span class="nom">Contrat</span><span class="sous">Contrats de travail</span></td>
+                <td>Ressources humaines</td>
+                <td><span style="color:var(--encre-3)">Aucun</span></td>
+                <td><span class="jeton">pdf</span></td>
+                <td class="num">20 Mo</td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="vide" hidden>
+            <div class="t">Aucun type ne correspond</div>
+            <div class="s">Élargissez la recherche ou videz le champ.</div>
+          </div>
+        </div>
+
+        <div class="pied"><span><span data-compte>4</span> type(s) affiché(s)</span></div>
+      </section>
+
+      <p class="fil" style="margin-top:18px">
+        Un type sans plan d'indexation ne propose aucun champ à la saisie :
+        ses documents restent non indexés.
+      </p>
+    </main>
+  </div>
+
+  <script src="shell.js"></script>
+</body>
+</html>

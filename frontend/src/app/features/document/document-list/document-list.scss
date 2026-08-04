@@ -1,0 +1,8 @@
+/* Spécifique — Documents déposés. Le commun (cellule fichier, tableau,
+   pastilles, état vide) vient de _ui.scss */
+
+/* Extension accolée au nom du document */
+.ext {
+  font-weight: 400; color: var(--ink-soft);
+  font-family: var(--font-mono); font-size: 12px; margin-left: 2px;
+}

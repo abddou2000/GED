@@ -1,0 +1,85 @@
+<div class="page">
+  <!-- En-tête d'accueil — bandeau de prestige -->
+  <section class="hello">
+    <span class="hello-glow" aria-hidden="true"></span>
+
+    <div class="hello-id">
+      <span class="hello-av">{{ initials() }}</span>
+      <div class="hello-txt">
+        <h1>Bonjour, <strong>{{ firstName() }}</strong></h1>
+        <p class="date">
+          <mat-icon svgIcon="calendar"></mat-icon>{{ todayLabel }}
+        </p>
+      </div>
+    </div>
+
+    <a routerLink="/televerser" class="hello-cta">
+      <mat-icon svgIcon="add"></mat-icon><span>Déposer un document</span>
+    </a>
+  </section>
+
+  <!-- Indicateurs -->
+  <app-stat-tiles />
+
+  <!-- Grille principale -->
+  <div class="dash">
+    <!-- À valider -->
+    <section class="card ca-pending">
+      <div class="card-head">
+        <div class="ch-title">
+          <mat-icon svgIcon="nav-mesworkflow"></mat-icon>
+          <h2>À valider</h2>
+          @if (pending().length) { <span class="count">{{ pending().length }}</span> }
+        </div>
+        <a routerLink="/mes-workflow" class="see-all">Tout voir</a>
+      </div>
+
+      @if (pendingLoading()) {
+        <div class="hint-line">Chargement…</div>
+      } @else if (pending().length === 0) {
+        <div class="empty">
+          <span class="empty-ic ok"><mat-icon svgIcon="nav-mesworkflow"></mat-icon></span>
+          <div class="empty-title">Vous êtes à jour</div>
+          <div class="empty-sub">Aucun document n'attend votre signature.</div>
+        </div>
+      } @else {
+        <ul class="list">
+          @for (s of pending().slice(0, 5); track s.id) {
+            <li class="row">
+              <span class="fico"><mat-icon svgIcon="nav-type"></mat-icon></span>
+              <div class="rtxt">
+                <div class="rname">{{ s.document?.label }}</div>
+                <div class="rsub">
+                  <span class="tag">Étape {{ s.stepOrder }} · {{ s.stepLabel }}</span>
+                  @if (s.workspace) { <span class="rmeta">{{ s.workspace }}</span> }
+                </div>
+              </div>
+              <a mat-stroked-button routerLink="/mes-workflow" class="treat">
+                Traiter <mat-icon svgIcon="chevron-right"></mat-icon>
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <!-- Raccourcis -->
+    <section class="card ca-shortcuts">
+      <div class="card-head">
+        <div class="ch-title"><mat-icon svgIcon="nav-workflow"></mat-icon><h2>Raccourcis</h2></div>
+      </div>
+      <div class="shortcuts">
+        @for (sc of shortcuts; track sc.route) {
+          <a class="sc" [routerLink]="sc.route">
+            <span class="sc-ic" [class]="sc.cls"><mat-icon [svgIcon]="sc.icon"></mat-icon></span>
+            <span class="sc-txt">
+              <span class="sc-label">{{ sc.label }}</span>
+              <span class="sc-hint">{{ sc.hint }}</span>
+            </span>
+            <mat-icon class="sc-go" svgIcon="chevron-right"></mat-icon>
+          </a>
+        }
+      </div>
+    </section>
+  </div>
+</div>

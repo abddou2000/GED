@@ -18,7 +18,10 @@
     <description>GED - Gestion Electronique de Documents (Spring Boot)</description>
 
     <properties>
-        <java.version>23</java.version>
+        <!-- Java 17 LTS — socle exigé par le client (compatible Spring Boot 3.x) -->
+        <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <dependencies>
@@ -26,6 +29,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Lecture de la couche texte des PDF natifs (chaîne d'OCRisation, étage 1) -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.8</version>
         </dependency>
 
         <!-- Persistence (JPA / Hibernate) -->
@@ -89,12 +99,13 @@
 
     <build>
         <plugins>
-            <!-- JDK 23 n'active plus le traitement d'annotations implicite :
-                 on déclare Lombok explicitement comme processeur. -->
+            <!-- Lombok déclaré explicitement comme processeur d'annotations
+                 (bonne pratique : indépendant du comportement implicite du JDK). -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
+                    <release>${java.version}</release>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

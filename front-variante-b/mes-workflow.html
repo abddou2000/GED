@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Mes workflow · GED — Variante B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="zellige-bg" aria-hidden="true"></div>
+
+  <div class="shell" data-shell>
+    <main class="page">
+      <div class="head">
+        <div data-in style="--d:60ms">
+          <h1>Mes workflow</h1>
+          <p class="fil"><a href="accueil.html">Accueil</a> · Ce que je dois viser</p>
+        </div>
+      </div>
+
+      <div class="rule"></div>
+
+      <section class="metrics" data-in style="--d:200ms">
+        <div class="metric alert">
+          <div class="k">À signer</div>
+          <div class="v" data-count="3">3</div>
+          <div class="d">en attente de mon visa</div>
+          <div class="bar"><i style="width:48%; --jd:500ms"></i></div>
+        </div>
+        <div class="metric">
+          <div class="k">Visés ce mois</div>
+          <div class="v" data-count="17">17</div>
+          <div class="d">documents traités</div>
+          <div class="bar"><i style="width:78%; --jd:600ms"></i></div>
+        </div>
+        <div class="metric">
+          <div class="k">Délai moyen</div>
+          <div class="v" data-count="4">4</div>
+          <div class="d">heures avant visa</div>
+          <div class="bar"><i style="width:30%; --jd:700ms"></i></div>
+        </div>
+        <div class="metric">
+          <div class="k">Refusés</div>
+          <div class="v" data-count="1">1</div>
+          <div class="d">retourné à l'émetteur</div>
+          <div class="bar"><i style="width:8%; --jd:800ms"></i></div>
+        </div>
+      </section>
+
+      <section class="panel" data-in style="margin-top:26px; --d:300ms">
+        <div class="outils">
+          <div class="cherche">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input type="search" placeholder="Rechercher un document…" aria-label="Rechercher"
+                   data-filtre="#reg-visas" />
+          </div>
+          <div class="droite">
+            <button class="bouton" type="button">Historique</button>
+          </div>
+        </div>
+
+        <div class="registre-wrap">
+          <table class="registre" id="reg-visas">
+            <thead>
+              <tr>
+                <th class="c-sel">N°</th>
+                <th>Document</th>
+                <th>Espace</th>
+                <th>Étape</th>
+                <th>Déposé</th>
+                <th>État</th>
+                <th class="c-act fin">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="num">01</td>
+                <td><span class="nom">Facture circuit.pdf</span><span class="sous">Facture · Nova Import</span></td>
+                <td>Comptabilité</td>
+                <td class="num">2 / 3</td>
+                <td>il y a 2 h</td>
+                <td><span class="etat attente">À signer</span></td>
+                <td class="fin"><button class="act">Viser</button><button class="act danger">Refuser</button></td>
+              </tr>
+              <tr>
+                <td class="num">02</td>
+                <td><span class="nom">Facture janvier.pdf</span><span class="sous">Facture · ACME Distribution</span></td>
+                <td>Comptabilité</td>
+                <td class="num">1 / 3</td>
+                <td>hier</td>
+                <td><span class="etat attente">À signer</span></td>
+                <td class="fin"><button class="act">Viser</button><button class="act danger">Refuser</button></td>
+              </tr>
+              <tr>
+                <td class="num">03</td>
+                <td><span class="nom">Convention formation.pdf</span><span class="sous">Convention · Direction générale</span></td>
+                <td>Direction</td>
+                <td class="num">3 / 3</td>
+                <td>le 24/07</td>
+                <td><span class="etat attente">À signer</span></td>
+                <td class="fin"><button class="act">Viser</button><button class="act danger">Refuser</button></td>
+              </tr>
+              <tr>
+                <td class="num">04</td>
+                <td><span class="nom">Bon de commande Atlas.pdf</span><span class="sous">Facture · Atlas Fournitures</span></td>
+                <td>Comptabilité</td>
+                <td class="num">3 / 3</td>
+                <td>le 21/07</td>
+                <td><span class="etat ok">Visé</span></td>
+                <td class="fin"><button class="act">Consulter</button></td>
+              </tr>
+              <tr>
+                <td class="num">05</td>
+                <td><span class="nom">Procès-verbal 12-06.pdf</span><span class="sous">Compte rendu · Direction</span></td>
+                <td>Direction</td>
+                <td class="num">2 / 2</td>
+                <td>le 18/07</td>
+                <td><span class="etat arret">Refusé</span></td>
+                <td class="fin"><button class="act">Consulter</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="vide" hidden>
+            <div class="t">Aucun document ne correspond</div>
+            <div class="s">Élargissez la recherche ou videz le champ.</div>
+          </div>
+        </div>
+
+        <div class="pied"><span><span data-compte>5</span> document(s) affiché(s)</span></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="shell.js"></script>
+</body>
+</html>

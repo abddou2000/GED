@@ -1,0 +1,137 @@
+/* ============================================================
+   Coque « topnav » — barre supérieure + menu horizontal (style UBold)
+   ============================================================ */
+.app-shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ---------- Barre supérieure (70px) ---------- */
+.topbar {
+  height: 62px; flex: 0 0 62px;
+  display: flex; align-items: center; gap: 12px; padding: 0 20px;
+  background: var(--surface-0);
+  position: sticky; top: 0; z-index: 1005;
+}
+.topbar-brand { display: inline-flex; align-items: center; text-decoration: none; }
+.topbar-spacer { flex: 1; }
+
+/* Titre de la page courante — équilibre la barre et donne le contexte */
+.topbar-title {
+  font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -.01em;
+  padding-inline-start: 18px; margin-inline-start: 2px;
+  border-inline-start: 1px solid var(--line);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+
+/* Bloc compte — simple lien (style UBold : ni cadre ni fond) */
+.acc-btn {
+  display: flex; align-items: center; gap: 9px; padding: 6px 8px;
+  border: 0; background: none; border-radius: var(--r-md);
+  cursor: pointer; text-align: left; font-family: inherit; color: var(--ink);
+  transition: color .15s ease;
+}
+.acc-btn:hover { color: var(--primary); }
+.acc-btn:hover > mat-icon { color: var(--primary); }
+.acc-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.acc-av {
+  width: 32px; height: 32px; border-radius: 50%; flex: 0 0 32px;
+  background: var(--primary); color: #fff; font-weight: 700; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.acc-name {
+  font-size: 14px; font-weight: 600; color: inherit;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;
+}
+.acc-btn > mat-icon { width: 15px; height: 15px; font-size: 15px; color: var(--faint); flex: 0 0 15px; }
+
+/* En-tête du menu compte (l'e-mail y est déplacé) */
+.acc-head { padding: 10px 16px 9px; border-bottom: 1px solid var(--line); cursor: default; }
+.acc-head .ah-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.acc-head .ah-mail { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+
+/* Bouton menu (mobile) */
+.hamburger {
+  display: none; width: 40px; height: 40px; flex: 0 0 40px; border-radius: var(--r-md);
+  align-items: center; justify-content: center;
+  border: 1px solid var(--line); background: var(--surface-0); color: var(--ink-soft); cursor: pointer;
+}
+.hamburger:hover { background: var(--surface); }
+.hamburger mat-icon { width: 20px; height: 20px; font-size: 20px; }
+
+/* ---------- Menu horizontal (collant sous la barre) ---------- */
+.topnav {
+  position: sticky; top: 62px; z-index: 1000;
+  display: flex; align-items: stretch; justify-content: center; gap: 2px;
+  background: var(--surface-0);
+  padding: 0 16px;
+  box-shadow: var(--sh-sm);
+  border-top: 1px solid var(--line);
+  overflow-x: auto; scrollbar-width: none;
+}
+.topnav::-webkit-scrollbar { display: none; }
+
+.topnav a {
+  position: relative;
+  display: flex; align-items: center; gap: 8px;
+  padding: 15px 14px;
+  font-size: 15px; font-weight: 400; line-height: 1.25;
+  color: #667787; text-decoration: none; white-space: nowrap;
+  transition: color .25s ease-in-out, background-color .25s ease-in-out;
+}
+.topnav a mat-icon {
+  width: 18px; height: 18px; font-size: 18px; flex: 0 0 18px;
+  color: #667787; transition: color .25s ease-in-out;
+}
+.topnav a:hover { color: var(--primary); }
+.topnav a:hover mat-icon { color: var(--primary); }
+.topnav a:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+.topnav a.active { color: var(--primary); font-weight: 600; }
+.topnav a.active mat-icon { color: var(--primary); }
+/* Soulignement de l'onglet actif */
+.topnav a.active::after {
+  content: ''; position: absolute; left: 10px; right: 10px; bottom: 0;
+  height: 2px; border-radius: 2px 2px 0 0; background: var(--primary);
+}
+
+/* Badge « à traiter » */
+.nav-badge {
+  min-width: 19px; height: 19px; padding: 0 6px; border-radius: 10px;
+  background: var(--danger); color: #fff; font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1;
+}
+
+/* ---------- Contenu ---------- */
+/* min-height: 0 est indispensable dans une colonne flex imbriquée : sans lui
+   un enfant flex refuse de descendre sous sa hauteur de contenu, ce qui
+   empêcherait .content puis .page/.card de rétrécir et ferait déborder toute
+   la coque au lieu de confiner le défilement au tableau. */
+.main { flex: 1; min-height: 0; display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--bg); }
+.content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* La règle qui rend l'hôte du composant routé flex (nécessaire pour que la
+   hauteur se propage jusqu'à .page) vit dans styles.scss (global) : cet
+   hôte est un composant enfant, il ne porte pas l'attribut d'encapsulation
+   du shell, donc une règle scoped ici ne peut pas le cibler. */
+
+/* ============================================================
+   Écrans réduits — le menu passe en liste déroulante
+   ============================================================ */
+@media (max-width: 991.98px) {
+  .hamburger { display: inline-flex; }
+  .topbar { padding: 0 14px; gap: 10px; }
+  .topbar-title { display: none; }
+  .acc-name, .acc-btn > mat-icon { display: none; }
+
+  .topnav {
+    position: fixed; top: 62px; left: 0; right: 0;
+    flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 0;
+    padding: 8px 12px 12px;
+    max-height: calc(100vh - 62px); overflow-y: auto;
+    box-shadow: var(--sh-pop);
+    transform: translateY(-8px); opacity: 0; visibility: hidden;
+    transition: opacity .18s ease, transform .18s ease, visibility .18s;
+  }
+  .app-shell.menu-open .topnav { transform: translateY(0); opacity: 1; visibility: visible; }
+  .topnav a { padding: 11px 12px; border-radius: var(--r-md); }
+  .topnav a.active { background: var(--primary-050); }
+  .topnav a.active::after { display: none; }
+  .nav-badge { margin-left: auto; }
+}

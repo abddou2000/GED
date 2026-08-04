@@ -1,6 +1,9 @@
-// Thème Angular Material (structure : typographie Roboto + densité) ; les couleurs
-// sont re-mappées sur la charte CCISTTA « Clair & moderne » (marine / cramoisi / vert)
-// via les variables système Material.
+// Thème Angular Material (structure : typographie + densité) ; les couleurs et
+// la forme sont pilotées par les design tokens Marchica Med via les variables système Material.
+// Palette de seed la plus proche du marine réel (azure) — les tokens --mat-sys-*
+// ci-dessous prennent de toute façon le dessus sur les composants visibles ;
+// ceci évite juste toute fuite résiduelle de violet dans les recoins internes
+// de Material (ripples, calques d'état) que ces tokens ne couvrent pas.
 @use '@angular/material' as mat;
 
 html {
@@ -11,113 +14,233 @@ html {
       tertiary: mat.$azure-palette,
     ),
     typography: (
-      plain-family: ('Inter Variable', sans-serif),
-      brand-family: ('Inter Variable', sans-serif),
+      plain-family: ('Nunito Variable', sans-serif),
+      brand-family: ('Nunito Variable', sans-serif),
     ),
     density: -1,
   ));
 }
 
-/* Police Inter (variable, en local — pas de CDN) */
-@import '@fontsource-variable/inter/index.css';
+/* Police Nunito (variable, en local — pas de CDN) — typographie UBold */
+@import '@fontsource-variable/nunito/index.css';
 
 /* ============================================================
-   Charte GED — CCISTTA « Clair & moderne »
-   marine (#16406b) · cramoisi (#9e1b32) · vert (#1e7a46)
-   fond clair, surfaces blanches, filets fins
+   DESIGN TOKENS — source unique (couleurs, rayons, ombres, espace, type)
+   Charte Marchica Med : marine (couleur du cercle du logo) · sable/or
+   (couleur du mot-symbole) · vert (succès, sémantique, indépendant de la marque)
    ============================================================ */
 :root {
-  --bg: #f7f8fa;          /* fond de page / zone de contenu */
-  --surface: #f2f4f7;     /* survol de ligne, fond recherche, tags */
-  --surface-0: #ffffff;   /* cartes, barre latérale */
-  --ink: #1a1f24;         /* texte principal */
-  --ink-soft: #5f6b78;    /* texte secondaire */
-  --beige: #f2f4f7;       /* (héritage) → en-tête de tableau gris clair */
-  --beige-deep: #e2e6ea;  /* (héritage) → bordure basse d'en-tête */
-  --line: #e6e9ed;        /* filet hairline */
-  --ok: #1e7a46;          /* vert — statut positif */
-  --pending: #b0812e;
-  --danger: #9e1b32;      /* cramoisi — suppression / danger */
+  /* ---- Marine — couleur principale, échantillonnée sur le vrai logo ---- */
+  --primary: #062468;
+  --primary-hover: #051e55;
+  --primary-050: #f0f2f6;
+  --ub-blue: #4a81d4;
+  --ub-teal: #1abc9c;
+  --ub-cyan: #43bfe5;
+  --ub-yellow: #f7b84b;
+  --ub-red: #f1556c;
+  --ub-pink: #f672a7;
 
-  --accent-tint: #f3eaec; /* fond crémeux cramoisi (nav active) */
+  /* Rampe marine — dérivée de la même couleur que --primary (pas un alias
+     vers une autre teinte : les deux SONT la couleur du logo) */
+  --marine-950: #041744;
+  --marine-900: #051e55;
+  --marine-800: #062160;
+  --marine-700: #062468;   /* = --primary */
+  --marine-600: #2b457f;
+  --marine-100: #e1e5ed;
+  --marine-050: #f0f2f6;
 
-  /* re-mappage Angular Material sur la charte */
-  --mat-sys-primary: #9e1b32;              /* cramoisi = action principale */
+  /* Or — accent secondaire, même teinte que le mot-symbole du logo (33°),
+     mais recalculé en teinte/saturation/luminosité plutôt qu'assombri en
+     RGB brut : mélanger du noir désature un ton chaud vers le brun terne
+     plutôt que de l'enrichir. Ici la teinte reste franche, seule la
+     luminosité varie — lecture « or », pas « boue ». */
+  --cramoisi: #98703e;
+  --cramoisi-hover: #7e5b30;
+  --cramoisi-bright: #b89365;
+  --cramoisi-050: #f6f0e9;
+  --vert: #1abc9c;         /* succès — sémantique, ne suit pas la charte de marque */
+  --vert-050: #e4f8f4;
+  --ambre: #f7b84b;        /* alerte — sémantique, ne suit pas la charte de marque */
+  --ambre-050: #fef6e6;
+
+  /* -- Neutres UBold -- */
+  --page: #f5f6f8;        /* body-bg UBold */
+  --surface-0: #ffffff;   /* cartes, surfaces */
+  --surface: #f6f7fb;     /* gray-100 — champs, survol */
+  --line: #e7e9eb;        /* gray-300 — bordures UBold */
+  --line-soft: #eef2f7;   /* gray-200 — filet interne */
+  --ink: #4c4c5c;         /* body-color UBold */
+  --ink-soft: #6c757d;    /* gray-700 */
+  --faint: #8a969c;       /* gray-600 */
+  --table-head: #f6f7fb;  /* en-tête de tableau — gris doux */
+  --row-hover: #f6f7fb;   /* survol de ligne */
+
+  /* -- Rôles sémantiques UBold -- */
+  --ok: #1abc9c;   --ok-050: #e4f8f4;
+  --danger: #f1556c; --danger-050: #feeef0;
+  --pending: #f7b84b;
+
+  /* -- Rayons -- */
+  /* Rayons UBold : sm .25rem · base .3rem · lg .4rem */
+  --r-sm: 4px; --r-md: 5px; --r-card: 6px; --r-pill: 50rem;
+
+  /* -- Police chiffrée / mono (aperçus, hex, extensions) -- */
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  /* -- Ombres UBold (très douces) -- */
+  --sh-sm: 0 1px 4px 0 rgba(130, 143, 163, .15);
+  --sh-card: 0 .75rem 6rem rgba(56, 65, 74, .03), 0 1px 4px 0 rgba(130, 143, 163, .12);
+  --sh-pop: 0 .25rem 1rem rgba(76, 76, 92, .2);
+
+  /* -- Espacement (échelle 4) -- */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+
+  /* -- Alias hérités (compat des styles existants) -- */
+  --bg: var(--page);
+  --navy: var(--marine-700);
+  --navy-2: var(--marine-900);
+  --muted: var(--ink-soft);
+  --gold: var(--cramoisi);
+  --beige: var(--table-head);
+  --beige-deep: var(--line);
+  --accent-tint: var(--cramoisi-050);
+
+  /* ============================================================
+     Re-mappage Angular Material sur les tokens (aucun !important)
+     ============================================================ */
+  --mat-sys-primary: var(--primary);
   --mat-sys-on-primary: #ffffff;
-  --mat-sys-primary-container: #f3eaec;
-  --mat-sys-on-primary-container: #9e1b32;
-  --mat-sys-secondary: #16406b;            /* marine */
+  --mat-sys-primary-container: var(--primary-050);
+  --mat-sys-on-primary-container: var(--primary);
+  --mat-sys-secondary: var(--ub-blue);
   --mat-sys-on-secondary: #ffffff;
-  --mat-sys-tertiary: #5f6b78;
+  --mat-sys-tertiary: var(--ink-soft);
   --mat-sys-surface: #ffffff;
-  --mat-sys-surface-dim: #eef0f3;
+  --mat-sys-surface-dim: #eef2f7;
   --mat-sys-surface-bright: #ffffff;
   --mat-sys-surface-container-lowest: #ffffff;
   --mat-sys-surface-container-low: #fbfcfd;
-  --mat-sys-surface-container: #f2f4f7;
-  --mat-sys-surface-container-high: #edf0f3;
-  --mat-sys-surface-container-highest: #e6e9ed;
-  --mat-sys-on-surface: #1a1f24;
-  --mat-sys-on-surface-variant: #5f6b78;
-  --mat-sys-background: #f7f8fa;
-  --mat-sys-on-background: #1a1f24;
-  --mat-sys-outline: #c2c8cf;
-  --mat-sys-outline-variant: #e6e9ed;
-  --mat-sys-error: #9e1b32;
+  --mat-sys-surface-container: #f6f7fb;
+  --mat-sys-surface-container-high: #eef2f7;
+  --mat-sys-surface-container-highest: #e7e9eb;
+  --mat-sys-on-surface: var(--ink);
+  --mat-sys-on-surface-variant: var(--ink-soft);
+  --mat-sys-background: var(--page);
+  --mat-sys-on-background: var(--ink);
+  --mat-sys-outline: #ced4da;
+  --mat-sys-outline-variant: var(--line);
+  --mat-sys-error: var(--danger);
   --mat-sys-on-error: #ffffff;
-
-  --navy: #16406b;
-  --navy-2: #0e2a47;
-  --gold: #9e1b32;   /* (héritage) → accent cramoisi (bordure nav active) */
-  --muted: #5f6b78;
 }
 
 * { box-sizing: border-box; }
 
+/* Coque à hauteur fixe (client : pas de défilement de page) — seule la
+   zone tableau défile en interne si le contenu déborde ; voir shell.scss
+   et .card/.table-wrap dans core/_ui.scss. */
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Inter Variable', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: 'Nunito Variable', 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;              /* $font-size-base UBold */
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Chiffres alignés (ID, tailles) dans les tableaux — détail « produit soigné » */
+/* Chiffres alignés dans les tableaux */
 table.mat-mdc-table td, table.mat-mdc-table th { font-variant-numeric: tabular-nums; }
 
-/* Micro-transitions douces sur les éléments interactifs (jamais de rebond) */
-.sidebar nav a,
-tr.mat-mdc-row,
-.tag,
-.trow,
-button.mdc-button,
-button.mat-mdc-icon-button,
-.mat-mdc-menu-item {
+/* Micro-transitions douces (jamais de rebond) */
+.sidebar nav a, tr.mat-mdc-row, .tag, .trow,
+button.mdc-button, button.mat-mdc-icon-button, .mat-mdc-menu-item {
   transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
-/* ---------- Toasts (snackbar) ---------- */
-.ged-snack .mdc-snackbar__surface {
-  border-radius: 10px !important;
-  min-width: unset !important;
-  box-shadow: 0 8px 24px rgba(16, 40, 68, .18) !important;
-}
-.ged-snack .mdc-snackbar__label { color: #fff !important; font-weight: 500; font-size: 13.5px; }
-.ged-snack .mat-mdc-snack-bar-action { color: #fff !important; opacity: .85; }
-.ged-snack-success .mdc-snackbar__surface { background: #1e7a46 !important; }
-.ged-snack-error .mdc-snackbar__surface { background: #9e1b32 !important; }
+/* ============================================================
+   Polish global des composants Material (via tokens, sans !important)
+   ============================================================ */
+.mat-mdc-menu-panel { border-radius: 12px; box-shadow: var(--sh-pop); }
+.mat-mdc-dialog-container .mdc-dialog__surface { border-radius: var(--r-card); box-shadow: var(--sh-pop); }
+.mat-mdc-snack-bar-container .mdc-snackbar__surface { border-radius: var(--r-md); box-shadow: var(--sh-pop); }
+.mat-mdc-select-panel { border-radius: 12px; box-shadow: var(--sh-pop); }
 
-/* ---------- Révélation des actions au survol de la ligne ---------- */
-td.col-actions .mat-mdc-icon-button,
-td.c-act .mat-mdc-icon-button {
-  opacity: 0;
-  transition: opacity .15s ease;
+/* ------------------------------------------------------------
+   Dialogues — une seule écriture pour toute l'application.
+   Sans ces règles, les formulaires héritent du Material brut : titre
+   24px/400 (hors charte Nunito), et un filet qui n'apparaît au-dessus des
+   actions que si le contenu défile — donc un rendu variable d'un écran à
+   l'autre. On aligne sur le dialogue de confirmation : titre 17px/700 et
+   les deux filets toujours présents.
+   ------------------------------------------------------------ */
+.mat-mdc-dialog-container {
+  /* Tokens « --mat- » : l'API de thème d'Angular Material 3. Les régler ici évite
+     de lutter contre ses propres sélecteurs, chargés après cette feuille. */
+  --mat-dialog-subhead-size: 17px;
+  --mat-dialog-subhead-weight: 700;
+  --mat-dialog-subhead-line-height: 1.3;
+  --mat-dialog-subhead-tracking: -.01em;
+  --mat-dialog-subhead-color: var(--ink);
+  --mat-dialog-supporting-text-size: 13.5px;
+  --mat-dialog-supporting-text-color: var(--ink);
+  --mat-dialog-headline-padding: 19px 22px 14px;
+  --mat-dialog-content-padding: 18px 22px 4px;
+  --mat-dialog-with-actions-content-padding: 18px 22px 4px;
+  --mat-dialog-actions-padding: 14px 22px 16px;
 }
-tr.mat-mdc-row:hover td.col-actions .mat-mdc-icon-button,
-tr.mat-mdc-row:hover td.c-act .mat-mdc-icon-button,
-td.col-actions:focus-within .mat-mdc-icon-button,
-td.c-act:focus-within .mat-mdc-icon-button {
-  opacity: 1;
+
+.mat-mdc-dialog-container .mat-mdc-dialog-title {
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: 0;
 }
+/* MDC impose une boîte de 40px au titre via ::before : elle fausse le padding */
+.mat-mdc-dialog-container .mat-mdc-dialog-title::before { display: none; }
+
+/* MDC remet le haut du contenu à zéro dès qu'un titre le précède ; avec notre
+   filet sous le titre, le formulaire se retrouverait collé au trait. Sa règle
+   porte le même sélecteur que la nôtre et se charge après : on double la classe
+   du conteneur pour l'emporter par spécificité, sans !important. */
+.mat-mdc-dialog-container.mat-mdc-dialog-container .mat-mdc-dialog-title + .mat-mdc-dialog-content {
+  padding-top: 18px;
+}
+
+.mat-mdc-dialog-container .mat-mdc-dialog-actions {
+  gap: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+/* Material espace déjà les boutons par gap : la marge MDC crée un décalage en trop */
+.mat-mdc-dialog-container .mat-mdc-dialog-actions .mat-mdc-button-base + .mat-mdc-button-base {
+  margin-left: 0;
+}
+
+/* Toasts colorés (NotifyService) — surface peinte directement (spécificité > défaut MDC) */
+.mat-mdc-snack-bar-container.snack-success .mdc-snackbar__surface { background-color: var(--vert); }
+.mat-mdc-snack-bar-container.snack-error   .mdc-snackbar__surface { background-color: var(--danger); }
+.mat-mdc-snack-bar-container.snack-info    .mdc-snackbar__surface { background-color: var(--marine-700); }
+.mat-mdc-snack-bar-container.snack .mdc-snackbar__surface,
+.mat-mdc-snack-bar-container.snack .mdc-snackbar__label { color: #fff; }
+.mat-mdc-snack-bar-container.snack .mdc-snackbar__label { font-weight: 500; letter-spacing: .005em; }
+
+/* Anneau de focus clavier discret (accessibilité) */
+a:focus-visible, button:focus-visible, input:focus-visible,
+textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--marine-700); outline-offset: 2px; border-radius: 5px;
+}
+
+/* Angular insère le composant routé comme frère du <router-outlet>, dans son
+   propre élément hôte (ex. <app-workspace-list>) — .page n'est qu'un <div>
+   à l'intérieur de ce frère. Cet hôte ne porte pas l'attribut d'encapsulation
+   du shell (règle globale nécessaire, pas scoped) : sans le rendre flex lui
+   aussi, il ignore la hauteur disponible et prend sa taille de contenu
+   naturelle, ce qui empêchait .page de se contraindre et faisait déborder
+   toute la coque au lieu de confiner le défilement au tableau. */
+.content > router-outlet + * { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* Utilitaires communs (langage visuel des écrans) */
+@import 'app/core/ui';

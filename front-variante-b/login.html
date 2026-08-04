@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Connexion · GED — Variante B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="zellige-bg" aria-hidden="true"></div>
+
+  <main class="login">
+    <!-- ===== Colonne éditoriale ===== -->
+    <section class="login-edito">
+      <span class="rosace" aria-hidden="true"></span>
+      <span class="rosace deux" aria-hidden="true"></span>
+
+      <a class="mark" href="accueil.html" data-in style="--d:0ms" aria-label="Marchica Med — accueil">
+        <img class="mark-img" src="brand/marchica-med-full.png" alt="Marchica Med" height="34" />
+        <span class="mark-txt"><span class="mark-1">GED</span></span>
+      </a>
+
+      <div class="edito-body">
+        <span class="eyebrow" data-in style="--d:180ms">Gestion électronique de documents</span>
+
+        <h1 class="edito-h1" data-in style="--d:280ms">
+          Le registre vivant<br />de <em>Marchica&nbsp;Med</em>.
+        </h1>
+
+        <p class="edito-p" data-in style="--d:420ms">
+          Chaque pièce déposée trouve sa place, suit son circuit de validation
+          et reste retrouvable — sans classeur, sans perte, sans délai.
+        </p>
+
+        <ol class="steps">
+          <li>
+            <span class="n">01</span>
+            <span class="t">Déposer
+              <small>Le document rejoint son espace et son type.</small>
+            </span>
+          </li>
+          <li>
+            <span class="n">02</span>
+            <span class="t">Faire signer
+              <small>Le circuit s'exécute étape par étape, tracé.</small>
+            </span>
+          </li>
+          <li>
+            <span class="n">03</span>
+            <span class="t">Retrouver
+              <small>Indexé, filtrable, accessible aux seuls ayants droit.</small>
+            </span>
+          </li>
+        </ol>
+      </div>
+
+      <p class="edito-foot" data-in style="--d:950ms">© 2026 Marchica Med — Tous droits réservés</p>
+    </section>
+
+    <!-- ===== Colonne formulaire ===== -->
+    <section class="login-form">
+      <div class="form-inner">
+        <h2 data-in style="--d:120ms">Connexion</h2>
+        <p class="sub" data-in style="--d:200ms">Accédez à votre espace documentaire.</p>
+
+        <form id="f" novalidate>
+          <div class="field" data-in style="--d:300ms">
+            <label for="mail">Adresse e-mail</label>
+            <div class="control" id="c-mail">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+              </svg>
+              <input id="mail" type="email" placeholder="prenom.nom@marchicamed.ma" autocomplete="username" />
+            </div>
+            <p class="msg" id="m-mail"></p>
+          </div>
+
+          <div class="field" data-in style="--d:380ms">
+            <label for="pass">Mot de passe</label>
+            <div class="control" id="c-pass">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <input id="pass" type="password" placeholder="••••••••" autocomplete="current-password" />
+              <button class="reveal" type="button" id="eye" aria-label="Afficher le mot de passe">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+            </div>
+            <p class="msg" id="m-pass"></p>
+          </div>
+
+          <div class="row-end" data-in style="--d:450ms"><a class="link" href="#">Mot de passe oublié ?</a></div>
+
+          <button class="btn" type="submit" data-in style="--d:520ms">
+            Se connecter
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+        </form>
+
+        <p class="note" data-in style="--d:600ms">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" />
+          </svg>
+          Connexion sécurisée · vos accès sont personnels
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+
+    $('#eye').addEventListener('click', () => {
+      const p = $('#pass');
+      const masque = p.type === 'password';
+      p.type = masque ? 'text' : 'password';
+      $('#eye').setAttribute('aria-label', masque ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+    });
+
+    // Relance l'animation de secousse sur un champ fautif
+    const secoue = (sel) => {
+      const el = $(sel);
+      el.classList.remove('bad');
+      void el.offsetWidth;
+      el.classList.add('bad');
+    };
+
+    $('#f').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const mail = $('#mail').value.trim();
+      const pass = $('#pass').value;
+      let ok = true;
+
+      if (!mail)                       { $('#m-mail').textContent = "L'adresse e-mail est requise."; secoue('#c-mail'); ok = false; }
+      else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { $('#m-mail').textContent = "Format d'adresse invalide."; secoue('#c-mail'); ok = false; }
+      else                             { $('#m-mail').textContent = ''; $('#c-mail').classList.remove('bad'); }
+
+      if (!pass)                { $('#m-pass').textContent = 'Le mot de passe est requis.'; secoue('#c-pass'); ok = false; }
+      else if (pass.length < 4) { $('#m-pass').textContent = 'Au moins 4 caractères.'; secoue('#c-pass'); ok = false; }
+      else                      { $('#m-pass').textContent = ''; $('#c-pass').classList.remove('bad'); }
+
+      if (ok) window.location.href = 'accueil.html';
+    });
+  </script>
+</body>
+</html>

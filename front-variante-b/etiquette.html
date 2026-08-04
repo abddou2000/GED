@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Étiquette · GED — Variante B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="zellige-bg" aria-hidden="true"></div>
+
+  <div class="shell" data-shell>
+    <main class="page">
+      <div class="head">
+        <div data-in style="--d:60ms">
+          <h1>Étiquette</h1>
+          <p class="fil"><a href="accueil.html">Accueil</a> · Marquage transversal</p>
+        </div>
+        <a class="cta" href="#" data-in style="--d:150ms">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 12h14" /><path d="M12 5v14" />
+          </svg>
+          Créer une étiquette
+        </a>
+      </div>
+
+      <div class="rule"></div>
+
+      <section class="panel" data-in style="--d:240ms">
+        <div class="outils">
+          <div class="cherche">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input type="search" placeholder="Rechercher une étiquette…" aria-label="Rechercher"
+                   data-filtre="#reg-etiquettes" />
+          </div>
+        </div>
+
+        <div class="registre-wrap">
+          <table class="registre" id="reg-etiquettes">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Étiquette</th>
+                <th>Usage</th>
+                <th>Documents marqués</th>
+                <th class="c-act fin">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="num">ET-URG</td>
+                <td><span class="nom">Urgent</span></td>
+                <td>Traitement prioritaire</td>
+                <td class="num">3</td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td class="num">ET-ARCH</td>
+                <td><span class="nom">À archiver</span></td>
+                <td>Fin de cycle de vie</td>
+                <td class="num">6</td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td class="num">ET-CONF</td>
+                <td><span class="nom">Confidentiel</span></td>
+                <td>Diffusion restreinte</td>
+                <td class="num">2</td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td class="num">ET-REL</td>
+                <td><span class="nom">À relancer</span></td>
+                <td>En attente de réponse</td>
+                <td class="num">1</td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="vide" hidden>
+            <div class="t">Aucune étiquette ne correspond</div>
+            <div class="s">Élargissez la recherche ou videz le champ.</div>
+          </div>
+        </div>
+
+        <div class="pied"><span><span data-compte>4</span> étiquette(s) affichée(s)</span></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="shell.js"></script>
+</body>
+</html>

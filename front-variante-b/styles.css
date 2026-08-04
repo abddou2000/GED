@@ -1,0 +1,714 @@
+/* ============================================================
+   GED — VARIANTE B  ·  « Atelier clair »
+   Charte Marchica Med : marine (cercle du logo) et or (mot-symbole).
+   Ce qui distingue cette variante du thème principal n'est pas sa
+   couleur mais sa structure — papier clair, typographie éditoriale,
+   géométrie zellige en filigrane. Aucune dépendance externe.
+   ============================================================ */
+
+@font-face {
+  font-family: 'InterFallback';
+  src: local('Segoe UI'), local('Helvetica Neue'), local('Arial');
+}
+
+:root {
+  /* ---- Marine : couleur du cercle du logo Marchica Med ---- */
+  --marine:      #062468;
+  --marine-2:    #051e55;   /* survol / appui */
+  --marine-3:    #2b457f;   /* dégradés, seconde teinte */
+  --marine-pale: #f0f2f6;   /* aplats très clairs */
+  --marine-100:  #e1e5ed;   /* bordures teintées */
+
+  /* ---- Or : couleur du mot-symbole du logo ----
+     Calculé en teinte/saturation/luminosité à partir du sable du logo :
+     mélanger du noir en RGB désature un ton chaud vers le brun terne. */
+  --or:      #98703e;
+  --or-2:    #7e5b30;
+  --or-pale: #f6f0e9;
+
+  /* ---- Neutres : gris légèrement biaisés vers le marine, jamais purs ---- */
+  --fond:       #f6f7fa;
+  --fond-2:     #eef0f5;
+  --papier:     #ffffff;
+  --trait:      #e3e6ec;
+  --trait-fort: #ccd1dc;
+
+  /* ---- Encre ---- */
+  --encre:      #171b26;
+  --encre-2:    #4c5567;
+  --encre-3:    #78819a;
+
+  /* ---- Sémantique : un sens, et un seul, par couleur ---- */
+  --ok:         #0f8a72;   --ok-pale:     #e6f5f1;   /* validé */
+  --attente:    #8a6212;   --attente-pale:#fdf6e7;   /* en attente, à vérifier */
+  --danger:     #c0392f;   --danger-pale: #fbeceb;   /* destructif, refusé */
+
+  --r:   4px;
+  --r-2: 10px;
+  --ombre: 0 1px 2px rgba(23, 27, 38, .05), 0 8px 24px rgba(23, 27, 38, .07);
+
+  /* Anneau de focus clavier — identique partout */
+  --focus: 0 0 0 3px rgba(6, 36, 104, .28);
+}
+
+* { box-sizing: border-box; }
+
+/* Coque à hauteur fixe : la page ne défile jamais. Seule la zone de contenu,
+   dont la longueur est imprévisible, défile en interne. La barre supérieure et
+   les onglets restent donc toujours à l'écran, sans recourir à `sticky`. */
+html { height: 100%; }
+
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Nunito', 'InterFallback', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--encre);
+  background: var(--fond);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Filigrane zellige commun aux deux pages — dérive très lentement */
+.zellige-bg {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cdefs%3E%3Cpolygon id='s' points='22,0 15.56,-6.45 15.55,-15.55 6.45,-15.56 0,-22 -6.45,-15.56 -15.55,-15.55 -15.56,-6.45 -22,0 -15.56,6.45 -15.55,15.55 -6.45,15.56 0,22 6.45,15.56 15.55,15.55 15.56,6.45'/%3E%3C/defs%3E%3Cg fill='none' stroke='%23171b26' stroke-width='1'%3E%3Cuse href='%23s' x='36' y='36'/%3E%3Cuse href='%23s' x='0' y='0'/%3E%3Cuse href='%23s' x='72' y='0'/%3E%3Cuse href='%23s' x='0' y='72'/%3E%3Cuse href='%23s' x='72' y='72'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 72px 72px;
+  opacity: .06;
+  animation: derive 22s linear infinite;      /* dérive perceptible */
+}
+@keyframes derive { to { background-position: 72px 72px; } }
+
+/* ---------- Rosette de zellige qui tourne en permanence ---------- */
+.rosace {
+  position: absolute; pointer-events: none; border-radius: 50%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='none' stroke='%23062468' stroke-width='1.4'%3E%3Ccircle cx='100' cy='100' r='96'/%3E%3Ccircle cx='100' cy='100' r='78'/%3E%3Cpolygon points='178,100 155.16,77.15 155.15,44.85 122.85,44.84 100,22 77.15,44.84 44.85,44.85 44.84,77.15 22,100 44.84,122.85 44.85,155.15 77.15,155.16 100,178 122.85,155.16 155.15,155.15 155.16,122.85'/%3E%3Cpolygon points='148.04,80.1 128.14,71.86 119.9,51.96 100,60.2 80.1,51.96 71.86,71.86 51.96,80.1 60.2,100 51.96,119.9 71.86,128.14 80.1,148.04 100,139.8 119.9,148.04 128.14,128.14 148.04,119.9 139.8,100'/%3E%3Cpolygon points='124.02,90.05 109.95,75.98 90.05,75.98 75.98,90.05 75.98,109.95 90.05,124.02 109.95,124.02 124.02,109.95'/%3E%3Ccircle cx='100' cy='100' r='13'/%3E%3C/g%3E%3C/svg%3E") center/contain no-repeat;
+}
+/* Grande rosette dans le volet éditorial du login */
+.login-edito .rosace {
+  width: 560px; height: 560px; right: -190px; bottom: -170px;
+  opacity: .11; animation: tourne 48s linear infinite;
+}
+/* Seconde rosette, plus petite, en contre-rotation */
+.login-edito .rosace.deux {
+  width: 300px; height: 300px; right: -60px; bottom: -40px;
+  opacity: .16; animation: tourne 30s linear infinite reverse;
+}
+@keyframes tourne { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   MOUVEMENT — entrées en cascade + micro-interactions
+   (le dessin ne change pas ; seul le temps entre en jeu)
+   ============================================================ */
+
+/* Entrée générique : monte en fondu, ample et lisible.
+   `backwards` → si l'animation ne s'exécute pas, l'élément reste visible. */
+[data-in] {
+  animation: monte .95s cubic-bezier(.16, .84, .28, 1) backwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes monte { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Mouvements permanents (visibles sans interaction) ---------- */
+
+/* La pastille « À signer » bat doucement */
+.metric.alert .v { animation: bat 2.4s ease-in-out 1.6s infinite; }
+@keyframes bat {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.07); }
+}
+
+/* Halo qui pulse derrière la colonne en alerte */
+.metric.alert { position: relative; }
+.metric.alert::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(60% 60% at 50% 40%, rgba(152, 112, 62, .12), transparent 70%);
+  animation: respire 3.2s ease-in-out infinite;
+}
+@keyframes respire { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+
+/* Les jauges reçoivent un reflet qui les balaie en boucle */
+.metric .bar { position: relative; overflow: hidden; }
+.metric .bar::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -40%; width: 35%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.85), transparent);
+  animation: balaye 3.4s ease-in-out 1.8s infinite;
+}
+@keyframes balaye { 0% { left: -40%; } 55%, 100% { left: 115%; } }
+
+/* Les pastilles d'état en attente clignotent discrètement */
+.tag.wait .dot { animation: clignote 1.8s ease-in-out infinite; }
+@keyframes clignote { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+/* Le chevron des raccourcis invite au clic */
+.links .go { animation: pousse 2.6s ease-in-out infinite; }
+@keyframes pousse { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+
+/* Le filet de l'exergue se trace */
+.eyebrow::before { animation: trace .7s cubic-bezier(.2,.75,.3,1) 250ms backwards; }
+@keyframes trace { from { width: 0; opacity: 0; } to { width: 26px; opacity: 1; } }
+
+/* Jauges : se remplissent depuis zéro */
+.metric .bar i { animation: remplit 1.1s cubic-bezier(.25,.8,.3,1) var(--jd, 500ms) backwards; }
+@keyframes remplit { from { width: 0 !important; } }
+
+/* Lignes de registre : se décalent au survol */
+.rows li { transition: padding-left .22s ease, background-color .22s ease; }
+.rows li:hover { padding-left: 10px; background: rgba(6, 36, 104, .035); }
+
+/* Raccourcis : la pastille se colore, le chevron avance */
+.links .ic { transition: background-color .22s ease, color .22s ease, transform .22s ease; }
+.links a:hover .ic { transform: translateY(-2px); }
+.links .go { transition: transform .22s ease, color .22s ease; }
+.links a:hover .go { transform: translateX(5px); color: var(--marine); }
+.links .ln { transition: color .22s ease; }
+
+/* Panneaux : légère élévation au survol */
+.panel { transition: box-shadow .25s ease, border-color .25s ease; }
+.panel:hover { box-shadow: var(--ombre); border-color: var(--trait-fort); }
+
+/* Colonnes d'indicateurs : le chiffre se soulève */
+.metric { transition: background-color .22s ease; }
+.metric:hover { background: rgba(6, 36, 104, .03); }
+.metric .v { transition: transform .22s ease; }
+.metric:hover .v { transform: translateY(-2px); }
+
+/* Onglets : le soulignement se déploie */
+.tabs a::after { transition: transform .22s ease; }
+.tabs a.on::after { transform-origin: left; animation: souligne .5s cubic-bezier(.2,.75,.3,1) 300ms backwards; }
+@keyframes souligne { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Bouton : léger relèvement + reflet qui balaie */
+.btn { position: relative; overflow: hidden; transition: background-color .18s, transform .16s, box-shadow .18s; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -8px rgba(6, 36, 104, .7); }
+.btn:active { transform: translateY(0); }
+.btn::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent);
+  transform: skewX(-18deg); transition: left .6s ease;
+}
+.btn:hover::after { left: 130%; }
+
+/* Champ en erreur : brève secousse */
+.control.bad { border-color: var(--or); animation: secousse .36s; }
+@keyframes secousse {
+  0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }   75% { transform: translateX(-3px); }
+}
+
+/* Étapes du login : chacune entre à son tour */
+.steps li { animation: monte .55s cubic-bezier(.2,.75,.3,1) backwards; }
+.steps li:nth-child(1) { animation-delay: 620ms; }
+.steps li:nth-child(2) { animation-delay: 720ms; }
+.steps li:nth-child(3) { animation-delay: 820ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .zellige-bg, [data-in], .steps li, .metric .bar i,
+  .eyebrow::before, .tabs a.on::after,
+  .rosace, .metric.alert .v, .metric.alert::before,
+  .metric .bar::after, .tag.wait .dot, .links .go { animation: none; }
+  .btn::after, .metric .bar::after { display: none; }
+}
+
+/* ---------- Marque ---------- */
+.mark { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
+/* Logo client : image posée telle quelle, jamais recolorée ni redessinée.
+   `width: auto` préserve son ratio quelle que soit la hauteur demandée. */
+.mark-img { display: block; width: auto; }
+/* Filet de séparation : le logo porte déjà le nom de la marque, la mention
+   « GED » qui suit dit seulement de quelle application il s'agit. */
+.mark-txt {
+  display: flex; align-items: center; line-height: 1;
+  padding-left: 12px; border-left: 1px solid var(--trait);
+}
+.mark-1 { font-weight: 800; font-size: 15px; letter-spacing: .16em; color: var(--encre); }
+
+/* ============================================================
+   CONNEXION
+   ============================================================ */
+.login {
+  position: relative; z-index: 1;
+  min-height: 100vh;
+  display: grid; grid-template-columns: 1fr 1fr;
+}
+
+/* --- Colonne éditoriale (gauche) --- */
+.login-edito {
+  position: relative; overflow: hidden;      /* contient les rosettes */
+  padding: 54px 60px;
+  display: flex; flex-direction: column;
+  background: var(--papier);
+  border-right: 1px solid var(--trait);
+}
+/* Le contenu passe au-dessus du décor tournant */
+.login-edito > .mark,
+.login-edito > .edito-body,
+.login-edito > .edito-foot { position: relative; z-index: 1; }
+
+.edito-body { margin: auto 0; max-width: 460px; }
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--marine);
+}
+.eyebrow::before { content: ''; width: 26px; height: 1px; background: var(--marine); }
+
+.edito-h1 {
+  margin: 20px 0 0;
+  font-size: 46px; line-height: 1.08; font-weight: 800; letter-spacing: -.03em;
+  color: var(--encre);
+}
+.edito-h1 em { font-style: normal; color: var(--marine); }
+
+.edito-p {
+  margin: 18px 0 0; max-width: 400px;
+  font-size: 15px; color: var(--encre-2);
+}
+
+/* Trois repères numérotés — la structure éditoriale */
+.steps { margin: 38px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--trait); }
+.steps li {
+  display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: baseline;
+  padding: 15px 0; border-bottom: 1px solid var(--trait);
+}
+.steps .n {
+  font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--marine);
+  font-variant-numeric: tabular-nums;
+}
+.steps .t { font-size: 14px; color: var(--encre); }
+.steps .t small { display: block; color: var(--encre-3); font-size: 12.5px; margin-top: 2px; }
+
+.edito-foot { font-size: 12px; color: var(--encre-3); }
+
+/* --- Colonne formulaire (droite) --- */
+.login-form {
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 28px;
+}
+.form-inner { width: 100%; max-width: 372px; }
+
+.form-inner h2 {
+  margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.01em;
+}
+.form-inner .sub { margin: 6px 0 28px; color: var(--encre-2); font-size: 14px; }
+
+.field { margin-bottom: 16px; }
+.field label {
+  display: block; margin-bottom: 7px;
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--encre-2);
+}
+.control {
+  display: flex; align-items: center; gap: 10px;
+  height: 46px; padding: 0 13px;
+  background: var(--papier);
+  border: 1px solid var(--trait-fort);
+  border-radius: var(--r);
+  transition: border-color .18s, box-shadow .18s;
+}
+.control:focus-within { border-color: var(--marine); box-shadow: 0 0 0 3px var(--marine-pale); }
+.control svg { flex: 0 0 17px; color: var(--encre-3); }
+.control input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: none;
+  font: inherit; font-size: 14.5px; color: var(--encre);
+}
+.control input::placeholder { color: var(--encre-3); }
+.reveal {
+  border: 0; background: none; cursor: pointer; padding: 3px;
+  color: var(--encre-3); display: inline-flex; border-radius: 4px;
+}
+.reveal:hover { color: var(--marine); }
+.msg { margin: 7px 2px 0; font-size: 12.5px; color: var(--or); min-height: 1px; }
+
+.row-end { display: flex; justify-content: flex-end; margin: 4px 0 20px; }
+.link { font-size: 13px; font-weight: 600; color: var(--marine); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+
+.btn {
+  width: 100%; height: 48px; border: 0; border-radius: var(--r); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  font: inherit; font-size: 15px; font-weight: 700; color: var(--papier);
+  background: var(--marine);
+  transition: background-color .18s, transform .12s;
+}
+.btn:hover { background: var(--marine-2); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible, .link:focus-visible, .reveal:focus-visible {
+  outline: 2px solid var(--marine); outline-offset: 3px;
+}
+
+.note {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 22px 0 0; font-size: 12px; color: var(--encre-3);
+}
+
+/* ============================================================
+   ACCUEIL
+   ============================================================ */
+.shell { position: relative; z-index: 1; min-height: 100vh; }
+
+/* Colonne : barre + onglets à taille fixe, contenu extensible.
+   `min-height: 0` est indispensable — sans lui, un enfant flex refuse de
+   descendre sous la hauteur de son contenu et la coque déborderait. */
+.shell {
+  position: relative; z-index: 1;
+  height: 100vh; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+.topbar {
+  flex: 0 0 auto;
+  height: 66px; display: flex; align-items: center; gap: 16px;
+  padding: 0 28px; background: var(--papier);
+  border-bottom: 1px solid var(--trait);
+}
+.topbar .spacer { flex: 1; }
+.who { display: flex; align-items: center; gap: 10px; }
+.who .av {
+  width: 34px; height: 34px; border-radius: var(--r);
+  background: var(--marine); color: var(--papier);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 12px; letter-spacing: .04em;
+}
+.who .nm { font-size: 13.5px; font-weight: 700; }
+.who .rl { font-size: 11.5px; color: var(--encre-3); }
+
+/* Navigation en onglets soulignés */
+.tabs {
+  flex: 0 0 auto;
+  display: flex; gap: 4px; padding: 0 28px;
+  background: var(--papier); border-bottom: 1px solid var(--trait);
+  overflow-x: auto;
+}
+.tabs a {
+  position: relative; padding: 13px 14px;
+  font-size: 13.5px; font-weight: 600; color: var(--encre-2);
+  text-decoration: none; white-space: nowrap;
+}
+.tabs a:hover { color: var(--marine); }
+.tabs a.on { color: var(--marine); }
+.tabs a.on::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: -1px;
+  height: 2px; background: var(--marine);
+}
+
+/* Seule zone qui défile. `width: 100%` + marges auto conservent le centrage
+   que `max-width` assurait avant que .page ne devienne un enfant flex. */
+.page {
+  flex: 1; min-height: 0; overflow-y: auto;
+  width: 100%; max-width: 1180px; margin: 0 auto;
+  padding: 30px 28px 40px;
+}
+
+/* En-tête de page : filet + titre gravé */
+.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.head h1 { margin: 0; font-size: 27px; font-weight: 800; letter-spacing: -.02em; }
+.head .date { margin: 5px 0 0; font-size: 13px; color: var(--encre-3); }
+.head .cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 42px; padding: 0 18px; border-radius: var(--r);
+  background: var(--encre); color: var(--papier);
+  font-weight: 700; font-size: 14px; text-decoration: none;
+}
+.head .cta:hover { background: var(--marine-2); }
+
+.rule { height: 1px; background: var(--trait); margin: 22px 0 26px; }
+
+/* --- Indicateurs : bandeau segmenté, pas des cartes --- */
+.metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  background: var(--papier); border: 1px solid var(--trait); border-radius: var(--r-2);
+  overflow: hidden;
+}
+.metric { padding: 20px 22px; border-right: 1px solid var(--trait); }
+.metric:last-child { border-right: 0; }
+.metric .k {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--encre-3);
+}
+.metric .v {
+  margin-top: 10px; font-size: 34px; font-weight: 800; line-height: 1;
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+.metric .d { margin-top: 8px; font-size: 12.5px; color: var(--encre-3); }
+.metric .bar { margin-top: 12px; height: 3px; background: var(--fond-2); border-radius: 2px; overflow: hidden; }
+.metric .bar i { display: block; height: 100%; background: var(--marine); }
+.metric.alert .v { color: var(--or); }
+.metric.alert .bar i { background: var(--or); }
+
+/* --- Grille de contenu --- */
+.grid { display: grid; grid-template-columns: 1.65fr 1fr; gap: 22px; margin-top: 26px; align-items: start; }
+@media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+
+.panel { background: var(--papier); border: 1px solid var(--trait); border-radius: var(--r-2); }
+.panel-h {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--trait);
+}
+.panel-h h2 { margin: 0; font-size: 14px; font-weight: 800; letter-spacing: .02em; }
+.panel-h a { font-size: 12.5px; font-weight: 700; color: var(--marine); text-decoration: none; }
+.panel-b { padding: 6px 20px 16px; }
+
+/* Liste de documents — traitée comme un registre */
+.rows { list-style: none; margin: 0; padding: 0; }
+.rows li {
+  display: grid; grid-template-columns: 42px 1fr auto; gap: 14px; align-items: center;
+  padding: 14px 0; border-bottom: 1px solid var(--trait);
+}
+.rows li:last-child { border-bottom: 0; }
+.rows .ref {
+  font-size: 11px; font-weight: 800; letter-spacing: .04em; color: var(--encre-3);
+  font-variant-numeric: tabular-nums;
+}
+.rows .ttl { font-size: 14px; font-weight: 700; }
+.rows .meta { font-size: 12.5px; color: var(--encre-3); margin-top: 2px; }
+.tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 700;
+  background: var(--marine-pale); color: var(--marine-2);
+}
+.tag.wait { background: var(--or-pale); color: var(--or); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* Raccourcis : liste dense, pas de grosses tuiles */
+.links { list-style: none; margin: 0; padding: 0; }
+.links li { border-bottom: 1px solid var(--trait); }
+.links li:last-child { border-bottom: 0; }
+.links a {
+  display: flex; align-items: center; gap: 12px; padding: 14px 0;
+  text-decoration: none; color: var(--encre);
+}
+.links a:hover .ln { color: var(--marine); }
+.links .ic {
+  width: 34px; height: 34px; border-radius: var(--r); flex: 0 0 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--fond-2); color: var(--encre-2);
+}
+.links a:hover .ic { background: var(--marine-pale); color: var(--marine); }
+.links .ln { font-size: 14px; font-weight: 700; }
+.links .lh { font-size: 12.5px; color: var(--encre-3); }
+.links .go { margin-left: auto; color: var(--encre-3); }
+
+@media (max-width: 900px) {
+  .login { grid-template-columns: 1fr; }
+  .login-edito { display: none; }
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .metric:nth-child(2) { border-right: 0; }
+  .metric:nth-child(1), .metric:nth-child(2) { border-bottom: 1px solid var(--trait); }
+}
+
+/* ============================================================
+   ÉCRANS DE GESTION — le registre plutôt que la grille de cartes
+   ============================================================ */
+
+.fil { margin: 5px 0 0; font-size: 12.5px; color: var(--encre-3); }
+.fil a { color: var(--encre-3); text-decoration: none; }
+.fil a:hover { color: var(--marine); }
+
+/* --- Barre d'outils au-dessus du registre --- */
+.outils {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 20px; border-bottom: 1px solid var(--trait);
+}
+.outils .droite { margin-left: auto; display: flex; align-items: center; gap: 9px; }
+
+.cherche {
+  display: flex; align-items: center; gap: 9px;
+  height: 38px; padding: 0 12px; min-width: 260px;
+  background: var(--fond); border: 1px solid var(--trait-fort); border-radius: var(--r);
+  transition: border-color .18s, box-shadow .18s;
+}
+.cherche:focus-within { border-color: var(--marine); box-shadow: 0 0 0 3px var(--marine-pale); }
+.cherche svg { flex: 0 0 16px; color: var(--encre-3); }
+.cherche input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: none;
+  font: inherit; font-size: 14px; color: var(--encre);
+}
+
+/* Bouton secondaire, sur fond papier */
+.bouton {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 38px; padding: 0 14px; border-radius: var(--r); cursor: pointer;
+  border: 1px solid var(--trait-fort); background: var(--papier);
+  font: inherit; font-size: 13.5px; font-weight: 700; color: var(--encre-2);
+  text-decoration: none; transition: border-color .18s, color .18s, background-color .18s;
+}
+.bouton:hover { border-color: var(--marine); color: var(--marine); background: var(--marine-pale); }
+.bouton.danger:hover { border-color: var(--or); color: var(--or); background: var(--or-pale); }
+.bouton svg { flex: 0 0 15px; }
+
+/* Barre d'action de masse — n'apparaît qu'avec une sélection */
+.bulk {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 20px; background: var(--marine-pale);
+  border-bottom: 1px solid var(--trait);
+  font-size: 13.5px; font-weight: 700; color: var(--marine-2);
+}
+.bulk .droite { margin-left: auto; display: flex; gap: 9px; }
+
+/* --- Le registre --- */
+.registre-wrap { overflow-x: auto; }
+.registre { width: 100%; border-collapse: collapse; }
+.registre th {
+  text-align: left; padding: 11px 20px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--encre-3); border-bottom: 1px solid var(--trait-fort); white-space: nowrap;
+}
+/* Densité : ces écrans sont des files de travail, on y enchaîne les lignes.
+   Voir plus de lignes d'un coup prime sur l'aération d'une ligne isolée. */
+.registre td {
+  padding: 8px 20px; font-size: 13.5px; color: var(--encre);
+  border-bottom: 1px solid var(--trait); vertical-align: middle;
+}
+.registre tbody tr:last-child td { border-bottom: 0; }
+.registre tbody tr { transition: background-color .18s; }
+.registre tbody tr:hover { background: rgba(6, 36, 104, .035); }
+
+.registre .num {
+  font-variant-numeric: tabular-nums; color: var(--encre-3);
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+}
+.registre .nom { font-weight: 700; }
+.registre .sous { display: block; font-size: 12.5px; color: var(--encre-3); margin-top: 2px; }
+.registre .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; }
+.registre .fin { text-align: right; white-space: nowrap; }
+.registre .c-sel { width: 42px; }
+/* `width` n'est qu'une indication en tableau à disposition automatique : une
+   colonne d'actions comprimée sous la taille de ses boutons les ferait passer
+   à la ligne, ce qui doublerait la hauteur de TOUTES les lignes. `nowrap` rend
+   son contenu insécable et lui garantit sa place. */
+.registre .c-act { width: 108px; white-space: nowrap; }
+
+/* Case à cocher sobre, à la couleur de l'accent */
+.registre input[type=checkbox] { accent-color: var(--marine); width: 15px; height: 15px; cursor: pointer; }
+
+/* Action discrète en fin de ligne */
+.act {
+  border: 0; background: none; cursor: pointer; padding: 5px 7px; border-radius: var(--r);
+  color: var(--encre-3); font: inherit; font-size: 12.5px; font-weight: 700;
+  transition: color .18s, background-color .18s;
+}
+.act:hover { color: var(--marine); background: var(--marine-pale); }
+.act.danger:hover { color: var(--or); background: var(--or-pale); }
+
+/* État : un point coloré et un mot — pas une pastille de plus par ligne */
+.etat { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+.etat::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex: 0 0 7px; background: var(--encre-3); }
+.etat.ok::before     { background: var(--marine); }
+.etat.attente::before { background: var(--or); }
+.etat.arret::before  { background: var(--trait-fort); }
+
+/* Jeton de valeur (options d'un index, membres d'un groupe) */
+.jeton {
+  display: inline-block; padding: 2px 9px; margin: 2px 3px 2px 0;
+  border: 1px solid var(--trait-fort); border-radius: var(--r);
+  font-size: 12px; color: var(--encre-2); background: var(--fond);
+}
+.jeton.vert { border-color: var(--marine-100); background: var(--marine-pale); color: var(--marine-2); }
+
+/* --- Pied de registre --- */
+.pied {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 13px 20px; border-top: 1px solid var(--trait);
+  font-size: 12.5px; color: var(--encre-3);
+}
+.pied .pages { margin-left: auto; display: flex; gap: 5px; }
+.pied .pages button {
+  min-width: 30px; height: 30px; padding: 0 8px; cursor: pointer;
+  border: 1px solid var(--trait); background: var(--papier); border-radius: var(--r);
+  font: inherit; font-size: 12.5px; font-weight: 700; color: var(--encre-2);
+}
+.pied .pages button:hover { border-color: var(--marine); color: var(--marine); }
+.pied .pages button[aria-current] { background: var(--marine); border-color: var(--marine); color: var(--papier); }
+
+/* --- Aucun résultat --- */
+.vide { padding: 46px 20px; text-align: center; }
+.vide .t { font-size: 15px; font-weight: 800; }
+.vide .s { margin-top: 6px; font-size: 13px; color: var(--encre-3); }
+
+/* --- Panneau latéral de saisie (formulaire de la variante) --- */
+.volet { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; padding: 20px; }
+.volet .plein { grid-column: 1 / -1; }
+.volet label {
+  display: block; margin-bottom: 7px;
+  font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--encre-2);
+}
+.volet .saisie, .volet select {
+  width: 100%; height: 42px; padding: 0 12px;
+  background: var(--papier); border: 1px solid var(--trait-fort); border-radius: var(--r);
+  font: inherit; font-size: 14px; color: var(--encre); outline: none;
+  transition: border-color .18s, box-shadow .18s;
+}
+.volet .saisie:focus, .volet select:focus { border-color: var(--marine); box-shadow: 0 0 0 3px var(--marine-pale); }
+.volet .aide { margin: 6px 2px 0; font-size: 12px; color: var(--encre-3); }
+
+/* ---------- Indexation automatique : le panneau de proposition ---------- */
+.proposition { border-left: 3px solid var(--marine); }
+.proposition .panel-h h2 { display: flex; align-items: baseline; gap: 8px; }
+.proposition .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; font-weight: 600; }
+
+/* Provenance du contenu : neutre pour une couche texte, terre pour un OCR */
+.lecture {
+  margin: 0; padding: 9px 12px;
+  background: var(--marine-pale); border: 1px solid var(--marine-100); border-radius: var(--r);
+  font-size: 12.5px; color: var(--encre-2);
+}
+.lecture.ocr { background: var(--or-pale); border-color: var(--or-pale); }
+
+.charte { margin: 12px 0 0; font-size: 12.5px; color: var(--encre-3); }
+.charte code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  padding: 1px 6px; background: var(--fond-2); border-radius: 3px; color: var(--encre);
+}
+
+/* Le tableau de propositions garde ses filets, sans le fond au survol */
+.propositions tbody tr:hover { background: none; }
+.propositions td { vertical-align: top; padding-top: 12px; }
+.propositions .saisie {
+  width: 100%; height: 38px; padding: 0 11px;
+  background: var(--papier); border: 1px solid var(--trait-fort); border-radius: var(--r);
+  font: inherit; font-size: 13.5px; color: var(--encre); outline: none;
+  transition: border-color .18s, box-shadow .18s;
+}
+.propositions .saisie:focus { border-color: var(--marine); box-shadow: 0 0 0 3px var(--marine-pale); }
+
+.provenance {
+  display: block; margin-top: 3px;
+  font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--encre-3);
+}
+.provenance.contenu { color: var(--marine); }
+
+/* Référence recomposée en direct */
+.reference {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-top: 16px; padding: 12px 14px;
+  background: var(--fond); border: 1px solid var(--trait); border-radius: var(--r);
+}
+.reference .rk {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--encre-3);
+}
+.reference .rv {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 13.5px; font-weight: 700; color: var(--marine-2); overflow-wrap: anywhere;
+}
+
+/* Garde-fou et actions */
+.garde {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--trait);
+}
+.garde p { margin: 0; font-size: 12.5px; color: var(--encre-3); }
+.garde .droite { margin-left: auto; display: flex; gap: 10px; }
+
+@media (max-width: 760px) {
+  .volet { grid-template-columns: 1fr; }
+  .cherche { min-width: 0; width: 100%; }
+  .outils .droite { margin-left: 0; width: 100%; }
+  .garde .droite { margin-left: 0; width: 100%; }
+}

@@ -33,5 +33,7 @@ public interface WorkSpaceRepository extends JpaRepository<WorkSpace, Long> {
 
     long countByParentIdAndDeletedFalse(Long parentId);
 
+    long countByDeletedFalse();
+
     List<WorkSpace> findByParentIdAndDeletedFalse(Long parentId);
 }

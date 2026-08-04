@@ -1,0 +1,208 @@
+<h2 mat-dialog-title>
+  {{ etape() === 'depot' ? 'Téléverser un document' : 'Indexation du document' }}
+</h2>
+
+<mat-dialog-content>
+
+  <!-- ===== Étape 1 — le fichier et son type ===== -->
+  @if (etape() === 'depot') {
+    <form [formGroup]="form" class="up-form">
+
+      <!-- subscriptSizing dynamic : l'aide tient sur deux lignes, la zone
+           réservée sous le champ doit s'ajuster sinon le texte recouvre la
+           ligne suivante. -->
+      <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+        <mat-label>Type de document</mat-label>
+        <mat-select formControlName="typeDocumentId">
+          @for (t of types(); track t.id) {
+            <mat-option [value]="t.id">{{ t.name }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>Il commande le dossier, les formats acceptés et les index à renseigner</mat-hint>
+        @if (form.get('typeDocumentId')?.touched && form.get('typeDocumentId')?.invalid) {
+          <mat-error>Le type de document est obligatoire</mat-error>
+        }
+      </mat-form-field>
+
+      <!-- Un type sans plan n'a aucun index : le dire avant le téléversement,
+           plutôt que de laisser l'opérateur s'étonner qu'on ne lui demande rien. -->
+      @if (typeChoisi(); as t) {
+        @if (!t.plan) {
+          <p class="sans-plan">
+            <mat-icon svgIcon="alert"></mat-icon>
+            <span>
+              Le type <strong>{{ t.name }}</strong> n'a pas de plan d'indexation :
+              le document sera déposé <strong>sans aucun index</strong>, et l'étape
+              d'indexation ne vous sera pas proposée.
+            </span>
+          </p>
+        }
+      }
+
+      <div class="file-row">
+        <button mat-stroked-button type="button" (click)="fileInput.click()">
+          <mat-icon svgIcon="add"></mat-icon> Choisir un fichier
+        </button>
+        <input #fileInput type="file" hidden (change)="onFile($event)" />
+        <span class="file-name">{{ selectedFile()?.name || 'Aucun fichier sélectionné' }}</span>
+      </div>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Nom du document</mat-label>
+        <input matInput formControlName="name" placeholder="Par défaut : le nom du fichier" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Date d'expiration (optionnel)</mat-label>
+        <input matInput type="date" formControlName="expirationDate" />
+      </mat-form-field>
+
+      @if (serverError()) {
+        <div class="server-error">{{ serverError() }}</div>
+      }
+    </form>
+  }
+
+  <!-- ===== Étape 2 — la GED propose, l'opérateur confirme ===== -->
+  @else {
+    <div class="idx">
+      <div class="idx-tete">
+        <p class="idx-fic"><mat-icon svgIcon="nav-type"></mat-icon> {{ documentNom() }}</p>
+      </div>
+
+      <!-- L'indexation automatique est un choix : l'opérateur l'active pour que
+           la GED lise le document, ou la coupe pour saisir lui-même. -->
+      <div class="auto-bloc" [class.coupe]="!indexationAuto()">
+        <mat-slide-toggle [checked]="indexationAuto()"
+                          [disabled]="!lectureDisponible() || analyseEnCours()"
+                          (change)="basculerAuto($event.checked)">
+          Indexation automatique
+        </mat-slide-toggle>
+        <p class="ab-aide">
+          @if (motifIndisponible(); as motif) {
+            {{ motif }}
+          } @else if (indexationAuto()) {
+            La GED lit le document et remplit ce qu'elle reconnaît. Vous relisez et corrigez.
+          } @else {
+            Vous saisissez les index vous-même. Activez pour que la GED tente de les remplir.
+          }
+        </p>
+      </div>
+
+      @if (analyseEnCours()) {
+        <p class="etat">Lecture du document en cours…</p>
+      } @else {
+
+        @if (analyse(); as a) {
+          @if (a.planNom) {
+            <p class="charte">
+              Charte <strong>{{ a.planNom }}</strong> —
+              <strong>{{ a.nbReconnus }}/{{ a.nbAttendus }}</strong> champ(s) déduits automatiquement
+            </p>
+          }
+
+          @if (lectureContenu(); as lecture) {
+            <p class="lecture" [class.ocr]="a.provenanceTexte === 'OCR'">
+              <mat-icon [svgIcon]="a.provenanceTexte === 'OCR' ? 'alert' : 'nav-type'"></mat-icon>
+              Contenu lu — <strong>{{ lecture }}</strong>
+              @if (venantDuContenu() > 0) { · {{ venantDuContenu() }} valeur(s) en proviennent }
+              @if (a.provenanceTexte === 'OCR') { · relisez-les, la reconnaissance optique peut se tromper }
+            </p>
+          }
+
+          @if (a.avertissement) {
+            <p class="avert"><mat-icon svgIcon="alert"></mat-icon> {{ a.avertissement }}</p>
+          }
+        }
+
+        @if (lignes().length) {
+          <div class="prop-list">
+            @for (l of lignes(); track l.indexFieldId; let i = $index) {
+              <div class="prop" [class.rejete]="!l.reconnue">
+                <div class="p-head">
+                  <span class="p-nom">{{ l.libelle }}</span>
+                  @if (l.reconnue) {
+                    <span class="p-src" [class.contenu]="l.source === 'CONTENU'">
+                      {{ l.source === 'CONTENU' ? 'lu dans le document' : 'nom du fichier' }}
+                    </span>
+                  } @else {
+                    <span class="p-src ko" [matTooltip]="l.motif || ''">à saisir</span>
+                  }
+                </div>
+
+                @switch (l.fieldType) {
+                  @case ('LISTE') {
+                    <mat-form-field appearance="outline" class="full">
+                      <mat-select [value]="l.valeur" (selectionChange)="majValeur(i, $event.value)">
+                        <mat-option value="">—</mat-option>
+                        @for (o of l.options; track o) {
+                          <mat-option [value]="o">{{ o }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                  }
+                  @case ('DATE') {
+                    <mat-form-field appearance="outline" class="full">
+                      <input matInput type="date" [value]="l.valeur"
+                             (input)="majValeur(i, $any($event.target).value)" />
+                    </mat-form-field>
+                  }
+                  @case ('NOMBRE') {
+                    <mat-form-field appearance="outline" class="full">
+                      <input matInput type="number" [value]="l.valeur"
+                             (input)="majValeur(i, $any($event.target).value)" />
+                    </mat-form-field>
+                  }
+                  @default {
+                    <mat-form-field appearance="outline" class="full">
+                      <input matInput [value]="l.valeur"
+                             (input)="majValeur(i, $any($event.target).value)" />
+                    </mat-form-field>
+                  }
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Le séparateur vient du plan, connu seulement via l'analyse : sans
+               elle, on n'affiche pas une référence qu'on ne sait pas composer.
+               Elle reste de toute façon recalculée côté serveur à la validation. -->
+          @if (analyse()) {
+            <div class="ref-bloc">
+              <span class="rb-label">Référence composée</span>
+              <code class="rb-val">{{ reference() || '—' }}</code>
+            </div>
+          }
+        }
+      }
+
+      @if (serverError()) {
+        <div class="server-error">{{ serverError() }}</div>
+      }
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (etape() === 'depot') {
+    <button mat-button type="button" (click)="cancel()">Annuler</button>
+    <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+      {{ loading() ? 'Téléversement…' : 'Téléverser' }}
+    </button>
+  } @else {
+    @if (manquants() > 0) {
+      <span class="reste">{{ manquants() }} champ(s) à renseigner</span>
+    }
+    <!-- Sortie de secours uniquement si la lecture a échoué : le fichier est
+         déjà déposé, on ne le supprime pas, il reste à indexer. -->
+    @if (serverError() && !lignes().length) {
+      <button mat-button type="button" (click)="reporter()">Indexer plus tard</button>
+    }
+    <button mat-flat-button color="primary" type="button"
+            [disabled]="loading() || analyseEnCours() || !lignes().length || manquants() > 0"
+            (click)="confirmer()">
+      <mat-icon svgIcon="checkbox-on"></mat-icon>
+      {{ loading() ? 'Enregistrement…' : 'Confirmer l\'indexation' }}
+    </button>
+  }
+</mat-dialog-actions>

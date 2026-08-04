@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Indexation automatique · GED — Variante B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="zellige-bg" aria-hidden="true"></div>
+
+  <div class="shell" data-shell>
+    <main class="page">
+      <div class="head">
+        <div data-in style="--d:60ms">
+          <h1>Indexation automatique</h1>
+          <p class="fil"><a href="accueil.html">Accueil</a> · Indexation automatique</p>
+        </div>
+      </div>
+
+      <div class="rule"></div>
+
+      <!-- ===== Panneau de proposition ===== -->
+      <section class="panel proposition" data-in style="--d:180ms">
+        <div class="panel-h">
+          <h2>Analyse — <span class="mono">scan0001.pdf</span></h2>
+          <a href="#">Fermer</a>
+        </div>
+
+        <div class="panel-b" style="padding:16px 20px 20px">
+          <p class="lecture">
+            Contenu lu — <strong>couche texte du PDF</strong> · 4 valeur(s) en proviennent
+          </p>
+
+          <p class="charte">
+            Charte <strong>Fiche Facture</strong> · séparateur <code>_</code>
+            — <strong>4/4</strong> champ(s) déduits
+          </p>
+
+          <div class="registre-wrap" style="margin-top:14px">
+            <table class="registre propositions">
+              <thead>
+                <tr>
+                  <th>Index</th>
+                  <th>Proposé par la GED</th>
+                  <th>Valeur retenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="nom">Numéro de facture</span><span class="sous">NOMBRE</span></td>
+                  <td>
+                    <span class="etat ok">2026999</span>
+                    <span class="provenance contenu">lu dans le document</span>
+                  </td>
+                  <td><input class="saisie" value="2026999" aria-label="Numéro de facture" /></td>
+                </tr>
+                <tr>
+                  <td><span class="nom">Date d'émission</span><span class="sous">DATE</span></td>
+                  <td>
+                    <span class="etat ok">2026-06-22</span>
+                    <span class="provenance contenu">lu dans le document</span>
+                  </td>
+                  <td><input class="saisie" type="date" value="2026-06-22" aria-label="Date d'émission" /></td>
+                </tr>
+                <tr>
+                  <td><span class="nom">Fournisseur</span><span class="sous">TEXTE</span></td>
+                  <td>
+                    <span class="etat ok">Nova Import</span>
+                    <span class="provenance contenu">lu dans le document</span>
+                  </td>
+                  <td><input class="saisie" value="Nova Import" aria-label="Fournisseur" /></td>
+                </tr>
+                <tr>
+                  <td><span class="nom">Priorité</span><span class="sous">LISTE</span></td>
+                  <td>
+                    <span class="etat ok">Urgente</span>
+                    <span class="provenance contenu">lu dans le document</span>
+                  </td>
+                  <td>
+                    <select class="saisie" aria-label="Priorité">
+                      <option>Basse</option><option>Normale</option>
+                      <option>Haute</option><option selected>Urgente</option>
+                    </select>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="reference">
+            <span class="rk">Référence composée</span>
+            <code class="rv">2026999_2026-06-22_Nova Import_Urgente</code>
+          </div>
+
+          <div class="garde">
+            <p>Rien n'est enregistré tant que vous n'avez pas confirmé.</p>
+            <div class="droite">
+              <button class="bouton" type="button">Annuler</button>
+              <button class="btn" type="button" style="width:auto; height:42px; padding:0 20px">
+                Confirmer l'indexation
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Registre des documents ===== -->
+      <section class="panel" data-in style="margin-top:26px; --d:280ms">
+        <div class="outils">
+          <div class="cherche">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input type="search" placeholder="Rechercher un document…" aria-label="Rechercher"
+                   data-filtre="#reg-indexation" />
+          </div>
+          <div class="droite">
+            <button class="bouton" type="button">Tout analyser</button>
+          </div>
+        </div>
+
+        <div class="registre-wrap">
+          <table class="registre" id="reg-indexation">
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>État</th>
+                <th>Référence</th>
+                <th class="c-act fin">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span class="nom">Scan sans nom parlant.pdf</span>
+                  <span class="sous">scan0001.pdf — nom muet, contenu lisible</span>
+                </td>
+                <td><span class="etat ok">Indexé</span></td>
+                <td class="mono">2026999_2026-06-22_Nova Import_Urgente</td>
+                <td class="fin"><button class="act">Analyser</button></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="nom">Facture Nova juin.pdf</span>
+                  <span class="sous">2026111_2026-06-10_Nova Import_Urgente.pdf</span>
+                </td>
+                <td><span class="etat ok">Indexé</span></td>
+                <td class="mono">2026111_2026-06-10_Nova Import_Urgente</td>
+                <td class="fin"><button class="act">Analyser</button></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="nom">Facture ACME janvier.pdf</span>
+                  <span class="sous">facture-test.pdf — hors charte</span>
+                </td>
+                <td><span class="etat attente">Partiel</span></td>
+                <td class="mono">?_?_ACME Distribution_?</td>
+                <td class="fin"><button class="act">Analyser</button></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="nom">Convention formation.pdf</span>
+                  <span class="sous">convention-2026.pdf — scan sans couche texte</span>
+                </td>
+                <td><span class="etat arret">Non indexé</span></td>
+                <td><span style="color:var(--encre-3)">—</span></td>
+                <td class="fin"><button class="act">Analyser</button></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="nom">Procès-verbal 12-06.pdf</span>
+                  <span class="sous">pv-reunion.pdf</span>
+                </td>
+                <td><span class="etat arret">Non indexé</span></td>
+                <td><span style="color:var(--encre-3)">—</span></td>
+                <td class="fin"><button class="act">Analyser</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="vide" hidden>
+            <div class="t">Aucun document ne correspond</div>
+            <div class="s">Élargissez la recherche ou videz le champ.</div>
+          </div>
+        </div>
+
+        <div class="pied">
+          <span><span data-compte>5</span> document(s) affiché(s)</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="shell.js"></script>
+</body>
+</html>

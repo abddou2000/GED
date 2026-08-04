@@ -1,21 +1,25 @@
-.sk { padding: 6px 2px 10px; }
+:host { display: block; }
 
+.sk { padding: 2px 0 8px; }
 .sk-row {
-  display: flex; align-items: center; gap: 24px;
-  padding: 12px 8px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 22px;
+  padding: 13px 6px; border-bottom: 1px solid var(--line-soft);
 }
+.sk-head { border-bottom: 1px solid var(--line); }
+.sk-cell { flex: 1; min-width: 0; }
 
-.sk-cell {
-  height: 12px; border-radius: 6px; display: inline-block;
-}
-
-.skeleton {
-  background: linear-gradient(90deg, #eef0f3 25%, #e3e7ec 37%, #eef0f3 63%);
+.sk-bar {
+  display: block; height: 12px; border-radius: 6px; width: 60%;
+  background: linear-gradient(90deg, var(--surface) 25%, #e7ecf3 37%, var(--surface) 63%);
   background-size: 400% 100%;
-  animation: sk-shimmer 1.3s ease-in-out infinite;
+  animation: sk-shimmer 1.4s ease infinite;
 }
+.sk-head .sk-bar { height: 9px; width: 42%; }
 
 @keyframes sk-shimmer {
   0% { background-position: 100% 0; }
   100% { background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-bar { animation: none; }
 }

@@ -1,73 +1,26 @@
-.page { max-width: 1280px; margin: 0 auto; padding: 22px 24px; }
+/* Spécifique — Espaces de travail (écran vedette). Le commun (page, carte,
+   tableau, cellules riches, avatars, chip-marine, pastilles) vient de _ui.scss */
 
-.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-.page-head h1 { margin: 0; font-size: 24px; font-weight: 800; color: var(--ink); }
-.breadcrumb { margin: 4px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+/* 132px ne suffisait pas à 3 boutons-icônes (36px chacun) + le padding
+   16px/16px de la cellule : ils passaient à la ligne. La cellule garde
+   son padding standard ; act-row force la rangée en une seule ligne
+   (flex, sans retour) quelle que soit la largeur restante. */
+.c-act { width: 160px; }
+.act-row { display: inline-flex; align-items: center; gap: 2px; }
 
-.card {
-  background: var(--surface-0); border: 1px solid var(--line); border-radius: 14px;
-  padding: 14px 16px 4px; box-shadow: 0 1px 3px rgba(16, 40, 68, .06);
-  min-height: calc(100vh - 150px);
-}
-
-/* barre d'outils */
-.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-.tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.search {
-  display: flex; align-items: center; gap: 6px; border: 1px solid var(--line);
-  border-radius: 9px; padding: 6px 10px; background: var(--surface); width: 240px;
-}
-.search mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--ink-soft); }
-.search input { border: none; outline: none; background: transparent; width: 100%; font-size: 14px; color: var(--ink); }
-.bulk { color: var(--danger) !important; }
-
-/* ---------- Tableau ---------- */
-.table-wrap { overflow-x: auto; }
-.ws-table { width: 100%; background: transparent; }
-.ws-table th.mat-mdc-header-cell {
-  background: var(--beige); color: var(--ink-soft); font-weight: 600; font-size: 11px;
-  text-transform: uppercase; letter-spacing: .05em;
-  border-bottom: 1px solid var(--beige-deep);
-  padding-top: 11px; padding-bottom: 11px;
-}
-.ws-table td.mat-mdc-cell {
-  font-size: 13.5px; color: var(--ink); border-bottom: 1px solid var(--line);
-  padding-top: 11px; padding-bottom: 11px;
-}
-.ws-table tr.mat-mdc-row:hover { background: var(--surface); }
-.c-chk { width: 44px; }
-.c-id { width: 60px; }
-.c-name { font-weight: 600; }
-.c-act { width: 132px; text-align: right; }
-.muted { color: var(--ink-soft); }
-.danger { color: var(--danger); }
-/* Empty state soigné */
-.no-data { padding: 8px 0; }
-.empty-state {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; padding: 44px 0; color: var(--ink-soft);
-}
-.empty-state .empty-ic mat-icon { width: 44px; height: 44px; font-size: 44px; color: var(--beige-deep); }
-.empty-state .empty-title { font-size: 14px; font-weight: 600; color: var(--ink); }
-.empty-state .empty-sub { font-size: 12.5px; color: var(--ink-soft); }
-
-/* pastilles de statut */
-.badge { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-.st-actif { background: #e7f0e5; color: #4e6b3a; }
-.st-inactif { background: #eeedea; color: #6b6357; }
-.st-arch { background: #f6ecda; color: #a07a2c; }
-
-/* ---------- Arbre ---------- */
+/* ---------- Arbre des dossiers ---------- */
 .tree { padding: 4px 2px 14px; }
-.tnode { }
 .trow {
-  display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 8px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-radius: var(--r-sm);
 }
 .trow:hover { background: var(--surface); }
-.texp { border: none; background: none; cursor: pointer; padding: 0; color: var(--ink-soft);
-  display: inline-flex; align-items: center; }
+.texp {
+  border: none; background: none; cursor: pointer; padding: 0;
+  color: var(--ink-soft); display: inline-flex; align-items: center;
+}
 .texp mat-icon { font-size: 20px; width: 20px; height: 20px; }
 .tspace { width: 20px; display: inline-block; }
-.tfolder { color: var(--beige-deep); }
+.tfolder { color: var(--navy); }
 .tname { font-size: 14px; color: var(--ink); flex: 1; }
 .tdots { margin-left: auto; }

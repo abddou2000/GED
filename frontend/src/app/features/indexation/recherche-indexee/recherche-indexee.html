@@ -1,0 +1,193 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Rechercher un document</h1>
+      <p class="breadcrumb">Accueil - Recherche par index</p>
+    </div>
+  </div>
+
+  <!-- ===== Critères, fabriqués à partir des index ===== -->
+  <div class="card crit-card">
+    <div class="crit-head">
+      <span class="ch-title">Critères</span>
+      <span class="ch-sub">{{ criteres().length }} champ(s) indexé(s) · toute condition renseignée s'ajoute en ET</span>
+    </div>
+
+    <form [formGroup]="form" class="crit-grid" (ngSubmit)="rechercher()">
+      <!-- Portée -->
+      <mat-form-field appearance="outline">
+        <mat-label>Espace de travail</mat-label>
+        <mat-select formControlName="workspaceId">
+          <mat-option [value]="null">Tous</mat-option>
+          @for (o of optionsWorkspace(); track o.id) {
+            <mat-option [value]="o.id">{{ o.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Type de document</mat-label>
+        <mat-select formControlName="typeDocumentId">
+          <mat-option [value]="null">Tous</mat-option>
+          @for (o of optionsType(); track o.id) {
+            <mat-option [value]="o.id">{{ o.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <!-- Un contrôle par index cherchable -->
+      @for (c of criteres(); track c.id) {
+        @switch (c.fieldType) {
+          @case ('LISTE') {
+            <mat-form-field appearance="outline">
+              <mat-label>{{ c.libelle }}</mat-label>
+              <mat-select [formControlName]="cle(c)">
+                <mat-option [value]="null">Toutes</mat-option>
+                @for (v of c.options; track v) {
+                  <mat-option [value]="v">{{ v }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+          <!-- Chaque borne est un critère à part entière : imbriquer les deux
+               dans un bloc à libellé externe leur donnait une largeur et une
+               ligne de base différentes de tous les autres champs. -->
+          @case ('DATE') {
+            <mat-form-field appearance="outline">
+              <mat-label>{{ c.libelle }} (du)</mat-label>
+              <input matInput type="date" [formControlName]="cle(c, 'de')" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ c.libelle }} (au)</mat-label>
+              <input matInput type="date" [formControlName]="cle(c, 'a')" />
+            </mat-form-field>
+          }
+          @case ('NOMBRE') {
+            <mat-form-field appearance="outline">
+              <mat-label>{{ c.libelle }} (min)</mat-label>
+              <input matInput type="number" [formControlName]="cle(c, 'de')" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ c.libelle }} (max)</mat-label>
+              <input matInput type="number" [formControlName]="cle(c, 'a')" />
+            </mat-form-field>
+          }
+          @default {
+            <mat-form-field appearance="outline">
+              <mat-label>{{ c.libelle }}</mat-label>
+              <input matInput [formControlName]="cle(c)" placeholder="Contient…" />
+            </mat-form-field>
+          }
+        }
+      }
+
+      @if (!loading() && !criteres().length) {
+        <p class="aucun-critere">
+          Aucun index n'est coché « indexé pour recherche ».
+          Ouvrez la rubrique <strong>Index</strong> pour en activer un — il apparaîtra ici aussitôt.
+        </p>
+      }
+    </form>
+
+    <div class="crit-foot" [formGroup]="form">
+      <mat-form-field appearance="outline" class="grp">
+        <mat-label>Regrouper par</mat-label>
+        <mat-select formControlName="grouperPar" (selectionChange)="rechercher()">
+          <mat-option [value]="null">Aucun regroupement</mat-option>
+          @for (g of groupages(); track g.id) {
+            <mat-option [value]="g.id">{{ g.libelle }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <div class="cf-actions">
+        @if (actifs() > 0) {
+          <button mat-stroked-button type="button" (click)="effacer()">
+            <mat-icon svgIcon="close"></mat-icon> Effacer ({{ actifs() }})
+          </button>
+        }
+        <button mat-flat-button color="primary" type="button" (click)="rechercher()" [disabled]="loading()">
+          <mat-icon svgIcon="search"></mat-icon> Rechercher
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Résultats ===== -->
+  @if (loading()) {
+    <div class="card"><div class="chargement">Recherche en cours…</div></div>
+  } @else if (recherchee() && !groupes().length) {
+    <div class="card">
+      <div class="empty-state">
+        <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+        <span class="empty-title">Aucun document ne correspond</span>
+        <span class="empty-sub">Élargissez une plage ou retirez un critère pour obtenir des résultats.</span>
+      </div>
+    </div>
+  } @else {
+    <div class="res-head">
+      <span class="rh-total">{{ total() }} document(s)</span>
+      @if (groupes().length > 1) { <span class="rh-grp">répartis en {{ groupes().length }} groupes</span> }
+    </div>
+
+    @for (g of groupes(); track g.libelle; let i = $index) {
+      <section class="card groupe">
+        <button type="button" class="grp-head" (click)="basculer(i)"
+                [attr.aria-expanded]="!replie(i)">
+          <mat-icon class="gh-chev" [class.plie]="replie(i)" svgIcon="chevron-down"></mat-icon>
+          <span class="gh-titre">{{ g.libelle }}</span>
+          <span class="gh-compte">{{ g.total }}</span>
+        </button>
+
+        @if (!replie(i)) {
+          <div class="table-wrap">
+            <table class="res-table">
+              <thead>
+                <tr>
+                  <th class="c-doc">Document</th>
+                  <th>Valeurs d'index</th>
+                  <th class="c-meta">Espace</th>
+                  <th class="c-act">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (d of g.documents; track d.id) {
+                  <tr>
+                    <td class="c-doc">
+                      <div class="cell-doc">
+                        <span class="fico"><mat-icon svgIcon="nav-type"></mat-icon></span>
+                        <div class="doc-txt">
+                          <div class="d-name">{{ d.name }}<span class="ext">.{{ d.extension }}</span></div>
+                          <div class="d-sub">{{ d.sizeLabel }}@if (d.typeDocument) { · {{ d.typeDocument }} }</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="tags">
+                        @for (v of d.valeurs; track v.indexFieldId) {
+                          <span class="tag" [matTooltip]="v.libelle">
+                            <span class="tag-k">{{ v.libelle }}</span>{{ v.valeur }}
+                          </span>
+                        }
+                        @if (!d.valeurs.length) { <span class="muted">Non indexé</span> }
+                      </span>
+                    </td>
+                    <td class="c-meta">{{ d.workspace || '—' }}</td>
+                    <td class="c-act">
+                      <button mat-icon-button (click)="indexer(d)" matTooltip="Indexer" aria-label="Indexer">
+                        <mat-icon svgIcon="nav-index"></mat-icon>
+                      </button>
+                      <button mat-icon-button (click)="telecharger(d)" matTooltip="Télécharger" aria-label="Télécharger">
+                        <mat-icon svgIcon="download"></mat-icon>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    }
+  }
+</div>

@@ -1,0 +1,18 @@
+.idx-form {
+  display: flex; flex-direction: column; gap: 4px;
+  padding-top: 6px; min-width: 460px;
+}
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+.grow { flex: 1; min-width: 200px; }
+.full { width: 100%; }
+
+.toggles {
+  display: flex; flex-wrap: wrap; gap: 12px 22px;
+  padding: 8px 2px 4px;
+}
+
+.server-error {
+  color: var(--danger); font-size: 13px; margin-top: 8px;
+  background: #fbecec; border: 1px solid #f2d3d0; border-radius: 8px; padding: 8px 10px;
+}

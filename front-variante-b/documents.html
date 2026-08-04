@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Documents · GED — Variante B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="zellige-bg" aria-hidden="true"></div>
+
+  <div class="shell" data-shell>
+    <main class="page">
+      <div class="head">
+        <div data-in style="--d:60ms">
+          <h1>Documents</h1>
+          <p class="fil"><a href="accueil.html">Accueil</a> · Documents déposés</p>
+        </div>
+        <a class="cta" href="#" data-in style="--d:150ms">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 12h14" /><path d="M12 5v14" />
+          </svg>
+          Déposer un document
+        </a>
+      </div>
+
+      <div class="rule"></div>
+
+      <section class="metrics" data-in style="--d:200ms">
+        <div class="metric">
+          <div class="k">Déposés</div>
+          <div class="v" data-count="14">14</div>
+          <div class="d">documents actifs</div>
+          <div class="bar"><i style="width:70%; --jd:500ms"></i></div>
+        </div>
+        <div class="metric">
+          <div class="k">Indexés</div>
+          <div class="v" data-count="9">9</div>
+          <div class="d">référence composée</div>
+          <div class="bar"><i style="width:64%; --jd:600ms"></i></div>
+        </div>
+        <div class="metric alert">
+          <div class="k">À indexer</div>
+          <div class="v" data-count="5">5</div>
+          <div class="d">sans référence</div>
+          <div class="bar"><i style="width:36%; --jd:700ms"></i></div>
+        </div>
+        <div class="metric">
+          <div class="k">Volume</div>
+          <div class="v" data-count="47">47</div>
+          <div class="d">Mo stockés</div>
+          <div class="bar"><i style="width:22%; --jd:800ms"></i></div>
+        </div>
+      </section>
+
+      <section class="panel" data-in style="margin-top:26px; --d:300ms">
+        <div class="outils">
+          <div class="cherche">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input type="search" placeholder="Rechercher un document…" aria-label="Rechercher"
+                   data-filtre="#reg-documents" />
+          </div>
+          <div class="droite">
+            <button class="bouton" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <rect width="20" height="5" x="2" y="3" rx="1" />
+                <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" />
+              </svg>
+              Corbeille
+            </button>
+          </div>
+        </div>
+
+        <div class="bulk" data-bulk hidden>
+          <span><span data-bulk-count>0</span> document(s) sélectionné(s)</span>
+          <div class="droite">
+            <button class="bouton" type="button">Déplacer</button>
+            <button class="bouton danger" type="button">Supprimer</button>
+          </div>
+        </div>
+
+        <div class="registre-wrap">
+          <table class="registre" id="reg-documents" data-selectable>
+            <thead>
+              <tr>
+                <th class="c-sel"><input type="checkbox" aria-label="Tout sélectionner" /></th>
+                <th>Document</th>
+                <th>Type</th>
+                <th>Espace</th>
+                <th>Référence</th>
+                <th>État</th>
+                <th class="c-act fin">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td>
+                  <span class="nom">Facture Nova juin.pdf</span>
+                  <span class="sous">2026111_2026-06-10_Nova Import_Urgente.pdf · 12 Ko</span>
+                </td>
+                <td>Facture</td>
+                <td>Comptabilité</td>
+                <td class="mono">2026111_2026-06-10_Nova Import_Urgente</td>
+                <td><span class="etat ok">Indexé</span></td>
+                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td>
+                  <span class="nom">Scan sans nom parlant.pdf</span>
+                  <span class="sous">scan0001.pdf · 1 Ko</span>
+                </td>
+                <td>Facture</td>
+                <td>Comptabilité</td>
+                <td class="mono">2026999_2026-06-22_Nova Import_Urgente</td>
+                <td><span class="etat ok">Indexé</span></td>
+                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td>
+                  <span class="nom">Facture ACME janvier.pdf</span>
+                  <span class="sous">facture-test.pdf · 1 Ko</span>
+                </td>
+                <td>Facture</td>
+                <td>Comptabilité</td>
+                <td class="mono">2026101_2026-01-12_ACME Distribution_Haute</td>
+                <td><span class="etat ok">Indexé</span></td>
+                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td>
+                  <span class="nom">Convention formation.pdf</span>
+                  <span class="sous">convention-2026.pdf · 240 Ko</span>
+                </td>
+                <td>Convention</td>
+                <td>Direction</td>
+                <td><span style="color:var(--encre-3)">—</span></td>
+                <td><span class="etat attente">À indexer</span></td>
+                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td>
+                  <span class="nom">Bon de commande Atlas.pdf</span>
+                  <span class="sous">2026104_2026-01-27_Atlas Fournitures_Basse.pdf · 8 Ko</span>
+                </td>
+                <td>Facture</td>
+                <td>Comptabilité</td>
+                <td class="mono">2026104_2026-01-27_Atlas Fournitures_Basse</td>
+                <td><span class="etat ok">Indexé</span></td>
+                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td>
+                  <span class="nom">Procès-verbal 12-06.pdf</span>
+                  <span class="sous">pv-reunion.pdf · 96 Ko</span>
+                </td>
+                <td>Compte rendu</td>
+                <td>Direction</td>
+                <td><span style="color:var(--encre-3)">—</span></td>
+                <td><span class="etat attente">À indexer</span></td>
+                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="vide" hidden>
+            <div class="t">Aucun document ne correspond</div>
+            <div class="s">Élargissez la recherche ou videz le champ.</div>
+          </div>
+        </div>
+
+        <div class="pied">
+          <span><span data-compte>6</span> document(s) affiché(s) sur 14</span>
+          <div class="pages">
+            <button type="button" aria-current="page">1</button>
+            <button type="button">2</button>
+            <button type="button">3</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="shell.js"></script>
+</body>
+</html>

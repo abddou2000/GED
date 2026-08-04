@@ -2,28 +2,24 @@ import { Injectable, inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 /**
- * Notifications discrètes (toasts) après une action. Enveloppe MatSnackBar
- * avec un style et un placement cohérents pour tout le module.
+ * Retour utilisateur discret (toasts) via MatSnackBar — coin bas-droit.
+ * Styles définis globalement (styles.scss) : vert (succès), cramoisi (erreur), marine (info).
+ * NB : `@angular/animations` doit être installé, sinon MatSnackBar échoue en NG0203.
  */
 @Injectable({ providedIn: 'root' })
 export class NotifyService {
-  private sb = inject(MatSnackBar);
+  private snack = inject(MatSnackBar);
 
-  success(message: string): void {
-    this.sb.open(message, '', {
-      duration: 2600,
-      panelClass: ['ged-snack', 'ged-snack-success'],
-      horizontalPosition: 'right',
-      verticalPosition: 'bottom',
-    });
-  }
+  success(message: string): void { this.show(message, 'snack-success'); }
+  error(message: string): void { this.show(message, 'snack-error'); }
+  info(message: string): void { this.show(message, 'snack-info'); }
 
-  error(message: string): void {
-    this.sb.open(message, 'Fermer', {
-      duration: 5000,
-      panelClass: ['ged-snack', 'ged-snack-error'],
-      horizontalPosition: 'right',
+  private show(message: string, cls: string): void {
+    this.snack.open(message, '', {
+      duration: 3500,
+      horizontalPosition: 'end',
       verticalPosition: 'bottom',
+      panelClass: ['snack', cls],
     });
   }
 }

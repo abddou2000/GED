@@ -1,0 +1,134 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Mes workflow</h1>
+      <p class="breadcrumb">Accueil - Documents à valider</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <mat-button-toggle-group [value]="view()" (change)="setView($event.value)" hideSingleSelectionIndicator>
+        <mat-button-toggle value="pending">À traiter ({{ pending().length }})</mat-button-toggle>
+        <mat-button-toggle value="history">Historique</mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+
+    <!-- ============ À TRAITER ============ -->
+    @if (view() === 'pending') {
+      <div class="table-wrap">
+        @if (loading()) {
+          <app-skeleton-table [rows]="5" [cols]="pendingCols.length"></app-skeleton-table>
+        } @else {
+        <table mat-table [dataSource]="dsPending" class="sig-table">
+          <ng-container matColumnDef="document">
+            <th mat-header-cell *matHeaderCellDef>Document</th>
+            <td mat-cell *matCellDef="let s" class="c-name">
+              <div class="cell-doc"><span class="fico"><mat-icon svgIcon="nav-type"></mat-icon></span><span>{{ s.document?.label }}</span></div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let s">{{ s.type || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="workspace">
+            <th mat-header-cell *matHeaderCellDef>Espace de travail</th>
+            <td mat-cell *matCellDef="let s">{{ s.workspace || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="step">
+            <th mat-header-cell *matHeaderCellDef>Étape</th>
+            <td mat-cell *matCellDef="let s"><span class="tag">{{ s.stepOrder }}. {{ s.stepLabel }}</span></td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="c-act">Actions</th>
+            <td mat-cell *matCellDef="let s" class="c-act">
+              <span class="act-pair">
+                <button mat-icon-button class="act-ok" (click)="approve(s)"
+                        matTooltip="Signer" aria-label="Signer">
+                  <mat-icon svgIcon="sign"></mat-icon>
+                </button>
+                <button mat-icon-button class="danger" (click)="reject(s)"
+                        matTooltip="Rejeter" aria-label="Rejeter">
+                  <mat-icon svgIcon="reject"></mat-icon>
+                </button>
+              </span>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="pendingCols"></tr>
+          <tr mat-row *matRowDef="let row; columns: pendingCols"></tr>
+          <tr class="no-data-row" *matNoDataRow>
+            <td class="no-data" [attr.colspan]="pendingCols.length">
+              <div class="empty-state">
+                <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+                <span class="empty-title">Rien à traiter</span>
+                <span class="empty-sub">Aucun document n'attend votre signature.</span>
+              </div>
+            </td>
+          </tr>
+        </table>
+        }
+      </div>
+      @if (!loading()) {
+        <mat-paginator #pagPending [pageSizeOptions]="[10, 25, 50]" [pageSize]="10"
+                       [pageIndex]="pagePending()" (page)="onPage('pending', $event.pageIndex)"
+                       showFirstLastButtons></mat-paginator>
+      }
+    }
+
+    <!-- ============ HISTORIQUE ============ -->
+    @else {
+      <div class="table-wrap">
+        @if (loading()) {
+          <app-skeleton-table [rows]="5" [cols]="historyCols.length"></app-skeleton-table>
+        } @else {
+        <table mat-table [dataSource]="dsHistory" class="sig-table">
+          <ng-container matColumnDef="document">
+            <th mat-header-cell *matHeaderCellDef>Document</th>
+            <td mat-cell *matCellDef="let s" class="c-name">
+              <div class="cell-doc"><span class="fico"><mat-icon svgIcon="nav-type"></mat-icon></span><span>{{ s.document?.label }}</span></div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let s">{{ s.type || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="step">
+            <th mat-header-cell *matHeaderCellDef>Étape</th>
+            <td mat-cell *matCellDef="let s"><span class="tag">{{ s.stepOrder }}. {{ s.stepLabel }}</span></td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Statut</th>
+            <td mat-cell *matCellDef="let s">
+              <span class="pill" [class]="statusBadge(s.status).cls"><span class="dot"></span>{{ statusBadge(s.status).label }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef>Date</th>
+            <td mat-cell *matCellDef="let s">{{ s.signedAt ? (s.signedAt | slice:0:10) : '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="motif">
+            <th mat-header-cell *matHeaderCellDef>Motif</th>
+            <td mat-cell *matCellDef="let s">{{ s.motif || '—' }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="historyCols"></tr>
+          <tr mat-row *matRowDef="let row; columns: historyCols"></tr>
+          <tr class="no-data-row" *matNoDataRow>
+            <td class="no-data" [attr.colspan]="historyCols.length">
+              <div class="empty-state">
+                <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+                <span class="empty-title">Historique vide</span>
+                <span class="empty-sub">Vous n'avez encore rien signé ni rejeté.</span>
+              </div>
+            </td>
+          </tr>
+        </table>
+        }
+      </div>
+      @if (!loading()) {
+        <mat-paginator #pagHistory [pageSizeOptions]="[10, 25, 50]" [pageSize]="10"
+                       [pageIndex]="pageHistory()" (page)="onPage('history', $event.pageIndex)"
+                       showFirstLastButtons></mat-paginator>
+      }
+    }
+  </div>
+</div>

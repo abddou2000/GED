@@ -12,3 +12,9 @@ spring:
   h2:
     console:
       enabled: false
+
+# Stockage des fichiers en test : dossier build jetable
+ged:
+  storage:
+    root: ./target/test-storage
+    temp: ./target/test-temp

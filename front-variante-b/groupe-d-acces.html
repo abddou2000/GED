@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Groupe d'accès · GED — Variante B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="zellige-bg" aria-hidden="true"></div>
+
+  <div class="shell" data-shell>
+    <main class="page">
+      <div class="head">
+        <div data-in style="--d:60ms">
+          <h1>Groupe d'accès</h1>
+          <p class="fil"><a href="accueil.html">Accueil</a> · Droits par espace</p>
+        </div>
+        <a class="cta" href="#" data-in style="--d:150ms">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 12h14" /><path d="M12 5v14" />
+          </svg>
+          Créer un groupe
+        </a>
+      </div>
+
+      <div class="rule"></div>
+
+      <section class="panel" data-in style="--d:240ms">
+        <div class="outils">
+          <div class="cherche">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input type="search" placeholder="Rechercher un groupe…" aria-label="Rechercher"
+                   data-filtre="#reg-groupes" />
+          </div>
+        </div>
+
+        <div class="registre-wrap">
+          <table class="registre" id="reg-groupes">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Groupe</th>
+                <th>Membres</th>
+                <th>Espaces couverts</th>
+                <th>Droits accordés</th>
+                <th class="c-act fin">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="num">GA-LECT</td>
+                <td><span class="nom">Lecture seule</span><span class="sous">Consultation sans modification</span></td>
+                <td class="num">8</td>
+                <td>Tous</td>
+                <td>
+                  <span class="jeton vert">Accès</span>
+                  <span class="jeton vert">Lecture</span>
+                </td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td class="num">GA-GEST</td>
+                <td><span class="nom">Gestionnaire</span><span class="sous">Dépôt et classement courants</span></td>
+                <td class="num">4</td>
+                <td>Comptabilité, Formation</td>
+                <td>
+                  <span class="jeton vert">Accès</span>
+                  <span class="jeton vert">Lecture</span>
+                  <span class="jeton vert">Téléverser</span>
+                  <span class="jeton vert">Modifier</span>
+                  <span class="jeton vert">Déplacer</span>
+                </td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td class="num">GA-ADMIN</td>
+                <td><span class="nom">Administration</span><span class="sous">Tous les droits, y compris purge</span></td>
+                <td class="num">2</td>
+                <td>Tous</td>
+                <td>
+                  <span class="jeton vert">Les 8 droits</span>
+                </td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="vide" hidden>
+            <div class="t">Aucun groupe ne correspond</div>
+            <div class="s">Élargissez la recherche ou videz le champ.</div>
+          </div>
+        </div>
+
+        <div class="pied"><span><span data-compte>3</span> groupe(s) affiché(s)</span></div>
+      </section>
+
+      <p class="fil" style="margin-top:18px">
+        Les huit droits : accès, lecture, modification, téléversement, suppression,
+        déplacement, ajout de version, verrouillage.
+      </p>
+    </main>
+  </div>
+
+  <script src="shell.js"></script>
+</body>
+</html>

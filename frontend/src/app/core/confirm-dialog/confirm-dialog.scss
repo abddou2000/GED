@@ -1,22 +1,29 @@
-.confirm { padding: 8px 6px 2px; min-width: 320px; text-align: center; }
+:host { display: block; }
 
-.ic {
-  width: 52px; height: 52px; border-radius: 50%; margin: 4px auto 10px;
+.cd { padding: 22px 22px 18px; }
+
+.cd-ic {
+  width: 44px; height: 44px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
-  background: #eef2f7; color: var(--navy);
+  background: var(--marine-700); color: #fff;
 }
-.ic mat-icon { width: 26px; height: 26px; font-size: 26px; }
-.confirm.danger .ic { background: #fbecec; color: var(--danger); }
+.cd-ic mat-icon { width: 22px; height: 22px; font-size: 22px; }
+.cd.danger .cd-ic { background: var(--danger); color: #fff; }
 
-h2 { margin: 0 0 6px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+.cd-title { margin: 13px 0 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+.cd-msg { margin: 7px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); }
 
-mat-dialog-content {
-  color: var(--ink-soft); font-size: 14px; line-height: 1.55;
-  padding: 0 8px 6px; overflow: visible;
+.cd-field { width: 100%; display: block; margin-top: 16px; }
+.cd-err { color: var(--danger); font-size: 12.5px; margin-top: -4px; }
+
+.cd-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+/* Bouton de confirmation : marine par défaut, cramoisi en mode danger (via tokens MDC) */
+.cd-confirm.mat-mdc-unelevated-button {
+  --mdc-filled-button-container-color: var(--marine-700);
+  --mdc-filled-button-label-text-color: #fff;
+  font-weight: 600;
 }
-
-mat-dialog-actions { padding: 12px 8px 6px; gap: 6px; justify-content: center; }
-
-.danger-btn {
-  background: var(--danger) !important; color: #fff !important;
+.cd-confirm.is-danger.mat-mdc-unelevated-button {
+  --mdc-filled-button-container-color: var(--danger);
 }

@@ -1,0 +1,70 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Modifier le plan d\'indexation' : 'Créer un plan d\'indexation' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="pi-form">
+
+    <!-- Identification -->
+    <h3 class="section">Identification</h3>
+    <div class="row">
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Code</mat-label>
+        <input matInput formControlName="code" placeholder="Ex. PLAN-FACT" />
+        @if (form.get('code')?.touched && form.get('code')?.invalid) {
+          <mat-error>Le code est obligatoire</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Nom du plan</mat-label>
+        <input matInput formControlName="nomDuPlan" placeholder="Ex. Fiche Facture" />
+        @if (form.get('nomDuPlan')?.touched && form.get('nomDuPlan')?.invalid) {
+          <mat-error>Le nom du plan est obligatoire</mat-error>
+        }
+      </mat-form-field>
+    </div>
+
+    <mat-slide-toggle formControlName="modeIndexation" class="toggle-line">Indexation automatique</mat-slide-toggle>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Liste des index</mat-label>
+      <mat-select formControlName="indexIds" multiple>
+        @for (o of indexOptions(); track o.id) {
+          <mat-option [value]="o.id">{{ o.name }}</mat-option>
+        }
+      </mat-select>
+      <mat-hint>Les champs de métadonnées regroupés par ce plan</mat-hint>
+    </mat-form-field>
+
+    <!-- Charte de nommage -->
+    <h3 class="section">Charte de nommage</h3>
+    <mat-slide-toggle formControlName="manuel" class="toggle-line">Nommage manuel</mat-slide-toggle>
+
+    @if (!isManuel) {
+      <div class="row charte">
+        <mat-form-field appearance="outline" class="sep">
+          <mat-label>Séparateur</mat-label>
+          <mat-select formControlName="separateur">
+            <mat-option value="-">-</mat-option>
+            <mat-option value="_">_</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-slide-toggle formControlName="majuscule" class="toggle-line">Majuscules</mat-slide-toggle>
+      </div>
+
+      <div class="preview">
+        <span class="pv-label">Aperçu :</span>
+        <span class="pv-value">{{ preview || '—' }}</span>
+      </div>
+    }
+
+    @if (serverError()) {
+      <div class="server-error">{{ serverError() }}</div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Annuler</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+    {{ loading() ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Ajouter') }}
+  </button>
+</mat-dialog-actions>

@@ -1,0 +1,129 @@
+package com.ipt.ged.planindexation;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ipt.ged.index.IndexField;
+import com.ipt.ged.index.IndexFieldType;
+import com.ipt.ged.index.IndexRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+
+import static org.hamcrest.Matchers.*;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+/**
+ * Campagne de tests du module « Plan d'indexation » : CRUD, unicité, corbeille,
+ * et surtout le regroupement ORDONNÉ des index + l'aperçu du nommage.
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Transactional
+class PlanIndexationApiTest {
+
+    @Autowired private MockMvc mvc;
+    @Autowired private ObjectMapper om;
+    @Autowired private IndexRepository indexRepo;
+
+    private static final String BASE = "/api/v1/plan-indexations";
+    private long idxAlpha;
+    private long idxBeta;
+
+    @BeforeEach
+    void setup() {
+        idxAlpha = indexRepo.save(index("IDX-A", "Alpha")).getId();
+        idxBeta = indexRepo.save(index("IDX-B", "Beta")).getId();
+    }
+
+    private IndexField index(String code, String nom) {
+        IndexField x = new IndexField(code, nom);
+        x.setFieldType(IndexFieldType.TEXTE);
+        return x;
+    }
+
+    private String body(String code, String nom, boolean majuscule, String sep, String indexIds) {
+        return "{\"code\":\"" + code + "\",\"nomDuPlan\":\"" + nom + "\",\"modeIndexation\":true,"
+                + "\"manuel\":false,\"majuscule\":" + majuscule + ",\"separateur\":\"" + sep + "\","
+                + "\"indexIds\":" + indexIds + "}";
+    }
+
+    private long create(String code, String nom, boolean majuscule, String sep, String indexIds) throws Exception {
+        String res = mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(body(code, nom, majuscule, sep, indexIds)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        return om.readTree(res).get("id").asLong();
+    }
+
+    @Test
+    @DisplayName("1. Création avec index ordonnés + aperçu du nommage (201)")
+    void createWithIndices() throws Exception {
+        mvc.perform(post(BASE).contentType(APPLICATION_JSON)
+                        .content(body("PL-1", "Fiche A", false, "-", "[" + idxAlpha + "," + idxBeta + "]")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nomDuPlan").value("Fiche A"))
+                .andExpect(jsonPath("$.indexCount").value(2))
+                .andExpect(jsonPath("$.indices[0].label").value("Alpha"))
+                .andExpect(jsonPath("$.indices[1].label").value("Beta"))
+                .andExpect(jsonPath("$.preview").value("alpha-beta"));
+    }
+
+    @Test
+    @DisplayName("2. L'ordre des index est préservé + majuscule appliquée")
+    void orderPreservedAndUppercase() throws Exception {
+        long id = create("PL-ORD", "Ordre", true, "_", "[" + idxBeta + "," + idxAlpha + "]");
+        mvc.perform(get(BASE + "/" + id))
+                .andExpect(jsonPath("$.indices[0].label").value("Beta"))
+                .andExpect(jsonPath("$.indices[1].label").value("Alpha"))
+                .andExpect(jsonPath("$.preview").value("BETA_ALPHA"));
+    }
+
+    @Test
+    @DisplayName("3. Code en double refusé (400)")
+    void duplicateCode() throws Exception {
+        create("PL-DUP", "Un", false, "-", "[]");
+        mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(body("PL-DUP", "Deux", false, "-", "[]")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("déjà utilisé")));
+    }
+
+    @Test
+    @DisplayName("4. Nom du plan manquant refusé (400)")
+    void missingName() throws Exception {
+        mvc.perform(post(BASE).contentType(APPLICATION_JSON)
+                        .content("{\"code\":\"PL-X\",\"separateur\":\"-\",\"indexIds\":[]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.nomDuPlan").exists());
+    }
+
+    @Test
+    @DisplayName("5. Mise à jour : remplace les index")
+    void updateReplacesIndices() throws Exception {
+        long id = create("PL-UP", "Avant", false, "-", "[" + idxAlpha + "]");
+        mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON)
+                        .content(body("PL-UP", "Apres", false, "-", "[" + idxBeta + "]")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.indexCount").value(1))
+                .andExpect(jsonPath("$.indices[0].label").value("Beta"));
+    }
+
+    @Test
+    @DisplayName("6. Corbeille : suppression puis restauration")
+    void softDeleteRestore() throws Exception {
+        long id = create("PL-DEL", "ASupprimer", false, "-", "[]");
+        mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem((int) id))));
+        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+    }
+}

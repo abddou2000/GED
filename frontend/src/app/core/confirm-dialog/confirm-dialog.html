@@ -1,14 +1,24 @@
-<div class="confirm" [class.danger]="data.danger">
-  <div class="ic">
-    <mat-icon [svgIcon]="data.danger ? 'alert' : 'check'"></mat-icon>
-  </div>
-  <h2 mat-dialog-title>{{ data.title || 'Confirmation' }}</h2>
-  <mat-dialog-content>{{ data.message }}</mat-dialog-content>
-  <mat-dialog-actions align="end">
-    <button mat-button type="button" (click)="cancel()">Annuler</button>
-    <button mat-flat-button type="button" [class.danger-btn]="data.danger"
-            [color]="data.danger ? undefined : 'primary'" (click)="confirm()">
+<div class="cd" [class.danger]="data.danger">
+  <div class="cd-ic"><mat-icon [svgIcon]="icon()"></mat-icon></div>
+
+  <h2 class="cd-title">{{ data.title }}</h2>
+  @if (data.message) { <p class="cd-msg">{{ data.message }}</p> }
+
+  @if (data.prompt) {
+    <mat-form-field appearance="outline" class="cd-field">
+      <mat-label>{{ data.promptLabel || 'Motif' }}</mat-label>
+      <textarea matInput rows="3" [ngModel]="value()" (ngModelChange)="value.set($event)"
+                [placeholder]="data.promptPlaceholder || ''" cdkFocusInitial></textarea>
+    </mat-form-field>
+    @if (touched() && invalid()) {
+      <div class="cd-err">Ce champ est requis.</div>
+    }
+  }
+
+  <div class="cd-actions">
+    <button mat-stroked-button type="button" (click)="cancel()">{{ data.cancelLabel || 'Annuler' }}</button>
+    <button mat-flat-button type="button" class="cd-confirm" [class.is-danger]="data.danger" (click)="accept()">
       {{ data.confirmLabel || 'Confirmer' }}
     </button>
-  </mat-dialog-actions>
+  </div>
 </div>

@@ -1,0 +1,160 @@
+/* Accueil — réutilise .page / .card / .fico / .tag de _ui.scss */
+
+/* ---------- Bandeau d'accueil (prestige) ---------- */
+.hello {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+  margin: 0 0 22px; padding: 22px 26px;
+  border-radius: var(--r-card);
+  background:
+    radial-gradient(120% 180% at 100% 0%, rgba(255, 255, 255, .14), transparent 55%),
+    linear-gradient(105deg, var(--marine-900) 0%, var(--primary) 45%, var(--marine-600) 100%);
+  box-shadow: 0 10px 30px -10px rgba(6, 36, 104, .55);
+}
+/* Halo lumineux discret */
+.hello-glow {
+  position: absolute; top: -120px; right: -60px; width: 300px; height: 300px;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, .16), transparent 65%);
+}
+
+.hello-id { position: relative; display: flex; align-items: center; gap: 16px; min-width: 0; }
+
+/* Médaillon d'initiales */
+.hello-av {
+  width: 54px; height: 54px; border-radius: 50%; flex: 0 0 54px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 800; letter-spacing: .02em; color: #fff;
+  background: rgba(255, 255, 255, .16);
+  border: 2px solid rgba(255, 255, 255, .45);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .16);
+}
+
+.hello-txt { min-width: 0; }
+.hello h1 {
+  margin: 0; font-size: 23px; font-weight: 400; letter-spacing: -.01em;
+  color: rgba(255, 255, 255, .92); line-height: 1.2;
+}
+.hello h1 strong { font-weight: 800; color: #fff; }
+
+/* Date : pastille translucide */
+.hello .date {
+  display: inline-flex; align-items: center; gap: 7px;
+  margin: 9px 0 0; padding: 4px 11px; border-radius: var(--r-pill);
+  font-size: 12.5px; font-weight: 500; color: rgba(255, 255, 255, .95);
+  background: rgba(255, 255, 255, .15);
+}
+.hello .date mat-icon { width: 14px; height: 14px; font-size: 14px; flex: 0 0 14px; }
+
+/* Action principale — blanche sur le violet (contraste maximal) */
+.hello-cta {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 9px;
+  height: 44px; padding: 0 20px; border-radius: var(--r-card);
+  background: #fff; color: var(--primary); font-weight: 700; font-size: 14px;
+  text-decoration: none; white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .16);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.hello-cta:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0, 0, 0, .22); }
+.hello-cta:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.hello-cta mat-icon { width: 18px; height: 18px; font-size: 18px; flex: 0 0 18px; }
+
+@media (max-width: 620px) {
+  .hello { padding: 18px; }
+  .hello-cta { width: 100%; justify-content: center; }
+}
+
+/* Cartes du tableau de bord (hauteur auto, contrairement aux écrans liste) */
+.card { min-height: auto; padding: 18px 18px 16px; }
+
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: -4px -4px 14px; padding-bottom: 12px;
+  border-bottom: 1px dashed var(--line);
+}
+.ch-title { display: flex; align-items: center; gap: 10px; }
+.ch-title h2 { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+/* Icône d'en-tête dans une pastille teintée — plus soigné */
+.ch-title mat-icon {
+  width: 30px; height: 30px; font-size: 16px; padding: 7px; box-sizing: border-box;
+  border-radius: 8px; background: var(--primary-050); color: var(--primary);
+}
+.ch-title .count {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px;
+  padding: 0 6px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700;
+  background: var(--cramoisi-050); color: var(--danger);
+}
+.see-all { font-size: 12.5px; font-weight: 600; color: var(--navy); text-decoration: none; }
+.see-all:hover { text-decoration: underline; }
+
+/* Grille — les deux cartes s'étirent à hauteur égale (« À valider » a
+   presque toujours plus de lignes que « Raccourcis ») */
+.dash {
+  display: grid; gap: 16px;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+}
+.ca-pending, .ca-shortcuts { display: flex; flex-direction: column; }
+
+/* Les listes internes prennent le surplus, pour que le contenu le plus
+   court (Raccourcis, état « à jour ») ne laisse pas un grand vide brut
+   en bas de carte : il est recentré dans l'espace disponible. */
+.ca-pending .list, .ca-pending .empty, .ca-pending .hint-line,
+.ca-shortcuts .shortcuts { flex: 1; }
+.ca-pending .empty { justify-content: center; }
+.ca-shortcuts .shortcuts { justify-content: center; }
+@media (max-width: 1000px) {
+  .dash { grid-template-columns: minmax(0, 1fr); }
+}
+
+/*Listes (À valider) */
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 6px; border-top: 1px solid var(--line-soft);
+}
+.row:first-child { border-top: none; }
+.rtxt { min-width: 0; flex: 1; }
+.rname { font-weight: 600; font-size: 13.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rsub { display: flex; align-items: center; gap: 8px; margin-top: 3px; flex-wrap: wrap; }
+.rmeta { font-size: 12px; color: var(--ink-soft); }
+
+.treat { flex: 0 0 auto; height: 34px; font-size: 13px; font-weight: 600; }
+.treat mat-icon { width: 16px; height: 16px; font-size: 16px; margin-left: 2px; }
+
+.hint-line { padding: 18px 6px; font-size: 13px; color: var(--ink-soft); }
+
+/*Raccourcis */
+.shortcuts { display: flex; flex-direction: column; gap: 10px; }
+.sc {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 12px; border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-0); text-decoration: none; cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+.sc:hover { border-color: #d7dee8; background: var(--surface); box-shadow: var(--sh-sm); }
+.sc-ic {
+  width: 38px; height: 38px; border-radius: var(--r-md); flex: 0 0 38px;
+  display: flex; align-items: center; justify-content: center;
+}
+.sc-ic mat-icon { width: 19px; height: 19px; font-size: 19px; }
+.sc-txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.sc-label { font-weight: 600; font-size: 13.5px; color: var(--ink); }
+.sc-hint { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+.sc-go { width: 18px; height: 18px; font-size: 18px; color: var(--faint); }
+
+.sc-cramoisi { background: var(--cramoisi); color: #fff; }
+.sc-marine { background: var(--marine-700); color: #fff; }
+.sc-vert { background: var(--vert); color: #fff; }
+
+/*État vide */
+.empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 30px 0; }
+.empty-ic {
+  width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--faint); margin-bottom: 4px;
+}
+.empty-ic.ok { background: var(--vert-050); color: var(--vert); }
+.empty-ic mat-icon { width: 22px; height: 22px; font-size: 22px; }
+.empty-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.empty-sub { font-size: 12.5px; color: var(--ink-soft); }

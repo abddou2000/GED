@@ -1,0 +1,89 @@
+.up-form {
+  display: flex; flex-direction: column; gap: 6px;
+  padding-top: 6px; min-width: 440px;
+}
+.full { width: 100%; }
+
+.file-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 0 8px;
+}
+
+/* Type sans plan d'indexation : averti avant le téléversement, pas après */
+.sans-plan {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 10px 0 2px; padding: 9px 11px; border-radius: var(--r-sm);
+  background: var(--ambre-050); color: #8a6212; font-size: 12.5px; line-height: 1.45;
+}
+.sans-plan mat-icon { width: 16px; height: 16px; font-size: 16px; flex: 0 0 16px; margin-top: 1px; }
+.sans-plan strong { font-weight: 700; }
+.file-name {
+  font-size: 13px; color: var(--ink-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px;
+}
+
+.server-error {
+  color: var(--danger); font-size: 13px; margin-top: 8px;
+  background: var(--danger-050); border: 1px solid #f2d3d0; border-radius: var(--r-sm); padding: 8px 10px;
+}
+
+/* ---------- Étape 2 — propositions d'index ---------- */
+.idx { min-width: 440px; padding-top: 6px; }
+
+.idx-tete {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+}
+
+/* Le choix d'indexer automatiquement — mis en avant, c'est une décision */
+.auto-bloc {
+  padding: 11px 13px; margin-bottom: 12px;
+  border: 1px solid var(--marine-100); border-radius: var(--r-sm);
+  background: var(--marine-050);
+  transition: background-color .15s ease, border-color .15s ease;
+}
+/* Coupé : le bloc s'efface visuellement, l'écran redevient un formulaire de saisie */
+.auto-bloc.coupe { background: var(--surface); border-color: var(--line); }
+.ab-aide { margin: 6px 0 0; font-size: 12px; color: var(--ink-soft); line-height: 1.45; }
+
+.idx-fic {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  font-size: 13.5px; font-weight: 600; color: var(--ink);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.idx-fic mat-icon { width: 17px; height: 17px; font-size: 17px; color: var(--primary); }
+
+.etat { font-size: 13px; color: var(--ink-soft); padding: 12px 0; }
+
+.charte { margin: 0 0 8px; font-size: 12.5px; color: var(--ink-soft); }
+
+.lecture, .avert {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  margin: 0 0 8px; padding: 7px 10px; border-radius: var(--r-sm);
+  font-size: 12.5px; background: var(--marine-050); color: var(--ink);
+}
+.lecture mat-icon, .avert mat-icon { width: 15px; height: 15px; font-size: 15px; flex: 0 0 15px; }
+/* L'OCR est faillible : on le signale en ambre — sens « à vérifier », pas erreur */
+.lecture.ocr, .avert { background: var(--ambre-050); color: #8a6212; }
+
+.prop-list { display: flex; flex-direction: column; gap: 2px; }
+.prop { padding-top: 4px; }
+
+.p-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.p-nom { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.p-src {
+  font-size: 11px; color: var(--ink-soft);
+  padding: 1px 7px; border-radius: var(--r-pill); background: var(--surface);
+}
+.p-src.contenu { background: var(--marine-050); color: var(--navy); }
+.p-src.ko { background: var(--ambre-050); color: #8a6212; font-weight: 600; }
+
+.ref-bloc {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 10px; padding: 9px 11px;
+  background: var(--surface); border-radius: var(--r-sm);
+}
+.rb-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
+.rb-val { font-family: var(--font-mono); font-size: 12.5px; color: var(--navy); word-break: break-all; }
+
+.reste { font-size: 12.5px; color: #8a6212; margin-right: auto; padding-left: 4px; }

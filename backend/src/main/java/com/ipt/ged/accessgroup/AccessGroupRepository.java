@@ -31,4 +31,6 @@ public interface AccessGroupRepository extends JpaRepository<AccessGroup, Long> 
     boolean existsByNameIgnoreCase(String name);
 
     boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
+
+    long countByDeletedFalse();
 }

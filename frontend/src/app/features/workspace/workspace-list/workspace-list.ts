@@ -15,6 +15,7 @@ import { SelectionModel } from '@angular/cdk/collections';
 import { WorkspaceService } from '../workspace.service';
 import { SelectOption, TreeNode, WorkSpace } from '../workspace.model';
 import { WorkspaceForm } from '../workspace-form/workspace-form';
+import { StatTiles } from '../../../core/stat-tiles/stat-tiles';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
@@ -28,7 +29,7 @@ import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
   imports: [
     NgTemplateOutlet, FormsModule, MatTableModule, MatPaginatorModule, MatSortModule,
     MatButtonModule, MatButtonToggleModule, MatIconModule, MatCheckboxModule, MatMenuModule,
-    MatTooltipModule, MatDialogModule, SkeletonTable,
+    MatTooltipModule, MatDialogModule, StatTiles, SkeletonTable,
   ],
   templateUrl: './workspace-list.html',
   styleUrl: './workspace-list.scss',
@@ -46,7 +47,7 @@ export class WorkspaceList implements OnInit {
   selection = new SelectionModel<WorkSpace>(true, []);
   archiveView = signal(false);
   loading = signal(true);
-  displayedColumns = ['select', 'id', 'code', 'name', 'parent', 'workflow', 'owner', 'status', 'actions'];
+  displayedColumns = ['select', 'name', 'owner', 'workflow', 'status', 'actions'];
 
   @ViewChild(MatPaginator) set paginator(p: MatPaginator) { if (p) this.dataSource.paginator = p; }
   @ViewChild(MatSort) set sort(s: MatSort) { if (s) this.dataSource.sort = s; }
@@ -70,7 +71,7 @@ export class WorkspaceList implements OnInit {
     const call = this.archiveView() ? this.service.trashed(0, 1000, '') : this.service.list(0, 1000, '');
     call.subscribe({
       next: res => { this.dataSource.data = res.content; this.loading.set(false); },
-      error: () => { this.loading.set(false); this.notify.error('Impossible de charger les espaces.'); },
+      error: () => { this.loading.set(false); this.notify.error('Chargement impossible.'); },
     });
   }
 
@@ -112,9 +113,9 @@ export class WorkspaceList implements OnInit {
       danger: !restoring,
     }).subscribe(ok => {
       if (!ok) return;
-      (restoring ? this.service.multipleRestore(ids) : this.service.multipleDelete(ids)).subscribe(() => {
-        this.notify.success(`${ids.length} dossier(s) ${restoring ? 'restauré(s)' : 'supprimé(s)'}.`);
-        this.load();
+      (restoring ? this.service.multipleRestore(ids) : this.service.multipleDelete(ids)).subscribe({
+        next: () => { this.load(); this.notify.success(`${ids.length} dossier(s) ${restoring ? 'restauré(s)' : 'supprimé(s)'}.`); },
+        error: () => this.notify.error('Opération impossible.'),
       });
     });
   }
@@ -134,6 +135,18 @@ export class WorkspaceList implements OnInit {
     return { label: 'Actif', cls: 'st-actif' };
   }
 
+  /* =================== présentation (avatars) =================== */
+  initials(fullName: string): string {
+    const parts = (fullName || '').trim().split(/\s+/);
+    const a = parts[0]?.[0] ?? '';
+    const b = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (a + b).toUpperCase() || '?';
+  }
+  avatarColor(seed: number): string {
+    const palette = ['#16406b', '#1e7a46', '#9e1b32', '#a9791e', '#5b3fa0', '#0e7490'];
+    return palette[(seed ?? 0) % palette.length];
+  }
+
   /* =================== actions =================== */
   create(parentId: number | null = null): void { this.openDialog(null, parentId); }
   edit(id: number): void {
@@ -144,32 +157,41 @@ export class WorkspaceList implements OnInit {
       data: { workspace: w, parentId }, width: '540px', maxWidth: '95vw', autoFocus: false,
     });
     ref.afterClosed().subscribe(saved => {
-      if (saved) {
-        this.notify.success(w ? 'Espace mis à jour.' : 'Espace créé.');
-        this.load();
-      }
+      if (!saved) return;
+      this.load();
+      this.notify.success(w ? 'Espace de travail modifié.' : 'Espace de travail créé.');
     });
   }
 
   remove(id: number, name: string): void {
     this.confirm.ask({
-      title: 'Supprimer l\'espace',
-      message: `Voulez-vous supprimer « ${name} » ? Il sera placé dans la corbeille.`,
-      confirmLabel: 'Supprimer', danger: true,
+      title: 'Supprimer ce dossier',
+      message: `« ${name} » sera déplacé vers la corbeille.`,
+      confirmLabel: 'Supprimer',
+      danger: true,
     }).subscribe(ok => {
       if (!ok) return;
-      this.service.delete(id).subscribe(() => { this.notify.success('Espace supprimé.'); this.load(); });
+      this.service.delete(id).subscribe({
+        next: () => { this.load(); this.notify.success('Dossier supprimé.'); },
+        error: () => this.notify.error('Suppression impossible.'),
+      });
     });
   }
   restoreOne(id: number): void {
-    this.service.restore(id).subscribe(() => { this.notify.success('Espace restauré.'); this.load(); });
+    this.service.restore(id).subscribe({
+      next: () => { this.load(); this.notify.success('Dossier restauré.'); },
+      error: () => this.notify.error('Restauration impossible.'),
+    });
   }
   archiveOne(id: number): void {
-    this.service.archive(id).subscribe(() => { this.notify.success('Statut mis à jour.'); this.load(); });
+    this.service.archive(id).subscribe({
+      next: () => { this.load(); this.notify.success('Dossier archivé.'); },
+      error: () => this.notify.error('Archivage impossible.'),
+    });
   }
   moveTo(id: number, parentId: number | null): void {
     this.service.move(id, parentId).subscribe({
-      next: () => { this.notify.success('Espace déplacé.'); this.load(); },
+      next: () => { this.load(); this.notify.success('Dossier déplacé.'); },
       error: err => this.notify.error(err?.error?.message ?? 'Déplacement impossible.'),
     });
   }

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Espaces de travail · GED — Variante B</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="zellige-bg" aria-hidden="true"></div>
+
+  <div class="shell" data-shell>
+    <main class="page">
+      <div class="head">
+        <div data-in style="--d:60ms">
+          <h1>Espaces de travail</h1>
+          <p class="fil"><a href="accueil.html">Accueil</a> · Espaces de travail</p>
+        </div>
+        <a class="cta" href="#" data-in style="--d:150ms">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M5 12h14" /><path d="M12 5v14" />
+          </svg>
+          Créer un espace
+        </a>
+      </div>
+
+      <div class="rule"></div>
+
+      <section class="panel" data-in style="--d:240ms">
+        <div class="outils">
+          <div class="cherche">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input type="search" placeholder="Rechercher un espace…" aria-label="Rechercher"
+                   data-filtre="#reg-espaces" />
+          </div>
+          <div class="droite">
+            <button class="bouton" type="button">Corbeille</button>
+          </div>
+        </div>
+
+        <div class="bulk" data-bulk hidden>
+          <span><span data-bulk-count>0</span> espace(s) sélectionné(s)</span>
+          <div class="droite"><button class="bouton danger" type="button">Supprimer</button></div>
+        </div>
+
+        <div class="registre-wrap">
+          <table class="registre" id="reg-espaces" data-selectable>
+            <thead>
+              <tr>
+                <th class="c-sel"><input type="checkbox" aria-label="Tout sélectionner" /></th>
+                <th>Code</th>
+                <th>Espace</th>
+                <th>Responsable</th>
+                <th>Circuit</th>
+                <th>Documents</th>
+                <th>État</th>
+                <th class="c-act fin">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td class="num">WS-COMPTA</td>
+                <td><span class="nom">Comptabilité</span><span class="sous">Factures et pièces comptables</span></td>
+                <td>Sara Bennani</td>
+                <td>Visa comptable</td>
+                <td class="num">12</td>
+                <td><span class="etat ok">Actif</span></td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td class="num">WS-DIR</td>
+                <td><span class="nom">Direction</span><span class="sous">Conventions, PV, courriers</span></td>
+                <td>Karim Alaoui</td>
+                <td>Double signature</td>
+                <td class="num">2</td>
+                <td><span class="etat ok">Actif</span></td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td class="num">WS-RH</td>
+                <td><span class="nom">Ressources humaines</span><span class="sous">Contrats et dossiers agents</span></td>
+                <td>Nadia Berrada</td>
+                <td>Visa RH</td>
+                <td class="num">0</td>
+                <td><span class="etat ok">Actif</span></td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td class="num">WS-FORM</td>
+                <td><span class="nom">Formation</span><span class="sous">Sessions et conventions</span></td>
+                <td>Younes Idrissi</td>
+                <td>Visa simple</td>
+                <td class="num">0</td>
+                <td><span class="etat arret">Inactif</span></td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td class="num">WS-JUR</td>
+                <td><span class="nom">Juridique</span><span class="sous">Contentieux et actes</span></td>
+                <td>Karim Alaoui</td>
+                <td>Double signature</td>
+                <td class="num">0</td>
+                <td><span class="etat ok">Actif</span></td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Sélectionner" /></td>
+                <td class="num">WS-ARCH</td>
+                <td><span class="nom">Archives</span><span class="sous">Fonds documentaire historique</span></td>
+                <td>Sara Bennani</td>
+                <td>—</td>
+                <td class="num">0</td>
+                <td><span class="etat ok">Actif</span></td>
+                <td class="fin"><button class="act">Modifier</button><button class="act danger">Suppr.</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="vide" hidden>
+            <div class="t">Aucun espace ne correspond</div>
+            <div class="s">Élargissez la recherche ou videz le champ.</div>
+          </div>
+        </div>
+
+        <div class="pied"><span><span data-compte>6</span> espace(s) affiché(s)</span></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="shell.js"></script>
+</body>
+</html>

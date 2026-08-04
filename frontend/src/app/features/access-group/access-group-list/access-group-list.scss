@@ -1,68 +1,8 @@
-.page { max-width: 1200px; margin: 0 auto; padding: 24px 24px 40px; }
+/* Spécifique — Groupes d'accès.
+   Page, carte, tableau, chips de droits (teinte marine), barre d'outils et état
+   vide proviennent de src/app/core/_ui.scss. */
 
-.page-head {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 16px; margin-bottom: 16px;
-}
-.page-head h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
-.breadcrumb { margin: 4px 0 0; font-size: 12.5px; color: var(--ink-soft); }
-
-.card {
-  background: var(--surface-0); border: 1px solid var(--line); border-radius: 14px;
-  padding: 14px 16px 4px; box-shadow: 0 1px 3px rgba(16, 40, 68, .06);
-  min-height: calc(100vh - 150px);
-}
-
-/* Barre d'outils */
-.toolbar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
-}
-.toolbar .left { display: flex; align-items: center; gap: 6px; }
-.toolbar .right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.search {
-  display: flex; align-items: center; gap: 6px; border: 1px solid var(--line);
-  border-radius: 9px; padding: 6px 10px; background: var(--surface); width: 260px;
-}
-.search mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--ink-soft); }
-.search input { border: none; outline: none; background: transparent; width: 100%; font-size: 14px; color: var(--ink); }
-.bulk { color: var(--danger) !important; }
-
-/* Tableau */
-.table-wrap { overflow-x: auto; }
-.ag-table { width: 100%; background: transparent; }
-.ag-table th.mat-mdc-header-cell {
-  background: var(--beige); color: var(--ink-soft); font-weight: 600; font-size: 11px;
-  text-transform: uppercase; letter-spacing: .05em;
-  border-bottom: 1px solid var(--beige-deep); padding-top: 11px; padding-bottom: 11px;
-}
-.ag-table td.mat-mdc-cell {
-  font-size: 13.5px; color: var(--ink); border-bottom: 1px solid var(--line);
-  padding-top: 11px; padding-bottom: 11px;
-}
-.ag-table tr.mat-mdc-row:hover { background: var(--surface); }
-
-.c-chk { width: 44px; }
-.c-id { width: 60px; }
-.c-name { font-weight: 600; }
-.c-num { width: 96px; text-align: center; }
-.c-act { width: 108px; text-align: right; }
-.muted { color: var(--ink-soft); }
-.danger { color: var(--danger); }
-
-/* Chips des droits actifs (teinte marine) */
-.tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.tag {
-  background: #eef2f7; border: 1px solid #dbe4ee; color: var(--navy);
-  border-radius: 6px; padding: 2px 9px; font-size: 12px; font-weight: 500;
-}
-
-/* Empty state soigné */
-.no-data { padding: 8px 0; }
-.empty-state {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; padding: 44px 0; color: var(--ink-soft);
-}
-.empty-state .empty-ic mat-icon { width: 44px; height: 44px; font-size: 44px; color: var(--beige-deep); }
-.empty-state .empty-title { font-size: 14px; font-weight: 600; color: var(--ink); }
-.empty-state .empty-sub { font-size: 12.5px; color: var(--ink-soft); }
+/* Les droits sont presque toujours au nombre de trois : sans largeur minimale,
+   la colonne est comprimée par ses voisines et les empile sur trois lignes, ce
+   qui triple la hauteur de chaque ligne du tableau. */
+.mat-column-rights { min-width: 250px; }

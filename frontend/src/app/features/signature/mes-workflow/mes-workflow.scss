@@ -1,0 +1,16 @@
+/* Spécifique — Mes workflow. Le commun (page, carte, tableau, densité des
+   listes, cellule fichier, tags d'étape, pastilles de statut, état vide) vient
+   de _ui.scss */
+
+
+/* ---------- Colonne d'actions (Signer / Rejeter) ---------- */
+.c-act { width: 104px; }
+.act-pair { display: inline-flex; align-items: center; gap: 2px; }
+
+/* _ui.scss estompe les icônes d'action jusqu'au survol de la ligne : c'est bon
+   pour une action secondaire au milieu d'une liste de consultation, mais ici
+   signer et rejeter SONT la raison d'être de l'écran. On les laisse pleinement
+   visibles, sans quoi la file de validation paraîtrait vide d'actions. */
+@media (hover: hover) {
+  .sig-table td.c-act .mat-mdc-icon-button { opacity: 1; }
+}

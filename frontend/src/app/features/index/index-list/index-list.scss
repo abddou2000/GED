@@ -1,0 +1,14 @@
+/* Spécifique — Index. Le commun vient de _ui.scss */
+
+/* Type d'index (pastille marine sobre) */
+.type-pill {
+  display: inline-block;
+  background: var(--marine-050); border: 1px solid var(--marine-100); color: var(--navy);
+  border-radius: var(--r-sm); padding: 2px 9px; font-size: 12px; font-weight: 500;
+}
+
+/* Options d'une liste : vert — se distingue des index (marine) */
+.tag {
+  background: var(--vert-050); border-color: #cfe0d0; color: var(--vert);
+}
+.vals { font-size: 12px; }

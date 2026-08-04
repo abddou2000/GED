@@ -20,7 +20,17 @@ server:
 ged:
   storage:
     root: ./storage/ged        # dossier racine des documents
-    temp: ./storage/temp       # PDF convertis / fichiers temporaires
+    temp: ./storage/temp       # pages rendues en image avant OCR, purgées après lecture
+
+  # Chaîne d'OCRisation. Étage 1 (couche texte des PDF natifs) : toujours actif,
+  # aucune installation requise. Étage 2 (Tesseract) : utilisé seulement si le
+  # binaire répond, sinon simplement ignoré.
+  ocr:
+    enabled: true
+    commande: tesseract        # binaire OCR ; chemin complet accepté
+    langue: fra+eng
+    dpi: 300                   # rendu des pages PDF avant reconnaissance
+    pages-max: 5               # bride le coût sur les documents volumineux
 
 springdoc:
   swagger-ui:

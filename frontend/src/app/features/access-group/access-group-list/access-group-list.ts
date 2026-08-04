@@ -39,7 +39,7 @@ export class AccessGroupList implements OnInit {
   selection = new SelectionModel<AccessGroup>(true, []);
   archiveView = signal(false);
   loading = signal(true);
-  displayedColumns = ['select', 'id', 'code', 'name', 'rights', 'workspaces', 'users', 'actions'];
+  displayedColumns = ['select', 'id', 'name', 'rights', 'workspaces', 'users', 'actions'];
 
   @ViewChild(MatPaginator) set paginator(p: MatPaginator) { if (p) this.dataSource.paginator = p; }
   @ViewChild(MatSort) set sort(s: MatSort) { if (s) this.dataSource.sort = s; }
@@ -55,7 +55,7 @@ export class AccessGroupList implements OnInit {
     const call = this.archiveView() ? this.service.trashed(0, 1000, '') : this.service.list(0, 1000, '');
     call.subscribe({
       next: res => { this.dataSource.data = res.content; this.loading.set(false); },
-      error: () => { this.loading.set(false); this.notify.error('Impossible de charger les groupes.'); },
+      error: () => { this.loading.set(false); this.notify.error('Chargement impossible.'); },
     });
   }
 
@@ -87,9 +87,9 @@ export class AccessGroupList implements OnInit {
       danger: !restoring,
     }).subscribe(ok => {
       if (!ok) return;
-      (restoring ? this.service.multipleRestore(ids) : this.service.multipleDelete(ids)).subscribe(() => {
-        this.notify.success(`${ids.length} groupe(s) ${restoring ? 'restauré(s)' : 'supprimé(s)'}.`);
-        this.load();
+      (restoring ? this.service.multipleRestore(ids) : this.service.multipleDelete(ids)).subscribe({
+        next: () => { this.load(); this.notify.success(`${ids.length} groupe(s) ${restoring ? 'restauré(s)' : 'supprimé(s)'}.`); },
+        error: () => this.notify.error('Opération impossible.'),
       });
     });
   }
@@ -97,6 +97,18 @@ export class AccessGroupList implements OnInit {
   /** Libellés des droits actifs (pour les chips de la colonne Droits). */
   activeRights(g: AccessGroup): string[] {
     return RIGHT_KEYS.filter(r => g.rights[r.key]).map(r => r.label);
+  }
+
+  /* ---- présentation (avatars membres) ---- */
+  initials(fullName: string): string {
+    const parts = (fullName || '').trim().split(/\s+/);
+    const a = parts[0]?.[0] ?? '';
+    const b = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (a + b).toUpperCase() || '?';
+  }
+  avatarColor(seed: number): string {
+    const palette = ['#16406b', '#1e7a46', '#9e1b32', '#a9791e', '#5b3fa0', '#0e7490'];
+    return palette[(seed ?? 0) % palette.length];
   }
 
   /* ---- actions ---- */
@@ -109,23 +121,29 @@ export class AccessGroupList implements OnInit {
       data: { group: g }, width: '620px', maxWidth: '95vw', autoFocus: false,
     });
     ref.afterClosed().subscribe(saved => {
-      if (saved) {
-        this.notify.success(g ? 'Groupe mis à jour.' : 'Groupe créé.');
-        this.load();
-      }
+      if (!saved) return;
+      this.load();
+      this.notify.success(g ? "Groupe d'accès modifié." : "Groupe d'accès créé.");
     });
   }
   remove(id: number, name: string): void {
     this.confirm.ask({
-      title: 'Supprimer le groupe',
-      message: `Voulez-vous supprimer « ${name} » ? Il sera placé dans la corbeille.`,
-      confirmLabel: 'Supprimer', danger: true,
+      title: 'Supprimer ce groupe',
+      message: `« ${name} » sera déplacé vers la corbeille.`,
+      confirmLabel: 'Supprimer',
+      danger: true,
     }).subscribe(ok => {
       if (!ok) return;
-      this.service.delete(id).subscribe(() => { this.notify.success('Groupe supprimé.'); this.load(); });
+      this.service.delete(id).subscribe({
+        next: () => { this.load(); this.notify.success("Groupe d'accès supprimé."); },
+        error: () => this.notify.error('Suppression impossible.'),
+      });
     });
   }
   restoreOne(id: number): void {
-    this.service.restore(id).subscribe(() => { this.notify.success('Groupe restauré.'); this.load(); });
+    this.service.restore(id).subscribe({
+      next: () => { this.load(); this.notify.success("Groupe d'accès restauré."); },
+      error: () => this.notify.error('Restauration impossible.'),
+    });
   }
 }

@@ -1,0 +1,43 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Modifier l\'étiquette' : 'Créer une étiquette' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="et-form">
+
+    <div class="row">
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Étiquette</mat-label>
+        <input matInput formControlName="tag" placeholder="Ex. Urgent" />
+        @if (form.get('tag')?.touched && form.get('tag')?.invalid) {
+          <mat-error>Le libellé est obligatoire</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Code</mat-label>
+        <input matInput formControlName="code" placeholder="Ex. TAG-URG" />
+        @if (form.get('code')?.touched && form.get('code')?.invalid) {
+          <mat-error>Le code est obligatoire</mat-error>
+        }
+      </mat-form-field>
+    </div>
+
+    <div class="color-row">
+      <label class="color-label">Couleur</label>
+      <input type="color" formControlName="couleur" class="color-input" aria-label="Couleur" />
+      <input matInput formControlName="couleur" class="hex-input" placeholder="#000000" />
+      <span class="preview-chip" [style.background]="form.get('couleur')?.value">
+        {{ form.get('tag')?.value || 'Aperçu' }}
+      </span>
+    </div>
+
+    @if (serverError()) {
+      <div class="server-error">{{ serverError() }}</div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Annuler</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+    {{ loading() ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Ajouter') }}
+  </button>
+</mat-dialog-actions>

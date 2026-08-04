@@ -1,0 +1,62 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Modifier l\'index' : 'Créer un index' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="idx-form">
+
+    <div class="row">
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Nom de l'index</mat-label>
+        <input matInput formControlName="nomIndex" placeholder="Ex. Numéro de facture" />
+        @if (form.get('nomIndex')?.touched && form.get('nomIndex')?.invalid) {
+          <mat-error>Le nom est obligatoire</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Code</mat-label>
+        <input matInput formControlName="code" placeholder="Ex. IDX-NUMFACT" />
+        @if (form.get('code')?.touched && form.get('code')?.invalid) {
+          <mat-error>Le code est obligatoire</mat-error>
+        }
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Type de champ</mat-label>
+      <mat-select formControlName="fieldType">
+        @for (t of fieldTypes; track t.value) {
+          <mat-option [value]="t.value">{{ t.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (isListe) {
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Valeurs (Options)</mat-label>
+        <input matInput formControlName="valeurs" placeholder="Ex. Basse, Normale, Haute" />
+        <mat-hint>Séparez les valeurs par des virgules</mat-hint>
+      </mat-form-field>
+    }
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Valeur par défaut</mat-label>
+      <input matInput formControlName="valeurParDefaut" />
+    </mat-form-field>
+
+    <div class="toggles">
+      <mat-slide-toggle formControlName="obligatoire">Obligatoire</mat-slide-toggle>
+      <mat-slide-toggle formControlName="indexePourRecherche">Indexé pour recherche</mat-slide-toggle>
+      <mat-slide-toggle formControlName="indexDeGroupage">Index de groupage</mat-slide-toggle>
+    </div>
+
+    @if (serverError()) {
+      <div class="server-error">{{ serverError() }}</div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Annuler</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+    {{ loading() ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Ajouter') }}
+  </button>
+</mat-dialog-actions>

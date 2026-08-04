@@ -40,7 +40,7 @@ export class WorkflowList implements OnInit {
 
   dataSource = new MatTableDataSource<Workflow>([]);
   selection = new SelectionModel<Workflow>(true, []);
-  loading = signal(false);
+  loading = signal(true);
   archiveView = signal(false);
   fullscreen = signal(false);
 
@@ -74,7 +74,7 @@ export class WorkflowList implements OnInit {
       : this.service.list(0, 1000, '');
     call.subscribe({
       next: res => { this.dataSource.data = res.content; this.loading.set(false); },
-      error: () => this.loading.set(false),
+      error: () => { this.loading.set(false); this.notify.error('Chargement impossible.'); },
     });
   }
 
@@ -110,26 +110,32 @@ export class WorkflowList implements OnInit {
       data: { workflow: w }, width: '660px', maxWidth: '95vw', autoFocus: false,
     });
     ref.afterClosed().subscribe(saved => {
-      if (saved) {
-        this.notify.success(w ? 'Règle mise à jour.' : 'Règle créée.');
-        this.load();
-      }
+      if (!saved) return;
+      this.load();
+      this.notify.success(w ? 'Règle de workflow modifiée.' : 'Règle de workflow créée.');
     });
   }
 
   remove(w: Workflow): void {
     this.confirm.ask({
-      title: 'Supprimer la règle',
-      message: `Voulez-vous supprimer « ${w.name} » ? Elle sera placée dans la corbeille.`,
-      confirmLabel: 'Supprimer', danger: true,
+      title: 'Supprimer cette règle',
+      message: `« ${w.name} » sera déplacée vers la corbeille.`,
+      confirmLabel: 'Supprimer',
+      danger: true,
     }).subscribe(ok => {
       if (!ok) return;
-      this.service.delete(w.id).subscribe(() => { this.notify.success('Règle supprimée.'); this.load(); });
+      this.service.delete(w.id).subscribe({
+        next: () => { this.load(); this.notify.success('Règle de workflow supprimée.'); },
+        error: () => this.notify.error('Suppression impossible.'),
+      });
     });
   }
 
   restoreOne(w: Workflow): void {
-    this.service.restore(w.id).subscribe(() => { this.notify.success('Règle restaurée.'); this.load(); });
+    this.service.restore(w.id).subscribe({
+      next: () => { this.load(); this.notify.success('Règle de workflow restaurée.'); },
+      error: () => this.notify.error('Restauration impossible.'),
+    });
   }
 
   bulk(): void {
@@ -143,9 +149,9 @@ export class WorkflowList implements OnInit {
       danger: !restoring,
     }).subscribe(ok => {
       if (!ok) return;
-      (restoring ? this.service.multipleRestore(ids) : this.service.multipleDelete(ids)).subscribe(() => {
-        this.notify.success(`${ids.length} élément(s) ${restoring ? 'restauré(s)' : 'supprimé(s)'}.`);
-        this.load();
+      (restoring ? this.service.multipleRestore(ids) : this.service.multipleDelete(ids)).subscribe({
+        next: () => { this.load(); this.notify.success(`${ids.length} élément(s) ${restoring ? 'restauré(s)' : 'supprimé(s)'}.`); },
+        error: () => this.notify.error('Opération impossible.'),
       });
     });
   }
