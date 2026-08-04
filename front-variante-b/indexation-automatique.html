@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Indexation automatique · GED — Variante B</title>
+  <title>Dépôt — indexation · GED — Variante B</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -13,8 +13,8 @@
     <main class="page">
       <div class="head">
         <div data-in style="--d:60ms">
-          <h1>Indexation automatique</h1>
-          <p class="fil"><a href="accueil.html">Accueil</a> · Indexation automatique</p>
+          <h1>Dépôt d'un document</h1>
+          <p class="fil"><a href="accueil.html">Accueil</a> · <a href="documents.html">Documents</a> · Indexation du dépôt</p>
         </div>
       </div>
 
@@ -28,6 +28,18 @@
         </div>
 
         <div class="panel-b" style="padding:16px 20px 20px">
+          <div class="auto-bloc">
+            <label class="bascule">
+              <input type="checkbox" checked />
+              <span class="piste" aria-hidden="true"></span>
+              <span class="bascule-txt">Indexation automatique</span>
+            </label>
+            <p class="auto-aide">
+              La GED lit le document et remplit ce qu'elle reconnaît. Vous relisez et corrigez.
+              Coupez l'interrupteur pour saisir les index vous-même.
+            </p>
+          </div>
+
           <p class="lecture">
             Contenu lu — <strong>couche texte du PDF</strong> · 4 valeur(s) en proviennent
           </p>
@@ -106,90 +118,6 @@
       </section>
 
       <!-- ===== Registre des documents ===== -->
-      <section class="panel" data-in style="margin-top:26px; --d:280ms">
-        <div class="outils">
-          <div class="cherche">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-            </svg>
-            <input type="search" placeholder="Rechercher un document…" aria-label="Rechercher"
-                   data-filtre="#reg-indexation" />
-          </div>
-          <div class="droite">
-            <button class="bouton" type="button">Tout analyser</button>
-          </div>
-        </div>
-
-        <div class="registre-wrap">
-          <table class="registre" id="reg-indexation">
-            <thead>
-              <tr>
-                <th>Document</th>
-                <th>État</th>
-                <th>Référence</th>
-                <th class="c-act fin">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <span class="nom">Scan sans nom parlant.pdf</span>
-                  <span class="sous">scan0001.pdf — nom muet, contenu lisible</span>
-                </td>
-                <td><span class="etat ok">Indexé</span></td>
-                <td class="mono">2026999_2026-06-22_Nova Import_Urgente</td>
-                <td class="fin"><button class="act">Analyser</button></td>
-              </tr>
-              <tr>
-                <td>
-                  <span class="nom">Facture Nova juin.pdf</span>
-                  <span class="sous">2026111_2026-06-10_Nova Import_Urgente.pdf</span>
-                </td>
-                <td><span class="etat ok">Indexé</span></td>
-                <td class="mono">2026111_2026-06-10_Nova Import_Urgente</td>
-                <td class="fin"><button class="act">Analyser</button></td>
-              </tr>
-              <tr>
-                <td>
-                  <span class="nom">Facture ACME janvier.pdf</span>
-                  <span class="sous">facture-test.pdf — hors charte</span>
-                </td>
-                <td><span class="etat attente">Partiel</span></td>
-                <td class="mono">?_?_ACME Distribution_?</td>
-                <td class="fin"><button class="act">Analyser</button></td>
-              </tr>
-              <tr>
-                <td>
-                  <span class="nom">Convention formation.pdf</span>
-                  <span class="sous">convention-2026.pdf — scan sans couche texte</span>
-                </td>
-                <td><span class="etat arret">Non indexé</span></td>
-                <td><span style="color:var(--encre-3)">—</span></td>
-                <td class="fin"><button class="act">Analyser</button></td>
-              </tr>
-              <tr>
-                <td>
-                  <span class="nom">Procès-verbal 12-06.pdf</span>
-                  <span class="sous">pv-reunion.pdf</span>
-                </td>
-                <td><span class="etat arret">Non indexé</span></td>
-                <td><span style="color:var(--encre-3)">—</span></td>
-                <td class="fin"><button class="act">Analyser</button></td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="vide" hidden>
-            <div class="t">Aucun document ne correspond</div>
-            <div class="s">Élargissez la recherche ou videz le champ.</div>
-          </div>
-        </div>
-
-        <div class="pied">
-          <span><span data-compte>5</span> document(s) affiché(s)</span>
-        </div>
-      </section>
     </main>
   </div>
 

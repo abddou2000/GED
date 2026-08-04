@@ -16,7 +16,7 @@
           <h1>Documents</h1>
           <p class="fil"><a href="accueil.html">Accueil</a> · Documents déposés</p>
         </div>
-        <a class="cta" href="#" data-in style="--d:150ms">
+        <a class="cta" href="indexation-automatique.html" data-in style="--d:150ms">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
             <path d="M5 12h14" /><path d="M12 5v14" />
@@ -64,22 +64,11 @@
             <input type="search" placeholder="Rechercher un document…" aria-label="Rechercher"
                    data-filtre="#reg-documents" />
           </div>
-          <div class="droite">
-            <button class="bouton" type="button">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                <rect width="20" height="5" x="2" y="3" rx="1" />
-                <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" />
-              </svg>
-              Corbeille
-            </button>
-          </div>
         </div>
 
         <div class="bulk" data-bulk hidden>
           <span><span data-bulk-count>0</span> document(s) sélectionné(s)</span>
           <div class="droite">
-            <button class="bouton" type="button">Déplacer</button>
             <button class="bouton danger" type="button">Supprimer</button>
           </div>
         </div>
@@ -108,7 +97,7 @@
                 <td>Comptabilité</td>
                 <td class="mono">2026111_2026-06-10_Nova Import_Urgente</td>
                 <td><span class="etat ok">Indexé</span></td>
-                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+                <td class="fin"><button class="act" type="button" title="Ouvrir" aria-label="Ouvrir"><svg class="lucide lucide-eye" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /> </svg></button><button class="act danger" type="button" title="Supprimer" aria-label="Supprimer"><svg class="lucide lucide-trash-2" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /> </svg></button></td>
               </tr>
               <tr>
                 <td><input type="checkbox" aria-label="Sélectionner" /></td>
@@ -120,7 +109,7 @@
                 <td>Comptabilité</td>
                 <td class="mono">2026999_2026-06-22_Nova Import_Urgente</td>
                 <td><span class="etat ok">Indexé</span></td>
-                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+                <td class="fin"><button class="act" type="button" title="Ouvrir" aria-label="Ouvrir"><svg class="lucide lucide-eye" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /> </svg></button><button class="act danger" type="button" title="Supprimer" aria-label="Supprimer"><svg class="lucide lucide-trash-2" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /> </svg></button></td>
               </tr>
               <tr>
                 <td><input type="checkbox" aria-label="Sélectionner" /></td>
@@ -132,7 +121,7 @@
                 <td>Comptabilité</td>
                 <td class="mono">2026101_2026-01-12_ACME Distribution_Haute</td>
                 <td><span class="etat ok">Indexé</span></td>
-                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+                <td class="fin"><button class="act" type="button" title="Ouvrir" aria-label="Ouvrir"><svg class="lucide lucide-eye" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /> </svg></button><button class="act danger" type="button" title="Supprimer" aria-label="Supprimer"><svg class="lucide lucide-trash-2" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /> </svg></button></td>
               </tr>
               <tr>
                 <td><input type="checkbox" aria-label="Sélectionner" /></td>
@@ -144,7 +133,7 @@
                 <td>Direction</td>
                 <td><span style="color:var(--encre-3)">—</span></td>
                 <td><span class="etat attente">À indexer</span></td>
-                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+                <td class="fin"><button class="act" type="button" title="Ouvrir" aria-label="Ouvrir"><svg class="lucide lucide-eye" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /> </svg></button><button class="act danger" type="button" title="Supprimer" aria-label="Supprimer"><svg class="lucide lucide-trash-2" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /> </svg></button></td>
               </tr>
               <tr>
                 <td><input type="checkbox" aria-label="Sélectionner" /></td>
@@ -156,7 +145,7 @@
                 <td>Comptabilité</td>
                 <td class="mono">2026104_2026-01-27_Atlas Fournitures_Basse</td>
                 <td><span class="etat ok">Indexé</span></td>
-                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+                <td class="fin"><button class="act" type="button" title="Ouvrir" aria-label="Ouvrir"><svg class="lucide lucide-eye" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /> </svg></button><button class="act danger" type="button" title="Supprimer" aria-label="Supprimer"><svg class="lucide lucide-trash-2" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /> </svg></button></td>
               </tr>
               <tr>
                 <td><input type="checkbox" aria-label="Sélectionner" /></td>
@@ -168,7 +157,7 @@
                 <td>Direction</td>
                 <td><span style="color:var(--encre-3)">—</span></td>
                 <td><span class="etat attente">À indexer</span></td>
-                <td class="fin"><button class="act">Ouvrir</button><button class="act danger">Suppr.</button></td>
+                <td class="fin"><button class="act" type="button" title="Ouvrir" aria-label="Ouvrir"><svg class="lucide lucide-eye" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /> </svg></button><button class="act danger" type="button" title="Supprimer" aria-label="Supprimer"><svg class="lucide lucide-trash-2" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /> </svg></button></td>
               </tr>
             </tbody>
           </table>
@@ -181,10 +170,10 @@
 
         <div class="pied">
           <span><span data-compte>6</span> document(s) affiché(s) sur 14</span>
-          <div class="pages">
-            <button type="button" aria-current="page">1</button>
-            <button type="button">2</button>
-            <button type="button">3</button>
+          <div class="pages" role="navigation" aria-label="Pagination">
+            <button type="button" aria-current="page" aria-label="Page 1">1</button>
+            <button type="button" aria-label="Page 2">2</button>
+            <button type="button" aria-label="Page 3">3</button>
           </div>
         </div>
       </section>
