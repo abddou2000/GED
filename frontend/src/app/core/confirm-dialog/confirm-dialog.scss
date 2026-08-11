@@ -11,7 +11,15 @@
 .cd.danger .cd-ic { background: var(--danger); color: #fff; }
 
 .cd-title { margin: 13px 0 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
-.cd-msg { margin: 7px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); }
+/* `pre-line` : les retours à la ligne du message sont respectés, les espaces
+   d'indentation non. Une confirmation qui énumère ce sur quoi elle porte — les
+   documents d'une action groupée, par exemple — voyait sinon sa liste écrasée
+   en un seul paragraphe, ce qui est précisément ce qu'on ne peut pas relire
+   avant de valider. */
+.cd-msg {
+  margin: 7px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft);
+  white-space: pre-line;
+}
 
 .cd-field { width: 100%; display: block; margin-top: 16px; }
 .cd-err { color: var(--danger); font-size: 12.5px; margin-top: -4px; }

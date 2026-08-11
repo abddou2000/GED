@@ -31,6 +31,8 @@ export class WorkflowForm implements OnInit {
   employes = signal<Employe[]>([]);
   loading = signal(false);
   serverError = signal<string | null>(null);
+  /** Une règle sans étape n'a pas de circuit : on le dit, au lieu de refuser en silence. */
+  erreurEtapes = signal<string | null>(null);
 
   form: FormGroup = this.fb.group({
     name: ['', Validators.required],
@@ -66,6 +68,7 @@ export class WorkflowForm implements OnInit {
 
   addStep(): void {
     this.steps.push(this.buildStep());
+    this.erreurEtapes.set(null);
   }
 
   removeStep(i: number): void {
@@ -87,6 +90,7 @@ export class WorkflowForm implements OnInit {
 
   submit(): void {
     this.serverError.set(null);
+    this.erreurEtapes.set(this.steps.length === 0 ? 'Au moins une étape est requise.' : null);
     if (this.form.invalid || this.steps.length === 0) {
       this.form.markAllAsTouched();
       return;

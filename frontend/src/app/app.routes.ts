@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/auth.guard';
 
 /**
  * Routing GED.
@@ -14,16 +15,16 @@ export const routes: Routes = [
   },
   {
     path: '',
+    // Toute la coque est derrière la garde : aucun écran interne ne s'ouvre
+    // sans session valide, et l'adresse demandée est retenue pour y revenir
+    // après connexion.
+    canActivate: [authGuard],
     loadComponent: () => import('./layout/shell/shell').then(m => m.Shell),
     children: [
       { path: '', redirectTo: 'accueil', pathMatch: 'full' },
       {
         path: 'accueil',
         loadComponent: () => import('./features/home/dashboard/dashboard').then(m => m.Dashboard),
-      },
-      {
-        path: 'recherche',
-        loadComponent: () => import('./features/indexation/recherche-indexee/recherche-indexee').then(m => m.RechercheIndexee),
       },
       {
         path: 'regles-de-workflow',
@@ -34,8 +35,18 @@ export const routes: Routes = [
         loadComponent: () => import('./features/workspace/workspace-list/workspace-list').then(m => m.WorkspaceList),
       },
       {
+        // Fiche d'un dossier : contenu, sous-dossiers, documents.
+        path: 'espaces-de-travail/:id',
+        loadComponent: () => import('./features/workspace/workspace-detail/workspace-detail').then(m => m.WorkspaceDetail),
+      },
+      {
         path: 'groupe-d-acces',
         loadComponent: () => import('./features/access-group/access-group-list/access-group-list').then(m => m.AccessGroupList),
+      },
+      {
+        // Fiche d'un groupe : membres et espaces couverts.
+        path: 'groupe-d-acces/:id',
+        loadComponent: () => import('./features/access-group/access-group-detail/access-group-detail').then(m => m.AccessGroupDetail),
       },
       {
         path: 'index',
@@ -46,8 +57,22 @@ export const routes: Routes = [
         loadComponent: () => import('./features/plan-indexation/plan-indexation-list/plan-indexation-list').then(m => m.PlanIndexationList),
       },
       {
+        // Création et édition sur pages dédiées, comme l'application d'origine.
+        path: 'plan-indexation/create',
+        loadComponent: () => import('./features/plan-indexation/plan-indexation-form/plan-indexation-form').then(m => m.PlanIndexationForm),
+      },
+      {
+        path: 'plan-indexation/:id/edit',
+        loadComponent: () => import('./features/plan-indexation/plan-indexation-form/plan-indexation-form').then(m => m.PlanIndexationForm),
+      },
+      {
         path: 'type-de-document',
         loadComponent: () => import('./features/type-document/type-document-list/type-document-list').then(m => m.TypeDocumentList),
+      },
+      {
+        // Fiche d'un type : code, espace, formats, taille, plan, description.
+        path: 'type-de-document/:id',
+        loadComponent: () => import('./features/type-document/type-document-detail/type-document-detail').then(m => m.TypeDocumentDetail),
       },
       {
         path: 'etiquette',
@@ -56,6 +81,16 @@ export const routes: Routes = [
       {
         path: 'televerser',
         loadComponent: () => import('./features/document/document-list/document-list').then(m => m.DocumentList),
+      },
+      {
+        // Fiche d'un document : métadonnées, étiquettes, index, versions.
+        path: 'televerser/:id',
+        loadComponent: () => import('./features/document/document-detail/document-detail').then(m => m.DocumentDetail),
+      },
+      {
+        // Fiche de l'utilisateur : identité, droits, activité.
+        path: 'profil',
+        loadComponent: () => import('./features/profil/profil').then(m => m.ProfilPage),
       },
       {
         path: 'mes-workflow',

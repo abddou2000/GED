@@ -1,0 +1,32 @@
+{
+ "content": [
+  {
+   "id": 4,
+   "code": "TAG-OK",
+   "tag": "Validé",
+   "couleur": "#1e7a46"
+  },
+  {
+   "id": 3,
+   "code": "TAG-VERIF",
+   "tag": "À vérifier",
+   "couleur": "#b0812e"
+  },
+  {
+   "id": 2,
+   "code": "TAG-CONF",
+   "tag": "Confidentiel",
+   "couleur": "#9e1b32"
+  },
+  {
+   "id": 1,
+   "code": "TAG-URG",
+   "tag": "Urgent",
+   "couleur": "#c0392b"
+  }
+ ],
+ "total": 4,
+ "page": 0,
+ "size": 100,
+ "totalPages": 1
+}

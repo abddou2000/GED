@@ -1,17 +1,18 @@
 package com.ipt.ged.etiquette;
 
 import com.ipt.ged.common.PageResponse;
+import com.ipt.ged.common.Tri;
 import com.ipt.ged.etiquette.dto.EtiquetteRequest;
 import com.ipt.ged.etiquette.dto.EtiquetteResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 
 /**
@@ -20,6 +21,11 @@ import java.util.Map;
 @Service
 public class EtiquetteService {
 
+    /** Colonnes sur lesquelles le tri est accepté ; toute autre valeur est ignorée. */
+
+    private static final Set<String> TRIS = Set.of("id", "code", "tag");
+
+
     private final EtiquetteRepository repo;
 
     public EtiquetteService(EtiquetteRepository repo) {
@@ -27,16 +33,18 @@ public class EtiquetteService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<EtiquetteResponse> list(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Etiquette> result = repo.findByDeletedFalseAndTagContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<EtiquetteResponse> list(int page, int size, String search,
+                                                String sortBy, String sortDir) {
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
+        Page<Etiquette> result = repo.findByDeletedFalseAndTagContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, EtiquetteResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<EtiquetteResponse> trashed(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Etiquette> result = repo.findByDeletedTrueAndTagContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<EtiquetteResponse> trashed(int page, int size, String search,
+                                                   String sortBy, String sortDir) {
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
+        Page<Etiquette> result = repo.findByDeletedTrueAndTagContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, EtiquetteResponse::from);
     }
 

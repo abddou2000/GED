@@ -23,6 +23,10 @@ html {
 
 /* Police Nunito (variable, en local — pas de CDN) — typographie UBold */
 @import '@fontsource-variable/nunito/index.css';
+/* Fraunces — serif à axe optique, réservé aux titres et aux grands chiffres.
+   Variante « wght » seule : l'axe de graisse suffit ici, et le fichier pèse
+   trois fois moins que la version à tous les axes. */
+@import '@fontsource-variable/fraunces/wght.css';
 
 /* ============================================================
    DESIGN TOKENS — source unique (couleurs, rayons, ombres, espace, type)
@@ -31,8 +35,14 @@ html {
    ============================================================ */
 :root {
   /* ---- Marine — couleur principale, échantillonnée sur le vrai logo ---- */
-  --primary: #062468;
-  --primary-hover: #051e55;
+  /* Marine de travail — la teinte du logo (#062468) reste la couleur de MARQUE,
+     employee sur les bandeaux et le medaillon ; mais posee sur chaque bouton,
+     chaque lien et chaque onglet actif, ce bleu quasi noir tirait toute
+     l'interface vers le sombre. Le marine ci-dessous est son frere lumineux,
+     deja present partout dans les degrades de l'application. Contraste sur
+     blanc : 7,4:1 — tres au-dessus du seuil de 4,5:1 exige pour du texte. */
+  --primary: #1e4bb8;
+  --primary-hover: #163a92;
   --primary-050: #f0f2f6;
   --ub-blue: #4a81d4;
   --ub-teal: #1abc9c;
@@ -65,17 +75,28 @@ html {
   --ambre: #f7b84b;        /* alerte — sémantique, ne suit pas la charte de marque */
   --ambre-050: #fef6e6;
 
-  /* -- Neutres UBold -- */
-  --page: #f5f6f8;        /* body-bg UBold */
+  /* -- Neutres froids --
+     Les précédents tiraient vers le gris chaud (#4c4c5c pour le texte,
+     #e7e9eb pour les traits). Sur un écran entier, un gris beige ternit tout :
+     « pâle » et « sombre » désignaient la même cause. Un bleu-noir franc et
+     des traits froids rendent la même quantité d'encre bien plus lumineuse. */
+  --page: #fbfcff;        /* fond de page — clair et froid */
   --surface-0: #ffffff;   /* cartes, surfaces */
-  --surface: #f6f7fb;     /* gray-100 — champs, survol */
-  --line: #e7e9eb;        /* gray-300 — bordures UBold */
-  --line-soft: #eef2f7;   /* gray-200 — filet interne */
-  --ink: #4c4c5c;         /* body-color UBold */
-  --ink-soft: #6c757d;    /* gray-700 */
-  --faint: #8a969c;       /* gray-600 */
-  --table-head: #f6f7fb;  /* en-tête de tableau — gris doux */
-  --row-hover: #f6f7fb;   /* survol de ligne */
+  --surface: #f7fafd;     /* champs, survol */
+  --line: #e9eff7;        /* bordures — allegees, elles cessent de quadriller */
+  --line-soft: #f4f8fd;   /* filet interne */
+  --ink: #26303f;         /* texte courant — bleu-noir, pas gris chaud */
+  --ink-soft: #5a6a7d;    /* texte secondaire */
+  --faint: #8894a4;       /* texte tertiaire */
+  /* En-tête de tableau — teinte marine assumée. À #f4f7fb il se confondait
+     avec la zébrure des lignes (#f2f6fc) : la bande des titres ne se
+     distinguait plus du corps, et sur un tableau long on ne savait plus
+     quelle colonne on lisait. */
+  --table-head: #ecf2fd;
+  --table-head-ink: #1a4494;   /* intitulés de colonne */
+  --table-head-line: #d8e4f6;  /* filet sous la bande */
+  --row-hover: #f0f5fc;   /* survol de ligne — doit se distinguer de la bande */
+  --row-stripe: #f8fafc;  /* ligne paire — bande claire, froide */
 
   /* -- Rôles sémantiques UBold -- */
   --ok: #1abc9c;   --ok-050: #e4f8f4;
@@ -84,15 +105,36 @@ html {
 
   /* -- Rayons -- */
   /* Rayons UBold : sm .25rem · base .3rem · lg .4rem */
-  --r-sm: 4px; --r-md: 5px; --r-card: 6px; --r-pill: 50rem;
+  /* Angles nettement plus arrondis : 4/5/6 px se lit comme une application de
+     gestion d'il y a dix ans. L'arrondi franc est ce qui date le plus vite une
+     interface, dans un sens comme dans l'autre. */
+  --r-sm: 6px; --r-md: 8px; --r-card: 14px; --r-pill: 50rem;
+
+  /* Bordure des champs de saisie — plus marquée que --line, qui sert aux
+     séparations discrètes : un champ doit se voir comme une zone à remplir. */
+  --champ-bordure: #dee2e6;
+
+  /* ---- Direction « encre et or » ----
+     L'or n'a de valeur que s'il reste rare : soulignement de l'onglet actif,
+     filet d'en-tête, chiffre d'alerte. Employé partout il ne dirait plus rien. */
+  --encre: #0a1e3c;
+  --encre-clair: #143661;
+  --or: #c6a15b;
+  --or-fonce: #a8823c;
+  --or-voile: #f3e8d2;
+
+  /* Police d'affichage — titres et chiffres. Le fonctionnel reste en Nunito. */
+  --font-titre: 'Fraunces Variable', Georgia, serif;
 
   /* -- Police chiffrée / mono (aperçus, hex, extensions) -- */
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 
   /* -- Ombres UBold (très douces) -- */
-  --sh-sm: 0 1px 4px 0 rgba(130, 143, 163, .15);
-  --sh-card: 0 .75rem 6rem rgba(56, 65, 74, .03), 0 1px 4px 0 rgba(130, 143, 163, .12);
-  --sh-pop: 0 .25rem 1rem rgba(76, 76, 92, .2);
+  --sh-sm: 0 1px 2px rgba(30, 58, 110, .05);
+  /* Liseré + ombre rasante : une grande ombre grise assombrit tout son
+     pourtour et donne l'impression d'un écran sous-exposé. */
+  --sh-card: 0 0 0 1px rgba(30, 58, 110, .035), 0 1px 2px rgba(30, 58, 110, .035), 0 10px 28px rgba(30, 58, 110, .045);
+  --sh-pop: 0 0 0 1px rgba(30, 58, 110, .05), 0 14px 40px rgba(30, 58, 110, .14);
 
   /* -- Espacement (échelle 4) -- */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
@@ -189,10 +231,69 @@ button.mdc-button, button.mat-mdc-icon-button, .mat-mdc-menu-item {
   --mat-dialog-subhead-color: var(--ink);
   --mat-dialog-supporting-text-size: 13.5px;
   --mat-dialog-supporting-text-color: var(--ink);
-  --mat-dialog-headline-padding: 19px 22px 14px;
-  --mat-dialog-content-padding: 18px 22px 4px;
-  --mat-dialog-with-actions-content-padding: 18px 22px 4px;
-  --mat-dialog-actions-padding: 14px 22px 16px;
+  --mat-dialog-headline-padding: 20px 26px 15px;
+  /* 30px en haut : le libellé du premier champ vit AU-DESSUS de sa boîte.
+     Avec un padding serré, il touchait le bord de la zone qui défile et se
+     retrouvait rogné — le champ paraissait sans nom. */
+  --mat-dialog-content-padding: 26px 26px 6px;
+  --mat-dialog-with-actions-content-padding: 26px 26px 6px;
+  --mat-dialog-actions-padding: 16px 26px 18px;
+}
+
+/* En-tête : bandeau marine très clair, barre d'accent à gauche. Le titre, posé
+   sur blanc et sans repère, se lisait comme une simple ligne de texte perdue
+   au-dessus du formulaire. */
+/* L'accent est posé en ombre intérieure et non en pseudo-élément : Material
+   occupe déjà ::before du titre pour caler sa ligne de base, et le remplacer
+   décalait le texte. */
+.mat-mdc-dialog-container .mat-mdc-dialog-title {
+  background: linear-gradient(180deg, #e8eef8 0%, var(--surface-0) 100%);
+  border-bottom: 1px solid var(--line);
+  box-shadow: inset 4px 0 0 var(--primary);
+  color: var(--navy);
+  font-family: var(--font-titre);
+  letter-spacing: -.01em;
+}
+
+/* Pied ancré : surface teintée et filet haut, pour qu'il se distingue du
+   formulaire quand celui-ci défile derrière lui. */
+.mat-mdc-dialog-container .mat-mdc-dialog-actions {
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  gap: 10px;
+}
+/* « Annuler » recule, « Ajouter » avance : deux boutons de même poids
+   laissaient l'utilisateur choisir au hasard. */
+.mat-mdc-dialog-container .mat-mdc-dialog-actions .mat-mdc-button {
+  color: var(--ink-soft); font-weight: 600;
+}
+.mat-mdc-dialog-container .mat-mdc-dialog-actions .mat-mdc-button:hover { color: var(--ink); }
+.mat-mdc-dialog-container .mat-mdc-dialog-actions .mat-mdc-raised-button,
+.mat-mdc-dialog-container .mat-mdc-dialog-actions .mat-mdc-unelevated-button {
+  box-shadow: 0 1px 2px rgba(6, 36, 104, .18), 0 4px 12px rgba(6, 36, 104, .16);
+}
+
+/* Le contour de la modale : sans lui, le blanc de la boîte se fondait dans le
+   voile clair du fond. */
+.mat-mdc-dialog-container .mdc-dialog__surface { border: 1px solid var(--line); }
+
+/* Espacement des champs : 20px de marge haute portent le libellé, il en faut
+   un peu plus entre deux champs pour que chaque libellé se rattache
+   visiblement à SA boîte et non à celle du dessus. */
+.mat-mdc-dialog-container .mat-mdc-form-field { margin-bottom: 10px; }
+
+/* Material plafonne le contenu à 65vh : sur un portable, un formulaire qui
+   tenait largement dans la fenêtre se retrouvait quand même à défiler. On lui
+   rend la place réellement disponible, en réservant l'en-tête, le pied et les
+   marges de la modale. */
+.mat-mdc-dialog-container .mat-mdc-dialog-content {
+  max-height: calc(100vh - 156px);
+  scrollbar-width: thin;
+}
+.mat-mdc-dialog-container .mat-mdc-dialog-content::-webkit-scrollbar { width: 10px; }
+.mat-mdc-dialog-container .mat-mdc-dialog-content::-webkit-scrollbar-thumb {
+  background: var(--line); border-radius: 10px;
+  border: 3px solid var(--surface-0); background-clip: padding-box;
 }
 
 .mat-mdc-dialog-container .mat-mdc-dialog-title {

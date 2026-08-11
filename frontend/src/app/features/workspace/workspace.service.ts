@@ -9,12 +9,16 @@ export class WorkspaceService {
   private http = inject(HttpClient);
   private url = `${API_BASE}/workspaces`;
 
-  list(page = 0, size = 10, search = ''): Observable<PageResult<WorkSpace>> {
-    return this.http.get<PageResult<WorkSpace>>(this.url, { params: { page, size, search } });
+  list(page = 0, size = 10, search = '', sortBy = '', sortDir = 'desc'): Observable<PageResult<WorkSpace>> {
+    return this.http.get<PageResult<WorkSpace>>(this.url, {
+      params: { page, size, search, sortBy, sortDir },
+    });
   }
 
-  trashed(page = 0, size = 10, search = ''): Observable<PageResult<WorkSpace>> {
-    return this.http.get<PageResult<WorkSpace>>(`${this.url}/trashed`, { params: { page, size, search } });
+  trashed(page = 0, size = 10, search = '', sortBy = '', sortDir = 'desc'): Observable<PageResult<WorkSpace>> {
+    return this.http.get<PageResult<WorkSpace>>(`${this.url}/trashed`, {
+      params: { page, size, search, sortBy, sortDir },
+    });
   }
 
   tree(): Observable<TreeNode[]> {

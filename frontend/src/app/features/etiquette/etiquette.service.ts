@@ -9,12 +9,20 @@ export class EtiquetteService {
   private http = inject(HttpClient);
   private url = `${API_BASE}/etiquettes`;
 
-  list(page = 0, size = 10, search = ''): Observable<PageResult<Etiquette>> {
-    return this.http.get<PageResult<Etiquette>>(this.url, { params: { page, size, search } });
+  list(page = 0, size = 10, search = '', sortBy = '', sortDir = 'desc'): Observable<PageResult<Etiquette>> {
+    return this.http.get<PageResult<Etiquette>>(this.url, { params: this.params(page, size, search, sortBy, sortDir) });
   }
 
-  trashed(page = 0, size = 10, search = ''): Observable<PageResult<Etiquette>> {
-    return this.http.get<PageResult<Etiquette>>(`${this.url}/trashed`, { params: { page, size, search } });
+  trashed(page = 0, size = 10, search = '', sortBy = '', sortDir = 'desc'): Observable<PageResult<Etiquette>> {
+    return this.http.get<PageResult<Etiquette>>(`${this.url}/trashed`, { params: this.params(page, size, search, sortBy, sortDir) });
+  }
+
+  /** Le tri n'est transmis que s'il est demandé : sinon le serveur applique son
+   *  ordre par défaut (le plus récent d'abord) plutôt qu'un tri vide. */
+  private params(page: number, size: number, search: string, sortBy: string, sortDir: string) {
+    const p: Record<string, string | number> = { page, size, search };
+    if (sortBy) { p['sortBy'] = sortBy; p['sortDir'] = sortDir; }
+    return p;
   }
 
   get(id: number): Observable<Etiquette> {

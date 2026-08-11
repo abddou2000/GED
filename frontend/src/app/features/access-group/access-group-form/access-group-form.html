@@ -22,17 +22,7 @@
       </mat-form-field>
     </div>
 
-    <!-- Section 2 — Liste des droits GED -->
-    <h3 class="section">Liste des droits GED</h3>
-    <div class="rights">
-      @for (r of rightKeys; track r.key) {
-        <mat-slide-toggle [checked]="isOn(r.key)" (change)="onRightChange(r.key, $event.checked)">
-          {{ r.label }}
-        </mat-slide-toggle>
-      }
-    </div>
-
-    <!-- Section 3 — Utilisateurs & Workspaces -->
+    <!-- Section 2 — Utilisateurs & Workspaces -->
     <h3 class="section">Liste des utilisateurs &amp; Workspaces</h3>
     <div class="row">
       <mat-form-field appearance="outline" class="grow">

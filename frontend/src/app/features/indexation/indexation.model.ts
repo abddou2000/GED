@@ -15,40 +15,12 @@ export interface Critere {
   groupage: boolean;
 }
 
-/** Filtre envoyé au serveur pour un index donné. */
-export interface FiltreIndex {
-  indexFieldId: number;
-  valeur?: string | null;   // TEXTE (contient) · LISTE (égal)
-  de?: string | null;       // DATE / NOMBRE — borne basse
-  a?: string | null;        // DATE / NOMBRE — borne haute
-}
-
-export interface RechercheRequest {
-  workspaceId?: number | null;
-  typeDocumentId?: number | null;
-  criteres: FiltreIndex[];
-  grouperPar?: number | null;
-}
-
 /** Une valeur d'index portée par un document. */
 export interface ValeurIndex {
   indexFieldId: number;
   code: string;
   libelle: string;
   valeur: string;
-}
-
-export interface Resultat {
-  id: number;
-  name: string;
-  extension: string;
-  sizeLabel: string;
-  workspace: string | null;
-  typeDocument: string | null;
-  expirationDate: string | null;
-  /** Référence composée depuis le plan ; null tant que l'indexation n'a pas été confirmée. */
-  reference: string | null;
-  valeurs: ValeurIndex[];
 }
 
 /** Une valeur proposée par la lecture du document, avec le verdict du contrôle de type. */
@@ -88,9 +60,20 @@ export interface Analyse {
   detailTexte: string | null;
 }
 
-/** Résultats regroupés (par index de groupage, ou groupe unique « Tous »). */
-export interface Groupe {
-  libelle: string;
-  total: number;
-  documents: Resultat[];
+/** Index déduits d'un nom de fichier, avant dépôt (voir `IndexationService.apercu`). */
+export interface Apercu {
+  planNom: string | null;
+  separateur: string;
+  champs: Proposition[];
+  nbReconnus: number;
+  nbAttendus: number;
+  /** Nom que porterait le document s'il était déposé maintenant ; `null` si la
+      charte est manuelle ou si rien n'est déductible. */
+  nomPropose: string | null;
+  /** Ce que la lecture n'a pas su conclure ; `null` si tout a été déduit. */
+  avertissement: string | null;
+  /** Comment le contenu a été lu — `AUCUNE` si le nom du fichier a suffi.
+      L'OCR se trompe : le taire faisait passer sa proposition pour une
+      certitude, sans que personne sache qu'il fallait relire. */
+  provenanceTexte: 'COUCHE_TEXTE' | 'OCR' | 'AUCUNE';
 }

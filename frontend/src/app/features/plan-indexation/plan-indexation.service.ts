@@ -9,16 +9,29 @@ export class PlanIndexationService {
   private http = inject(HttpClient);
   private url = `${API_BASE}/plan-indexations`;
 
-  list(page = 0, size = 10, search = ''): Observable<PageResult<PlanIndexation>> {
-    return this.http.get<PageResult<PlanIndexation>>(this.url, { params: { page, size, search } });
+  list(page = 0, size = 10, search = '', sortBy = '', sortDir = 'desc'): Observable<PageResult<PlanIndexation>> {
+    return this.http.get<PageResult<PlanIndexation>>(this.url, { params: this.params(page, size, search, sortBy, sortDir) });
+  }
+
+  /** Jetons de nommage sans équivalent en base (DATE, YEAR…). */
+  jetonsSysteme(): Observable<{ id: string; name: string }[]> {
+    return this.http.get<{ id: string; name: string }[]>(`${this.url}/jetons-systeme`);
   }
 
   forSelect(): Observable<SelectOption[]> {
     return this.http.get<SelectOption[]>(`${this.url}/for-select`);
   }
 
-  trashed(page = 0, size = 10, search = ''): Observable<PageResult<PlanIndexation>> {
-    return this.http.get<PageResult<PlanIndexation>>(`${this.url}/trashed`, { params: { page, size, search } });
+  trashed(page = 0, size = 10, search = '', sortBy = '', sortDir = 'desc'): Observable<PageResult<PlanIndexation>> {
+    return this.http.get<PageResult<PlanIndexation>>(`${this.url}/trashed`, { params: this.params(page, size, search, sortBy, sortDir) });
+  }
+
+  /** Le tri n'est transmis que s'il est demandé : sinon le serveur applique son
+   *  ordre par défaut (le plus récent d'abord) plutôt qu'un tri vide. */
+  private params(page: number, size: number, search: string, sortBy: string, sortDir: string) {
+    const p: Record<string, string | number> = { page, size, search };
+    if (sortBy) { p['sortBy'] = sortBy; p['sortDir'] = sortDir; }
+    return p;
   }
 
   get(id: number): Observable<PlanIndexation> {

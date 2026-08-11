@@ -10,11 +10,15 @@ import java.util.Optional;
 
 public interface WorkflowRepository extends JpaRepository<WorkflowGed, Long> {
 
-    /** Liste active (hors corbeille), filtrée par nom, paginée. */
-    Page<WorkflowGed> findByDeletedFalseAndNameContainingIgnoreCaseOrderByIdDesc(String name, Pageable pageable);
+    /**
+     * Liste active (hors corbeille), filtrée par nom, paginée.
+     * L'ordre n'est pas figé dans le nom de la méthode : il est porté par le
+     * {@link Pageable}, faute de quoi tout tri demandé serait ignoré.
+     */
+    Page<WorkflowGed> findByDeletedFalseAndNameContainingIgnoreCase(String name, Pageable pageable);
 
     /** Corbeille (éléments supprimés), filtrée par nom, paginée. */
-    Page<WorkflowGed> findByDeletedTrueAndNameContainingIgnoreCaseOrderByIdDesc(String name, Pageable pageable);
+    Page<WorkflowGed> findByDeletedTrueAndNameContainingIgnoreCase(String name, Pageable pageable);
 
     @EntityGraph(attributePaths = {"steps", "steps.employe"})
     Optional<WorkflowGed> findWithStepsById(Long id);

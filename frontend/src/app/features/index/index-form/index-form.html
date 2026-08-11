@@ -32,9 +32,28 @@
     @if (isListe) {
       <mat-form-field appearance="outline" class="full">
         <mat-label>Valeurs (Options)</mat-label>
-        <input matInput formControlName="valeurs" placeholder="Ex. Basse, Normale, Haute" />
-        <mat-hint>Séparez les valeurs par des virgules</mat-hint>
+        <mat-chip-grid #grille aria-label="Valeurs de la liste">
+          @for (v of valeursListe(); track v) {
+            <mat-chip-row (removed)="retirerValeur(v)">
+              {{ v }}
+              <button matChipRemove [attr.aria-label]="'Retirer ' + v">
+                <mat-icon svgIcon="close"></mat-icon>
+              </button>
+            </mat-chip-row>
+          }
+          <input placeholder="Ajoutez une option puis Entrée"
+                 [matChipInputFor]="grille"
+                 [matChipInputSeparatorKeyCodes]="separateurs"
+                 (matChipInputTokenEnd)="ajouterValeur($event)" />
+        </mat-chip-grid>
+        <mat-hint>Entrée ou virgule pour valider chaque option</mat-hint>
       </mat-form-field>
+      <!-- Message hors du champ : Material n'affiche <mat-error> que si le
+           contrôle lui-même est invalide, or la grille de puces n'est pas un
+           FormControl — l'enregistrement était bloqué sans rien dire. -->
+      @if (erreurValeurs()) {
+        <p class="err-valeurs">Indiquez au moins une valeur</p>
+      }
     }
 
     <mat-form-field appearance="outline" class="full">

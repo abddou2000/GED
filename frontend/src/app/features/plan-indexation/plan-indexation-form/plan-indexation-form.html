@@ -1,6 +1,7 @@
-<h2 mat-dialog-title>{{ isEdit ? 'Modifier le plan d\'indexation' : 'Créer un plan d\'indexation' }}</h2>
-
-<mat-dialog-content>
+<!-- Un seul corps de formulaire, monte soit dans une page (routes /create et
+     /:id/edit, comme l'original), soit dans une boite de dialogue. Deux copies
+     du formulaire auraient diverge des la premiere correction. -->
+<ng-template #corps>
   <form [formGroup]="form" class="pi-form">
 
     <!-- Identification -->
@@ -22,7 +23,6 @@
       </mat-form-field>
     </div>
 
-    <mat-slide-toggle formControlName="modeIndexation" class="toggle-line">Indexation automatique</mat-slide-toggle>
 
     <mat-form-field appearance="outline" class="full">
       <mat-label>Liste des index</mat-label>
@@ -36,7 +36,13 @@
 
     <!-- Charte de nommage -->
     <h3 class="section">Charte de nommage</h3>
-    <mat-slide-toggle formControlName="manuel" class="toggle-line">Nommage manuel</mat-slide-toggle>
+    <div class="bloc-radio">
+      <span class="lib">Charte de nommage</span>
+      <mat-radio-group formControlName="manuel">
+        <mat-radio-button [value]="false">Auto</mat-radio-button>
+        <mat-radio-button [value]="true">Manuel</mat-radio-button>
+      </mat-radio-group>
+    </div>
 
     @if (!isManuel) {
       <div class="row charte">
@@ -47,12 +53,58 @@
             <mat-option value="_">_</mat-option>
           </mat-select>
         </mat-form-field>
-        <mat-slide-toggle formControlName="majuscule" class="toggle-line">Majuscules</mat-slide-toggle>
+        <div class="bloc-radio">
+          <span class="lib">Convertir en</span>
+          <mat-radio-group formControlName="majuscule">
+            <mat-radio-button [value]="true">Majuscule</mat-radio-button>
+            <mat-radio-button [value]="false">Minuscule</mat-radio-button>
+          </mat-radio-group>
+        </div>
       </div>
 
       <div class="preview">
         <span class="pv-label">Aperçu :</span>
-        <span class="pv-value">{{ preview || '—' }}</span>
+        <span class="pv-value">{{ preview() || '—' }}</span>
+      </div>
+
+      <!-- Deux listes : à gauche ce qu'on peut mettre dans le nom, à droite ce
+           qui y est, dans l'ordre. L'ordre se règle en faisant glisser. -->
+      <div class="ateliers">
+        <div class="atelier">
+          <h4>Index disponibles</h4>
+          <div class="jetons">
+            @for (j of disponibles(); track j.id) {
+              <button type="button" class="jeton" (click)="ajouter(j)"
+                      [class.systeme]="j.systeme"
+                      [matTooltip]="j.systeme ? 'Jeton système, remplacé au dépôt' : 'Index du plan'">
+                <mat-icon svgIcon="add"></mat-icon>
+                <span>{{ j.name }}</span>
+              </button>
+            }
+            @if (!disponibles().length) {
+              <p class="vide">Tous les index choisis sont déjà dans le nom.</p>
+            }
+          </div>
+        </div>
+
+        <div class="atelier large">
+          <h4>Index sélectionnés <span class="aide">glisser pour réorganiser</span></h4>
+          <div class="jetons colonne" cdkDropList (cdkDropListDropped)="deplacer($event)">
+            @for (j of selectionnes(); track j.id) {
+              <div class="jeton range" cdkDrag [class.systeme]="j.systeme">
+                <mat-icon class="poignee" svgIcon="drag" cdkDragHandle></mat-icon>
+                <span class="nom">{{ j.name }}</span>
+                <button type="button" class="oter" (click)="retirer(j)"
+                        [attr.aria-label]="'Retirer ' + j.name">
+                  <mat-icon svgIcon="close"></mat-icon>
+                </button>
+              </div>
+            }
+            @if (!selectionnes().length) {
+              <p class="vide">Aucun index dans le nom : cliquez sur ceux de gauche.</p>
+            }
+          </div>
+        </div>
       </div>
     }
 
@@ -60,11 +112,37 @@
       <div class="server-error">{{ serverError() }}</div>
     }
   </form>
-</mat-dialog-content>
+</ng-template>
 
-<mat-dialog-actions align="end">
-  <button mat-button type="button" (click)="cancel()">Annuler</button>
-  <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
-    {{ loading() ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Ajouter') }}
-  </button>
-</mat-dialog-actions>
+@if (modePage()) {
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>{{ isEdit ? 'Modifier le plan d\'indexation' : 'Créer un plan d\'indexation' }}</h1>
+        <p class="breadcrumb"><a routerLink="/plan-indexation">Plans d'indexation</a></p>
+      </div>
+    </div>
+    <div class="card pi-page">
+      <ng-container *ngTemplateOutlet="corps"></ng-container>
+      <div class="actions-page">
+        <button mat-button type="button" (click)="cancel()">Annuler</button>
+        <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+          {{ loading() ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Créer') }}
+        </button>
+      </div>
+    </div>
+  </div>
+} @else {
+  <h2 mat-dialog-title>{{ isEdit ? 'Modifier le plan d\'indexation' : 'Créer un plan d\'indexation' }}</h2>
+
+  <mat-dialog-content>
+    <ng-container *ngTemplateOutlet="corps"></ng-container>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="cancel()">Annuler</button>
+    <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+      {{ loading() ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Ajouter') }}
+    </button>
+  </mat-dialog-actions>
+}

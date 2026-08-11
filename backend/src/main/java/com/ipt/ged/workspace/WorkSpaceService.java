@@ -1,6 +1,7 @@
 package com.ipt.ged.workspace;
 
 import com.ipt.ged.common.PageResponse;
+import com.ipt.ged.common.Tri;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.workflow.WorkflowGed;
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Logique métier des espaces de travail : CRUD, corbeille, déplacement (anti-cycle),
@@ -26,6 +28,9 @@ import java.util.Map;
  */
 @Service
 public class WorkSpaceService {
+
+    /** Colonnes triables de l'écran « Espaces de travail ». */
+    private static final Set<String> TRIS = Set.of("id", "code", "name", "status");
 
     private final WorkSpaceRepository repo;
     private final EmployeRepository employeRepository;
@@ -39,16 +44,16 @@ public class WorkSpaceService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<WorkSpaceResponse> list(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<WorkSpace> result = repo.findByDeletedFalseAndNameContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<WorkSpaceResponse> list(int page, int size, String search, String sortBy, String sortDir) {
+        Page<WorkSpace> result = repo.findByDeletedFalseAndNameContainingIgnoreCase(
+                search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
         return PageResponse.of(result, this::toResponse);
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<WorkSpaceResponse> trashed(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<WorkSpace> result = repo.findByDeletedTrueAndNameContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<WorkSpaceResponse> trashed(int page, int size, String search, String sortBy, String sortDir) {
+        Page<WorkSpace> result = repo.findByDeletedTrueAndNameContainingIgnoreCase(
+                search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
         return PageResponse.of(result, this::toResponse);
     }
 
@@ -69,7 +74,7 @@ public class WorkSpaceService {
 
     @Transactional
     public WorkSpaceResponse update(Long id, WorkSpaceRequest req) {
-        WorkSpace w = load(id);
+        WorkSpace w = loadPourEcriture(id);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
         }
@@ -84,6 +89,7 @@ public class WorkSpaceService {
         load(id).setDeleted(true);
     }
 
+    // Restauration = inverse de la mise en corbeille.
     @Transactional
     public void restore(Long id) {
         load(id).setDeleted(false);
@@ -102,7 +108,7 @@ public class WorkSpaceService {
     /** Déplace un dossier sous un nouveau parent (null = racine), en interdisant les cycles. */
     @Transactional
     public WorkSpaceResponse move(Long id, Long newParentId) {
-        WorkSpace w = load(id);
+        WorkSpace w = loadPourEcriture(id);
         if (newParentId != null) {
             if (newParentId.equals(id)) {
                 throw new IllegalArgumentException("Un dossier ne peut pas être son propre parent");
@@ -122,7 +128,7 @@ public class WorkSpaceService {
     /** Bascule ACTIF <-> ARCHIVE. */
     @Transactional
     public WorkSpaceResponse archiveToggle(Long id) {
-        WorkSpace w = load(id);
+        WorkSpace w = loadPourEcriture(id);
         w.setStatus(w.getStatus() == WorkspaceStatus.ARCHIVE ? WorkspaceStatus.ACTIF : WorkspaceStatus.ARCHIVE);
         return toResponse(repo.save(w));
     }
@@ -169,6 +175,22 @@ public class WorkSpaceService {
     private WorkSpace load(Long id) {
         return repo.findWithRefsById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Espace de travail introuvable : " + id));
+    }
+
+    /**
+     * Chargement pour écriture : même règle de corbeille que pour les documents
+     * — la fiche reste consultable (l'écran « supprimés » doit pouvoir la
+     * décrire avant restauration), mais plus rien n'y est modifiable. Renommer,
+     * déplacer ou archiver un dossier que l'utilisateur croit supprimé revient à
+     * travailler sur une organisation qui n'apparaît nulle part.
+     */
+    private WorkSpace loadPourEcriture(Long id) {
+        WorkSpace w = load(id);
+        if (w.isDeleted()) {
+            throw new IllegalArgumentException(
+                    "Espace de travail en corbeille : modification impossible. Restaurez-le d'abord.");
+        }
+        return w;
     }
 
     /** Ids de toute la descendance d'un dossier (parcours en largeur via la base). */

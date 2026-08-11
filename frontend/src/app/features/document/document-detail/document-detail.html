@@ -1,0 +1,220 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>{{ doc()?.name || 'Document' }}</h1>
+      <p class="breadcrumb">
+        <a routerLink="/televerser">Documents</a>
+        @if (doc(); as d) { <span> · </span><span>{{ d.chemin }}</span> }
+      </p>
+    </div>
+    @if (doc(); as d) {
+      <div class="tete-actions">
+        <button mat-stroked-button (click)="telecharger()" [disabled]="telechargementEnCours()">
+          <mat-icon svgIcon="download"></mat-icon> Télécharger
+        </button>
+        <button mat-stroked-button (click)="basculerVerrou()"
+                [matTooltip]="d.verrouille ? 'Autoriser à nouveau les modifications' : 'Empêcher toute modification'">
+          <mat-icon svgIcon="archive"></mat-icon>
+          {{ d.verrouille ? 'Déverrouiller' : 'Verrouiller' }}
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (chargement()) {
+    <div class="card"><p class="etat">Chargement…</p></div>
+  } @else if (introuvable()) {
+    <div class="card">
+      <div class="empty-state">
+        <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+        <span class="empty-title">Document introuvable</span>
+        <span class="empty-sub">Il a peut-être été supprimé. <a routerLink="/televerser">Revenir à la liste</a></span>
+      </div>
+    </div>
+  } @else if (doc(); as d) {
+
+    @if (d.verrouille) {
+      <div class="bandeau-verrou">
+        <mat-icon svgIcon="archive"></mat-icon>
+        <span>Document verrouillé — ni modification ni nouvelle version tant que le verrou tient.</span>
+      </div>
+    }
+
+    <!-- Identité du document -->
+    <div class="card">
+      <div class="cartouches">
+        <div class="cartouche"><span class="val">{{ d.fileName }}</span><span class="lib">Fichier</span></div>
+        <div class="cartouche"><span class="val">{{ d.sizeLabel }}</span><span class="lib">Taille</span></div>
+        <div class="cartouche"><span class="val maj">{{ d.extension }}</span><span class="lib">Extension</span></div>
+        <div class="cartouche"><span class="val">{{ d.chemin }}</span><span class="lib">Chemin</span></div>
+        <div class="cartouche"><span class="val">{{ d.createdBy || '—' }}</span><span class="lib">Créateur</span></div>
+        <div class="cartouche"><span class="val">{{ dateCourte(d.createdAt) }}</span><span class="lib">Déposé le</span></div>
+      </div>
+    </div>
+
+    <div class="colonnes">
+      <!-- Modification de la fiche -->
+      <div class="card col">
+        <div class="bloc-tete"><mat-icon svgIcon="edit"></mat-icon><span>Informations</span></div>
+        <form [formGroup]="form" class="fiche-form">
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Nom du document</mat-label>
+            <input matInput formControlName="name" [readonly]="verrouille" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Type de document</mat-label>
+            <mat-select formControlName="typeDocumentId">
+              @for (t of types(); track t.id) {
+                <mat-option [value]="t.id">{{ t.name }}</mat-option>
+              }
+            </mat-select>
+            <mat-hint>Changer le type déplace le document dans le dossier associé</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Date d'expiration</mat-label>
+            <input matInput [matDatepicker]="dpExp" formControlName="expirationDate"
+                   [readonly]="verrouille" placeholder="Choisir une date" />
+            <mat-datepicker-toggle matIconSuffix [for]="dpExp" [disabled]="verrouille">
+              <mat-icon matDatepickerToggleIcon svgIcon="calendar"></mat-icon>
+            </mat-datepicker-toggle>
+            <mat-datepicker #dpExp></mat-datepicker>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Étiquettes</mat-label>
+            <mat-select formControlName="etiquetteIds" multiple>
+              @for (e of etiquettes(); track e.id) {
+                <mat-option [value]="e.id">{{ e.tag }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-slide-toggle formControlName="active" class="toggle-line">
+            Document actif
+          </mat-slide-toggle>
+
+          @if (!verrouille) {
+            <div class="actions-form">
+              <button mat-flat-button color="primary" type="button"
+                      [disabled]="enregistrement()" (click)="enregistrer()">
+                {{ enregistrement() ? 'Enregistrement…' : 'Enregistrer' }}
+              </button>
+            </div>
+          }
+        </form>
+      </div>
+
+      <div class="col-droite">
+        <!-- Étiquettes apposées -->
+        <div class="card">
+          <div class="bloc-tete"><mat-icon svgIcon="nav-tag"></mat-icon><span>Étiquettes</span></div>
+          @if (d.etiquettes?.length) {
+            <div class="tags">
+              @for (e of d.etiquettes; track e.id) {
+                <span class="pastille" [style.background]="e.couleur">{{ e.tag }}</span>
+              }
+            </div>
+          } @else {
+            <p class="etat">Aucune étiquette.</p>
+          }
+        </div>
+
+        <!-- Valeurs d'index -->
+        <div class="card">
+          <div class="bloc-tete"><mat-icon svgIcon="nav-index"></mat-icon><span>Champs indexés</span></div>
+          @if (valeurs().length) {
+            <dl class="index-liste">
+              @for (v of valeurs(); track v.label) {
+                <div><dt>{{ v.label }}</dt><dd>{{ v.valeur || '—' }}</dd></div>
+              }
+            </dl>
+          } @else {
+            <p class="etat">Aucune valeur d'index enregistrée pour ce document.</p>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Versions -->
+    <div class="card card-versions">
+      <div class="bloc-tete">
+        <mat-icon svgIcon="nav-upload"></mat-icon><span>Versions</span>
+        <span class="cpt">{{ d.versions.length }}</span>
+      </div>
+
+      @if (!verrouille) {
+        <div class="depot-version">
+          <input type="file" id="fichier-version" class="cache" (change)="fichierChoisi($event)" />
+          <label for="fichier-version" class="btn-fichier">
+            <mat-icon svgIcon="nav-upload"></mat-icon>
+            {{ nouveauFichier()?.name || 'Choisir un fichier' }}
+          </label>
+          <mat-form-field appearance="outline" class="obs">
+            <mat-label>Observation</mat-label>
+            <input matInput [formControl]="$any(form.get('observation'))" placeholder="Ex. Correction du montant" />
+          </mat-form-field>
+          <button mat-flat-button color="primary" type="button"
+                  [disabled]="!nouveauFichier() || enregistrement()" (click)="deposerVersion()">
+            Déposer la version
+          </button>
+        </div>
+      }
+
+      <div class="table-wrap">
+        <table mat-table [dataSource]="d.versions" class="ver-table">
+          <ng-container matColumnDef="fichier">
+            <th mat-header-cell *matHeaderCellDef>Fichier</th>
+            <td mat-cell *matCellDef="let v">
+              {{ v.fileName }}
+              @if (v.principale) { <span class="courante">courante</span> }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="observation">
+            <th mat-header-cell *matHeaderCellDef>Observation</th>
+            <td mat-cell *matCellDef="let v">
+              @if (v.observation) { {{ v.observation }} } @else { <span class="muted">—</span> }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="taille">
+            <th mat-header-cell *matHeaderCellDef class="c-num">Taille</th>
+            <td mat-cell *matCellDef="let v" class="c-num">{{ v.sizeLabel }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef>Déposée le</th>
+            <td mat-cell *matCellDef="let v">{{ dateCourte(v.createdAt) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="c-act">Actions</th>
+            <td mat-cell *matCellDef="let v" class="c-act">
+              @if (!v.principale && !verrouille) {
+                <button mat-icon-button (click)="restaurerVersion(v)"
+                        matTooltip="Rendre courante" aria-label="Rendre courante">
+                  <mat-icon svgIcon="restore"></mat-icon>
+                </button>
+              }
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="colonnesVersions"></tr>
+          <tr mat-row *matRowDef="let row; columns: colonnesVersions"></tr>
+
+          <tr class="no-data-row" *matNoDataRow>
+            <td class="no-data" [attr.colspan]="colonnesVersions.length">
+              <div class="empty-state">
+                <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+                <span class="empty-title">Aucune version</span>
+                <span class="empty-sub">Ce document date d'avant le suivi des versions.</span>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  }
+</div>

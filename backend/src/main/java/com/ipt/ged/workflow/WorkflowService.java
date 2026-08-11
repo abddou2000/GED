@@ -1,6 +1,7 @@
 package com.ipt.ged.workflow;
 
 import com.ipt.ged.common.PageResponse;
+import com.ipt.ged.common.Tri;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.workflow.dto.WorkflowRequest;
@@ -9,6 +10,9 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +27,9 @@ import java.util.List;
 @Service
 public class WorkflowService {
 
+    /** Colonnes triables de cet écran. */
+    private static final Set<String> TRIS = Set.of("id", "name");
+
     private final WorkflowRepository workflowRepository;
     private final EmployeRepository employeRepository;
 
@@ -31,21 +38,19 @@ public class WorkflowService {
         this.employeRepository = employeRepository;
     }
 
-    /** Liste active (hors corbeille) paginée + recherche. */
+    /** Liste active (hors corbeille) paginée + recherche + tri. */
     @Transactional(readOnly = true)
-    public PageResponse<WorkflowResponse> list(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<WorkflowGed> result =
-                workflowRepository.findByDeletedFalseAndNameContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<WorkflowResponse> list(int page, int size, String search, String sortBy, String sortDir) {
+        Page<WorkflowGed> result = workflowRepository
+                .findByDeletedFalseAndNameContainingIgnoreCase(search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
         return PageResponse.of(result, WorkflowResponse::from);
     }
 
-    /** Corbeille (éléments supprimés) paginée + recherche. */
+    /** Corbeille (éléments supprimés) paginée + recherche + tri. */
     @Transactional(readOnly = true)
-    public PageResponse<WorkflowResponse> trashed(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<WorkflowGed> result =
-                workflowRepository.findByDeletedTrueAndNameContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<WorkflowResponse> trashed(int page, int size, String search, String sortBy, String sortDir) {
+        Page<WorkflowGed> result = workflowRepository
+                .findByDeletedTrueAndNameContainingIgnoreCase(search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
         return PageResponse.of(result, WorkflowResponse::from);
     }
 

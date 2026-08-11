@@ -1,5 +1,10 @@
 # Profil de TEST — base H2 en mémoire, isolée (recréée à chaque exécution).
 spring:
+  # Flyway est desactive ici : le schema de developpement est cree par
+  # `ddl-auto: update`, et les migrations sont ecrites en dialecte MySQL —
+  # les appliquer a H2 echouerait. Elles ne concernent que la production.
+  flyway:
+    enabled: false
   datasource:
     url: jdbc:h2:mem:gedtest;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
@@ -18,3 +23,31 @@ ged:
   storage:
     root: ./target/test-storage
     temp: ./target/test-temp
+
+  securite:
+    # Mot de passe d'amorçage des comptes de test.
+    #
+    # Ce n'est PAS un secret exposé : la base visée est H2 *en mémoire*
+    # (jdbc:h2:mem:gedtest, ddl-auto: create-drop, cf. plus haut). Elle naît et
+    # meurt avec la JVM de test, n'est jointe par aucun port, et aucun compte
+    # produit ici ne survit à l'exécution. La valeur est volontairement
+    # inutilisable ailleurs.
+    #
+    # Sans cette ligne, `mot-de-passe-initial` reste vide (application.yml,
+    # fail-closed volontaire) : CompteSeeder ne crée AUCUN compte et les tests
+    # ne peuvent plus s'authentifier — or l'API est désormais fermée par défaut
+    # (anyRequest().authenticated()). Les tests doivent donc s'authentifier
+    # comme un vrai client, pas contourner la sécurité.
+    mot-de-passe-initial: test-only-password
+
+    # Compte unique des tests. L'adresse correspond à l'employé 1 du jeu de
+    # démonstration (Sara Bennani) : le seeder rattache donc le compte à cet
+    # employé existant au lieu d'en créer un.
+    email-admin: sara.bennani@marchica.ma
+
+    # Clé JWT fixe pour les tests, afin que la clé aléatoire tirée au démarrage
+    # hors prod ne rende pas les tests dépendants d'un tirage. Même statut que
+    # ci-dessus : jetable, jamais chargée en prod (le profil prod n'a aucune
+    # valeur par défaut et refuse de démarrer sans GED_JWT_CLE).
+    jwt:
+      cle: cle-de-test-uniquement-jamais-en-production-0123456789

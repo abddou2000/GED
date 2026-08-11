@@ -3,51 +3,73 @@ package com.ipt.ged.accessgroup;
 import com.ipt.ged.accessgroup.dto.AccessGroupRequest;
 import com.ipt.ged.accessgroup.dto.AccessGroupResponse;
 import com.ipt.ged.common.PageResponse;
+import com.ipt.ged.common.Tri;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.workspace.WorkSpace;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * Logique métier des groupes d'accès : CRUD, corbeille, normalisation des 8 droits
- * (cascade de dépendances) et affectation des espaces de travail / utilisateurs.
+ * Logique métier des groupes d'accès : CRUD, corbeille et affectation des espaces
+ * de travail / utilisateurs. Un groupe organise, il n'autorise rien.
  */
 @Service
 public class AccessGroupService {
 
+    /** Colonnes sur lesquelles le tri est accepté ; toute autre valeur est ignorée. */
+    private static final Set<String> TRIS = Set.of("id", "code", "name");
+
     private final AccessGroupRepository repo;
     private final WorkSpaceRepository workspaceRepo;
     private final EmployeRepository employeRepo;
+    private final AccessGroupTriParTaille triParTaille;
 
     public AccessGroupService(AccessGroupRepository repo, WorkSpaceRepository workspaceRepo,
-                              EmployeRepository employeRepo) {
+                              EmployeRepository employeRepo, AccessGroupTriParTaille triParTaille) {
         this.repo = repo;
         this.workspaceRepo = workspaceRepo;
         this.employeRepo = employeRepo;
+        this.triParTaille = triParTaille;
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<AccessGroupResponse> list(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<AccessGroup> result = repo.findByDeletedFalseAndNameContainingIgnoreCaseOrderByIdDesc(search, pageable);
-        return PageResponse.of(result, AccessGroupResponse::from);
+    public PageResponse<AccessGroupResponse> list(int page, int size, String search,
+                                                  String sortBy, String sortDir) {
+        return PageResponse.of(chercher(page, size, search, sortBy, sortDir, false),
+                               AccessGroupResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<AccessGroupResponse> trashed(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<AccessGroup> result = repo.findByDeletedTrueAndNameContainingIgnoreCaseOrderByIdDesc(search, pageable);
-        return PageResponse.of(result, AccessGroupResponse::from);
+    public PageResponse<AccessGroupResponse> trashed(int page, int size, String search,
+                                                     String sortBy, String sortDir) {
+        return PageResponse.of(chercher(page, size, search, sortBy, sortDir, true),
+                               AccessGroupResponse::from);
+    }
+
+    /** Aiguille vers le tri par cardinalité quand la colonne demandée est une association. */
+    private Page<AccessGroup> chercher(int page, int size, String search,
+                                       String sortBy, String sortDir, boolean supprimes) {
+        String champ = sortBy == null ? "" : sortBy.trim();
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
+        if (AccessGroupTriParTaille.COLLECTIONS.contains(champ)) {
+            Sort.Direction sens = "asc".equalsIgnoreCase(sortDir)
+                    ? Sort.Direction.ASC : Sort.Direction.DESC;
+            return triParTaille.rechercher(search, supprimes, champ, sens, pageable);
+        }
+        return supprimes
+                ? repo.findByDeletedTrueAndNameContainingIgnoreCase(search, pageable)
+                : repo.findByDeletedFalseAndNameContainingIgnoreCase(search, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -88,6 +110,7 @@ public class AccessGroupService {
         load(id).setDeleted(true);
     }
 
+    // Restauration = inverse de la mise en corbeille.
     @Transactional
     public void restore(Long id) {
         load(id).setDeleted(false);
@@ -124,14 +147,6 @@ public class AccessGroupService {
     }
 
     private void apply(AccessGroup g, AccessGroupRequest req) {
-        // Droits : recopie + normalisation (ferme les dépendances)
-        GedRights rights = g.getRights() != null ? g.getRights() : new GedRights();
-        if (req.rights() != null) {
-            req.rights().applyTo(rights);
-        }
-        rights.normalize();
-        g.setRights(rights);
-
         // Espaces de travail
         List<Long> wsIds = req.workspaceIds() != null ? req.workspaceIds() : List.of();
         List<WorkSpace> ws = wsIds.isEmpty() ? List.of() : workspaceRepo.findAllById(wsIds);

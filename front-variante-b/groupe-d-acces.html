@@ -14,7 +14,7 @@
       <div class="head">
         <div data-in style="--d:60ms">
           <h1>Groupe d'accès</h1>
-          <p class="fil"><a href="accueil.html">Accueil</a> · Droits par espace</p>
+          <p class="fil"><a href="accueil.html">Accueil</a> · Utilisateurs par espace</p>
         </div>
         <a class="cta" href="#" data-in style="--d:150ms">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -47,7 +47,6 @@
                 <th>Groupe</th>
                 <th>Membres</th>
                 <th>Espaces couverts</th>
-                <th>Droits accordés</th>
                 <th class="c-act fin">Actions</th>
               </tr>
             </thead>
@@ -57,10 +56,6 @@
                 <td><span class="nom">Lecture seule</span><span class="sous">Consultation sans modification</span></td>
                 <td class="num">8</td>
                 <td>Tous</td>
-                <td>
-                  <span class="jeton vert">Accès</span>
-                  <span class="jeton vert">Lecture</span>
-                </td>
                 <td class="fin"><button class="act" type="button" title="Modifier" aria-label="Modifier"><svg class="lucide lucide-pencil" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /> </svg></button><button class="act danger" type="button" title="Supprimer" aria-label="Supprimer"><svg class="lucide lucide-trash-2" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /> </svg></button></td>
               </tr>
               <tr>
@@ -68,23 +63,13 @@
                 <td><span class="nom">Gestionnaire</span><span class="sous">Dépôt et classement courants</span></td>
                 <td class="num">4</td>
                 <td>Comptabilité, Formation</td>
-                <td>
-                  <span class="jeton vert">Accès</span>
-                  <span class="jeton vert">Lecture</span>
-                  <span class="jeton vert">Téléverser</span>
-                  <span class="jeton vert">Modifier</span>
-                  <span class="jeton vert">Déplacer</span>
-                </td>
                 <td class="fin"><button class="act" type="button" title="Modifier" aria-label="Modifier"><svg class="lucide lucide-pencil" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /> </svg></button><button class="act danger" type="button" title="Supprimer" aria-label="Supprimer"><svg class="lucide lucide-trash-2" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /> </svg></button></td>
               </tr>
               <tr>
                 <td class="num">GA-ADMIN</td>
-                <td><span class="nom">Administration</span><span class="sous">Tous les droits, y compris purge</span></td>
+                <td><span class="nom">Administration</span><span class="sous">Tous les espaces, sans exception</span></td>
                 <td class="num">2</td>
                 <td>Tous</td>
-                <td>
-                  <span class="jeton vert">Les 8 droits</span>
-                </td>
                 <td class="fin"><button class="act" type="button" title="Modifier" aria-label="Modifier"><svg class="lucide lucide-pencil" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /> </svg></button><button class="act danger" type="button" title="Supprimer" aria-label="Supprimer"><svg class="lucide lucide-trash-2" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" > <path d="M10 11v6" /> <path d="M14 11v6" /> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /> <path d="M3 6h18" /> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /> </svg></button></td>
               </tr>
             </tbody>
@@ -107,8 +92,8 @@
       </section>
 
       <p class="fil" style="margin-top:18px">
-        Les huit droits : accès, lecture, modification, téléversement, suppression,
-        déplacement, ajout de version, verrouillage.
+        Un groupe rattache des utilisateurs à des espaces de travail : il sert à
+        organiser, il ne restreint aucune action.
       </p>
     </main>
   </div>

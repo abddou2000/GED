@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import com.ipt.ged.support.Comptes;
+import org.springframework.security.test.context.support.WithUserDetails;
 
 /**
  * Campagne de tests du dépôt de documents (Phase 1) : upload avec validation
@@ -34,6 +36,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
+// L'API est fermee par defaut : chaque appel doit porter une identite reelle.
+// L'API est fermee par defaut : les tests s'authentifient avec le compte unique.
+@WithUserDetails(Comptes.ADMIN)
 class DocumentApiTest {
 
     @Autowired private MockMvc mvc;
@@ -83,6 +88,23 @@ class DocumentApiTest {
                 .andExpect(jsonPath("$.extension").value("pdf"))
                 .andExpect(jsonPath("$.workspace.label").value("Comptabilite"))
                 .andExpect(jsonPath("$.typeDocument.label").value("Facture"));
+    }
+
+    @Test
+    @DisplayName("1b. Le créateur vient du jeton, pas de la requête")
+    void createurNonUsurpable() throws Exception {
+        /* Le dépôt est fait par l'ADMIN (Sara). On tente d'attribuer la pièce à
+           quelqu'un d'autre via le paramètre historique `createdById` : il doit
+           rester sans effet. Sans cette garantie, la colonne « Créateur » — qui
+           sert de trace de responsabilité — serait déclarative, et n'importe
+           qui pourrait déposer au nom d'un collègue. */
+        mvc.perform(multipart(BASE)
+                        .file(file("facture-createur.pdf", "contenu pdf".getBytes()))
+                        .param("name", "Pièce tracée")
+                        .param("typeDocumentId", String.valueOf(typeId))
+                        .param("createdById", "999"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.createdBy").value("Sara Bennani"));
     }
 
     @Test

@@ -25,6 +25,18 @@
     </properties>
 
     <dependencies>
+        <!-- Lecture des fichiers bureautiques : les types de document
+             autorisent docx/xlsx, mais aucun extracteur ne savait les lire. -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-scratchpad</artifactId>
+            <version>5.3.0</version>
+        </dependency>
         <!-- Web / REST -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -56,6 +68,26 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Jetons JWT signes (HMAC-SHA256) : jjwt 0.12, API/implementation/serialiseur
+             separes comme le prevoit la bibliotheque. -->
+        <dependency>
+        	<groupId>io.jsonwebtoken</groupId>
+        	<artifactId>jjwt-api</artifactId>
+        	<version>0.12.6</version>
+        </dependency>
+        <dependency>
+        	<groupId>io.jsonwebtoken</groupId>
+        	<artifactId>jjwt-impl</artifactId>
+        	<version>0.12.6</version>
+        	<scope>runtime</scope>
+        </dependency>
+        <dependency>
+        	<groupId>io.jsonwebtoken</groupId>
+        	<artifactId>jjwt-jackson</artifactId>
+        	<version>0.12.6</version>
+        	<scope>runtime</scope>
+        </dependency>
+
         <!-- Lombok (reduce boilerplate) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -74,6 +106,35 @@
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Sonde de vie.
+             `SecurityConfig` ouvrait deja `/actuator/health` et `/api/v1/health`,
+             mais les deux repondaient 404 : l'actuator n'etait pas au projet et
+             aucun controleur ne servait la seconde. Une supervision, un
+             repartiteur de charge ou un orchestrateur n'avaient donc AUCUN moyen
+             de savoir si l'application etait vivante. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Migrations de schema.
+             En prod, `ddl-auto: validate` compare le schema attendu a celui de
+             la base et refuse de demarrer s'il manque quelque chose. Sans outil
+             de migration, une base vierge ne pouvait donc JAMAIS accueillir
+             l'application : elle echouait au demarrage sans qu'aucun script ne
+             soit fourni. Flyway applique `db/migration/V*.sql` au demarrage et
+             tient le registre de ce qui a deja tourne. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <!-- Flyway 10 sort le support MySQL dans un module a part. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
             <scope>runtime</scope>
         </dependency>
 

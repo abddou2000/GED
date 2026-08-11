@@ -3,25 +3,29 @@
 <mat-dialog-content>
   <form [formGroup]="form" class="wf-form">
 
-    <!-- Workflow Name -->
+    <!-- Nom de la regle -->
     <mat-form-field appearance="outline" class="full">
-      <mat-label>Workflow Name</mat-label>
-      <input matInput formControlName="name" placeholder="Enter workflow name" />
+      <mat-label>Nom de la règle</mat-label>
+      <input matInput formControlName="name" placeholder="Ex. : Validation comptable" />
       @if (form.get('name')?.touched && form.get('name')?.invalid) {
-        <mat-error>Name is required</mat-error>
+        <mat-error>Le nom est obligatoire</mat-error>
       }
     </mat-form-field>
 
-    <!-- Workflow Steps -->
+    <!-- Etapes du circuit -->
     <div class="steps-head">
-      <span class="steps-title">Workflow Steps</span>
+      <span class="steps-title">Étapes du circuit</span>
       <button mat-stroked-button type="button" (click)="addStep()">
-        <mat-icon svgIcon="add"></mat-icon> Add Step
+        <mat-icon svgIcon="add"></mat-icon> Ajouter une étape
       </button>
     </div>
 
+    @if (erreurEtapes(); as err) {
+      <p class="erreur-etapes">{{ err }}</p>
+    }
+
     @if (steps.length === 0) {
-      <div class="empty">No steps added yet. Click 'Add Step' to create your workflow.</div>
+      <div class="empty">Aucune étape pour l'instant. Cliquez sur « Ajouter une étape » pour composer le circuit.</div>
     }
 
     <div cdkDropList (cdkDropListDropped)="drop($event)" class="steps-list">
@@ -31,7 +35,7 @@
           <span class="step-num">{{ i + 1 }}</span>
 
           <mat-form-field appearance="outline" class="grow">
-            <mat-label>Step {{ i + 1 }} - User</mat-label>
+            <mat-label>Étape {{ i + 1 }} — approbateur</mat-label>
             <mat-select formControlName="employeId"
                         (selectionChange)="onEmployeChange(i, $event.value)">
               @for (emp of employes(); track emp.id) {
@@ -39,15 +43,15 @@
               }
             </mat-select>
             @if (step.get('employeId')?.touched && step.get('employeId')?.invalid) {
-              <mat-error>User is required</mat-error>
+              <mat-error>L'approbateur est obligatoire</mat-error>
             }
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="grow">
-            <mat-label>Label</mat-label>
-            <input matInput formControlName="label" placeholder="Enter step label" />
+            <mat-label>Libellé de l'étape</mat-label>
+            <input matInput formControlName="label" placeholder="Ex. : Vérification technique" />
             @if (step.get('label')?.touched && step.get('label')?.invalid) {
-              <mat-error>Label is required</mat-error>
+              <mat-error>Le libellé est obligatoire</mat-error>
             }
           </mat-form-field>
 

@@ -3,7 +3,9 @@ package com.ipt.ged.indexation;
 import com.ipt.ged.indexation.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -45,6 +47,20 @@ public class IndexationController {
      * Propose les valeurs d'index déduites du nom de fichier. Lecture seule :
      * rien n'est enregistré tant que l'opérateur n'a pas confirmé via le PUT.
      */
+    /**
+     * Index déduits d'un nom de fichier, sans dépôt préalable — ce que le
+     * formulaire de téléversement affiche dès que l'opérateur choisit son
+     * fichier. Lecture seule et sans effet de bord.
+     */
+    @PostMapping(value = "/apercu", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApercuResponse apercu(@RequestParam Long typeDocumentId,
+                                 @RequestParam(required = false) MultipartFile file,
+                                 @RequestParam(required = false) String nomFichier) {
+        String nom = nomFichier != null && !nomFichier.isBlank() ? nomFichier
+                : file != null ? file.getOriginalFilename() : "";
+        return service.apercu(typeDocumentId, nom, file);
+    }
+
     @GetMapping("/documents/{id}/analyse")
     public AnalyseResponse analyser(@PathVariable Long id) {
         return service.analyser(id);

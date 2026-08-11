@@ -5,7 +5,7 @@
 
 /* ---------- Barre supérieure (70px) ---------- */
 .topbar {
-  height: 62px; flex: 0 0 62px;
+  height: 78px; flex: 0 0 78px;
   display: flex; align-items: center; gap: 12px; padding: 0 20px;
   background: var(--surface-0);
   position: sticky; top: 0; z-index: 1005;
@@ -43,9 +43,65 @@
 .acc-btn > mat-icon { width: 15px; height: 15px; font-size: 15px; color: var(--faint); flex: 0 0 15px; }
 
 /* En-tête du menu compte (l'e-mail y est déplacé) */
-.acc-head { padding: 10px 16px 9px; border-bottom: 1px solid var(--line); cursor: default; }
-.acc-head .ah-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
-.acc-head .ah-mail { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+/* ---------- Carte de compte ----------
+   `::ng-deep` est inevitable : Material rend le panneau dans un calque hors du
+   composant, la portee de la feuille ne l'atteint pas. La classe
+   `carte-compte` borne l'effet a ce menu-la, pas a tous les menus. */
+::ng-deep .carte-compte.mat-mdc-menu-panel {
+  min-width: 320px; max-width: 360px;
+  border-radius: 26px; overflow: hidden;
+  /* Fond gris : c'est lui qui fait ressortir le bloc d'actions blanc. */
+  background: #eef1f6;
+  box-shadow: 0 16px 40px -10px rgba(6, 36, 104, .30), 0 0 0 1px rgba(6, 36, 104, .07);
+}
+::ng-deep .carte-compte .mat-mdc-menu-content { padding: 6px; }
+
+/* ---- Identite ---- */
+::ng-deep .carte-compte .cc-identite {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 14px 20px 18px; text-align: center; cursor: default;
+}
+
+/* L'adresse en tete, en petit : elle repond a « quel compte ? », question
+   qu'on se pose AVANT de lire le nom sur un poste partage. */
+::ng-deep .carte-compte .cc-mail {
+  margin: 0 0 16px; font-size: 12.5px; color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+::ng-deep .carte-compte .cc-av {
+  position: relative;
+  width: 76px; height: 76px; flex: 0 0 76px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 27px; font-weight: 800; letter-spacing: .02em; color: #fff;
+  background: linear-gradient(140deg, #5b8ae8, #1e4bb8);
+  box-shadow: 0 8px 20px rgba(6, 36, 104, .32), inset 0 1px 0 rgba(255, 255, 255, .25);
+}
+/* Le liseré blanc detache le medaillon du fond gris et porte la pastille. */
+::ng-deep .carte-compte .cc-etat {
+  position: absolute; right: 2px; bottom: 2px;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--vert); border: 2.5px solid #eef1f6;
+}
+
+::ng-deep .carte-compte .cc-bonjour {
+  margin: 14px 0 0; font-size: 19px; font-weight: 700;
+  letter-spacing: -.01em; color: var(--ink);
+}
+
+/* ---- Bloc d'actions, encastre en blanc ---- */
+::ng-deep .carte-compte .cc-actions {
+  background: #fff; border-radius: 20px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(6, 36, 104, .06);
+}
+::ng-deep .carte-compte .cc-actions .mat-mdc-menu-item { min-height: 48px; }
+::ng-deep .carte-compte .cc-actions .mat-mdc-menu-item + .mat-mdc-menu-item {
+  border-top: 1px solid var(--line-soft);
+}
+/* La sortie prend la teinte du danger au survol seulement : signalee, jamais
+   criee — elle est a cote d'une action anodine. */
+::ng-deep .carte-compte .cc-sortie:hover { color: var(--danger); }
+::ng-deep .carte-compte .cc-sortie:hover mat-icon { color: var(--danger); }
 
 /* Bouton menu (mobile) */
 .hamburger {
@@ -58,8 +114,13 @@
 
 /* ---------- Menu horizontal (collant sous la barre) ---------- */
 .topnav {
-  position: sticky; top: 62px; z-index: 1000;
-  display: flex; align-items: stretch; justify-content: center; gap: 2px;
+  position: sticky; top: 78px; z-index: 1000;
+  /* `safe center` : centre tant qu'il y a la place, et bascule en alignement
+     a gauche des que la rangee deborde. Avec un `center` simple, le trop-plein
+     se repartit des DEUX cotes et la partie gauche devient inatteignable —
+     `scrollLeft` ne descend pas sous zero. Le premier onglet etait coupe sans
+     aucun moyen d'y revenir. */
+  display: flex; align-items: stretch; justify-content: safe center; gap: 2px;
   background: var(--surface-0);
   padding: 0 16px;
   box-shadow: var(--sh-sm);
@@ -71,13 +132,13 @@
 .topnav a {
   position: relative;
   display: flex; align-items: center; gap: 8px;
-  padding: 15px 14px;
-  font-size: 15px; font-weight: 400; line-height: 1.25;
+  padding: 21px 18px;
+  font-size: 16px; font-weight: 400; line-height: 1.25;
   color: #667787; text-decoration: none; white-space: nowrap;
   transition: color .25s ease-in-out, background-color .25s ease-in-out;
 }
 .topnav a mat-icon {
-  width: 18px; height: 18px; font-size: 18px; flex: 0 0 18px;
+  width: 20px; height: 20px; font-size: 20px; flex: 0 0 20px;
   color: #667787; transition: color .25s ease-in-out;
 }
 .topnav a:hover { color: var(--primary); }
@@ -86,10 +147,38 @@
 
 .topnav a.active { color: var(--primary); font-weight: 600; }
 .topnav a.active mat-icon { color: var(--primary); }
-/* Soulignement de l'onglet actif */
-.topnav a.active::after {
-  content: ''; position: absolute; left: 10px; right: 10px; bottom: 0;
-  height: 2px; border-radius: 2px 2px 0 0; background: var(--primary);
+/* Indicateur glissant — une seule barre pour toute la rangée.
+   Sa position et sa largeur viennent du composant, qui mesure l'onglet actif ;
+   l'animation reste ici. `transform` et `width` seuls : aucun recalcul de mise
+   en page a chaque image. */
+.topnav-jauge {
+  position: absolute; bottom: 0; left: 0;
+  height: 3px; border-radius: 3px 3px 0 0;
+  width: var(--jauge-w, 0); opacity: var(--jauge-o, 0);
+  transform: translateX(var(--jauge-x, 0));
+  background: linear-gradient(90deg, #6d9aec, var(--primary));
+  transition: transform .32s cubic-bezier(.4, 0, .2, 1),
+              width .32s cubic-bezier(.4, 0, .2, 1),
+              opacity .2s ease;
+  pointer-events: none;
+}
+.topnav { position: sticky; }
+
+/* Survol : un fond très pâle et un liseré d'appel sous l'onglet. Il annonce
+   où l'indicateur ira, sans jamais se confondre avec lui — un tiers de sa
+   hauteur, et la teinte du texte, pas celle de la marque. */
+.topnav a:not(.active)::after {
+  content: ''; position: absolute; left: 14px; right: 14px; bottom: 0;
+  height: 2px; border-radius: 2px 2px 0 0; background: #c3d2e8;
+  transform: scaleX(0); transform-origin: 50% 100%;
+  transition: transform .22s cubic-bezier(.4, 0, .2, 1);
+}
+.topnav a:not(.active):hover::after { transform: scaleX(1); }
+.topnav a:hover { background: rgba(47, 98, 214, .05); }
+
+@media (prefers-reduced-motion: reduce) {
+  .topnav-jauge { transition: none; }
+  .topnav a:not(.active)::after { transition: none; }
 }
 
 /* Badge « à traiter » */
@@ -121,10 +210,10 @@
   .acc-name, .acc-btn > mat-icon { display: none; }
 
   .topnav {
-    position: fixed; top: 62px; left: 0; right: 0;
+    position: fixed; top: 78px; left: 0; right: 0;
     flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 0;
     padding: 8px 12px 12px;
-    max-height: calc(100vh - 62px); overflow-y: auto;
+    max-height: calc(100vh - 78px); overflow-y: auto;
     box-shadow: var(--sh-pop);
     transform: translateY(-8px); opacity: 0; visibility: hidden;
     transition: opacity .18s ease, transform .18s ease, visibility .18s;

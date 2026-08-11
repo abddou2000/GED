@@ -1,5 +1,7 @@
 package com.ipt.ged.indexation;
 
+import com.ipt.ged.common.Limites;
+import com.ipt.ged.document.ContraintesDepot;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
 import com.ipt.ged.index.IndexField;
@@ -9,13 +11,21 @@ import com.ipt.ged.indexation.dto.*;
 import com.ipt.ged.ocr.ExtracteurValeurs;
 import com.ipt.ged.ocr.OcrService;
 import com.ipt.ged.ocr.TexteExtrait;
+import com.ipt.ged.planindexation.CharteNommage;
+import com.ipt.ged.typedocument.TypeDocument;
+import com.ipt.ged.typedocument.TypeDocumentRepository;
+import com.ipt.ged.planindexation.JetonsSysteme;
 import com.ipt.ged.planindexation.PlanIndexation;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +46,8 @@ public class IndexationService {
     private final DocumentIndexRepository valeurRepository;
     private final OcrService ocr;
     private final ExtracteurValeurs valeurs;
+    /** Le type porte le plan : l'apercu part du type, pas d'un document. */
+    private final TypeDocumentRepository typeRepository;
 
     /* ===================== Critères ===================== */
 
@@ -84,24 +96,76 @@ public class IndexationService {
                 .toList();
     }
 
-    /** Enregistre (crée ou met à jour) les valeurs d'index d'un document. */
+    /**
+     * Enregistre (crée ou met à jour) les valeurs d'index d'un document.
+     *
+     * <p>Trois contrôles y étaient absents, tous exploitables par une simple
+     * requête bien choisie :
+     * <ol>
+     *   <li>le document <b>verrouillé</b> n'était pas vérifié — l'écriture des
+     *       index renomme le document, ce verrou était donc contournable par une
+     *       autre porte que {@code PUT /documents/{id}} ;</li>
+     *   <li>l'obligation d'un index n'était évaluée que sur les lignes
+     *       <b>reçues</b> : ne pas envoyer un index obligatoire suffisait à s'en
+     *       dispenser, et un corps {@code {"valeurs":[]}} passait entièrement au
+     *       travers ;</li>
+     *   <li>l'index était cherché dans toute la table, sans lien avec le plan du
+     *       type : une valeur étrangère au plan se posait sur le document,
+     *       invisible dans le formulaire, mais bien présente dans les résultats
+     *       de recherche.</li>
+     * </ol>
+     */
+    // Seule écriture du module.
     @Transactional
     public List<ResultatResponse.ValeurResponse> enregistrer(Long documentId, ValeurRequest requete) {
         UploadDocument doc = document(documentId);
+        if (doc.isDeleted()) {
+            throw new IllegalArgumentException("Document en corbeille : indexation impossible. Restaurez-le d'abord.");
+        }
+        if (doc.isVerrouille()) {
+            throw new IllegalArgumentException("Document verrouille : indexation impossible");
+        }
+
+        // Le plan du type fait autorité : il dit ce qu'on a le droit d'écrire ET
+        // ce qu'on est tenu de renseigner.
+        List<IndexField> duPlan = champsDuPlan(doc);
+        Map<Long, IndexField> autorises = duPlan.stream()
+                .collect(Collectors.toMap(IndexField::getId, f -> f, (a, b) -> a));
 
         Map<Long, DocumentIndex> existantes = valeurRepository.findByDocumentIdOrderByIdAsc(documentId).stream()
                 .collect(Collectors.toMap(v -> v.getIndexField().getId(), v -> v));
 
+        // Première passe : on valide TOUT avant d'écrire quoi que ce soit. Une
+        // validation entrelacée avec les écritures laissait un enregistrement
+        // partiel derrière elle quand la ligne suivante était refusée.
+        Map<Long, String> recues = new LinkedHashMap<>();
         for (ValeurRequest.Ligne ligne : requete.valeurs()) {
-            IndexField champ = indexRepository.findById(ligne.indexFieldId())
-                    .orElseThrow(() -> new EntityNotFoundException("Index introuvable : " + ligne.indexFieldId()));
-
+            IndexField champ = autorises.get(ligne.indexFieldId());
+            if (champ == null) {
+                throw new IllegalArgumentException("L'index " + designer(ligne.indexFieldId())
+                        + " n'appartient pas au plan d'indexation de ce type de document.");
+            }
             String valeur = ligne.valeur() == null ? null : ligne.valeur().trim();
-            if (champ.isObligatoire() && (valeur == null || valeur.isEmpty())) {
+            controlerType(champ, valeur);
+            recues.put(champ.getId(), valeur);
+        }
+
+        // Le contrôle « obligatoire » porte sur le plan, pas sur ce qui a été
+        // envoyé : un index absent du corps est un index non renseigné.
+        for (IndexField champ : duPlan) {
+            if (!champ.isObligatoire()) continue;
+            String valeur = recues.containsKey(champ.getId())
+                    ? recues.get(champ.getId())
+                    : existantes.containsKey(champ.getId()) ? existantes.get(champ.getId()).getValeur() : null;
+            if (valeur == null || valeur.isBlank()) {
                 throw new IllegalArgumentException("L'index « " + champ.getNomIndex() + " » est obligatoire.");
             }
-            controlerType(champ, valeur);
+        }
 
+        // Seconde passe : écriture, plus rien ne peut être refusé ici.
+        for (Map.Entry<Long, String> ligne : recues.entrySet()) {
+            IndexField champ = autorises.get(ligne.getKey());
+            String valeur = ligne.getValue();
             DocumentIndex cible = existantes.remove(champ.getId());
             if (valeur == null || valeur.isEmpty()) {
                 if (cible != null) valeurRepository.delete(cible);   // valeur effacée
@@ -115,10 +179,30 @@ public class IndexationService {
             }
         }
 
-        // La confirmation de l'opérateur vaut validation : c'est ici, et nulle part
-        // avant, que la référence du document est composée depuis le plan.
-        recomposerReference(doc);
+        /* La confirmation de l'opérateur vaut validation : c'est ici, et nulle
+           part avant, que la référence du document est composée depuis le plan.
+           Mais seulement si cette requête a effectivement écrit : recomposer
+           après un corps vide remplaçait le nom du document par les seuls jetons
+           système suivis d'interrogations — « 260811_105301_?_? » — c'est-à-dire
+           détruisait le nom sans qu'aucune donnée n'ait été fournie. */
+        if (!recues.isEmpty()) {
+            recomposerReference(doc);
+        }
         return valeurs(documentId);
+    }
+
+    /** Index du plan du type de ce document, corbeille exclue ; vide s'il n'y a pas de plan. */
+    private List<IndexField> champsDuPlan(UploadDocument doc) {
+        PlanIndexation plan = doc.getTypeDocument() != null ? doc.getTypeDocument().getPlanIndexation() : null;
+        if (plan == null) return List.of();
+        return plan.getIndices().stream().filter(i -> !i.isDeleted()).toList();
+    }
+
+    /** Désigne un index refusé par son nom quand il existe, par son identifiant sinon. */
+    private String designer(Long indexFieldId) {
+        return indexRepository.findById(indexFieldId)
+                .map(f -> "« " + f.getNomIndex() + " »")
+                .orElse("#" + indexFieldId);
     }
 
     /** Recompose la référence du document à partir des valeurs désormais enregistrées. */
@@ -130,15 +214,40 @@ public class IndexationService {
         Map<Long, String> valeurs = valeurRepository.findByDocumentIdOrderByIdAsc(doc.getId()).stream()
                 .collect(Collectors.toMap(v -> v.getIndexField().getId(), DocumentIndex::getValeur, (a, b) -> a));
 
-        List<String> ordonnees = plan.getIndices().stream()
-                .filter(i -> !i.isDeleted())
-                .map(i -> valeurs.get(i.getId()))
-                .toList();
+        // La charte décide quels jetons composent le nom et dans quel ordre ; à
+        // défaut (plan hérité), on retombe sur les index du plan.
+        List<String> jetons = jetonsDuPlan(plan);
 
-        doc.setReference(ordonnees.stream().allMatch(v -> v == null || v.isBlank())
-                ? null : composerReference(ordonnees, plan));
+        String reference = composerDepuisCharte(plan, jetons, valeurs);
+        doc.setReference(reference);
+
+        // Charte automatique : le nom du document EST la référence composée,
+        // comme dans l'original où le champ est alors en lecture seule. En mode
+        // manuel, le nom saisi par l'opérateur reste intact.
+        if (!plan.isManuel() && reference != null && !reference.isBlank()) {
+            // La référence est composée de valeurs libres : rien ne garantit
+            // qu'elle tienne dans la colonne. Sans ce contrôle, une valeur
+            // d'index un peu longue faisait sortir un 500 nu au moment de la
+            // sauvegarde, bien après la saisie.
+            Limites.controler(reference, "nom composé du document");
+            doc.setName(reference);
+        }
         documentRepository.save(doc);
     }
+
+    /** Identifiant d'index porté par un jeton, ou null si ce n'en est pas un. */
+    private static Long idOuNull(String jeton) {
+        try {
+            return Long.valueOf(jeton);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** Date a separateur : AAAA-MM-JJ, JJ/MM/AAAA, 28.08.2026... L'annee est
+        reconnue a sa longueur, ce qui evite d'inverser jour et mois. */
+    private static final java.util.regex.Pattern DATE_SEPAREE =
+            java.util.regex.Pattern.compile("(\\d{2,4})[-/.](\\d{1,2})[-/.](\\d{2,4})");
 
     /** Refuse une valeur incompatible avec le type de l'index. */
     private void controlerType(IndexField champ, String valeur) {
@@ -175,6 +284,151 @@ public class IndexationService {
      * type de l'index : ce qui ne passe pas est signalé plutôt que deviné.
      * L'enregistrement reste à la main de l'opérateur ({@link #enregistrer}).
      */
+    /**
+     * Aperçu des index déduits d'un NOM DE FICHIER, avant tout dépôt.
+     *
+     * <p>Le formulaire de dépôt s'en sert pour montrer les champs indexés dès
+     * que l'opérateur choisit son fichier, sans attendre le téléversement. Les
+     * règles — séparateur du plan, ordre des index, contrôle de type,
+     * normalisation des dates — sont celles de {@link #analyser} : les
+     * réimplémenter côté navigateur les ferait diverger au premier changement.</p>
+     *
+     * <p>Le contenu du document n'est pas lu : il n'existe pas encore côté
+     * serveur. Ce qui n'est pas dans le nom du fichier reste donc à saisir, et
+     * la lecture du document prend le relais après le dépôt.</p>
+     */
+    @Transactional(readOnly = true)
+    public ApercuResponse apercu(Long typeDocumentId, String nomFichier, MultipartFile fichier) {
+        TypeDocument type = typeRepository.findById(typeDocumentId)
+                .orElseThrow(() -> new EntityNotFoundException("Type de document introuvable : " + typeDocumentId));
+
+        /* Mêmes contraintes que le dépôt qu'il précède. Cet aperçu recevait
+           n'importe quel fichier, de n'importe quelle taille : un exécutable de
+           50 Mo y passait en 200 alors que le dépôt suivant l'aurait refusé — et
+           l'écran appelle cette route à CHAQUE sélection de fichier. Le serveur
+           acceptait donc de recopier puis de tenter de lire, en boucle, des
+           contenus qu'il n'accepterait jamais.
+           Le format est vérifié même sans contenu : c'est le nom du fichier qui
+           décide, et il est toujours là. */
+        ContraintesDepot.validerTypeVivant(type);
+        ContraintesDepot.validerFormat(type, ContraintesDepot.extension(nomFichier));
+        ContraintesDepot.valider(type, fichier);
+
+        PlanIndexation plan = type.getPlanIndexation();
+        if (plan == null) return ApercuResponse.sansPlan();
+
+        List<IndexField> champs = plan.getIndices().stream().filter(i -> !i.isDeleted()).toList();
+        if (champs.isEmpty()) return ApercuResponse.sansPlan();
+
+        String sep = plan.getSeparateur() == null || plan.getSeparateur().isEmpty() ? "_" : plan.getSeparateur();
+        List<String> segments = decouper(nomFichier, sep);
+
+        /* Le contenu n'est lu que si le nom de fichier ne suffit pas : ouvrir un
+           PDF — a fortiori l'OCRiser — coûte cher, et l'opérateur attend devant
+           son formulaire. */
+        TexteExtrait texte = (fichier != null && !fichier.isEmpty() && manqueUnChamp(champs, segments))
+                ? lireSansDeposer(fichier)
+                : TexteExtrait.aucune("Contenu non sollicité.");
+
+        List<AnalyseResponse.Proposition> propositions = new ArrayList<>();
+        for (int i = 0; i < champs.size(); i++) {
+            IndexField champ = champs.get(i);
+            String segment = segmentPour(champ, segments, i);
+            String motif = motifDeRejet(champ, segment, segments.size(), i);
+            String valeur = motif == null ? segment : null;
+            String source = valeur != null ? "NOM_FICHIER" : null;
+
+            // Le nom n'a rien donné : on tente le contenu, contrôlé comme le
+            // reste — la lecture automatique n'a aucun passe-droit.
+            if (valeur == null && texte.exploitable()) {
+                String duContenu = valeurs.deduire(champ, texte.texte(),
+                        versCritere(champ).options(), texte.mots());
+                if (duContenu != null && motifDeRejet(champ, duContenu, 1, 0) == null) {
+                    valeur = duContenu;
+                    source = "CONTENU";
+                    motif = null;
+                }
+            }
+
+            propositions.add(new AnalyseResponse.Proposition(
+                    champ.getId(), champ.getCode(), champ.getNomIndex(), champ.getFieldType().name(),
+                    versCritere(champ).options(),
+                    valeur, source,
+                    null, valeur != null, valeur != null ? null : motif));
+        }
+
+        int reconnus = (int) propositions.stream().filter(AnalyseResponse.Proposition::reconnue).count();
+
+        /* Nom que porterait le document s'il était déposé maintenant. Il n'est
+           calculé que si la charte est automatique : en mode manuel, le nom
+           appartient à l'opérateur et lui proposer une composition serait
+           trompeur. */
+        String nomPropose = null;
+        if (!plan.isManuel()) {
+            Map<Long, String> valeursIndex = propositions.stream()
+                    .filter(pr -> pr.valeurProposee() != null && !pr.valeurProposee().isBlank())
+                    .collect(Collectors.toMap(AnalyseResponse.Proposition::indexFieldId,
+                                              AnalyseResponse.Proposition::valeurProposee, (a, b) -> a));
+            nomPropose = composerDepuisCharte(plan, jetonsDuPlan(plan), valeursIndex);
+        }
+
+        /* Même formulation que l'analyse d'un document déposé : l'opérateur doit
+           lire la même phrase pour le même fait, qu'il soit avant ou après le
+           dépôt. Le calcul est partagé pour qu'ils ne puissent pas diverger. */
+        String avertissement = avertissementDeLecture(reconnus, champs, sep);
+
+        return new ApercuResponse(plan.getNomDuPlan(), sep, propositions, reconnus, champs.size(),
+                nomPropose, avertissement, texte.provenance().name());
+    }
+
+    /**
+     * Ce que la lecture n'a pas su conclure, dit à l'opérateur.
+     *
+     * <p>Partagé entre l'aperçu (avant dépôt) et l'analyse (après) : deux
+     * formulations pour le même constat auraient laissé croire à deux
+     * comportements différents.</p>
+     */
+    private String avertissementDeLecture(int reconnus, List<IndexField> champs, String sep) {
+        if (reconnus == champs.size()) return null;
+        if (reconnus == 0) {
+            return "Ni le nom du fichier (charte « "
+                    + champs.stream().map(IndexField::getNomIndex).collect(Collectors.joining(sep))
+                    + " ») ni le contenu n'ont permis de conclure : renseignez les champs à la main.";
+        }
+        return (champs.size() - reconnus)
+                + " champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.";
+    }
+
+    /**
+     * Lit le contenu d'un fichier qui n'est pas encore déposé.
+     *
+     * <p>Il est recopié dans un fichier temporaire : les extracteurs travaillent
+     * sur un chemin, et un flux de requête ne se relit pas — plusieurs
+     * extracteurs peuvent être essayés à la suite. Le temporaire est supprimé
+     * quoi qu'il arrive : ce fichier n'a pas été confié à la GED, il ne doit
+     * rien laisser derrière lui.</p>
+     */
+    private TexteExtrait lireSansDeposer(MultipartFile fichier) {
+        String nom = fichier.getOriginalFilename() != null ? fichier.getOriginalFilename() : "document";
+        int point = nom.lastIndexOf('.');
+        String extension = point >= 0 && point < nom.length() - 1 ? nom.substring(point + 1) : "";
+
+        java.nio.file.Path temporaire = null;
+        try {
+            temporaire = java.nio.file.Files.createTempFile("ged-apercu-", "." + extension);
+            fichier.transferTo(temporaire.toFile());
+            return ocr.lire(temporaire, extension);
+        } catch (Exception e) {
+            // Un aperçu qui échoue ne doit pas empêcher le dépôt : les champs
+            // seront proposés après, quand le document sera sur le serveur.
+            return TexteExtrait.aucune("Lecture du contenu impossible avant dépôt.");
+        } finally {
+            if (temporaire != null) {
+                try { java.nio.file.Files.deleteIfExists(temporaire); } catch (Exception ignore) { /* rien à faire */ }
+            }
+        }
+    }
+
     public AnalyseResponse analyser(Long documentId) {
         UploadDocument doc = document(documentId);
         String fichier = doc.getFileName() != null ? doc.getFileName() : doc.getName();
@@ -208,7 +462,7 @@ public class IndexationService {
         List<AnalyseResponse.Proposition> propositions = new ArrayList<>();
         for (int i = 0; i < champs.size(); i++) {
             IndexField champ = champs.get(i);
-            String segment = i < segments.size() ? segments.get(i).trim() : null;
+            String segment = segmentPour(champ, segments, i);
             String motif = motifDeRejet(champ, segment, segments.size(), i);
 
             String valeur = motif == null ? segment : null;
@@ -217,7 +471,8 @@ public class IndexationService {
             // Le nom n'a rien donné : on tente le contenu, puis on le contrôle
             // comme n'importe quelle saisie — l'OCR n'a aucun passe-droit.
             if (valeur == null && texte.exploitable()) {
-                String duContenu = valeurs.deduire(champ, texte.texte(), versCritere(champ).options());
+                String duContenu = valeurs.deduire(champ, texte.texte(),
+                        versCritere(champ).options(), texte.mots());
                 if (duContenu != null && motifDeRejet(champ, duContenu, 1, 0) == null) {
                     valeur = duContenu;
                     source = "CONTENU";
@@ -238,12 +493,7 @@ public class IndexationService {
         String reference = composerReference(
                 propositions.stream().map(AnalyseResponse.Proposition::valeurProposee).toList(), plan);
 
-        String avertissement = reconnus == champs.size() ? null
-                : reconnus == 0
-                    ? "Ni le nom du fichier (charte « "
-                        + champs.stream().map(IndexField::getNomIndex).collect(Collectors.joining(sep))
-                        + " ») ni le contenu n'ont permis de conclure : renseignez les champs à la main."
-                    : (champs.size() - reconnus) + " champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.";
+        String avertissement = avertissementDeLecture(reconnus, champs, sep);
 
         return new AnalyseResponse(doc.getId(), fichier, plan.getNomDuPlan(), sep, plan.isMajuscule(),
                 plan.isModeIndexation(), segments, propositions, reference,
@@ -254,10 +504,76 @@ public class IndexationService {
     /** Le nom de fichier laisse-t-il au moins un champ sans valeur exploitable ? */
     private boolean manqueUnChamp(List<IndexField> champs, List<String> segments) {
         for (int i = 0; i < champs.size(); i++) {
-            String segment = i < segments.size() ? segments.get(i).trim() : null;
-            if (motifDeRejet(champs.get(i), segment, segments.size(), i) != null) return true;
+            if (motifDeRejet(champs.get(i), segmentPour(champs.get(i), segments, i),
+                             segments.size(), i) != null) return true;
         }
         return false;
+    }
+
+    /**
+     * Le n-ième segment du nom de fichier, prêt à être confronté au type de
+     * l'index. Pour un index DATE, le segment est d'abord ramené en AAAA-MM-JJ :
+     * un nom de fichier porte rarement une date au format ISO, et exiger
+     * « 2026-08-28 » alors que la lecture du contenu accepte « 28/08/2026 »
+     * était une asymétrie sans justification — la même date remontait ou non
+     * selon l'endroit où on la lisait.
+     */
+    private String segmentPour(IndexField champ, List<String> segments, int position) {
+        String segment = position < segments.size() ? segments.get(position).trim() : null;
+        if (segment == null || champ.getFieldType() != IndexFieldType.DATE) return segment;
+        String iso = normaliserDate(segment);
+        return iso != null ? iso : segment;
+    }
+
+    /**
+     * Ramène en AAAA-MM-JJ les écritures de date usuelles dans un nom de
+     * fichier : {@code 2026-08-28}, {@code 2026/08/28}, {@code 28/08/2026},
+     * {@code 28-08-2026}, {@code 28.08.2026}, {@code 20260828}, {@code 28082026}.
+     *
+     * <p>Les formes à année sur DEUX chiffres sont volontairement refusées.
+     * « 260805 » se lit aussi bien 2026-08-05 que 2005-08-26, et rien dans le
+     * nom ne permet de trancher : écrire une date fausse dans un index est plus
+     * grave que de la demander à l'opérateur, qui a le document sous les yeux.
+     *
+     * @return la date ISO, ou {@code null} si le segment n'est pas une date
+     *         reconnaissable sans deviner.
+     */
+    static String normaliserDate(String segment) {
+        if (segment == null) return null;
+        String s = segment.strip();
+
+        // Séparateurs explicites : l'ordre est donné par la position de l'année.
+        Matcher m = DATE_SEPAREE.matcher(s);
+        if (m.matches()) {
+            String a = m.group(1), b = m.group(2), c = m.group(3);
+            return a.length() == 4 ? valider(a, b, c) : valider(c, b, a);
+        }
+
+        // Huit chiffres collés : AAAAMMJJ si les quatre premiers font une année
+        // plausible, JJMMAAAA si ce sont les quatre derniers.
+        if (s.matches("\\d{8}")) {
+            String tete = s.substring(0, 4), queue = s.substring(4);
+            if (estAnnee(tete)) return valider(tete, s.substring(4, 6), s.substring(6));
+            if (estAnnee(queue)) return valider(queue, s.substring(2, 4), s.substring(0, 2));
+        }
+        return null;
+    }
+
+    /** Année plausible pour un document : ni un jour, ni un montant. */
+    private static boolean estAnnee(String quatreChiffres) {
+        int an = Integer.parseInt(quatreChiffres);
+        return an >= 1900 && an <= 2100;
+    }
+
+    /** Assemble et vérifie : un 31 février doit être refusé, pas normalisé. */
+    private static String valider(String annee, String mois, String jour) {
+        String iso = "%s-%s-%s".formatted(annee, mois, jour);
+        try {
+            LocalDate.parse(iso);
+            return iso;
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 
     private AnalyseResponse vide(UploadDocument doc, String fichier, String avertissement) {
@@ -290,13 +606,58 @@ public class IndexationService {
     }
 
     /**
+     * Compose le nom depuis la charte : jetons système (date, heure…) résolus à
+     * l'instant présent, jetons d'index remplacés par leur valeur.
+     *
+     * <p>Partagée entre l'enregistrement — qui la grave sur le document — et
+     * l'aperçu, qui la montre AVANT le dépôt. Les deux doivent produire la même
+     * chaîne, sans quoi l'opérateur verrait un nom puis en obtiendrait un
+     * autre.</p>
+     *
+     * @return la référence, ou {@code null} si aucun jeton n'a de valeur.
+     */
+    private String composerDepuisCharte(PlanIndexation plan, List<String> jetons, Map<Long, String> valeurs) {
+        java.time.LocalDateTime maintenant = java.time.LocalDateTime.now();
+        List<String> ordonnees = jetons.stream()
+                .map(j -> {
+                    String systeme = JetonsSysteme.valeur(j, maintenant);
+                    if (systeme != null) return systeme;
+                    Long idIndex = idOuNull(j);
+                    return idIndex == null ? null : valeurs.get(idIndex);
+                })
+                .toList();
+
+        return ordonnees.stream().allMatch(v -> v == null || v.isBlank())
+                ? null : composerReference(ordonnees, plan);
+    }
+
+    /** Jetons de la charte, ou à défaut les index du plan dans leur ordre. */
+    private List<String> jetonsDuPlan(PlanIndexation plan) {
+        List<String> jetons = CharteNommage.jetons(plan.getCharteNommage());
+        if (!jetons.isEmpty()) return jetons;
+        return plan.getIndices().stream()
+                .filter(i -> !i.isDeleted())
+                .map(i -> String.valueOf(i.getId()))
+                .toList();
+    }
+
+    /**
      * Compose la référence du document : valeurs des index dans l'ordre du plan,
      * jointes par le séparateur, en majuscules si la charte l'exige.
+     *
+     * <p>Un jeton sans valeur est <b>omis</b>. Il produisait auparavant un
+     * « ? » littéral, qui finissait dans le nom du document puis, tel quel, dans
+     * l'en-tête {@code Content-Disposition} du téléchargement : caractère
+     * interdit dans un nom de fichier sous Windows et réservé en URL, il rendait
+     * la pièce inenregistrable côté poste de travail. Omettre plutôt que
+     * marquer garde le nom composé exploitable — ce qui manque se voit à
+     * l'écran d'indexation, qui est fait pour cela, pas dans un nom de fichier.
      */
     private static String composerReference(List<String> valeurs, PlanIndexation plan) {
         String sep = plan.getSeparateur() == null || plan.getSeparateur().isEmpty() ? "_" : plan.getSeparateur();
         String joint = valeurs.stream()
-                .map(v -> v == null || v.isBlank() ? "?" : v.trim())
+                .filter(v -> v != null && !v.isBlank())
+                .map(String::trim)
                 .collect(Collectors.joining(sep));
         return joint.isBlank() ? null : (plan.isMajuscule() ? joint.toUpperCase() : joint);
     }

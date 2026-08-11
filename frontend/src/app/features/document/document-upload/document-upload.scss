@@ -87,3 +87,50 @@
 .rb-val { font-family: var(--font-mono); font-size: 12.5px; color: var(--navy); word-break: break-all; }
 
 .reste { font-size: 12.5px; color: #8a6212; margin-right: auto; padding-left: 4px; }
+
+/* Pastille de couleur devant le nom de l'etiquette : c'est elle qu'on
+   reconnait dans la liste des documents, la retrouver ici evite de choisir a
+   l'aveugle. */
+.et-pastille {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  margin-right: 8px; vertical-align: baseline;
+  border: 1px solid rgba(0, 0, 0, .12);
+}
+
+/* Refus du fichier : ton d'alerte, pas d'erreur serveur. Il dit ce qui ne va
+   pas AVANT toute tentative d'envoi. */
+.refus {
+  display: flex; align-items: flex-start; gap: 9px;
+  margin: -4px 0 4px; padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--danger-050); color: var(--danger);
+  font-size: 12.5px; line-height: 1.45;
+}
+.refus mat-icon { width: 17px; height: 17px; font-size: 17px; flex: 0 0 17px; margin-top: 1px; }
+
+/* ---------- Champs indexes, dans le formulaire de depot ----------
+   Meme forme que les autres champs, mais en lecture seule : ces valeurs sont
+   deduites du fichier, elles ne se saisissent pas ici. */
+.idx-bloc {
+  margin-top: 4px; padding: 13px 14px 4px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface);
+}
+.idx-bloc h3 { margin: 0 0 11px; font-size: 13px; font-weight: 700; color: var(--ink); }
+
+/* Deux colonnes : un plan en compte rarement plus de quatre, et une colonne
+   unique allongeait la boite au point de la faire defiler. */
+.idx-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+@media (max-width: 560px) { .idx-grille { grid-template-columns: 1fr; } }
+
+.idx-champ { width: 100%; margin-bottom: 10px; }
+.idx-champ .mat-mdc-text-field-wrapper { background: var(--surface-0); }
+.idx-champ input { cursor: default; }
+
+/* Etoile des index obligatoires : meme convention que les champs Material du
+   reste du formulaire, pour qu'on n'ait pas deux grammaires du « requis ». */
+.p-requis { color: var(--danger, #c0392b); font-weight: 700; margin-left: 2px; }
+
+/* Le compte des obligatoires se distingue du compte informatif : l'un bloque
+   le depot, l'autre non. */
+.reste.requis { color: #b3261e; font-weight: 600; }

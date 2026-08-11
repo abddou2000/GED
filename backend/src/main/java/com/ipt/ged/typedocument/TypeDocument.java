@@ -65,4 +65,21 @@ public class TypeDocument extends Auditable {
         this.code = code;
         this.typeDeDocument = typeDeDocument;
     }
+
+    /**
+     * Formats acceptes, eclates depuis la colonne stockee en CSV.
+     *
+     * <p>Le decoupage vivait en double dans les services, en methode privee :
+     * deux endroits a corriger le jour ou la separation change. Il appartient a
+     * l'entite, seule a savoir comment sa colonne est ecrite.</p>
+     *
+     * @return la liste en minuscules, vide si le type n'impose aucun format.
+     */
+    public java.util.List<String> formatsAutorises() {
+        if (typeAutorise == null || typeAutorise.isBlank()) return java.util.List.of();
+        return java.util.Arrays.stream(typeAutorise.split(","))
+                .map(s -> s.trim().toLowerCase())
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
 }

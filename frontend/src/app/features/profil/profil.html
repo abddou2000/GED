@@ -1,0 +1,175 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Mon profil</h1>
+      <p class="breadcrumb">Accueil - Identité et activité</p>
+    </div>
+  </div>
+
+  @if (chargement()) {
+    <div class="card"><p class="etat">Chargement…</p></div>
+  } @else if (erreur()) {
+    <div class="card">
+      <div class="empty-state">
+        <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+        <span class="empty-title">Profil indisponible</span>
+        <span class="empty-sub">Impossible de joindre le serveur.
+          <button mat-button (click)="charger()">Réessayer</button></span>
+      </div>
+    </div>
+  } @else if (profil(); as p) {
+
+    <!-- ===== Identité — même bannière que l'accueil ===== -->
+    <section class="hello">
+      <span class="hello-glow" aria-hidden="true"></span>
+
+      <div class="hello-id">
+        <span class="hello-av">{{ initiales() }}</span>
+        <div class="hello-txt">
+          <h1>{{ p.fullName }}</h1>
+          <p class="sous">
+            @if (p.hasUser) { <span class="jeton">Approbateur</span> }
+            @if (email()) { <span class="mail">{{ email() }}</span> }
+          </p>
+        </div>
+      </div>
+
+      <div class="stats">
+        <a class="stat" routerLink="/mes-workflow">
+          <span class="val">{{ p.signaturesEnAttente }}</span><span class="lib">À valider</span>
+        </a>
+        <div class="stat">
+          <span class="val">{{ p.signaturesTraitees }}</span><span class="lib">Traitées</span>
+        </div>
+        <a class="stat" routerLink="/televerser">
+          <span class="val">{{ p.documentsDeposes }}</span><span class="lib">Déposés</span>
+        </a>
+        <div class="stat">
+          <span class="val">{{ p.espacesProprietaire.length }}</span><span class="lib">Dossiers</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Fiche unique =====
+         Les trois onglets ont disparu. « Activité » ne faisait que répéter les
+         quatre compteurs de la bannière, et « Droits » séparait des groupes
+         qu'on lit toujours avec le reste de l'identité. Une fiche de profil
+         tient sur un écran : la découper obligeait à trois allers pour
+         répondre à une seule question — qui est cette personne, et de quoi
+         répond-elle.
+
+         La grille remplit la hauteur restante ; les listes défilent dans leur
+         carte, jamais la page. -->
+    <div class="grille-profil">
+
+      <section class="card c-infos">
+        <div class="bloc-tete"><mat-icon svgIcon="user"></mat-icon><span>Informations professionnelles</span></div>
+        <dl class="infos">
+          <!-- Cinq intitulés sur deux colonnes : l'adresse, la plus longue,
+               prend la ligne entière au milieu. Sans elle en pleine largeur,
+               le compte impair laissait une demi-case vide en bas de carte. -->
+          <div class="info">
+            <dt>Nom complet</dt>
+            <dd>{{ p.fullName }}</dd>
+          </div>
+          <div class="info">
+            <dt>Accès à l'application</dt>
+            <dd>
+              @if (!p.hasUser) {
+                <span class="pill st-off"><span class="dot"></span>Sans compte</span>
+              } @else if (p.compteActif) {
+                <span class="pill st-actif"><span class="dot"></span>Compte actif</span>
+              } @else {
+                <span class="pill st-off"><span class="dot"></span>Compte suspendu</span>
+              }
+            </dd>
+          </div>
+          <div class="info info-large">
+            <dt>Adresse de connexion</dt>
+            <dd>{{ p.email || '—' }}</dd>
+          </div>
+          <div class="info">
+            <dt>Dernière connexion</dt>
+            <dd>{{ p.derniereConnexion ? quand(p.derniereConnexion) : 'Jamais' }}</dd>
+          </div>
+          <div class="info">
+            <dt>Documents déposés</dt>
+            <dd>{{ p.documentsDeposes }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- Dossiers et groupes repondent a la meme question — a quoi suis-je
+           rattache. Deux cartes distinctes en faisaient deux objets sans lien,
+           chacune a moitie vide. -->
+      <section class="card c-rattachements">
+        <div class="bloc-tete"><mat-icon svgIcon="nav-workspaces"></mat-icon><span>Mes rattachements</span></div>
+        <div class="rattachements">
+          <div class="ratt-col">
+            <div class="ratt-tete">
+              <mat-icon svgIcon="folder"></mat-icon>Dossiers dont je réponds
+              @if (p.espacesProprietaire.length) { <span class="cpt">{{ p.espacesProprietaire.length }}</span> }
+            </div>
+            @if (p.espacesProprietaire.length) {
+              <ul class="liste">
+                @for (w of p.espacesProprietaire; track w.id) {
+                  <li>
+                    <span class="fico"><mat-icon svgIcon="folder"></mat-icon></span>
+                    <a [routerLink]="['/espaces-de-travail', w.id]">{{ w.label }}</a>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="etat">Aucun dossier sous ma responsabilité.</p>
+            }
+          </div>
+
+          <div class="ratt-col">
+            <div class="ratt-tete">
+              <mat-icon svgIcon="nav-groups"></mat-icon>Groupes d'accès
+              @if (p.groupesAcces.length) { <span class="cpt">{{ p.groupesAcces.length }}</span> }
+            </div>
+            @if (p.groupesAcces.length) {
+              <ul class="liste">
+                @for (g of p.groupesAcces; track g.id) {
+                  <li>
+                    <span class="fico"><mat-icon svgIcon="nav-groups"></mat-icon></span>
+                    <a [routerLink]="['/groupe-d-acces', g.id]">{{ g.label }}</a>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="etat">Je n'appartiens à aucun groupe.</p>
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="card c-decisions">
+        <div class="bloc-tete"><mat-icon svgIcon="sign"></mat-icon><span>Mes dernières décisions</span>
+          @if (decisions().length) { <span class="cpt">{{ decisions().length }}</span> }
+          <a routerLink="/mes-workflow" class="voir">Tout voir</a>
+        </div>
+        @if (decisions().length) {
+          <ul class="decisions">
+            @for (s of decisions(); track s.id) {
+              <li>
+                <span class="fico" [class.ko]="s.status === 'REJECTED'">
+                  <mat-icon [svgIcon]="s.status === 'SIGNED' ? 'sign' : 'reject'"></mat-icon>
+                </span>
+                <span class="d-txt">
+                  <span class="d-nom">{{ s.document?.label }}</span>
+                  <span class="d-sous">{{ s.status === 'SIGNED' ? 'Signé' : 'Refusé' }} · {{ s.stepLabel }}</span>
+                </span>
+                <span class="d-quand">{{ quand(s.signedAt) }}</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="etat">Aucune décision prise pour l'instant.</p>
+        }
+      </section>
+
+    </div>
+  }
+</div>

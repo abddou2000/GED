@@ -1,5 +1,6 @@
 package com.ipt.ged.workspace;
 
+import com.ipt.ged.accessgroup.AccessGroup;
 import com.ipt.ged.common.Auditable;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.workflow.WorkflowGed;
@@ -9,7 +10,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Espace de travail (dossier) — organisé en arborescence auto-référencée.
@@ -57,6 +60,14 @@ public class WorkSpace extends Auditable {
     @OneToMany(mappedBy = "parent")
     @OrderBy("id ASC")
     private List<WorkSpace> children = new ArrayList<>();
+
+    /**
+     * Groupes d'accès couvrant ce dossier — côté inverse de la table pivot déjà
+     * portée par {@code AccessGroup}. Sans cette relation, on ne pouvait répondre
+     * à « qui a accès à ce dossier ? » qu'en parcourant tous les groupes.
+     */
+    @ManyToMany(mappedBy = "workspaces", fetch = FetchType.LAZY)
+    private Set<AccessGroup> accessGroups = new LinkedHashSet<>();
 
     /** Corbeille : true = supprimé de façon réversible. */
     @Column(nullable = false)

@@ -1,6 +1,7 @@
 package com.ipt.ged.typedocument;
 
 import com.ipt.ged.common.PageResponse;
+import com.ipt.ged.common.Tri;
 import com.ipt.ged.planindexation.PlanIndexation;
 import com.ipt.ged.planindexation.PlanIndexationRepository;
 import com.ipt.ged.typedocument.dto.TypeDocumentRequest;
@@ -9,13 +10,13 @@ import com.ipt.ged.workspace.WorkSpace;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 
 /**
@@ -27,6 +28,13 @@ public class TypeDocumentService {
 
     private final TypeDocumentRepository repo;
     private final WorkSpaceRepository workspaceRepo;
+    /** Colonnes sur lesquelles le tri est accepté ; toute autre valeur est ignorée. */
+    private static final Set<String> TRIS =
+            Set.of("id", "code", "typeDeDocument", "workspace.name", "tailleMaxMo");
+
+    /** Colonnes numériques : triées telles quelles, sans passage en minuscules. */
+    private static final Set<String> TRIS_NUM = Set.of("id", "tailleMaxMo");
+
     private final PlanIndexationRepository planRepo;
 
     public TypeDocumentService(TypeDocumentRepository repo, WorkSpaceRepository workspaceRepo,
@@ -37,16 +45,18 @@ public class TypeDocumentService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<TypeDocumentResponse> list(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<TypeDocument> result = repo.findByDeletedFalseAndTypeDeDocumentContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<TypeDocumentResponse> list(int page, int size, String search,
+                                                   String sortBy, String sortDir) {
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
+        Page<TypeDocument> result = repo.findByDeletedFalseAndTypeDeDocumentContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, TypeDocumentResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<TypeDocumentResponse> trashed(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<TypeDocument> result = repo.findByDeletedTrueAndTypeDeDocumentContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<TypeDocumentResponse> trashed(int page, int size, String search,
+                                                      String sortBy, String sortDir) {
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
+        Page<TypeDocument> result = repo.findByDeletedTrueAndTypeDeDocumentContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, TypeDocumentResponse::from);
     }
 
@@ -55,6 +65,8 @@ public class TypeDocumentService {
         return TypeDocumentResponse.from(load(id));
     }
 
+    // Aucune chaîne « create type_de_document » au catalogue : repli sur le
+    // statut administrateur, décision par défaut à arbitrer.
     @Transactional
     public TypeDocumentResponse create(TypeDocumentRequest req) {
         if (repo.existsByCodeIgnoreCase(req.code())) {
@@ -82,6 +94,7 @@ public class TypeDocumentService {
         load(id).setDeleted(true);
     }
 
+    // Restauration = inverse de la mise en corbeille.
     @Transactional
     public void restore(Long id) {
         load(id).setDeleted(false);
@@ -108,6 +121,19 @@ public class TypeDocumentService {
                     // Nom du plan d'indexation, ou null : le dépôt s'en sert pour
                     // prévenir qu'un type sans plan ne demandera aucun index.
                     m.put("plan", t.getPlanIndexation() != null ? t.getPlanIndexation().getNomDuPlan() : null);
+                    /* Contraintes du type, servies avec la liste de choix : le
+                       formulaire de depot doit pouvoir refuser un fichier AVANT
+                       de l'envoyer. Sans elles, un fichier de 2,6 Go partait sur
+                       le reseau pour n'etre rejete qu'a l'arrivee — et la
+                       connexion etant coupee en cours d'envoi, le navigateur
+                       n'affichait meme pas le motif du refus. */
+                    /* Charte automatique : le nom du document sera COMPOSÉ depuis
+                       les index à la confirmation de l'indexation. Le formulaire
+                       de dépôt s'en sert pour ne pas faire saisir un nom qu'il
+                       remplacera juste après. */
+                    m.put("charteAuto", t.getPlanIndexation() != null && !t.getPlanIndexation().isManuel());
+                    m.put("formats", t.formatsAutorises());
+                    m.put("tailleMaxMo", t.getTailleMaxMo());
                     return m;
                 })
                 .toList();

@@ -38,3 +38,6 @@
 .cdk-drag-preview { border-radius: 10px; box-shadow: 0 8px 24px rgba(26,23,18,.25); }
 .cdk-drag-placeholder { opacity: 0.35; }
 .cdk-drop-list-dragging .step-row:not(.cdk-drag-placeholder) { transition: transform 180ms ease; }
+
+/* Message de validation des étapes — même rouge que les erreurs de champ */
+.erreur-etapes { margin: 0 0 8px; font-size: 12.5px; color: var(--danger); }

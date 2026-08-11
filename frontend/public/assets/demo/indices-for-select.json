@@ -1,0 +1,18 @@
+[
+ {
+  "id": 1,
+  "name": "Numéro de facture"
+ },
+ {
+  "id": 2,
+  "name": "Date d'émission"
+ },
+ {
+  "id": 3,
+  "name": "Fournisseur"
+ },
+ {
+  "id": 4,
+  "name": "Priorité"
+ }
+]

@@ -25,13 +25,15 @@ public class WorkflowController {
         this.service = service;
     }
 
-    /** Liste active, paginée + recherche par nom. */
+    /** Liste active, paginée + recherche par nom + tri (`id` ou `name`). */
     @GetMapping
     public PageResponse<WorkflowResponse> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "") String search) {
-        return service.list(page, size, search);
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        return service.list(page, size, search, sortBy, sortDir);
     }
 
     /** Corbeille (éléments archivés). */
@@ -39,8 +41,10 @@ public class WorkflowController {
     public PageResponse<WorkflowResponse> trashed(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "") String search) {
-        return service.trashed(page, size, search);
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        return service.trashed(page, size, search, sortBy, sortDir);
     }
 
     @GetMapping("/{id}")

@@ -1,11 +1,11 @@
 package com.ipt.ged.index;
 
 import com.ipt.ged.common.PageResponse;
+import com.ipt.ged.common.Tri;
 import com.ipt.ged.index.dto.IndexRequest;
 import com.ipt.ged.index.dto.IndexResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Logique métier des index (champs de métadonnées) : CRUD, corbeille et
@@ -21,6 +22,11 @@ import java.util.Map;
 @Service
 public class IndexService {
 
+    /** Colonnes sur lesquelles le tri est accepté ; toute autre valeur est ignorée. */
+    private static final Set<String> TRIS = Set.of(
+            "id", "code", "nomIndex", "fieldType",
+            "obligatoire", "indexePourRecherche", "indexDeGroupage");
+
     private final IndexRepository repo;
 
     public IndexService(IndexRepository repo) {
@@ -28,16 +34,18 @@ public class IndexService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<IndexResponse> list(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<IndexField> result = repo.findByDeletedFalseAndNomIndexContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<IndexResponse> list(int page, int size, String search,
+                                            String sortBy, String sortDir) {
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
+        Page<IndexField> result = repo.findByDeletedFalseAndNomIndexContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, IndexResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<IndexResponse> trashed(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<IndexField> result = repo.findByDeletedTrueAndNomIndexContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<IndexResponse> trashed(int page, int size, String search,
+                                               String sortBy, String sortDir) {
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
+        Page<IndexField> result = repo.findByDeletedTrueAndNomIndexContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, IndexResponse::from);
     }
 
@@ -72,6 +80,7 @@ public class IndexService {
         load(id).setDeleted(true);
     }
 
+    // Restauration = inverse de la mise en corbeille.
     @Transactional
     public void restore(Long id) {
         load(id).setDeleted(false);

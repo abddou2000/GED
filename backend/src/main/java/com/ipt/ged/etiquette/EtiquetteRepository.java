@@ -8,9 +8,13 @@ import java.util.List;
 
 public interface EtiquetteRepository extends JpaRepository<Etiquette, Long> {
 
-    Page<Etiquette> findByDeletedFalseAndTagContainingIgnoreCaseOrderByIdDesc(String search, Pageable pageable);
+    /* Le tri n'est plus figé dans le nom des méthodes : un « OrderByIdDesc »
+       l'emporte sur le Sort du Pageable, ce qui rendait les en-têtes de colonne
+       cliquables sans effet. */
 
-    Page<Etiquette> findByDeletedTrueAndTagContainingIgnoreCaseOrderByIdDesc(String search, Pageable pageable);
+    Page<Etiquette> findByDeletedFalseAndTagContainingIgnoreCase(String search, Pageable pageable);
+
+    Page<Etiquette> findByDeletedTrueAndTagContainingIgnoreCase(String search, Pageable pageable);
 
     List<Etiquette> findByIdInAndDeletedFalse(List<Long> ids);
 

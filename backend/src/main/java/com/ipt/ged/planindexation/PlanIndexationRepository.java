@@ -10,9 +10,9 @@ import java.util.Optional;
 
 public interface PlanIndexationRepository extends JpaRepository<PlanIndexation, Long> {
 
-    Page<PlanIndexation> findByDeletedFalseAndNomDuPlanContainingIgnoreCaseOrderByIdDesc(String search, Pageable pageable);
+    Page<PlanIndexation> findByDeletedFalseAndNomDuPlanContainingIgnoreCase(String search, Pageable pageable);
 
-    Page<PlanIndexation> findByDeletedTrueAndNomDuPlanContainingIgnoreCaseOrderByIdDesc(String search, Pageable pageable);
+    Page<PlanIndexation> findByDeletedTrueAndNomDuPlanContainingIgnoreCase(String search, Pageable pageable);
 
     @EntityGraph(attributePaths = {"indices"})
     Optional<PlanIndexation> findWithIndicesById(Long id);

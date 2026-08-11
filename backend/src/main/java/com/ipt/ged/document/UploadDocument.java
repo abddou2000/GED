@@ -1,6 +1,8 @@
 package com.ipt.ged.document;
 
 import com.ipt.ged.common.Auditable;
+import com.ipt.ged.employe.Employe;
+import com.ipt.ged.etiquette.Etiquette;
 import com.ipt.ged.typedocument.TypeDocument;
 import com.ipt.ged.workspace.WorkSpace;
 import jakarta.persistence.*;
@@ -9,11 +11,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
- * Document déposé dans la GED (Phase 1 : fiche + fichier stocké sur disque).
- * Reproduit le cœur de {@code UploadDocument} de CCISTTA. Les versions, valeurs
- * d'index, étiquettes et le circuit de signature seront ajoutés en phases suivantes.
+ * Document déposé dans la GED : fiche, fichier stocké sur disque, étiquettes,
+ * versions et valeurs d'index. Reproduit {@code UploadDocument} de CCISTTA.
  */
 @Entity
 @Table(name = "documents_file")
@@ -64,6 +69,37 @@ public class UploadDocument extends Auditable {
     /** Document validé / utilisable (true tant qu'aucun circuit de signature ne le bloque). */
     @Column(nullable = false)
     private boolean active = true;
+
+    /**
+     * Verrouillé : plus aucune modification ni nouvelle version tant que le
+     * verrou tient. Reprend {@code is_locked} de l'original.
+     */
+    // Valeur par défaut au niveau SQL : sans elle, ajouter cette colonne à une
+    // table déjà peuplée échoue (« NULL non permis »), et le schéma reste à moitié
+    // migré sans que rien ne le signale au démarrage.
+    @Column(name = "is_locked", nullable = false, columnDefinition = "boolean default false")
+    private boolean verrouille = false;
+
+    /** Étiquettes apposées au document (N–N). */
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "pivot_document_etiquettes",
+            joinColumns = @JoinColumn(name = "document_id"),
+            inverseJoinColumns = @JoinColumn(name = "etiquette_id"))
+    private Set<Etiquette> etiquettes = new LinkedHashSet<>();
+
+    /**
+     * Auteur du dépôt. Renseigné depuis le frontend faute d'authentification
+     * serveur : la colonne existe pour que la liste puisse afficher « Créateur »
+     * comme l'original, sans prétendre à une traçabilité vérifiée.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "created_by_employe_id")
+    private Employe createdBy;
+
+    /** Versions successives du fichier, la plus récente d'abord. */
+    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id DESC")
+    private List<DocumentVersion> versions = new ArrayList<>();
 
     /** Corbeille : true = supprimé de façon réversible. */
     @Column(nullable = false)

@@ -34,6 +34,8 @@ import static org.hamcrest.Matchers.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import com.ipt.ged.support.Comptes;
+import org.springframework.security.test.context.support.WithUserDetails;
 
 /**
  * Campagne de tests de l'indexation : critères dérivés des index, saisie et
@@ -43,6 +45,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
+// L'API est fermee par defaut : chaque appel doit porter une identite reelle.
+// L'API est fermee par defaut : les tests s'authentifient avec le compte unique.
+@WithUserDetails(Comptes.ADMIN)
 class IndexationApiTest {
 
     @Autowired private MockMvc mvc;
@@ -138,6 +143,29 @@ class IndexationApiTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
+    /**
+     * Identifiants des documents retournés par une recherche, tous groupes
+     * confondus.
+     *
+     * <p>Ces tests cherchaient auparavant la chaîne « Facture A » dans la
+     * réponse brute. Ce repère n'est plus fiable : en charte de nommage
+     * automatique (le cas ici, {@code manuel = false}), l'enregistrement des
+     * valeurs d'index <b>renomme</b> le document avec la référence composée —
+     * « Facture A » devient « ACME Distribution_2026-01-15_1500_Haute ». Le
+     * test comparait donc un libellé d'affichage, ce qui le rendait sensible à
+     * une décision de nommage sans rapport avec la recherche. On compare
+     * désormais les identifiants, qui, eux, désignent le document.
+     */
+    private java.util.List<Long> idsTrouves(String reponseJson) throws Exception {
+        java.util.List<Long> ids = new java.util.ArrayList<>();
+        for (com.fasterxml.jackson.databind.JsonNode groupe : om.readTree(reponseJson)) {
+            for (com.fasterxml.jackson.databind.JsonNode doc : groupe.get("documents")) {
+                ids.add(doc.get("id").asLong());
+            }
+        }
+        return ids;
+    }
+
     @Test
     @DisplayName("1. Les critères sont dérivés des index cochés « indexé pour recherche »")
     void criteresDerives() throws Exception {
@@ -173,13 +201,11 @@ class IndexationApiTest {
     void rechercheTexteEtListe() throws Exception {
         String parFournisseur = recherche(
                 "{\"criteres\":[{\"indexFieldId\":" + idFournisseur + ",\"valeur\":\"acme\"}]}");
-        org.junit.jupiter.api.Assertions.assertTrue(parFournisseur.contains("Facture A"));
-        org.junit.jupiter.api.Assertions.assertFalse(parFournisseur.contains("Facture B"));
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(docA), idsTrouves(parFournisseur));
 
         String parPriorite = recherche(
                 "{\"criteres\":[{\"indexFieldId\":" + idPriorite + ",\"valeur\":\"Basse\"}]}");
-        org.junit.jupiter.api.Assertions.assertTrue(parPriorite.contains("Facture B"));
-        org.junit.jupiter.api.Assertions.assertFalse(parPriorite.contains("Facture A"));
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(docB), idsTrouves(parPriorite));
     }
 
     @Test
@@ -187,13 +213,11 @@ class IndexationApiTest {
     void recherchePlages() throws Exception {
         String parDate = recherche("{\"criteres\":[{\"indexFieldId\":" + idDate
                 + ",\"de\":\"2026-01-01\",\"a\":\"2026-02-01\"}]}");
-        org.junit.jupiter.api.Assertions.assertTrue(parDate.contains("Facture A"));
-        org.junit.jupiter.api.Assertions.assertFalse(parDate.contains("Facture B"));
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(docA), idsTrouves(parDate));
 
         // 300 < 1000 : seule la facture B doit sortir
         String parMontant = recherche("{\"criteres\":[{\"indexFieldId\":" + idMontant + ",\"a\":\"1000\"}]}");
-        org.junit.jupiter.api.Assertions.assertTrue(parMontant.contains("Facture B"));
-        org.junit.jupiter.api.Assertions.assertFalse(parMontant.contains("Facture A"));
+        org.junit.jupiter.api.Assertions.assertEquals(List.of(docB), idsTrouves(parMontant));
     }
 
     @Test
@@ -203,7 +227,7 @@ class IndexationApiTest {
         String vide = recherche("{\"criteres\":["
                 + "{\"indexFieldId\":" + idFournisseur + ",\"valeur\":\"acme\"},"
                 + "{\"indexFieldId\":" + idPriorite + ",\"valeur\":\"Basse\"}]}");
-        org.junit.jupiter.api.Assertions.assertFalse(vide.contains("Facture"));
+        org.junit.jupiter.api.Assertions.assertTrue(idsTrouves(vide).isEmpty());
     }
 
     @Test

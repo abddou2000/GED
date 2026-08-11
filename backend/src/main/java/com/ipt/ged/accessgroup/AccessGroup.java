@@ -12,9 +12,10 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * Groupe d'accès : relie un jeu de 8 droits ({@link GedRights}) à des espaces de
- * travail et à des utilisateurs (employés). Reproduit {@code AccessGroup + DroitsGed}
- * de CCISTTA — la vérification « appartenance + droit fin » repose sur ces liens.
+ * Groupe d'accès : rattache des utilisateurs (employés) à des espaces de travail.
+ * Il sert à l'organisation et à l'affichage (fiche d'espace, profil, tableau de
+ * bord). Il ne conditionne aucune autorisation : l'application n'a qu'un seul
+ * utilisateur, l'administrateur, et toute écriture lui est ouverte.
  */
 @Entity
 @Table(name = "access_groups")
@@ -33,6 +34,11 @@ public class AccessGroup extends Auditable {
     @Column(nullable = false, unique = true)
     private String name;
 
+    /**
+     * Colonnes héritées, conservées pour ne rien détruire en base (le mapping les
+     * garde donc {@code ddl-auto: update} ne les touche pas). Plus jamais lues ni
+     * écrites par l'application.
+     */
     @Embedded
     private GedRights rights = new GedRights();
 

@@ -22,3 +22,16 @@ Thumbs.db
 
 # ===== Logs =====
 *.log
+
+# Archives de livraison generees localement
+dist-zip/
+
+# ===== Secrets locaux =====
+# Cle de signature JWT du poste de developpement. Publiee, elle permet de
+# forger un jeton administrateur sans connaitre le moindre mot de passe.
+# Le motif large couvre les cles a venir : on n'oublie pas une ligne, on
+# oublie de l'ajouter.
+backend/.dev-*
+.env
+*.env
+!*.env.example

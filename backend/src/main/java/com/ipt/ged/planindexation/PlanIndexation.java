@@ -55,6 +55,18 @@ public class PlanIndexation extends Auditable {
     @OrderColumn(name = "position")
     private List<IndexField> indices = new ArrayList<>();
 
+    /**
+     * Charte de nommage sérialisée : {@code {"indexs":[...],"separateur":"_","majuscule":false}}.
+     *
+     * <p>Distincte de {@link #indices} : le plan regroupe des champs de
+     * métadonnées, la charte décide lesquels composent le nom du fichier, dans
+     * quel ordre, et peut y mêler des jetons système (DATE, YEAR…) qui
+     * n'existent dans aucune table. Réutiliser {@code indices} interdirait ces
+     * deux libertés. {@code null} en nommage manuel.
+     */
+    @Column(name = "charte_nommage", length = 2000)
+    private String charteNommage;
+
     /** Corbeille : true = supprimé de façon réversible. */
     @Column(nullable = false)
     private boolean deleted = false;

@@ -21,6 +21,12 @@ import java.util.regex.Pattern;
 @Component
 public class ExtracteurValeurs {
 
+    private final LecteurPositionnel positions;
+
+    public ExtracteurValeurs(LecteurPositionnel positions) {
+        this.positions = positions;
+    }
+
     /** « Libellé : valeur » ou « Libellé  valeur », jusqu'à la fin de la ligne. */
     private static final String APRES_LIBELLE = "\\s*[:=]?\\s*(.+)";
 
@@ -32,9 +38,21 @@ public class ExtracteurValeurs {
      * @return la valeur trouvée pour cet index, ou {@code null} si le texte ne permet pas de conclure.
      */
     public String deduire(IndexField champ, String texte, List<String> options) {
+        return deduire(champ, texte, options, List.of());
+    }
+
+    /**
+     * @param mots position des mots quand le moteur les a rendus ; la lecture
+     *             positionnelle prime alors sur la recherche dans le texte à
+     *             plat, qui ne distingue pas une valeur à droite d'une valeur
+     *             sur la ligne suivante.
+     */
+    public String deduire(IndexField champ, String texte, List<String> options, List<MotOcr> mots) {
         if (texte == null || texte.isBlank()) return null;
 
-        String parLibelle = chercherApresLibelle(champ.getNomIndex(), texte);
+        String parPosition = positions.valeurPour(champ.getNomIndex(), mots);
+        String parLibelle = parPosition != null ? parPosition
+                : chercherApresLibelle(champ.getNomIndex(), texte);
 
         return switch (champ.getFieldType()) {
             case LISTE -> options.stream()
@@ -47,9 +65,20 @@ public class ExtracteurValeurs {
                 yield iso != null ? iso : premiereDate(texte);
             }
 
+            /* Un nombre n'est deduit que s'il suit le LIBELLE de son index.
+               Sans cette exigence, le repli sur le texte entier ramenait le
+               premier nombre venu — un numero de section, une version, une
+               pagination — et le posait a l'identique dans TOUS les index
+               numeriques du plan. Trois champs distincts affichaient alors la
+               meme valeur, sans aucun rapport avec eux.
+
+               Contrairement a une date, un nombre ne porte aucune marque de ce
+               qu'il designe : rien, dans « 3.4 », ne dit s'il s'agit d'un
+               montant, d'un numero ou d'un indice. Il faut donc son etiquette,
+               ou rien. */
             case NOMBRE -> {
-                String candidat = parLibelle != null ? parLibelle : texte;
-                Matcher m = NOMBRE.matcher(candidat);
+                if (parLibelle == null) yield null;
+                Matcher m = NOMBRE.matcher(parLibelle);
                 yield m.find() ? m.group().replace(',', '.') : null;
             }
 

@@ -16,6 +16,8 @@ export interface WorkSpace {
   parent: Ref | null;
   workflow: Ref | null;
   childrenCount: number;
+  /** Groupes d'accès couvrant le dossier — utilisateurs rattachés à ce dossier. */
+  accessGroups?: Ref[];
 }
 
 /** Corps envoyé pour créer / modifier un dossier. */

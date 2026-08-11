@@ -1,13 +1,13 @@
 package com.ipt.ged.planindexation;
 
 import com.ipt.ged.common.PageResponse;
+import com.ipt.ged.common.Tri;
 import com.ipt.ged.index.IndexField;
 import com.ipt.ged.index.IndexRepository;
 import com.ipt.ged.planindexation.dto.PlanIndexationRequest;
 import com.ipt.ged.planindexation.dto.PlanIndexationResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -26,6 +27,9 @@ import java.util.stream.Collectors;
 @Service
 public class PlanIndexationService {
 
+    /** Colonnes sur lesquelles le tri est accepté ; toute autre valeur est ignorée. */
+    private static final Set<String> TRIS = Set.of("id", "code", "nomDuPlan");
+
     private final PlanIndexationRepository repo;
     private final IndexRepository indexRepo;
 
@@ -35,16 +39,18 @@ public class PlanIndexationService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<PlanIndexationResponse> list(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<PlanIndexation> result = repo.findByDeletedFalseAndNomDuPlanContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<PlanIndexationResponse> list(int page, int size, String search,
+                                                     String sortBy, String sortDir) {
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
+        Page<PlanIndexation> result = repo.findByDeletedFalseAndNomDuPlanContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, PlanIndexationResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<PlanIndexationResponse> trashed(int page, int size, String search) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<PlanIndexation> result = repo.findByDeletedTrueAndNomDuPlanContainingIgnoreCaseOrderByIdDesc(search, pageable);
+    public PageResponse<PlanIndexationResponse> trashed(int page, int size, String search,
+                                                        String sortBy, String sortDir) {
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
+        Page<PlanIndexation> result = repo.findByDeletedTrueAndNomDuPlanContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, PlanIndexationResponse::from);
     }
 
@@ -53,6 +59,9 @@ public class PlanIndexationService {
         return PlanIndexationResponse.from(load(id));
     }
 
+    // Libellé volontairement recopié tel quel du catalogue : « create
+    // plan_d_indexation » (technique) diffère de « update Plan d'indexation »
+    // (littéraire). Toute normalisation ici casserait la règle.
     @Transactional
     public PlanIndexationResponse create(PlanIndexationRequest req) {
         if (repo.existsByCodeIgnoreCase(req.code())) {
@@ -79,6 +88,7 @@ public class PlanIndexationService {
         load(id).setDeleted(true);
     }
 
+    // Restauration = inverse de la mise en corbeille.
     @Transactional
     public void restore(Long id) {
         load(id).setDeleted(false);
@@ -132,5 +142,11 @@ public class PlanIndexationService {
         }
         p.getIndices().clear();
         p.getIndices().addAll(ordered);
+
+        // Charte de nommage : effacée en mode manuel, comme dans l'original —
+        // conserver une charte inopérante laisserait croire qu'elle s'applique.
+        p.setCharteNommage(req.manuel()
+                ? null
+                : CharteNommage.serialiser(req.charteIds(), p.getSeparateur(), p.isMajuscule()));
     }
 }

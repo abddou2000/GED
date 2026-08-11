@@ -32,6 +32,18 @@
         <p>Accédez à votre espace documentaire.</p>
       </div>
 
+      <!-- Message du serveur : refus d'identifiants, compte désactivé,
+           trop de tentatives. Annoncé en `role=alert` pour être lu par les
+           lecteurs d'écran au moment où il apparaît. -->
+      @if (sessionExpiree && !erreur()) {
+        <p class="avis" role="status">Votre session a expiré. Reconnectez-vous.</p>
+      }
+      @if (erreur()) {
+        <p class="avis erreur" role="alert">
+          <mat-icon svgIcon="close"></mat-icon>{{ erreur() }}
+        </p>
+      }
+
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
         <!-- E-mail -->
         <div class="field-wrap" style="--d: 140ms">
@@ -66,12 +78,21 @@
         </div>
 
         <div class="row-forgot" style="--d: 250ms">
+          <!-- Case native plutôt qu'un composant Material : c'est le seul
+               élément de cet écran, qui n'importe pas Material Checkbox, et une
+               case à cocher n'a besoin de rien de plus. -->
+          <label class="memoriser">
+            <input type="checkbox" formControlName="memoriser" />
+            <span>Se souvenir de moi</span>
+          </label>
           <a class="forgot" tabindex="0" role="link">Mot de passe oublié ?</a>
         </div>
 
-        <button type="submit" class="submit" style="--d: 300ms">
-          <span>Se connecter</span>
-          <mat-icon svgIcon="chevron-right"></mat-icon>
+        <!-- Désactivé pendant l'appel : sans cela, un double clic envoie deux
+             tentatives et fait avancer deux fois le compteur d'échecs. -->
+        <button type="submit" class="submit" style="--d: 300ms" [disabled]="enCours()">
+          <span>{{ enCours() ? 'Connexion…' : 'Se connecter' }}</span>
+          @if (!enCours()) { <mat-icon svgIcon="chevron-right"></mat-icon> }
         </button>
       </form>
 

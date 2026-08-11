@@ -16,6 +16,22 @@
 
 .toggle-line { margin: 6px 2px; }
 
+/* Choix binaire présenté en boutons radio, comme l'original : les deux options
+   restent lisibles côte à côte au lieu d'un état à déduire. */
+.bloc-radio { display: flex; flex-direction: column; gap: 6px; margin: 8px 2px; }
+.bloc-radio .lib { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
+.bloc-radio mat-radio-group { display: flex; gap: 18px; flex-wrap: wrap; }
+
+/* Le formulaire en page occupe la hauteur restante et défile dans sa carte :
+   sinon c'est la page qui défile, ce que le reste de l'application évite. */
+.page > .pi-page { flex: 1 1 auto; min-height: 0; }
+.pi-page { overflow: auto; }
+.pi-page .pi-form { min-width: 0; }
+.actions-page {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding-top: 14px; margin-top: 6px; border-top: 1px solid var(--line);
+}
+
 .charte { padding: 2px 0; gap: 22px; }
 
 .preview {
@@ -25,6 +41,63 @@
 }
 .pv-label { font-size: 12.5px; color: var(--ink-soft); font-weight: 600; }
 .pv-value { font-family: var(--font-mono, monospace); font-size: 13.5px; color: var(--navy); word-break: break-all; }
+
+/* ---------- Atelier de composition du nom ---------- */
+.ateliers {
+  display: grid; gap: 12px; margin-top: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+@media (max-width: 720px) {
+  .ateliers { grid-template-columns: minmax(0, 1fr); }
+}
+.atelier {
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: 10px 12px; min-width: 0;
+}
+.atelier h4 {
+  margin: 0 0 8px; font-size: 12.5px; font-weight: 700; color: var(--ink);
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
+.atelier .aide { font-size: 11px; font-weight: 400; color: var(--ink-soft); }
+
+/* Hauteur fixe des deux colonnes : sans elle, ajouter un jeton fait sauter la
+   boîte de dialogue à chaque clic. */
+.jetons {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  height: 168px; overflow-y: auto; align-content: flex-start;
+}
+.jetons.colonne { flex-direction: column; flex-wrap: nowrap; }
+
+.jeton {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: 5px 9px; font: inherit; font-size: 13px; color: var(--ink);
+  cursor: pointer; text-align: left;
+}
+.jeton:hover { border-color: var(--marine-100); background: var(--marine-050); }
+.jeton mat-icon { width: 16px; height: 16px; font-size: 16px; flex: 0 0 16px; }
+
+/* Les jetons système ne viennent d'aucune table : les teinter évite de les
+   confondre avec les index du plan. */
+.jeton.systeme { background: var(--vert-050); border-color: #cfe0d0; color: var(--vert); }
+
+.jeton.range { cursor: grab; }
+.jeton.range .nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jeton.range .poignee { color: var(--faint); cursor: grab; }
+.jeton.range .oter {
+  border: none; background: none; padding: 0; cursor: pointer;
+  color: var(--ink-soft); display: inline-flex;
+}
+.jeton.range .oter:hover { color: var(--danger); }
+
+.cdk-drag-preview {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .18); border-radius: var(--r-sm);
+  background: var(--surface-0); opacity: .95;
+}
+.cdk-drag-placeholder { opacity: .35; }
+.cdk-drag-animating { transition: transform 180ms cubic-bezier(0, 0, .2, 1); }
+
+.vide { font-size: 12px; color: var(--faint); font-style: italic; margin: 4px 2px; }
 
 .server-error {
   color: var(--danger); font-size: 13px; margin-top: 8px;

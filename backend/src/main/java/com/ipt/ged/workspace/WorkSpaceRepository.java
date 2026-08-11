@@ -11,10 +11,10 @@ import java.util.Optional;
 public interface WorkSpaceRepository extends JpaRepository<WorkSpace, Long> {
 
     @EntityGraph(attributePaths = {"owner", "parent", "workflow"})
-    Page<WorkSpace> findByDeletedFalseAndNameContainingIgnoreCaseOrderByIdDesc(String search, Pageable pageable);
+    Page<WorkSpace> findByDeletedFalseAndNameContainingIgnoreCase(String search, Pageable pageable);
 
     @EntityGraph(attributePaths = {"owner", "parent", "workflow"})
-    Page<WorkSpace> findByDeletedTrueAndNameContainingIgnoreCaseOrderByIdDesc(String search, Pageable pageable);
+    Page<WorkSpace> findByDeletedTrueAndNameContainingIgnoreCase(String search, Pageable pageable);
 
     @EntityGraph(attributePaths = {"owner", "parent", "workflow"})
     Optional<WorkSpace> findWithRefsById(Long id);

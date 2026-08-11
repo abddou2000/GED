@@ -29,16 +29,20 @@ public class WorkSpaceController {
     public PageResponse<WorkSpaceResponse> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "") String search) {
-        return service.list(page, size, search);
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        return service.list(page, size, search, sortBy, sortDir);
     }
 
     @GetMapping("/trashed")
     public PageResponse<WorkSpaceResponse> trashed(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "") String search) {
-        return service.trashed(page, size, search);
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(defaultValue = "") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        return service.trashed(page, size, search, sortBy, sortDir);
     }
 
     @GetMapping("/tree")

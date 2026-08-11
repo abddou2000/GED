@@ -23,5 +23,12 @@ public record PlanIndexationRequest(
 
         String separateur,
 
-        List<Long> indexIds
+        List<Long> indexIds,
+
+        /**
+         * Jetons composant le nom du fichier, dans l'ordre : identifiants d'index
+         * du plan (« 3 ») ou clés système (« date », « year »). Vide ou absent en
+         * nommage manuel.
+         */
+        List<String> charteIds
 ) {}

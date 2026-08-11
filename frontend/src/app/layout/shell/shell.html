@@ -19,22 +19,44 @@
       <span class="acc-name">{{ session.user()?.fullName || 'Utilisateur' }}</span>
       <mat-icon svgIcon="chevron-down"></mat-icon>
     </button>
-    <mat-menu #accMenu="matMenu" xPosition="before">
-      <div class="acc-head" (click)="$event.stopPropagation()">
-        <div class="ah-name">{{ session.user()?.fullName || 'Utilisateur' }}</div>
-        <div class="ah-mail">{{ session.user()?.email || '—' }}</div>
+    <!-- ===== Carte de compte =====
+         Le dispositif de Gmail, repris pour ce qu'il resout : un fond gris qui
+         porte l'identite, et un bloc BLANC encastre pour les actions. Cette
+         separation dit ce qui se lit et ce qui se clique — une liste uniforme
+         mettait « Mon profil » et « Se deconnecter » au meme rang, alors que
+         l'une consulte et l'autre met fin a la session. -->
+    <mat-menu #accMenu="matMenu" xPosition="before" class="carte-compte">
+      <div class="cc-identite" (click)="$event.stopPropagation()">
+        <p class="cc-mail">{{ session.user()?.email || '—' }}</p>
+
+        <span class="cc-av">
+          {{ session.initials() }}
+          <!-- Pastille de presence : la session est ouverte. Discrete, mais
+               c'est la seule confirmation visible qu'on est bien connecte. -->
+          <span class="cc-etat" aria-hidden="true"></span>
+        </span>
+
+        <p class="cc-bonjour">Bonjour, {{ session.firstName() }}</p>
       </div>
-      <button mat-menu-item disabled>
-        <mat-icon svgIcon="user"></mat-icon><span>Mon profil</span>
-      </button>
-      <button mat-menu-item (click)="signOut()">
-        <mat-icon svgIcon="close"></mat-icon><span>Se déconnecter</span>
-      </button>
+
+      <div class="cc-actions">
+        <button mat-menu-item routerLink="/profil">
+          <mat-icon svgIcon="user"></mat-icon><span>Mon profil</span>
+        </button>
+        <button mat-menu-item class="cc-sortie" (click)="signOut()">
+          <mat-icon svgIcon="close"></mat-icon><span>Se déconnecter</span>
+        </button>
+      </div>
     </mat-menu>
   </header>
 
   <!-- ===== Menu horizontal ===== -->
-  <nav class="topnav">
+  <nav class="topnav" #barreNav>
+    <!-- Indicateur unique qui GLISSE d'un onglet à l'autre. Un soulignement
+         par onglet apparaissait et disparaissait sec : le regard perdait la
+         position courante à chaque changement de rubrique. Ici la barre se
+         déplace, donc l'œil la suit. -->
+    <span class="topnav-jauge" aria-hidden="true"></span>
     <a routerLink="/accueil" routerLinkActive="active" (click)="closeDrawer()" aria-label="Accueil">
       <mat-icon svgIcon="home"></mat-icon><span>Accueil</span>
     </a>
@@ -48,11 +70,8 @@
     <a routerLink="/televerser" routerLinkActive="active" (click)="closeDrawer()" aria-label="Documents déposés">
       <mat-icon svgIcon="nav-upload"></mat-icon><span>Documents</span>
     </a>
-    <a routerLink="/recherche" routerLinkActive="active" (click)="closeDrawer()" aria-label="Rechercher un document">
-      <mat-icon svgIcon="search"></mat-icon><span>Rechercher</span>
-    </a>
     <a routerLink="/regles-de-workflow" routerLinkActive="active" (click)="closeDrawer()" aria-label="Règles de Workflow">
-      <mat-icon svgIcon="nav-workflow"></mat-icon><span>Workflows</span>
+      <mat-icon svgIcon="nav-workflow"></mat-icon><span>Règles de Workflow</span>
     </a>
     <a routerLink="/groupe-d-acces" routerLinkActive="active" (click)="closeDrawer()" aria-label="Groupe d'accès">
       <mat-icon svgIcon="nav-groups"></mat-icon><span>Groupe d'accès</span>

@@ -1,8 +1,3 @@
-/* Spécifique — Groupes d'accès.
-   Page, carte, tableau, chips de droits (teinte marine), barre d'outils et état
-   vide proviennent de src/app/core/_ui.scss. */
-
-/* Les droits sont presque toujours au nombre de trois : sans largeur minimale,
-   la colonne est comprimée par ses voisines et les empile sur trois lignes, ce
-   qui triple la hauteur de chaque ligne du tableau. */
-.mat-column-rights { min-width: 250px; }
+/* Spécifique — Groupes d’accès.
+   Page, carte, tableau, barre d’outils et état vide proviennent de
+   src/app/core/_ui.scss. */

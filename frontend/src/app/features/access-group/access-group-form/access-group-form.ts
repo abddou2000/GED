@@ -5,9 +5,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { AccessGroupService } from '../access-group.service';
-import { AccessGroup, AccessGroupRequest, GedRights, RIGHT_KEYS, EMPTY_RIGHTS } from '../access-group.model';
+import { AccessGroup, AccessGroupRequest } from '../access-group.model';
 import { WorkspaceService } from '../../workspace/workspace.service';
 import { SelectOption } from '../../workspace/workspace.model';
 import { EmployeService, Employe } from '../../../core/employe.service';
@@ -17,14 +16,15 @@ interface DialogData {
 }
 
 /**
- * Formulaire créer / éditer un groupe d'accès — 3 sections : Identification,
- * Droits GED (avec cascade de dépendances), Utilisateurs & Workspaces.
+ * Formulaire créer / éditer un groupe d'accès — 2 sections : Identification,
+ * Utilisateurs & Workspaces. Le groupe ne décrit qu'un rattachement : il n'ouvre
+ * ni ne ferme aucun droit, l'application n'ayant qu'un seul utilisateur.
  */
 @Component({
   selector: 'app-access-group-form',
   imports: [
     ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule,
-    MatSelectModule, MatButtonModule, MatSlideToggleModule,
+    MatSelectModule, MatButtonModule,
   ],
   templateUrl: './access-group-form.html',
   styleUrl: './access-group-form.scss',
@@ -37,8 +37,6 @@ export class AccessGroupForm implements OnInit {
   private ref = inject(MatDialogRef<AccessGroupForm>);
   data = inject<DialogData>(MAT_DIALOG_DATA);
 
-  readonly rightKeys = RIGHT_KEYS;
-  rights = signal<GedRights>(EMPTY_RIGHTS());
   workspaces = signal<SelectOption[]>([]);
   employes = signal<Employe[]>([]);
   loading = signal(false);
@@ -66,48 +64,7 @@ export class AccessGroupForm implements OnInit {
         workspaceIds: g.workspaces.map(w => w.id),
         userIds: g.users.map(u => u.id),
       });
-      this.rights.set({ ...g.rights });
     }
-  }
-
-  isOn(key: keyof GedRights): boolean {
-    return this.rights()[key];
-  }
-
-  /**
-   * Cascade de dépendances façon « explorateur Windows » (reprise de CCISTTA) :
-   * activer un droit fort active ses prérequis ; désactiver un prérequis coupe les droits dépendants.
-   */
-  onRightChange(key: keyof GedRights, value: boolean): void {
-    const r: GedRights = { ...this.rights(), [key]: value };
-    if (value) {
-      switch (key) {
-        case 'modifier': r.uploader = true; r.lecture = true; r.access = true; break;
-        case 'supprimer': r.modifier = true; r.uploader = true; r.lecture = true; r.access = true; break;
-        case 'deplacer': r.modifier = true; r.uploader = true; r.lecture = true; r.access = true; break;
-        case 'ajouterVersion': r.uploader = true; r.lecture = true; r.access = true; break;
-        case 'uploader': r.lecture = true; r.access = true; break;
-        case 'lecture': r.access = true; break;
-        case 'verrouillerDeverrouiller': r.access = true; break;
-      }
-    } else {
-      switch (key) {
-        case 'access':
-          r.lecture = false; r.modifier = false; r.uploader = false; r.supprimer = false;
-          r.deplacer = false; r.ajouterVersion = false; r.verrouillerDeverrouiller = false;
-          break;
-        case 'lecture':
-          r.modifier = false; r.uploader = false; r.supprimer = false; r.deplacer = false; r.ajouterVersion = false;
-          break;
-        case 'uploader':
-          r.modifier = false; r.supprimer = false; r.deplacer = false; r.ajouterVersion = false;
-          break;
-        case 'modifier':
-          r.supprimer = false; r.deplacer = false;
-          break;
-      }
-    }
-    this.rights.set(r);
   }
 
   submit(): void {
@@ -118,7 +75,7 @@ export class AccessGroupForm implements OnInit {
     }
     const v = this.form.value;
     const body: AccessGroupRequest = {
-      code: v.code, name: v.name, rights: this.rights(),
+      code: v.code, name: v.name,
       workspaceIds: v.workspaceIds ?? [], userIds: v.userIds ?? [],
     };
     this.loading.set(true);
@@ -126,7 +83,9 @@ export class AccessGroupForm implements OnInit {
       ? this.service.update(this.data.group.id, body)
       : this.service.create(body);
     call.subscribe({
-      next: () => { this.loading.set(false); this.ref.close(true); },
+      // On renvoie le groupe enregistré, et non un simple booléen : l'appelant
+      // a besoin de son identifiant pour ouvrir la fiche après une création.
+      next: g => { this.loading.set(false); this.ref.close(g); },
       error: err => {
         this.loading.set(false);
         this.serverError.set(err?.error?.message ?? 'Une erreur est survenue.');

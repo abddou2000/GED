@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Données de démonstration : deux groupes d'accès (un administrateur tous droits,
- * un lecteur). S'exécute après les espaces de travail, sur base vide, hors tests.
+ * Données de démonstration : deux groupes d'accès rattachant des utilisateurs à des
+ * espaces. S'exécute après les espaces de travail, sur base vide, hors tests.
  */
 @Component
 @Order(4)
@@ -42,23 +42,14 @@ public class AccessGroupSeeder implements CommandLineRunner {
             return;
         }
 
-        // Administrateurs GED : tous les droits, tous les espaces
+        // Administrateurs GED : tous les espaces
         AccessGroup admin = new AccessGroup("AG-ADMIN", "Administrateurs GED");
-        GedRights full = admin.getRights();
-        full.setSupprimer(true);
-        full.setDeplacer(true);
-        full.setAjouterVersion(true);
-        full.setVerrouillerDeverrouiller(true);
-        full.normalize();
         admin.getWorkspaces().addAll(allWs);
         admin.getUsers().add(users.get(0));
         repo.save(admin);
 
-        // Lecteurs Comptabilité : lecture seule, premier espace
+        // Lecteurs Comptabilité : premier espace
         AccessGroup lecteurs = new AccessGroup("AG-LECT", "Lecteurs Comptabilité");
-        GedRights read = lecteurs.getRights();
-        read.setLecture(true);
-        read.normalize();
         lecteurs.getWorkspaces().add(allWs.get(0));
         lecteurs.getUsers().add(users.get(users.size() > 1 ? 1 : 0));
         repo.save(lecteurs);

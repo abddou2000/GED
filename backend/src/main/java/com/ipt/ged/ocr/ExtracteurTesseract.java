@@ -2,6 +2,7 @@ package com.ipt.ged.ocr;
 
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,9 +33,10 @@ import java.util.concurrent.TimeUnit;
  * <p>Un PDF scanné ne contient qu'une image : ses pages sont d'abord rendues en
  * PNG dans {@code ged.storage.temp}, puis soumises au moteur.
  *
- * <p><b>Non vérifié sur ce poste</b> : Tesseract n'y est pas installé. Le chemin
- * de code est écrit et compilé, mais son exécution reste à valider sur un
- * serveur équipé (voir {@code OcrController#diagnostic}).
+ * <p>Le moteur est interrogé en mode {@code tsv} : il rend alors un mot par
+ * ligne avec sa boîte englobante et sa confiance. Le texte à plat est
+ * reconstitué à partir de là, ce qui évite un second passage et fournit en prime
+ * les positions dont {@link ExtracteurValeurs} a besoin pour lire un tableau.
  */
 @Component
 public class ExtracteurTesseract implements ExtracteurTexte {
@@ -48,20 +50,38 @@ public class ExtracteurTesseract implements ExtracteurTexte {
     private final int dpi;
     private final int pagesMax;
     private final Path tempDir;
+    private final String tessdata;
+    private final String psm;
+    private final String oem;
+
+    /** Durée de validité du diagnostic de disponibilité, en nanosecondes. */
+    private final long cacheNanos;
+
+    /** Dernier verdict connu ; {@code null} tant que le binaire n'a jamais été interrogé. */
+    private volatile Boolean disponible;
+    private volatile long verifieA;
 
     public ExtracteurTesseract(@Value("${ged.ocr.commande:tesseract}") String commande,
                                @Value("${ged.ocr.langue:fra+eng}") String langue,
                                @Value("${ged.ocr.dpi:300}") int dpi,
                                @Value("${ged.ocr.pages-max:5}") int pagesMax,
-                               @Value("${ged.storage.temp:./storage/temp}") String temp) {
+                               @Value("${ged.storage.temp:./storage/temp}") String temp,
+                               @Value("${ged.ocr.tessdata:}") String tessdata,
+                               @Value("${ged.ocr.psm:3}") String psm,
+                               @Value("${ged.ocr.oem:1}") String oem,
+                               @Value("${ged.ocr.disponibilite-cache-secondes:300}") long cacheSecondes) {
         this.commande = commande;
         this.langue = langue;
         this.dpi = dpi;
         this.pagesMax = pagesMax;
         this.tempDir = Path.of(temp).toAbsolutePath().normalize();
+        this.tessdata = tessdata == null ? "" : tessdata.trim();
+        this.psm = psm;
+        this.oem = oem;
+        this.cacheNanos = TimeUnit.SECONDS.toNanos(Math.max(0, cacheSecondes));
     }
 
-    @Override public String nom() { return "Tesseract (" + commande + ", " + langue + ")"; }
+    @Override public String nom() { return "Tesseract (" + langue + ", psm " + psm + ", oem " + oem + ")"; }
     @Override public int priorite() { return 20; }
 
     @Override
@@ -71,9 +91,46 @@ public class ExtracteurTesseract implements ExtracteurTexte {
         return "pdf".equals(e) || IMAGES.contains(e);
     }
 
-    /** Le binaire répond-il ? Résultat non mis en cache : une installation peut survenir sans redémarrage. */
+    /**
+     * Le binaire répond-il ? Verdict mémorisé pour une durée courte.
+     *
+     * <p>Le résultat n'était pas conservé, et la question est posée <b>deux
+     * fois</b> par requête : une fois par {@link OcrService} pour choisir
+     * l'extracteur, une fois par {@link #extraire} avant de travailler. Chaque
+     * aperçu d'indexation lançait donc deux processus {@code tesseract
+     * --version} — dix descripteurs de fichier, un quart de seconde — pour une
+     * réponse qui ne change pas d'une seconde à l'autre. Et l'écran appelle
+     * l'aperçu à chaque sélection de fichier.
+     *
+     * <p>Le cache est volontairement <b>daté</b> plutôt que définitif : c'était
+     * la raison invoquée pour ne rien mémoriser, et elle est valable — installer
+     * Tesseract ne doit pas exiger un redémarrage de l'application. Une fenêtre
+     * de quelques minutes ({@code ged.ocr.disponibilite-cache-secondes}) tient
+     * les deux bouts : plus aucun processus superflu dans une même rafale, et
+     * une installation prise en compte peu après.
+     *
+     * <p>Aucun verrou : deux appels simultanés au tout début peuvent lancer deux
+     * sondes, ce qui est sans conséquence — l'opération est en lecture seule et
+     * idempotente. Un verrou coûterait plus cher que ce qu'il éviterait.
+     */
     @Override
     public boolean disponible() {
+        Boolean connu = disponible;
+        if (connu != null && System.nanoTime() - verifieA < cacheNanos) {
+            return connu;
+        }
+        boolean verdict = interrogerBinaire();
+        disponible = verdict;
+        verifieA = System.nanoTime();
+        return verdict;
+    }
+
+    /**
+     * Interroge réellement le binaire. Isolée de {@link #disponible()} pour que
+     * le cache soit vérifiable : un test peut compter les interrogations sans
+     * dépendre de la présence de Tesseract sur la machine.
+     */
+    protected boolean interrogerBinaire() {
         try {
             Process p = new ProcessBuilder(commande, "--version").redirectErrorStream(true).start();
             boolean fini = p.waitFor(5, TimeUnit.SECONDS);
@@ -96,20 +153,24 @@ public class ExtracteurTesseract implements ExtracteurTexte {
             List<Path> images = "pdf".equalsIgnoreCase(ext) ? rasteriser(fichier) : List.of(fichier);
             if (images.isEmpty()) return TexteExtrait.aucune("Aucune page à reconnaître.");
 
-            StringBuilder texte = new StringBuilder();
+            List<MotOcr> mots = new ArrayList<>();
             try {
-                for (Path image : images) {
-                    texte.append(lancerTesseract(image)).append('\n');
+                for (int page = 0; page < images.size(); page++) {
+                    mots.addAll(LectureTsv.mots(lancerTesseract(images.get(page)), page));
                 }
             } finally {
                 if ("pdf".equalsIgnoreCase(ext)) images.forEach(this::supprimerTemporaire);
             }
 
-            String resultat = texte.toString().strip();
-            return resultat.isBlank()
-                    ? TexteExtrait.aucune("L'OCR n'a rien reconnu — scan illisible ou page vierge.")
-                    : new TexteExtrait(resultat, TexteExtrait.Provenance.OCR, images.size(),
-                            "OCR sur " + images.size() + " page(s), langue " + langue + ".");
+            String resultat = LectureTsv.texte(mots);
+            if (resultat.isBlank()) {
+                return TexteExtrait.aucune("L'OCR n'a rien reconnu — scan illisible ou page vierge.");
+            }
+            double confiance = mots.stream().mapToDouble(MotOcr::confiance).average().orElse(0);
+            return new TexteExtrait(resultat, TexteExtrait.Provenance.OCR, images.size(),
+                    String.format("OCR sur %d page(s), langue %s, confiance moyenne %.0f%%.",
+                            images.size(), langue, confiance),
+                    mots);
         } catch (Exception e) {
             log.warn("OCR impossible : {}", fichier, e);
             return TexteExtrait.aucune("OCR impossible : " + e.getMessage());
@@ -123,7 +184,10 @@ public class ExtracteurTesseract implements ExtracteurTexte {
             PDFRenderer renderer = new PDFRenderer(doc);
             int pages = Math.min(doc.getNumberOfPages(), pagesMax);
             for (int i = 0; i < pages; i++) {
-                BufferedImage image = renderer.renderImageWithDPI(i, dpi);
+                // Rendu direct en niveaux de gris : la binarisation interne de
+                // Tesseract part d'une image plus propre, et le PNG produit pèse
+                // trois fois moins qu'en couleur.
+                BufferedImage image = renderer.renderImageWithDPI(i, dpi, ImageType.GRAY);
                 Path sortie = tempDir.resolve("ocr-" + System.nanoTime() + "-p" + i + ".png");
                 ImageIO.write(image, "png", sortie.toFile());
                 sorties.add(sortie);
@@ -132,10 +196,23 @@ public class ExtracteurTesseract implements ExtracteurTexte {
         return sorties;
     }
 
-    /** « stdout » demande à Tesseract d'écrire sur la sortie standard plutôt que dans un fichier. */
+    /**
+     * « stdout » écrit sur la sortie standard, « tsv » demande un mot par ligne
+     * avec ses coordonnées. {@code --oem 1} force le moteur LSTM, plus précis
+     * que l'ancien moteur à motifs sur les scans imparfaits.
+     */
     private String lancerTesseract(Path image) throws Exception {
-        Process p = new ProcessBuilder(commande, image.toString(), "stdout", "-l", langue)
-                .redirectErrorStream(false).start();
+        List<String> args = new ArrayList<>(List.of(commande, image.toString(), "stdout"));
+        if (!tessdata.isEmpty()) { args.add("--tessdata-dir"); args.add(tessdata); }
+        args.add("-l"); args.add(langue);
+        args.add("--oem"); args.add(oem);
+        args.add("--psm"); args.add(psm);
+        // Variable plutôt que le fichier de configuration « tsv » : ce dernier
+        // est cherché dans --tessdata-dir, où nos modèles seuls sont déposés.
+        // Tesseract ne s'en plaint pas, il rend simplement du texte brut — et
+        // les positions disparaissent sans le moindre message.
+        args.add("-c"); args.add("tessedit_create_tsv=1");
+        Process p = new ProcessBuilder(args).redirectErrorStream(false).start();
         String sortie = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         if (!p.waitFor(120, TimeUnit.SECONDS)) {
             p.destroyForcibly();

@@ -7,11 +7,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Les 8 droits fins d'un groupe d'accès (repris du {@code DroitsGed} de CCISTTA).
- *
- * <p>{@link #normalize()} impose la cohérence des dépendances façon « explorateur
- * Windows » : un droit fort implique tous les droits plus faibles
- * (supprimer ⟹ modifier ⟹ uploadé ⟹ lecture ⟹ accès).</p>
+ * Colonnes inertes héritées de l'ancien modèle de droits fins. Aucune autorisation
+ * ne s'y appuie : l'application n'a qu'un utilisateur, l'administrateur, à qui tout
+ * est ouvert. Elles ne sont conservées que pour préserver les données déjà
+ * enregistrées, reprenables si le produit passe un jour à plusieurs utilisateurs.
  */
 @Embeddable
 @Getter
@@ -42,20 +41,4 @@ public class GedRights {
 
     @Column(name = "droit_verrouiller_deverrouiller", nullable = false)
     private boolean verrouillerDeverrouiller = false;
-
-    /** Ferme les dépendances : tout droit fort réactive les droits qu'il présuppose. */
-    public void normalize() {
-        if (supprimer || deplacer) {
-            modifier = true;
-        }
-        if (modifier || ajouterVersion) {
-            uploader = true;
-        }
-        if (uploader) {
-            lecture = true;
-        }
-        if (lecture || modifier || uploader || supprimer || deplacer || ajouterVersion || verrouillerDeverrouiller) {
-            access = true;
-        }
-    }
 }

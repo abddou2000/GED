@@ -1,5 +1,7 @@
 package com.ipt.ged.document;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -19,6 +21,8 @@ import java.util.UUID;
  */
 @Service
 public class StorageService {
+
+    private static final Logger log = LoggerFactory.getLogger(StorageService.class);
 
     private final Path root;
 
@@ -48,6 +52,37 @@ public class StorageService {
     /** Chemin disque d'un fichier stocké — l'OCRisation lit le fichier directement. */
     public Path chemin(String relativePath) {
         return root.resolve(relativePath).normalize();
+    }
+
+    /**
+     * Supprime un fichier stocké. Sert exclusivement à <b>compenser</b> une
+     * transaction annulée : le disque n'est pas transactionnel, un dépôt qui
+     * échoue après {@link #store} laissait sinon un fichier orphelin que rien
+     * dans l'application ne référençait — et qu'aucune API ne permettait
+     * d'effacer, {@code StorageService} n'ayant jamais exposé de suppression.
+     *
+     * <p>Volontairement silencieuse : elle s'exécute après coup, alors que la
+     * réponse est déjà partie. Échouer bruyamment ici masquerait l'erreur
+     * d'origine, la seule qui intéresse l'appelant.
+     *
+     * <p>Le chemin est confiné sous la racine avant toute suppression : un
+     * chemin relatif remontant ({@code ../}) effacerait un fichier hors GED.
+     *
+     * @return {@code true} si un fichier a effectivement été supprimé.
+     */
+    public boolean supprimer(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) return false;
+        try {
+            Path cible = root.resolve(relativePath).normalize();
+            if (!cible.startsWith(root)) {
+                log.warn("Suppression refusée, chemin hors du stockage : {}", relativePath);
+                return false;
+            }
+            return Files.deleteIfExists(cible);
+        } catch (Exception e) {
+            log.warn("Fichier orphelin non supprimé : {}", relativePath, e);
+            return false;
+        }
     }
 
     /** Charge un fichier stocké pour le téléchargement. */

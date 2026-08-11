@@ -1,7 +1,8 @@
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
-import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
-import { MatSort, MatSortModule } from '@angular/material/sort';
+import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -9,12 +10,18 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { SelectionModel } from '@angular/cdk/collections';
-import { DocumentService } from '../document.service';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ColumnPicker } from '../../../core/column-picker/column-picker';
+import { ColonneDef } from '../../../core/column-prefs.service';
+import { formaterDate } from '../../../core/dates';
+import { DocumentService, messageErreurTelechargement } from '../document.service';
 import { DocumentItem } from '../document.model';
 import { DocumentUpload } from '../document-upload/document-upload';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
+import { SelectionToggle } from '../../../core/selection-toggle/selection-toggle';
+import { teinteAvatar, encreAvatar, initialesDe, graineDepuisTexte } from '../../../core/avatar';
 
 /**
  * Écran « Téléverser un document » (Phase 1) — dépôt de fichier, liste,
@@ -23,49 +30,163 @@ import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
 @Component({
   selector: 'app-document-list',
   imports: [
+    SelectionToggle,
     FormsModule, MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule,
-    MatIconModule, MatCheckboxModule, MatTooltipModule, MatDialogModule, SkeletonTable,
+    MatIconModule, MatCheckboxModule, MatTooltipModule, MatDialogModule, SkeletonTable, ColumnPicker, RouterLink,
   ],
   templateUrl: './document-list.html',
   styleUrl: './document-list.scss',
 })
 export class DocumentList implements OnInit {
+
+  /**
+   * Mode selection : les cases a cocher n'apparaissent que lorsqu'on le
+   * demande. Sortir du mode vide la selection — laisser des lignes cochees
+   * mais invisibles exposerait a une action groupee non voulue.
+   */
+  readonly modeSelection = signal(false);
+  basculerSelection(actif: boolean): void {
+    this.modeSelection.set(actif);
+    if (!actif) this.selection.clear();
+  }
   private service = inject(DocumentService);
   private dialog = inject(MatDialog);
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   dataSource = new MatTableDataSource<DocumentItem>([]);
   selection = new SelectionModel<DocumentItem>(true, []);
   archiveView = signal(false);
   loading = signal(true);
-  displayedColumns = ['select', 'id', 'name', 'type', 'workspace', 'size', 'expiration', 'actions'];
+  /**
+   * Cle des preferences de colonnes. Reprend le nom d'ecran de l'application
+   * d'origine pour qu'un utilisateur passant d'une GED a l'autre retrouve les
+   * colonnes qu'il avait masquees.
+   */
+  readonly ECRAN = 'Upload de document';
 
-  @ViewChild(MatPaginator) set paginator(p: MatPaginator) { if (p) this.dataSource.paginator = p; }
-  @ViewChild(MatSort) set sort(s: MatSort) { if (s) this.dataSource.sort = s; }
+  readonly COLONNES: ColonneDef[] = [
+    { cle: 'select', libelle: '', toujours: true },
+    { cle: 'id', libelle: 'ID', masqueeParDefaut: true },
+    { cle: 'name', libelle: 'Nom' },
+    { cle: 'size', libelle: 'Taille', masqueeParDefaut: true },
+    { cle: 'extension', libelle: 'Extension', masqueeParDefaut: true },
+    /* Le chemin repete mot pour mot « Espace de travail / Type de document » :
+       la meme information sur trois colonnes. Masque par defaut, il reste
+       disponible dans le selecteur de colonnes. */
+    { cle: 'chemin', libelle: 'Chemin', masqueeParDefaut: true },
+    { cle: 'createdAt', libelle: 'Date de création' },
+    { cle: 'createdBy', libelle: 'Créateur' },
+    { cle: 'workspace', libelle: 'Espace de travail' },
+    { cle: 'type', libelle: 'Type de document' },
+    { cle: 'expiration', libelle: "Date d'expiration" },
+    { cle: 'etiquettes', libelle: 'Étiquettes' },
+    { cle: 'actions', libelle: 'Actions', toujours: true },
+  ];
+  /**
+   * Colonnes visibles au premier affichage. ID, Taille et Extension sont
+   * masquees par defaut, comme dans l'original : elles restent disponibles dans
+   * le selecteur sans surcharger un tableau deja large.
+   */
+  colonnesVisibles = signal<string[]>(
+    ['select', 'name', 'chemin', 'createdAt', 'createdBy', 'workspace', 'type',
+     'expiration', 'etiquettes', 'actions']);
+
+  /** Taille de page memorisee entre deux visites, comme l'original. */
+  private static readonly CLE_TAILLE = 'upload_documents-pagination';
+  taillePage = signal(Number(localStorage.getItem(DocumentList.CLE_TAILLE)) || 10);
+  pageCourante = signal(0);
+  recherche = signal('');
+  total = signal(0);
+  triChamp = signal('');
+  triSens = signal<'asc' | 'desc'>('desc');
+  readonly triDirection = computed<'' | 'asc' | 'desc'>(() =>
+    this.triChamp() ? this.triSens() : '');
 
   ngOnInit(): void {
-    this.dataSource.filterPredicate = (d, f) => (d.name + ' ' + (d.fileName ?? '')).toLowerCase().includes(f);
-    this.load();
+    // L'archive vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
+    // ailleurs ramenait aux documents actifs sans prevenir.
+    this.route.queryParamMap.subscribe(q => {
+      const archive = q.get('trashed') === '1';
+      if (archive !== this.archiveView()) {
+        this.archiveView.set(archive);
+        this.pageCourante.set(0);
+      }
+      this.load();
+    });
   }
 
+  /** Recherche, tri et pagination cote serveur : charger 1000 lignes d'un coup
+   *  pour filtrer localement casse des que la base grossit. */
   load(): void {
     this.selection.clear();
     this.loading.set(true);
-    const call = this.archiveView() ? this.service.trashed(0, 1000, '') : this.service.list(0, 1000, '');
-    call.subscribe({
-      next: res => { this.dataSource.data = res.content; this.loading.set(false); },
+    const source = this.archiveView() ? this.service.trashed : this.service.list;
+    source.call(this.service, this.pageCourante(), this.taillePage(), this.recherche(),
+                undefined, this.triChamp(), this.triSens()).subscribe({
+      next: res => {
+        this.dataSource.data = res.content;
+        this.total.set(res.total);
+        this.loading.set(false);
+      },
       error: () => { this.loading.set(false); this.notify.error('Chargement impossible.'); },
     });
   }
 
+  onSort(e: Sort): void {
+    this.triChamp.set(e.direction ? e.active : '');
+    this.triSens.set(e.direction === 'asc' ? 'asc' : 'desc');
+    this.pageCourante.set(0);
+    this.load();
+  }
+
+  onPage(e: { pageIndex: number; pageSize: number }): void {
+    this.pageCourante.set(e.pageIndex);
+    if (e.pageSize !== this.taillePage()) {
+      this.taillePage.set(e.pageSize);
+      localStorage.setItem(DocumentList.CLE_TAILLE, String(e.pageSize));
+    }
+    this.load();
+  }
+
+  /** Ouvre la fiche du document. */
+  ouvrir(id: number): void {
+    this.router.navigate(['/televerser', id]);
+  }
+
+  /** Date lisible ; mutualisée pour que tous les écrans lisent pareil. */
+  readonly dateCourte = formaterDate;
+
+  /* Pastille du createur. On n'a que son nom, pas son identifiant : la graine
+     est derivee du texte pour que la teinte reste la meme d'un ecran a
+     l'autre. */
+  readonly initiales = initialesDe;
+  teinte(nom: string): string { return teinteAvatar(graineDepuisTexte(nom)); }
+  encre(nom: string): string { return encreAvatar(graineDepuisTexte(nom)); }
+
+  /** Vrai si la date d'expiration est deja passee (jour en cours exclu). */
+  estPerimee(iso: string | null | undefined): boolean {
+    if (!iso) return false;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return false;
+    const aujourdhui = new Date();
+    aujourdhui.setHours(0, 0, 0, 0);
+    return d.getTime() < aujourdhui.getTime();
+  }
+
   applySearch(v: string): void {
-    this.dataSource.filter = (v ?? '').trim().toLowerCase();
+    this.recherche.set((v ?? '').trim());
+    this.pageCourante.set(0);
+    this.load();
   }
 
   toggleArchive(): void {
-    this.archiveView.update(a => !a);
-    this.load();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.archiveView() ? {} : { trashed: 1 },
+    });
   }
 
   /* ---- sélection ---- */
@@ -112,9 +233,30 @@ export class DocumentList implements OnInit {
       else this.notify.success(message);
     });
   }
-  download(id: number): void {
-    window.open(this.service.downloadUrl(id), '_blank');
+
+  /** Identifiants en cours de téléchargement : un clic répété sur la même ligne
+   *  ne doit pas relancer la requête ni enregistrer deux fois le fichier. */
+  readonly telechargements = signal(new Set<number>());
+
+  /**
+   * Télécharge par `HttpClient` (et non plus `window.open`) : seule cette voie
+   * traverse les intercepteurs, donc seule elle porte le jeton — un onglet
+   * ouvert sur l'URL brute recevait un 401 et restait blanc.
+   */
+  download(doc: DocumentItem): void {
+    if (this.telechargements().has(doc.id)) return;
+    this.telechargements.update(s => new Set(s).add(doc.id));
+    const fin = () => this.telechargements.update(s => { const n = new Set(s); n.delete(doc.id); return n; });
+    this.service.telechargerEtEnregistrer(doc).subscribe({
+      next: fin,
+      error: (e: HttpErrorResponse) => {
+        fin();
+        const msg = messageErreurTelechargement(e);
+        if (msg) this.notify.error(msg);
+      },
+    });
   }
+
   remove(id: number, name: string): void {
     this.confirm.ask({
       title: 'Supprimer ce document',

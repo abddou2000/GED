@@ -39,6 +39,16 @@ export interface SelectOption {
   name: string;
   /** Nom du plan d'indexation, ou null : un type sans plan ne porte aucun index. */
   plan?: string | null;
+  /** Extensions acceptées, en minuscules. Vide = le type n'impose rien. */
+  formats?: string[];
+  /** Taille maximale d'un fichier de ce type, en mégaoctets. */
+  tailleMaxMo?: number;
+  /**
+   * Le plan compose le nom du document depuis les index (charte « Auto »).
+   * Le nom saisi au dépôt serait alors remplacé à la confirmation de
+   * l'indexation : le formulaire n'a pas à le demander.
+   */
+  charteAuto?: boolean;
 }
 
 /** Formats de fichier autorisés (fidèles à CCISTTA). */

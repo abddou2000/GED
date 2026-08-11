@@ -2,6 +2,20 @@
 #  Profil PROD — base MySQL
 #  Lancer avec : -Dspring.profiles.active=prod
 #  Variables d'env attendues : DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+#
+#  SÉCURITÉ — obligatoires en prod, aucune valeur par défaut nulle part :
+#    GED_JWT_CLE     clé de signature JWT (openssl rand -base64 48).
+#                    Absente = refus de démarrer (ServiceJeton).
+#    GED_ORIGINES    origines CORS réelles du frontend. Laisser le repli
+#                    localhost en prod déclenche un WARN au démarrage.
+#    GED_MDP_INITIAL mot de passe d'amorçage du compte administrateur. Absent =
+#                    aucun compte créé (fail-closed), ce qui est le comportement
+#                    attendu une fois le compte en place.
+#    GED_EMAIL_ADMIN adresse du compte unique (l'administrateur). Absente =
+#                    repli sur admin@<ged.securite.domaine-email>.
+#    GED_NOM_ADMIN   nom affiché de l'employé créé pour porter ce compte si
+#                    aucun employé existant ne correspond à l'adresse.
+#  Voir backend/.env.example.
 # ============================================================
 spring:
   datasource:
@@ -9,6 +23,18 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:}
+  # Migrations de schéma : c'est Flyway qui crée et fait évoluer les tables,
+  # avant qu'Hibernate ne vérifie. Sans lui, `ddl-auto: validate` refusait de
+  # démarrer sur une base vierge — et aucun script n'était fourni pour la peupler.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # La base d'un client existant n'est pas vide : elle a été créée jadis par
+    # `ddl-auto: update`. Sans cette ligne, Flyway refuserait d'y poser sa
+    # première migration. Elle marque V1 comme déjà appliquée sur une base
+    # peuplée, et n'a aucun effet sur une base neuve.
+    baseline-on-migrate: true
+    baseline-version: 1
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:

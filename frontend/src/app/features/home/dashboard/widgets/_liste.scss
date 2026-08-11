@@ -1,0 +1,82 @@
+/* Vocabulaire commun au CONTENU des encarts (la coque, elle, est dans
+   encart.scss). Importé par chaque encart via `@use`.
+
+   Sans ce partage, sept encarts réinventeraient chacun leur ligne de liste :
+   des hauteurs de 60, 62 et 65 px cohabiteraient sans que personne ne sache
+   pourquoi. Ici, une ligne d'encart a une seule définition. */
+
+.liste { list-style: none; margin: 0; padding: 6px 8px 8px; }
+
+.ligne {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px; border-radius: var(--r-sm);
+  border-bottom: 1px solid var(--line-soft);
+  text-decoration: none; color: inherit;
+  transition: background-color .13s ease, box-shadow .13s ease;
+}
+.ligne:last-child { border-bottom: none; }
+/* Le survol allume la ligne et pose un filet à gauche : l'œil la suit d'un
+   bout à l'autre, jusqu'à l'action. */
+.ligne:hover { background: var(--row-hover); box-shadow: inset 3px 0 0 var(--primary); }
+
+/* Pastille d'entête de ligne : dégradé plutôt qu'aplat, comme les indicateurs.
+   La teinte arrive par `--degrade`, posée par l'encart. */
+.pastille {
+  width: 32px; height: 32px; border-radius: 9px; flex: 0 0 32px;
+  display: flex; align-items: center; justify-content: center;
+  background-image: var(--degrade, linear-gradient(140deg, #5b8ae8, #1e4bb8));
+}
+/* Meme regle que les indicateurs : sur l'ambre et le vert clair, un glyphe
+   blanc tombe sous le seuil de 3:1 exige pour un element graphique. */
+.pastille mat-icon { width: 16px; height: 16px; font-size: 16px; color: var(--encre-pastille, #fff); }
+
+.txt { min-width: 0; flex: 1; }
+.nom {
+  font-weight: 600; font-size: 13px; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sous { display: flex; align-items: center; gap: 8px; margin-top: 3px; flex-wrap: wrap; }
+.meta {
+  font-size: 11.5px; color: var(--ink-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Une date se lit en fin de ligne, alignée : chiffres tabulaires obligatoires,
+   sinon les colonnes de dates dansent d'une ligne à l'autre. */
+.quand {
+  flex: 0 0 auto; font-size: 11.5px; color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* Action de fin de ligne : pastille marine, jamais un bouton Material brut —
+   son style diverge de tout le reste de l'application. */
+.action {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
+  height: 28px; padding: 0 11px; border-radius: var(--r-pill);
+  border: 1px solid #c9d8f2; background: #f2f6fd; color: var(--primary);
+  font-size: 12px; font-weight: 600; text-decoration: none;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.action:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+.action mat-icon { width: 14px; height: 14px; font-size: 14px; }
+
+/* État vide — il doit dire ce qui manque, pas afficher un blanc. */
+.vide {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 5px; padding: 26px 16px; height: 100%;
+}
+.vide-ic {
+  width: 42px; height: 42px; border-radius: 12px; margin-bottom: 3px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--faint);
+}
+.vide-ic.ok { background: var(--vert-050); color: var(--vert); }
+.vide-ic mat-icon { width: 20px; height: 20px; font-size: 20px; }
+.vide-titre { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.vide-sous { font-size: 12px; color: var(--ink-soft); }
+
+/* Familles de teinte, communes aux pastilles de tous les encarts. */
+.d-marine   { --degrade: linear-gradient(140deg, #5b8ae8, #1e4bb8); }
+.d-vert     { --encre-pastille: #06503e; --degrade: linear-gradient(140deg, #5fe6ca, #17a888); }
+.d-ambre    { --encre-pastille: #6b4406; --degrade: linear-gradient(140deg, #f0b04a, #d08a1e); }
+.d-cramoisi { --degrade: linear-gradient(140deg, #d0475a, #9e1b32); }

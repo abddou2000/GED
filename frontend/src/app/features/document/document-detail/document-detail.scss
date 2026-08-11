@@ -1,0 +1,110 @@
+/* Fiche d'un document. Le commun (page, carte, tableau, état vide) vient de
+   core/_ui.scss */
+
+.page { gap: 16px; }
+
+/* Quatre blocs empilés dépassent la hauteur d'écran. Plutôt que de laisser la
+   page défiler — ce que le reste de l'application évite — les deux colonnes
+   absorbent la place restante et défilent chacune de leur côté, et la carte des
+   versions garde une part fixe en bas. */
+.page > .colonnes { flex: 1 1 auto; min-height: 0; }
+.colonnes > * { max-height: 100%; overflow: auto; }
+.page > .card-versions {
+  flex: 0 0 auto; max-height: 38%;
+  display: flex; flex-direction: column;
+}
+.card-versions > .table-wrap { flex: 1; min-height: 0; overflow: auto; }
+.etat { font-size: 13px; color: var(--ink-soft); padding: 6px 0 0; margin: 0; }
+.tete-actions { display: flex; align-items: center; gap: 8px; }
+
+/* Verrou : bandeau plutôt que simple icône — c'est ce qui explique pourquoi
+   tous les champs sont figés, l'information doit précéder la surprise. */
+.bandeau-verrou {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid var(--line);
+  font-size: 13px; color: var(--ink);
+}
+.bandeau-verrou mat-icon { width: 18px; height: 18px; font-size: 18px; color: var(--cramoisi); }
+
+/* ---------- Cartouches d'identité ---------- */
+.cartouches { display: flex; flex-wrap: wrap; gap: 12px; }
+.cartouche {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 140px; max-width: 100%;
+  padding: 8px 14px; border: 1px dashed var(--line); border-radius: var(--r-md);
+}
+.cartouche .val { font-size: 13.5px; font-weight: 600; color: var(--ink); word-break: break-word; }
+.cartouche .val.maj { text-transform: uppercase; }
+.cartouche .lib {
+  font-size: 11px; font-weight: 500; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+
+/* ---------- Deux colonnes : formulaire à gauche, lectures à droite ---------- */
+.colonnes {
+  display: grid; gap: 16px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .colonnes { grid-template-columns: minmax(0, 1fr); }
+}
+.col-droite { display: grid; gap: 16px; align-content: start; }
+
+.bloc-tete {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 12px;
+}
+.bloc-tete mat-icon { width: 18px; height: 18px; font-size: 18px; color: var(--navy); }
+.cpt {
+  font-size: 11px; font-weight: 700; color: var(--ink-soft);
+  background: var(--surface-0); border: 1px solid var(--line);
+  border-radius: var(--r-pill); padding: 1px 7px;
+}
+
+.fiche-form { display: flex; flex-direction: column; gap: 2px; }
+.full { width: 100%; }
+.toggle-line { margin: 4px 2px 10px; }
+.actions-form { display: flex; justify-content: flex-end; }
+
+/* ---------- Étiquettes ---------- */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.pastille {
+  display: inline-block; padding: 3px 10px; border-radius: var(--r-pill);
+  font-size: 12px; font-weight: 600; color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .25);
+}
+
+/* ---------- Champs indexés ---------- */
+.index-liste { margin: 0; display: grid; gap: 10px; }
+.index-liste dt {
+  font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.index-liste dd { margin: 2px 0 0; font-size: 13.5px; color: var(--ink); }
+
+/* ---------- Versions ---------- */
+.depot-version {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding-bottom: 12px; margin-bottom: 4px; border-bottom: 1px solid var(--line);
+}
+.cache { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+/* Le champ fichier natif ne se met pas au style de l'application : on habille
+   son label, qui reste un déclencheur accessible au clavier. */
+.btn-fichier {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 8px 14px; border: 1px dashed var(--line); border-radius: var(--r-md);
+  font-size: 13px; color: var(--ink); background: var(--surface);
+  max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.btn-fichier:hover { border-color: var(--marine-100); background: var(--marine-050); }
+.cache:focus-visible + .btn-fichier { outline: 2px solid var(--navy); outline-offset: 2px; }
+.btn-fichier mat-icon { width: 18px; height: 18px; font-size: 18px; flex: 0 0 18px; }
+.obs { flex: 1; min-width: 220px; }
+
+.courante {
+  margin-left: 8px; padding: 1px 8px; border-radius: var(--r-pill);
+  font-size: 11px; font-weight: 700;
+  background: var(--vert-050); border: 1px solid #cfe0d0; color: var(--vert);
+}

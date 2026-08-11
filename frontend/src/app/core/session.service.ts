@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { EmployeService, Employe } from './employe.service';
+import { AuthService } from './auth.service';
 
 export interface SessionUser {
   id: number | null;
@@ -8,16 +8,21 @@ export interface SessionUser {
 }
 
 /**
- * Session « front » — coque d'authentification.
+ * Identité de la personne connectée, telle que le serveur l'a désignée.
  *
- * L'authentification réelle (Spring Security) est hors périmètre : ce service ne
- * fait que mémoriser, côté navigateur, une identité de démonstration pour
- * personnaliser l'accueil, la barre supérieure et la carte « À valider ».
- * Aucun secret, aucun jeton, aucun appel d'écriture.
+ * <p>Ce service ne devine plus rien. Auparavant il retenait « le premier
+ * approbateur de la liste » comme utilisateur courant : commode tant qu'il n'y
+ * avait pas d'authentification, mais faux dès qu'elle existe — l'application
+ * aurait signé au nom de quelqu'un d'autre. L'identité vient désormais
+ * exclusivement de la réponse d'authentification.
+ *
+ * <p>Il ne détient ni jeton ni secret : {@link AuthService} en est le seul
+ * dépositaire. Ici on ne garde que ce qui s'affiche (nom, initiales, e-mail) et
+ * l'identifiant d'employé dont les écrans ont besoin pour interroger l'API.
  */
 @Injectable({ providedIn: 'root' })
 export class SessionService {
-  private employeService = inject(EmployeService);
+  private auth = inject(AuthService);
 
   readonly user = signal<SessionUser | null>(null);
 
@@ -33,40 +38,30 @@ export class SessionService {
     return (first + last).toUpperCase();
   });
 
-  /**
-   * « Connecte » l'utilisateur (coque UI) : mémorise l'e-mail saisi puis résout une
-   * identité de démonstration (le premier approbateur connu) afin de disposer d'un
-   * identifiant réel pour les signatures en attente.
-   */
-  signIn(email: string): void {
-    this.user.set({ id: null, fullName: 'Utilisateur', email });
-    this.resolveIdentity(email);
+  /** Enregistre l'identité renvoyée par la connexion. */
+  adopter(id: number, fullName: string, email: string): void {
+    this.user.set({ id, fullName, email });
   }
 
-  /** Garantit une identité même sans passer par l'écran de connexion (route `/accueil` directe). */
+  /**
+   * Recopie l'identité déjà résolue par {@link AuthService}.
+   *
+   * <p>Utile quand un écran s'ouvre après une reprise de session (rechargement
+   * de la page) : la garde de route a revalidé le jeton et connaît l'identité,
+   * mais ce service n'a pas été renseigné puisqu'on n'est pas passé par le
+   * formulaire de connexion.
+   */
   ensureUser(): void {
     if (this.user()) return;
-    this.resolveIdentity(null);
+    const u = this.auth.utilisateur();
+    if (u) this.adopter(u.employeId, u.fullName, u.email);
   }
 
+  /** Ferme la session : le jeton est révoqué et l'identité oubliée. */
   signOut(): void {
     this.user.set(null);
-  }
-
-  private resolveIdentity(email: string | null): void {
-    this.employeService.listApprovers().subscribe({
-      next: list => {
-        const me = list[0];
-        if (me) this.user.set({ id: me.id, fullName: me.fullName, email: email ?? this.demoEmail(me) });
-      },
-      error: () => { /* identité par défaut conservée */ },
-    });
-  }
-
-  /** E-mail plausible dérivé du nom, pour l'affichage (aucune donnée réelle).
-   *  NFD + filtrage [^a-z] retire aussi les accents (marques combinantes). */
-  private demoEmail(e: Employe): string {
-    const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '');
-    return `${norm(e.firstName)}.${norm(e.lastName)}@ccistta.ma`;
+    // AuthService révoque le jeton et vide les deux stockages : sans cet appel,
+    // l'onglet suivant rouvrirait la session de la personne précédente.
+    this.auth.deconnexion();
   }
 }

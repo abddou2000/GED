@@ -13,20 +13,12 @@
 
     <!-- Barre d'outils -->
     <div class="toolbar">
+      <!-- La recherche seule a gauche, les reglages du tableau a droite :
+           c'est l'ordre des six autres ecrans de liste. Ici « Selectionner » et
+           « Colonnes » etaient rangees a l'extreme gauche, AVANT la recherche —
+           on cherchait le bouton de selection la ou il n'est nulle part
+           ailleurs, et on croyait qu'il manquait. -->
       <div class="left">
-        <button mat-icon-button [matMenuTriggerFor]="colMenu" matTooltip="Colonnes affichées" aria-label="Colonnes affichées">
-          <mat-icon svgIcon="columns"></mat-icon>
-        </button>
-        <mat-menu #colMenu="matMenu">
-          <div class="col-menu-title" (click)="$event.stopPropagation()">Lignes Sélectionnées</div>
-          @for (c of allColumns; track c.key) {
-            <button mat-menu-item (click)="$event.stopPropagation(); toggleCol(c.key)">
-              <mat-icon [svgIcon]="visible()[c.key] ? 'checkbox-on' : 'checkbox-off'"></mat-icon>
-              <span>{{ c.label }}</span>
-            </button>
-          }
-        </mat-menu>
-
         <div class="search">
           <mat-icon svgIcon="search"></mat-icon>
           <input aria-label="Rechercher" placeholder="Rechercher…"
@@ -41,6 +33,9 @@
             {{ archiveView() ? 'Restaurer' : 'Supprimer' }} ({{ selection.selected.length }})
           </button>
         }
+        <app-selection-toggle #selToggle (change)="basculerSelection($event)"></app-selection-toggle>
+        <app-column-picker [titre]="ECRAN" [colonnes]="COLONNES"
+                           (visibles)="colonnesVisibles.set($event)"></app-column-picker>
         <button mat-icon-button (click)="load()" matTooltip="Rafraîchir" aria-label="Rafraîchir"><mat-icon svgIcon="refresh"></mat-icon></button>
         <button mat-icon-button (click)="fullscreen.set(!fullscreen())" matTooltip="Plein écran" aria-label="Plein écran">
           <mat-icon svgIcon="fullscreen"></mat-icon>
@@ -54,10 +49,16 @@
 
     <!-- Tableau -->
     <div class="table-wrap">
-      @if (loading()) {
-        <app-skeleton-table [cols]="displayedColumns().length"></app-skeleton-table>
+      <!-- Squelette au premier chargement seulement. Démonter le tableau à
+           chaque requête détruirait la directive de tri, qui repartirait de
+           zéro : le sens demandé ne s'inverserait jamais. -->
+      @if (loading() && dataSource.data.length === 0) {
+        <app-skeleton-table [cols]="colonnesVisibles().length"></app-skeleton-table>
       } @else {
-      <table mat-table [dataSource]="dataSource" matSort class="wf-table">
+      <table mat-table [dataSource]="dataSource" matSort
+             [matSortActive]="triChamp()" [matSortDirection]="triDirection()"
+             (matSortChange)="onSort($event)" class="wf-table"
+               [class.selection-on]="modeSelection()">
 
         <ng-container matColumnDef="select">
           <th mat-header-cell *matHeaderCellDef class="col-select">
@@ -69,28 +70,33 @@
         </ng-container>
 
         <ng-container matColumnDef="id">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header class="col-id">ID</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="id" class="col-id">ID</th>
           <td mat-cell *matCellDef="let w" class="col-id">{{ w.id }}</td>
         </ng-container>
 
         <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Nom</th>
-          <td mat-cell *matCellDef="let w" class="name">{{ w.name }}</td>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Nom</th>
+          <td mat-cell *matCellDef="let w" class="name">
+            <div class="cell-doc">
+              <span class="fico"><mat-icon svgIcon="nav-workflow"></mat-icon></span>
+              <span class="d-name">{{ w.name }}</span>
+            </div>
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="steps">
-          <th mat-header-cell *matHeaderCellDef>Steps</th>
+          <th mat-header-cell *matHeaderCellDef>Étapes</th>
           <td mat-cell *matCellDef="let w">
             <span class="tags">
               @for (s of w.steps; track s.stepOrder) {
-                <span class="tag">{{ s.stepOrder }}. {{ s.label }}</span>
+                <span class="etape"><span class="rang">{{ s.stepOrder }}</span>{{ s.label }}</span>
               }
             </span>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="workspaces">
-          <th mat-header-cell *matHeaderCellDef>Workspaces</th>
+          <th mat-header-cell *matHeaderCellDef>Espaces de travail</th>
           <td mat-cell *matCellDef="let w">
             @if (w.workspaces.length) { {{ w.workspaces.join(', ') }} }
             @else { <span class="muted">—</span> }
@@ -109,11 +115,11 @@
           </td>
         </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
+        <tr mat-header-row *matHeaderRowDef="colonnesVisibles()"></tr>
+        <tr mat-row *matRowDef="let row; columns: colonnesVisibles()"></tr>
 
         <tr class="no-data-row" *matNoDataRow>
-          <td class="no-data" [attr.colspan]="displayedColumns().length">
+          <td class="no-data" [attr.colspan]="colonnesVisibles().length">
             <div class="empty-state">
               <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
               <span class="empty-title">Aucune règle de workflow</span>
@@ -126,7 +132,10 @@
     </div>
 
     @if (!loading()) {
-      <mat-paginator [pageSizeOptions]="[10, 25, 50]" [pageSize]="10" showFirstLastButtons></mat-paginator>
+      <mat-paginator [pageSizeOptions]="[10, 25, 50]"
+                     [pageSize]="taillePage()" [pageIndex]="pageCourante()"
+                     [length]="total()" (page)="onPage($event)"
+                     showFirstLastButtons></mat-paginator>
     }
   </div>
 </div>

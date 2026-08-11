@@ -11,7 +11,6 @@ public record AccessGroupResponse(
         Long id,
         String code,
         String name,
-        GedRightsDto rights,
         List<Ref> workspaces,
         List<Ref> users,
         int workspacesCount,
@@ -27,7 +26,6 @@ public record AccessGroupResponse(
                 .map(e -> new Ref(e.getId(), e.getFullName())).toList();
         return new AccessGroupResponse(
                 g.getId(), g.getCode(), g.getName(),
-                GedRightsDto.from(g.getRights()),
                 ws, us, ws.size(), us.size());
     }
 }

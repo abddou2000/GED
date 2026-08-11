@@ -1,0 +1,160 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>{{ espace()?.name || 'Espace de travail' }}</h1>
+      <!-- Fil d'Ariane : sans lui, rien n'indique où l'on se trouve dans une
+           arborescence qui peut compter plusieurs niveaux. -->
+      <p class="breadcrumb">
+        <a routerLink="/espaces-de-travail">Espaces de travail</a>
+        @for (n of chemin(); track n.id) {
+          <span> · </span>
+          @if (n.id === id()) { <span>{{ n.name }}</span> }
+          @else { <a [routerLink]="['/espaces-de-travail', n.id]">{{ n.name }}</a> }
+        }
+      </p>
+    </div>
+    @if (espace()) {
+      <div class="tete-actions">
+        <button mat-stroked-button (click)="creerSousDossier()">
+          <mat-icon svgIcon="folder-plus"></mat-icon> Sous-dossier
+        </button>
+        <button mat-flat-button color="primary" (click)="modifier()">
+          <mat-icon svgIcon="edit"></mat-icon> Modifier
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (chargement()) {
+    <div class="card"><p class="etat">Chargement…</p></div>
+  } @else if (introuvable()) {
+    <div class="card">
+      <div class="empty-state">
+        <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+        <span class="empty-title">Espace de travail introuvable</span>
+        <span class="empty-sub">Il a peut-être été supprimé. <a routerLink="/espaces-de-travail">Revenir à la liste</a></span>
+      </div>
+    </div>
+  } @else if (espace(); as w) {
+
+    <!-- ===== Identité du dossier ===== -->
+    <div class="card fiche">
+      <dl class="fiche-grille">
+        <div><dt>Code</dt><dd class="mono">{{ w.code }}</dd></div>
+        <div><dt>Statut</dt>
+          <dd><span class="pill" [class]="statutLibelle(w.status).cls"><span class="dot"></span>{{ statutLibelle(w.status).label }}</span></dd>
+        </div>
+        <div><dt>Propriétaire</dt><dd>{{ w.owner?.label || '—' }}</dd></div>
+        <div><dt>Circuit de validation</dt><dd>{{ w.workflow?.label || '—' }}</dd></div>
+        <div><dt>Dossier parent</dt>
+          <dd>
+            @if (w.parent) { <a [routerLink]="['/espaces-de-travail', w.parent.id]">{{ w.parent.label }}</a> }
+            @else { <span class="muted">Racine</span> }
+          </dd>
+        </div>
+        <div class="pleine"><dt>Groupes d'accès</dt>
+          <dd>
+            @if (w.accessGroups?.length) {
+              <span class="grp">
+                @for (g of w.accessGroups; track g.id) { <span class="chip-marine">{{ g.label }}</span> }
+              </span>
+            } @else {
+              <span class="muted">Aucun groupe rattaché.</span>
+            }
+          </dd>
+        </div>
+        <div class="pleine"><dt>Description</dt><dd>{{ w.description || '—' }}</dd></div>
+      </dl>
+    </div>
+
+    <!-- ===== Sous-dossiers ===== -->
+    <div class="card">
+      <div class="toolbar">
+        <div class="left">
+          <span class="tb-titre">Sous-dossiers</span>
+          <span class="tb-sub">{{ sousDossiers().length }}</span>
+        </div>
+      </div>
+      @if (sousDossiers().length) {
+        <ul class="sous-dossiers">
+          @for (s of sousDossiers(); track s.id) {
+            <li>
+              <button type="button" class="sd" (click)="ouvrir(s.id)">
+                <mat-icon svgIcon="folder"></mat-icon>
+                <span class="sd-nom">{{ s.name }}</span>
+                @if (s.children?.length) { <span class="sd-compte">{{ s.children.length }}</span> }
+                <mat-icon class="sd-chev" svgIcon="chevron-right"></mat-icon>
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="etat">Aucun sous-dossier.</p>
+      }
+    </div>
+
+    <!-- ===== Documents du dossier ===== -->
+    <div class="card card-docs">
+      <div class="toolbar">
+        <div class="left">
+          <span class="tb-titre">Documents</span>
+          <span class="tb-sub">{{ docs().length }}</span>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table mat-table [dataSource]="docs()" class="docs-table">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Document</th>
+            <td mat-cell *matCellDef="let d">
+              <div class="cell-doc">
+                <span class="fico"><mat-icon svgIcon="nav-type"></mat-icon></span>
+                <!-- Une seule ligne, comme la liste des documents : le nom du
+                     fichier stocke passe en info-bulle. -->
+                <div class="d-name" [matTooltip]="d.fileName">{{ d.name }}</div>
+              </div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let d">
+              @if (d.typeDocument) { <span class="chip-marine">{{ d.typeDocument.label }}</span> }
+              @else { <span class="muted">—</span> }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="size">
+            <th mat-header-cell *matHeaderCellDef>Taille</th>
+            <td mat-cell *matCellDef="let d">{{ d.sizeLabel }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="c-act">Actions</th>
+            <td mat-cell *matCellDef="let d" class="c-act">
+              <button mat-icon-button (click)="telecharger(d)" [disabled]="telechargements().has(d.id)" matTooltip="Télécharger" aria-label="Télécharger">
+                <mat-icon svgIcon="download"></mat-icon>
+              </button>
+              <button mat-icon-button class="danger" (click)="supprimerDocument(d)" matTooltip="Supprimer" aria-label="Supprimer">
+                <mat-icon svgIcon="delete"></mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="colonnesDocs"></tr>
+          <tr mat-row *matRowDef="let row; columns: colonnesDocs"></tr>
+
+          <tr class="no-data-row" *matNoDataRow>
+            <td class="no-data" [attr.colspan]="colonnesDocs.length">
+              <div class="empty-state">
+                <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+                <span class="empty-title">Aucun document</span>
+                <span class="empty-sub">Déposez un document depuis l'écran Documents.</span>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  }
+</div>

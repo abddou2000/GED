@@ -27,6 +27,8 @@ import static org.hamcrest.Matchers.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import com.ipt.ged.support.Comptes;
+import org.springframework.security.test.context.support.WithUserDetails;
 
 /**
  * Campagne de tests du module « Type de document » : CRUD, unicité, relations
@@ -36,6 +38,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
+// L'API est fermee par defaut : chaque appel doit porter une identite reelle.
+// L'API est fermee par defaut : les tests s'authentifient avec le compte unique.
+@WithUserDetails(Comptes.ADMIN)
 class TypeDocumentApiTest {
 
     @Autowired private MockMvc mvc;

@@ -28,16 +28,28 @@ public class PlanIndexationController {
     public PageResponse<PlanIndexationResponse> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "") String search) {
-        return service.list(page, size, search);
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
+        return service.list(page, size, search, sortBy, sortDir);
     }
 
     @GetMapping("/trashed")
     public PageResponse<PlanIndexationResponse> trashed(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "") String search) {
-        return service.trashed(page, size, search);
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
+        return service.trashed(page, size, search, sortBy, sortDir);
+    }
+
+    /** Jetons système utilisables dans la charte (DATE, YEAR…). */
+    @GetMapping("/jetons-systeme")
+    public List<Map<String, String>> jetonsSysteme() {
+        return JetonsSysteme.libelles().entrySet().stream()
+                .map(e -> Map.of("id", e.getKey(), "name", e.getValue()))
+                .toList();
     }
 
     @GetMapping("/for-select")

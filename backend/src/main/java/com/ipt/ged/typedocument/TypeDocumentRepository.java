@@ -8,9 +8,13 @@ import java.util.List;
 
 public interface TypeDocumentRepository extends JpaRepository<TypeDocument, Long> {
 
-    Page<TypeDocument> findByDeletedFalseAndTypeDeDocumentContainingIgnoreCaseOrderByIdDesc(String search, Pageable pageable);
+    /* Le tri n'est plus figé dans le nom des méthodes : un « OrderByIdDesc »
+       l'emporte sur le Sort du Pageable, ce qui rendait les en-têtes de colonne
+       cliquables sans effet. */
 
-    Page<TypeDocument> findByDeletedTrueAndTypeDeDocumentContainingIgnoreCaseOrderByIdDesc(String search, Pageable pageable);
+    Page<TypeDocument> findByDeletedFalseAndTypeDeDocumentContainingIgnoreCase(String search, Pageable pageable);
+
+    Page<TypeDocument> findByDeletedTrueAndTypeDeDocumentContainingIgnoreCase(String search, Pageable pageable);
 
     List<TypeDocument> findByIdInAndDeletedFalse(List<Long> ids);
 

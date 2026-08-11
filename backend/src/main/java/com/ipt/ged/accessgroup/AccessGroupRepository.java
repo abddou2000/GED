@@ -10,9 +10,12 @@ import java.util.Optional;
 
 public interface AccessGroupRepository extends JpaRepository<AccessGroup, Long> {
 
-    Page<AccessGroup> findByDeletedFalseAndNameContainingIgnoreCaseOrderByIdDesc(String search, Pageable pageable);
+    /* Le tri n'est plus figé dans le nom de la méthode : un « OrderByIdDesc »
+       gagne toujours contre le Sort du Pageable, ce qui rendait les en-têtes de
+       colonne cliquables sans effet. */
+    Page<AccessGroup> findByDeletedFalseAndNameContainingIgnoreCase(String search, Pageable pageable);
 
-    Page<AccessGroup> findByDeletedTrueAndNameContainingIgnoreCaseOrderByIdDesc(String search, Pageable pageable);
+    Page<AccessGroup> findByDeletedTrueAndNameContainingIgnoreCase(String search, Pageable pageable);
 
     /** Charge le groupe avec ses workspaces et ses membres (pour le détail / l'édition). */
     @EntityGraph(attributePaths = {"workspaces", "users"})

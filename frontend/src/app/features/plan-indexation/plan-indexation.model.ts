@@ -14,7 +14,18 @@ export interface PlanIndexation {
   separateur: string;
   indices: Ref[];
   indexCount: number;
+  /** Jetons du nom composé, dans l'ordre : id d'index ou clé système. */
+  charteIds: string[];
+  /** Charte telle qu'enregistrée ; du texte libre pour un plan hérité. */
+  charteNommage: string | null;
   preview: string;
+}
+
+/** Un jeton de la charte : soit un index du plan, soit un jeton système. */
+export interface Jeton {
+  id: string;
+  name: string;
+  systeme: boolean;
 }
 
 /** Corps envoyé pour créer / modifier un plan. */
@@ -26,6 +37,7 @@ export interface PlanIndexationRequest {
   majuscule: boolean;
   separateur: string;
   indexIds: number[];
+  charteIds: string[];
 }
 
 export interface PageResult<T> {

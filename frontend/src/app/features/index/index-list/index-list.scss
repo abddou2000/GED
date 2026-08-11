@@ -1,14 +1,38 @@
 /* Spécifique — Index. Le commun vient de _ui.scss */
 
 /* Type d'index (pastille marine sobre) */
+/* Type de champ : une famille de couleur par nature, et son glyphe.
+   Les quatre partageaient la meme pastille marine pale — la colonne se lisait
+   comme une repetition, alors que c'est elle qui dit ce qu'on peut saisir. */
 .type-pill {
-  display: inline-block;
-  background: var(--marine-050); border: 1px solid var(--marine-100); color: var(--navy);
-  border-radius: var(--r-sm); padding: 2px 9px; font-size: 12px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: var(--r-pill); padding: 3px 11px 3px 9px;
+  font-size: 12px; font-weight: 600;
+  background: var(--teinte); color: var(--encre);
+  box-shadow: inset 0 0 0 1px var(--filet);
 }
+.type-pill mat-icon { width: 15px; height: 15px; font-size: 15px; flex: 0 0 15px; }
+
+/* Marine pour le texte, vert pour les nombres, ambre pour les dates, cramoisi
+   pour les listes : ce sont les memes familles que partout ailleurs dans
+   l'application, pas une palette inventee pour cette colonne. */
+.t-texte  { --teinte: #eaf1fd; --encre: #123a86; --filet: rgba(30, 75, 184, .18); }
+.t-nombre { --teinte: #e4f5ec; --encre: #14663f; --filet: rgba(20, 102, 63, .18); }
+.t-date   { --teinte: #fdf2e0; --encre: #8a6212; --filet: rgba(138, 98, 18, .20); }
+.t-liste  { --teinte: #fbe9ec; --encre: #8e2637; --filet: rgba(142, 38, 55, .18); }
 
 /* Options d'une liste : vert — se distingue des index (marine) */
 .tag {
   background: var(--vert-050); border-color: #cfe0d0; color: var(--vert);
 }
 .vals { font-size: 12px; }
+
+/* Colonnes Oui/Non : étroites et non repliables, sinon l'intitulé long
+   (« Indexé pour recherche ») étirerait la colonne bien au-delà de sa valeur. */
+.c-oui { width: 1%; white-space: nowrap; text-align: center; }
+.idx-table th.c-oui { font-size: 11.5px; }
+
+/* Onze colonnes ne tiennent pas toujours : la table défile horizontalement
+   dans sa carte plutôt que de pousser la page entière. */
+.table-wrap { overflow-x: auto; }
+.idx-table { min-width: 1100px; }

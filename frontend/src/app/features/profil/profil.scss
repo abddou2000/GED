@@ -1,0 +1,466 @@
+/* Page « Mon profil ».
+   ------------------------------------------------------------------------
+   Elle parlait une autre langue que le reste de l'application : bandeau
+   d'encre, or de la marque en accent, onglets soulignés d'or, titres en
+   Fraunces, blocs à bordure. Rien de tout cela n'existe ailleurs — on
+   arrivait sur cet écran en ayant l'impression d'avoir changé de produit.
+
+   Elle reprend maintenant le vocabulaire commun : `.page-head` avec fil
+   d'Ariane, sélecteur segmenté, cartes à bandeau `.bloc-tete`, cartouches des
+   fiches détail, pastilles marine. Le spécifique tient dans ce fichier au
+   strict nécessaire ; tout le reste vient de _ui.scss. */
+
+.etat { font-size: 13.5px; color: var(--ink-soft); margin: 2px 0 0; }
+
+/* ============ Bannière d'identité ============
+   Reprise a l'identique de la banniere d'accueil (`.hello` de dashboard.scss) :
+   memes degrades, meme halo, meme medaillon, memes chiffres. Les deux ecrans
+   qui presentent une personne doivent l'annoncer de la meme facon.
+
+   Note : ces valeurs sont recopiees plutot que partagees, pour ne pas toucher
+   au fichier de l'accueil qui vient d'etre restaure. A factoriser en une classe
+   commune quand l'accueil sera stabilise. */
+/* ================= Bandeau d'identité =================
+   Le seul endroit de l'application où l'on parle d'une PERSONNE. Il porte donc
+   une intention visuelle propre, là où les écrans de liste restent neutres.
+
+   Trois choses le tiennent :
+
+   1. LA PROFONDEUR. Un dégradé marine seul donne un aplat ; ici trois couches
+      se superposent — une base diagonale, une lueur haute à droite qui figure
+      une source, et un grain très fin. C'est le grain qui empêche le banding
+      et fait qu'un fond se lit comme une matière plutôt qu'un remplissage.
+
+   2. L'OR, UNE SEULE FOIS. La couleur de marque n'apparaît qu'au filet sous le
+      nom et à l'anneau du médaillon. Répandue partout, elle ne signalerait plus
+      rien ; tenue à un seul emploi, elle désigne la personne.
+
+   3. LES CHIFFRES COMME REPÈRES. Quatre tuiles de verre, chacune avec sa barre
+      d'accent. Alignés sur une simple rangée de texte, ils se lisaient comme
+      une légende ; posés, ils deviennent le second sujet du bandeau. */
+.hello {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 26px; flex-wrap: wrap;
+  margin: 0; padding: 26px 30px;
+  border-radius: var(--r-card);
+  background:
+    radial-gradient(90% 150% at 88% -20%, rgba(120, 165, 255, .30), transparent 60%),
+    radial-gradient(70% 120% at 0% 110%, rgba(233, 180, 92, .16), transparent 62%),
+    /* Remonte d'un cran : #04143f est un bleu quasi noir, qui pesait en tête
+       de fiche. La profondeur vient des couches superposées et du grain, pas
+       de l'obscurité du fond. */
+    /* Bandeau de jour : le fonce ne sert plus qu'a asseoir le medaillon et
+       les tuiles de verre, qui gardent leur contraste sur ce bleu franc. */
+    linear-gradient(108deg, #23539f 0%, #2f6ad4 46%, #5b93ea 100%);
+  box-shadow: 0 16px 40px -20px rgba(35, 83, 159, .45);
+}
+
+/* Grain : une turbulence SVG embarquée, aucun fichier à charger, sans couture
+   au pavage. Invisible en tant que tel — c'est son absence qui se verrait. */
+.hello::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  opacity: .16; mix-blend-mode: overlay;
+}
+
+.hello-glow {
+  position: absolute; top: -140px; right: -70px; width: 340px; height: 340px;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, .18), transparent 66%);
+}
+
+.hello-id { position: relative; z-index: 1; display: flex; align-items: center; gap: 18px; min-width: 0; }
+
+/* Médaillon : anneau d'or fin, halo interne. L'or n'est pas un contour posé
+   sur le cercle mais un dégradé — un trait plein aurait l'air d'un cadre. */
+.hello-av {
+  position: relative;
+  width: 74px; height: 74px; border-radius: 50%; flex: 0 0 74px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 800; letter-spacing: .02em; color: #fff;
+  background:
+    radial-gradient(120% 120% at 30% 20%, rgba(255, 255, 255, .26), rgba(255, 255, 255, .08));
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .3);
+}
+.hello-av::before {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%;
+  padding: 2px;
+  background: linear-gradient(135deg, #f0c67c, rgba(240, 198, 124, .15) 55%, rgba(240, 198, 124, .55));
+  /* Découpe l'intérieur : il ne reste que l'anneau. */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  pointer-events: none;
+}
+
+.hello-txt { min-width: 0; }
+.hello h1 {
+  position: relative;
+  margin: 0 0 12px; padding-bottom: 11px;
+  font-size: 30px; font-weight: 800; letter-spacing: -.02em;
+  color: #fff; line-height: 1.14;
+}
+/* Filet d'or, court : il souligne sans encadrer. */
+.hello h1::after {
+  content: ''; position: absolute; left: 0; bottom: 0;
+  width: 56px; height: 3px; border-radius: 3px;
+  background: linear-gradient(90deg, #f0c67c, rgba(240, 198, 124, 0));
+}
+.hello .sous { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin: 0; }
+.hello .mail { font-size: 12.5px; color: rgba(255, 255, 255, .72); }
+
+/* Jeton translucide, avec un filet interne qui le détache du dégradé. */
+.jeton {
+  display: inline-flex; align-items: center;
+  padding: 4px 12px; border-radius: var(--r-pill);
+  font-size: 12.5px; font-weight: 600; color: rgba(255, 255, 255, .96);
+  background: rgba(255, 255, 255, .14);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16);
+}
+
+/* ---------- Compteurs ---------- */
+.stats { position: relative; z-index: 1; display: flex; gap: 12px; flex-wrap: wrap; }
+.stat {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 104px; padding: 13px 16px 12px;
+  border-radius: var(--r-md); text-decoration: none;
+  background: rgba(255, 255, 255, .09);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
+  transition: background-color .18s ease, transform .18s cubic-bezier(.22, .61, .36, 1);
+}
+/* Barre d'accent en tête de tuile : elle donne un sens de lecture à la rangée.
+   La première — « À valider » — prend l'or ; les autres restent blanches, pour
+   que l'urgence se distingue du décompte. */
+.stat::before {
+  content: ''; position: absolute; top: 0; left: 16px; right: 16px;
+  height: 2px; border-radius: 0 0 2px 2px;
+  background: rgba(255, 255, 255, .35);
+}
+.stat:first-child::before { background: #f0c67c; }
+
+.stat .val {
+  font-size: 27px; font-weight: 800; line-height: 1;
+  color: #fff; font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.stat .lib {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .09em;
+  text-transform: uppercase; color: rgba(255, 255, 255, .62);
+}
+a.stat:hover { background: rgba(255, 255, 255, .16); transform: translateY(-2px); }
+a.stat:hover .lib { color: rgba(255, 255, 255, .95); }
+a.stat:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+@media (max-width: 900px) {
+  .hello { padding: 20px; gap: 18px; }
+  .hello h1 { font-size: 24px; }
+  .hello-av { width: 60px; height: 60px; flex: 0 0 60px; font-size: 20px; }
+  .stat { min-width: 88px; padding: 11px 13px 10px; }
+  .stat .val { font-size: 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat { transition: none; }
+  a.stat:hover { transform: none; }
+}
+
+/* ============ Blocs de contenu ============ */
+/* Dimensionnés par leur contenu : aucun ne s'étire pour combler l'écran —
+   trois listes courtes étirées ne produisent que des rectangles à moitié
+   vides. L'espace restant en bas est de la marge, pas un trou. */
+/* `align-items: stretch` (le defaut, laisse explicite) : les trois cartes
+   font la meme hauteur. Dimensionnees par leur contenu, elles donnaient une
+   grande, une moyenne et une minuscule cote a cote — un alignement en dents de
+   scie que l'oeil ne peut pas se reposer dessus. */
+.trio {
+  display: grid; gap: 16px; margin-top: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  align-items: stretch;
+}
+.trio .card { display: flex; flex-direction: column; }
+/* La liste occupe le reste de la carte : le blanc en trop se met SOUS les
+   lignes, la ou il ne se remarque pas, plutot que de decaler les bas de
+   cartes les uns par rapport aux autres. */
+.trio .liste, .trio .etat { flex: 1 1 auto; }
+.trio .card, .page > .card { padding: 0; overflow: hidden; }
+.page > .card { margin-top: 16px; }
+.trio .card > .bloc-tete, .page > .card > .bloc-tete { margin: 0; }
+
+.bloc-tete .voir {
+  margin-left: auto; font-size: 12.5px; font-weight: 600;
+  color: var(--primary); text-decoration: none;
+}
+.bloc-tete .voir:hover { text-decoration: underline; }
+
+.card > .etat { margin: 16px 18px; }
+
+/* ---------- Listes ---------- */
+.liste { list-style: none; margin: 0; padding: 6px 12px 10px; }
+.liste li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 6px; font-size: 13.5px;
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  transition: background-color .13s ease, box-shadow .13s ease;
+}
+.liste li:last-child { border-bottom: 0; }
+.liste li:hover { background: var(--row-hover); box-shadow: inset 3px 0 0 var(--primary); }
+.liste .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.liste .compte {
+  font-size: 11.5px; font-weight: 700; color: var(--primary);
+  background: #eaf1fd; border-radius: var(--r-pill); padding: 1px 9px;
+  font-variant-numeric: tabular-nums;
+}
+.liste a {
+  flex: 1; min-width: 0; color: var(--ink); text-decoration: none; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.liste a:hover { text-decoration: underline; }
+
+/* ---------- Activité ---------- */
+.activite { list-style: none; margin: 0; padding: 6px 12px 12px; }
+.activite li {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 6px; font-size: 13.5px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.activite li:last-child { border-bottom: 0; }
+.activite .txt { flex: 1; min-width: 0; }
+.activite strong {
+  font-size: 15px; font-weight: 700; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.activite .voir { font-size: 12.5px; font-weight: 600; color: var(--primary); text-decoration: none; white-space: nowrap; }
+.activite .voir:hover { text-decoration: underline; }
+
+/* ============ File d'attente ============
+   Le cartouche annonce combien ; cette file dit quoi. Elle prend la hauteur
+   qui reste et défile chez elle : dimensionnée par son contenu, elle poussait
+   la page au-delà de l'écran dès quatre lignes en attente. */
+/* Étape : la pastille ambre de « Mes workflow », à l'identique. */
+.file .etape {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 2px 10px 2px 2px; border-radius: var(--r-pill);
+  background: var(--ambre-050); color: #8a6212;
+  font-size: 12px; font-weight: 600;
+}
+.file .etape .rang {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--ambre); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+
+.file .doc { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.file .doc a {
+  color: var(--ink); text-decoration: none; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.file .doc a:hover { text-decoration: underline; }
+.file .doc .ou { font-size: 12px; color: var(--ink-soft); }
+
+/* Bouton « Traiter » : le même que dans « Mes workflow ». */
+.file .agir {
+  flex: 0 0 auto; display: inline-flex; align-items: center;
+  height: 30px; padding: 0 12px; border-radius: var(--r-pill);
+  border: 1px solid #c9d8f2; background: #f2f6fd; color: var(--primary);
+  font-size: 12.5px; font-weight: 600; text-decoration: none;
+  transition: background-color .15s ease, color .15s ease;
+}
+.file .agir:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.reste { margin: 0; padding: 0 18px 14px; font-size: 12.5px; color: var(--ink-soft); }
+
+/* ---------- Informations professionnelles ----------
+   Une liste de definitions, pas un tableau : chaque ligne est un couple
+   intitule / valeur, et le balisage `dl/dt/dd` le dit aux lecteurs d'ecran. */
+.infos {
+  margin: 0; padding: 14px 18px 18px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px;
+}
+@media (max-width: 760px) { .infos { grid-template-columns: 1fr; } }
+
+.info { min-width: 0; }
+.info dt {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .01em;
+  color: var(--ink-soft); margin-bottom: 5px;
+}
+.info dd {
+  margin: 0; font-size: 14px; font-weight: 600; color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* Compte suspendu ou absent : l'exception se signale, l'etat normal reste
+   discret (`.st-actif` de _ui.scss ne porte deja aucun fond). */
+.pill.st-off { background: var(--ambre-050); color: #8a6212; }
+.pill.st-off .dot { background: var(--ambre); }
+
+/* Cinq intitules dans une grille a deux colonnes : sans une valeur en pleine
+   largeur, le compte impair laisse une demi-case vide en bas de carte.
+   L'adresse est la plus longue, c'est donc elle qui prend la ligne. */
+.info-large { grid-column: 1 / -1; }
+@media (max-width: 620px) { .info-large { grid-column: auto; } }
+
+/* ---------- Grille de la fiche ----------
+   TROIS cartes. « Dossiers » et « Groupes d'accès » repondent a la meme
+   question — a quoi suis-je rattache — et tenaient chacune dans une carte a
+   moitie vide. Regroupees, elles se lisent d'un bloc et ne laissent plus de
+   creux. La carte des permissions a disparu avec les droits : l'utilisateur
+   unique EST l'administrateur, il n'y avait plus rien a y lister.
+
+     RANGEE 1 — `auto`. Contenu court et FIXE : identite, rattachements. Les
+     etirer creusait les cartes ; le vide passait simplement sous le pli.
+
+     RANGEE 2 — `1fr`. Contenu qui GRANDIT avec l'usage : les decisions prises.
+     Seule rescapee de sa rangee, elle la prend toute : la laisser sur 7
+     colonnes aurait ouvert un vide de 5 colonnes a sa droite. C'est la seule
+     carte qu'on peut etirer sans la creuser, parce que son contenu defile. */
+/* La rangee 2 ne descend jamais sous 200px. Sans ce plancher, sur un portable
+   en 1366x768 — la taille d'ecran la plus repandue — la rangee 1 (hauteur
+   fixe) consommait presque tout : la carte des decisions tombait a 95px et
+   n'affichait plus AUCUNE ligne, juste son entete. Une carte reduite a son
+   titre est pire qu'une carte absente.
+
+   En contrepartie, quand la fenetre est trop courte pour les deux rangees,
+   c'est la zone de contenu qui defile — pas la page, dont la coque garde la
+   hauteur fixe. */
+.grille-profil {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: auto minmax(200px, 1fr);
+  gap: 16px;
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto;
+}
+.grille-profil > .card { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+
+/* Fenetre courte — 1366x768, la taille d'ecran la plus repandue.
+   Les deux rangees ne tiennent plus : `1fr` sur la rangee 2 forcait tout a
+   entrer, et les cartes du haut se faisaient rogner sans le dire (leur
+   contenu est fixe, rien n'y defile : les comprimer COUPE des lignes).
+   Ici les deux rangees reprennent leur hauteur naturelle et c'est la grille
+   qui defile — la coque, elle, garde sa hauteur fixe. */
+/* ---------- Ecran court : 1366x768, la taille la plus repandue ----------
+
+   Le probleme n'etait pas la grille mais ce qui la precede : le bandeau et les
+   tuiles consommaient 207px, laissant 389px pour deux rangees de 278. La carte
+   des dernieres decisions demarrait donc SOUS le pli — 95px visibles, et zero
+   ligne lisible sur neuf. Une carte qu'il faut deviner ne sert a rien.
+
+   On reprend cette place la ou elle ne coute rien : le bandeau se compacte, et
+   la premiere rangee est bornee. Ses deux cartes gardent alors un ascenseur
+   propre — visible, donc honnete — au lieu d'etre rognees en silence. */
+@media (max-height: 860px) {
+  .hello { padding: 16px 22px; gap: 18px; }
+  .hello-av { width: 58px; height: 58px; font-size: 21px; }
+  .hello h1 { font-size: 20px; }
+  .stats { gap: 10px; }
+  .page { gap: 12px; }
+
+  .grille-profil {
+    grid-template-rows: minmax(0, 220px) minmax(190px, 1fr);
+    align-content: start;
+  }
+
+  /* Selecteur enfant OBLIGATOIRE : `.grille-profil > .card` pose
+     `min-height: 0` et l'emporterait sur un simple `.c-infos`, a specificite
+     plus faible — le plancher serait ignore et les cartes rognees a nouveau. */
+  .grille-profil > .c-infos,
+  .grille-profil > .c-rattachements { min-height: 0; overflow-y: auto; }
+
+  .grille-profil .liste,
+  .grille-profil .decisions { flex: 1; min-height: 0; overflow-y: auto; }
+}
+
+.c-infos       { grid-column: span 6; }
+.c-rattachements { grid-column: span 6; }
+.c-decisions   { grid-column: span 12; }
+
+@media (max-width: 1100px) {
+  .grille-profil > .card { grid-column: span 12; }
+}
+
+/* Ce qui defile, defile DANS sa carte — jamais la page. */
+.grille-profil .liste,
+.grille-profil .decisions { flex: 1; min-height: 0; overflow-y: auto; }
+.grille-profil .infos { align-content: start; }
+
+.c-infos .infos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 620px) { .c-infos .infos { grid-template-columns: 1fr; } }
+
+/* ---------- Rattachements : deux colonnes dans une seule carte ---------- */
+.rattachements {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 760px) { .rattachements { grid-template-columns: 1fr; } }
+
+.ratt-col { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+/* Filet de separation plutot qu'une bordure de carte : les deux colonnes sont
+   deux facettes d'une meme reponse, pas deux objets distincts. */
+.ratt-col + .ratt-col { border-left: 1px solid var(--line-soft); }
+
+.ratt-tete {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 16px 9px;
+  font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--ink-soft);
+}
+.ratt-tete mat-icon { width: 15px; height: 15px; font-size: 15px; color: var(--primary); }
+.ratt-tete .cpt {
+  margin-left: auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 19px; height: 18px; padding: 0 6px; border-radius: var(--r-pill);
+  background: var(--marine-050); color: var(--primary);
+  font-size: 11px; font-weight: 700;
+}
+
+/* ---------- Dernieres decisions ---------- */
+.decisions { list-style: none; margin: 0; padding: 6px 10px 10px; }
+.decisions li {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 8px; border-bottom: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  transition: background-color .13s ease;
+}
+.decisions li:last-child { border-bottom: none; }
+.decisions li:hover { background: var(--row-hover); }
+/* Signe en vert, refuse en cramoisi : la decision se lit a la couleur, sans
+   avoir a parcourir le sous-titre de chaque ligne. */
+.decisions .fico { background: var(--vert); }
+.decisions .fico.ko { background: var(--cramoisi); }
+.d-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.d-nom {
+  font-size: 13.5px; font-weight: 600; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.d-sous { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.d-quand {
+  flex: 0 0 auto; font-size: 11.5px; color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sous 1100px la premiere rangee tiendrait en trois colonnes de 200px : les
+   intitules se couperaient. On passe a deux, puis a une. */
+@media (max-width: 1100px) {
+  .c-infos { grid-column: span 12; }
+  .c-dossiers, .c-groupes { grid-column: span 6; }
+}
+@media (max-width: 700px) {
+  .grille-profil > .card { grid-column: span 12; }
+}
+
+.grille-profil .liste { flex: 1; min-height: 0; overflow-y: auto; }
+.grille-profil .infos { flex: 1; align-content: start; }
+
+/* Deux colonnes d'intitules dans la carte d'identite ; une seule des qu'elle
+   passe pleine largeur, sinon les couples se disloquent. */
+.c-infos .infos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 620px) { .c-infos .infos { grid-template-columns: 1fr; } }
+
+/* La liste defile dans sa carte : un proprietaire de trente dossiers ne doit
+   pas faire defiler la page entiere. */
+.duo > .card > .liste { flex: 1; min-height: 0; overflow-y: auto; }
+.duo > .card > .infos { flex: 1; align-content: start; }

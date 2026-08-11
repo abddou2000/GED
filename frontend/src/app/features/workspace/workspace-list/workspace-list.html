@@ -9,18 +9,25 @@
     </button>
   </div>
 
-  <app-stat-tiles></app-stat-tiles>
-
   <div class="card">
     <!-- Barre d'outils -->
-    <div class="toolbar">
-      <mat-button-toggle-group [value]="view()" (change)="setView($event.value)" hideSingleSelectionIndicator>
-        <mat-button-toggle value="table"><mat-icon svgIcon="table"></mat-icon> Tableau</mat-button-toggle>
-        <mat-button-toggle value="tree"><mat-icon svgIcon="tree"></mat-icon> Arbre</mat-button-toggle>
-      </mat-button-toggle-group>
+    <div class="barre">
+      <div class="segments" role="tablist">
+        <button type="button" role="tab" [attr.aria-selected]="view() === 'table'"
+                [class.on]="view() === 'table'" (click)="setView('table')">
+          <mat-icon svgIcon="table"></mat-icon> Tableau
+        </button>
+        <button type="button" role="tab" [attr.aria-selected]="view() === 'tree'"
+                [class.on]="view() === 'tree'" (click)="setView('tree')">
+          <mat-icon svgIcon="tree"></mat-icon> Arbre
+        </button>
+      </div>
 
-      @if (view() === 'table') {
-        <div class="tb-right">
+      <!-- Rafraîchir et Archive restent accessibles dans les deux vues : rangés
+           sous « Tableau » uniquement, ils disparaissaient dans la vue Arbre,
+           qui est pourtant la vue par défaut. -->
+      <div class="tb-right">
+        @if (view() === 'table') {
           <div class="search">
             <mat-icon svgIcon="search"></mat-icon>
             <input aria-label="Rechercher" placeholder="Rechercher…" #si (input)="applySearch(si.value)" />
@@ -31,20 +38,31 @@
               {{ archiveView() ? 'Restaurer' : 'Supprimer' }} ({{ selection.selected.length }})
             </button>
           }
-          <button mat-stroked-button (click)="toggleArchive()">
-            <mat-icon svgIcon="archive"></mat-icon> {{ archiveView() ? 'Actifs' : 'Corbeille' }}
-          </button>
-        </div>
-      }
+        }
+        @if (view() === 'table') {
+          <app-selection-toggle #selToggle (change)="basculerSelection($event)"></app-selection-toggle>
+        <app-column-picker [titre]="ECRAN" [colonnes]="COLONNES"
+                             (visibles)="colonnesVisibles.set($event)"></app-column-picker>
+        }
+        <button mat-icon-button (click)="load()" matTooltip="Rafraîchir" aria-label="Rafraîchir">
+          <mat-icon svgIcon="refresh"></mat-icon>
+        </button>
+        <button mat-stroked-button (click)="toggleArchive()">
+          <mat-icon svgIcon="archive"></mat-icon> {{ archiveView() ? 'Actifs' : 'Archive' }}
+        </button>
+      </div>
     </div>
 
     <!-- ===================== VUE TABLEAU ===================== -->
     @if (view() === 'table') {
       <div class="table-wrap">
-        @if (loading()) {
-          <app-skeleton-table [cols]="displayedColumns.length"></app-skeleton-table>
+        @if (loading() && dataSource.data.length === 0) {
+          <app-skeleton-table [cols]="colonnesVisibles().length"></app-skeleton-table>
         } @else {
-        <table mat-table [dataSource]="dataSource" matSort class="ws-table">
+        <table mat-table [dataSource]="dataSource" matSort
+               [matSortActive]="triChamp()" [matSortDirection]="triDirection()"
+               (matSortChange)="onSort($event)" class="ws-table"
+               [class.selection-on]="modeSelection()">
           <ng-container matColumnDef="select">
             <th mat-header-cell *matHeaderCellDef class="c-chk">
               <mat-checkbox [checked]="isAllSelected()" (change)="toggleAll()"></mat-checkbox>
@@ -54,15 +72,40 @@
             </td>
           </ng-container>
 
+          <ng-container matColumnDef="id">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="id" class="c-id">ID</th>
+            <td mat-cell *matCellDef="let w" class="c-id">{{ w.id }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="code">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="code">Code</th>
+            <td mat-cell *matCellDef="let w"><span class="mono">{{ w.code }}</span></td>
+          </ng-container>
+
+          <ng-container matColumnDef="parent">
+            <th mat-header-cell *matHeaderCellDef>Dossier parent</th>
+            <td mat-cell *matCellDef="let w">
+              @if (w.parent) { {{ w.parent.label }} } @else { <span class="muted">Racine</span> }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef>Description</th>
+            <td mat-cell *matCellDef="let w">
+              @if (w.description) { <span class="desc">{{ w.description }}</span> }
+              @else { <span class="muted">—</span> }
+            </td>
+          </ng-container>
+
           <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>Dossier</th>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Dossier</th>
             <td mat-cell *matCellDef="let w">
               <div class="cell-doc">
                 <span class="fico"><mat-icon svgIcon="folder"></mat-icon></span>
-                <div class="doc-txt">
-                  <div class="d-name">{{ w.name }}</div>
-                  <div class="d-sub">{{ w.code }}@if (w.parent) { · sous {{ w.parent.label }} } @else { · racine }</div>
-                </div>
+                <!-- Le sous-titre répétait le code et le parent, déjà présents
+                     en colonnes : la même information trois fois, et deux
+                     lignes de hauteur pour rien. -->
+                <a class="d-name lien-dossier" [routerLink]="['/espaces-de-travail', w.id]">{{ w.name }}</a>
               </div>
             </td>
           </ng-container>
@@ -71,7 +114,7 @@
             <th mat-header-cell *matHeaderCellDef>Propriétaire</th>
             <td mat-cell *matCellDef="let w">
               @if (w.owner) {
-                <div class="owner"><span class="oav" [style.background]="avatarColor(w.owner.id)">{{ initials(w.owner.label) }}</span>{{ w.owner.label }}</div>
+                <div class="owner"><span class="oav" [style.background]="avatarColor(w.owner.id)" [style.color]="avatarInk(w.owner.id)">{{ initials(w.owner.label) }}</span>{{ w.owner.label }}</div>
               } @else { <span class="muted">—</span> }
             </td>
           </ng-container>
@@ -97,6 +140,7 @@
                 <button mat-icon-button (click)="restoreOne(w.id)" matTooltip="Restaurer" aria-label="Restaurer"><mat-icon svgIcon="restore"></mat-icon></button>
               } @else {
                 <span class="act-row">
+                  <button mat-icon-button (click)="ouvrir(w.id)" matTooltip="Ouvrir le dossier" aria-label="Ouvrir le dossier"><mat-icon svgIcon="folder-open"></mat-icon></button>
                   <button mat-icon-button class="act-edit" (click)="edit(w.id)" matTooltip="Modifier" aria-label="Modifier"><mat-icon svgIcon="edit"></mat-icon></button>
                   <button mat-icon-button class="act-accent" (click)="archiveOne(w.id)" matTooltip="Archiver/Désarchiver" aria-label="Archiver/Désarchiver"><mat-icon svgIcon="archive"></mat-icon></button>
                   <button mat-icon-button class="danger" (click)="remove(w.id, w.name)" matTooltip="Supprimer" aria-label="Supprimer"><mat-icon svgIcon="delete"></mat-icon></button>
@@ -105,14 +149,19 @@
             </td>
           </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+          <tr mat-header-row *matHeaderRowDef="colonnesVisibles()"></tr>
+          <tr mat-row *matRowDef="let row; columns: colonnesVisibles()"></tr>
           <tr class="no-data-row" *matNoDataRow>
-            <td class="no-data" [attr.colspan]="displayedColumns.length">
+            <td class="no-data" [attr.colspan]="colonnesVisibles().length">
               <div class="empty-state">
                 <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
-                <span class="empty-title">Aucun espace de travail</span>
-                <span class="empty-sub">Créez un espace pour commencer à ranger vos documents.</span>
+                @if (archiveView()) {
+                  <span class="empty-title">L'archive est vide</span>
+                  <span class="empty-sub">Aucun dossier supprimé n'attend d'être restauré.</span>
+                } @else {
+                  <span class="empty-title">Aucun espace de travail</span>
+                  <span class="empty-sub">Créez un espace pour commencer à ranger vos documents.</span>
+                }
               </div>
             </td>
           </tr>
@@ -120,7 +169,10 @@
         }
       </div>
       @if (!loading()) {
-        <mat-paginator [pageSizeOptions]="[10, 25, 50]" [pageSize]="10" showFirstLastButtons></mat-paginator>
+        <mat-paginator [pageSizeOptions]="[10, 25, 50]"
+                       [pageSize]="taillePage()" [pageIndex]="pageCourante()"
+                       [length]="total()" (page)="onPage($event)"
+                       showFirstLastButtons></mat-paginator>
       }
     }
 
@@ -146,18 +198,23 @@
   @for (n of nodes; track n.id) {
     <div class="tnode">
       <div class="trow" [style.paddingLeft.px]="depth * 22 + 8">
-        @if (n.children.length) {
-          <button class="texp" (click)="toggleExpand(n.id)">
-            <mat-icon [svgIcon]="isExpanded(n.id) ? 'chevron-down' : 'chevron-right'"></mat-icon>
-          </button>
-        } @else {
-          <span class="tspace"></span>
-        }
-        <mat-icon class="tfolder" [svgIcon]="isExpanded(n.id) && n.children.length ? 'folder-open' : 'folder'"></mat-icon>
-        <span class="tname">{{ n.name }}</span>
+        <!-- Le chevron reste toujours actif : un dossier sans sous-dossier peut
+             tout de même contenir des documents, qu'on ne verrait jamais sinon. -->
+        <button class="texp" [class.ouvert]="isExpanded(n.id)" (click)="toggleExpand(n.id)"
+                [attr.aria-expanded]="isExpanded(n.id)"
+                [attr.aria-label]="isExpanded(n.id) ? 'Replier ' + n.name : 'Déplier ' + n.name">
+          <!-- Un seul chevron qui pivote : échanger deux glyphes produit une
+               coupure nette, le mouvement doit accompagner l'ouverture. -->
+          <mat-icon svgIcon="chevron-right"></mat-icon>
+        </button>
+        <mat-icon class="tfolder" [class.ouvert]="isExpanded(n.id)"
+                  [svgIcon]="isExpanded(n.id) ? 'folder-open' : 'folder'"></mat-icon>
+        <a class="tname lien-dossier" [routerLink]="['/espaces-de-travail', n.id]">{{ n.name }}</a>
 
-        <button mat-icon-button class="tdots" [matMenuTriggerFor]="menu"><mat-icon svgIcon="more"></mat-icon></button>
+        <button mat-icon-button class="tdots" [matMenuTriggerFor]="menu"
+                [attr.aria-label]="'Actions sur ' + n.name"><mat-icon svgIcon="more"></mat-icon></button>
         <mat-menu #menu="matMenu">
+          <button mat-menu-item (click)="ouvrir(n.id)"><mat-icon svgIcon="folder-open"></mat-icon><span>Ouvrir le dossier</span></button>
           <button mat-menu-item (click)="create(n.id)"><mat-icon svgIcon="folder-plus"></mat-icon><span>Créer un sous-dossier</span></button>
           <button mat-menu-item class="act-edit" (click)="edit(n.id)"><mat-icon svgIcon="edit"></mat-icon><span>Modifier</span></button>
           <button mat-menu-item class="act-accent" (click)="archiveOne(n.id)"><mat-icon svgIcon="archive"></mat-icon><span>Archiver / Désarchiver</span></button>
@@ -174,8 +231,33 @@
         </mat-menu>
       </div>
 
-      @if (isExpanded(n.id) && n.children.length) {
-        <ng-container *ngTemplateOutlet="nodeTpl; context: { $implicit: n.children, depth: depth + 1 }"></ng-container>
+      @if (isExpanded(n.id)) {
+        <!-- Conteneur d'ouverture : c'est lui que l'animation déplie. Sans
+             élément unique à cibler, Angular n'a rien à animer — les enfants
+             apparaîtraient d'un bloc. -->
+        <div class="tenfants" @deplier>
+        @if (n.children.length) {
+          <ng-container *ngTemplateOutlet="nodeTpl; context: { $implicit: n.children, depth: depth + 1 }"></ng-container>
+        }
+        <!-- Documents contenus dans ce dossier -->
+        @for (d of docsDe(n.id); track d.id; let i = $index) {
+          <div class="trow tdoc" [style.paddingLeft.px]="(depth + 1) * 22 + 8"
+               [style.--rang]="i">
+            <span class="tspace"></span>
+            <mat-icon class="tfile" svgIcon="nav-type"></mat-icon>
+            <span class="tname">{{ d.name }}</span>
+            @if (d.typeDocument) { <span class="chip-marine tchip">{{ d.typeDocument.label }}</span> }
+            <span class="tsize">{{ d.sizeLabel }}</span>
+            <button mat-icon-button class="tdots" (click)="telecharger(d)" [disabled]="telechargements().has(d.id)"
+                    matTooltip="Télécharger" [attr.aria-label]="'Télécharger ' + d.name">
+              <mat-icon svgIcon="download"></mat-icon>
+            </button>
+          </div>
+        }
+        @if (!n.children.length && !docsDe(n.id).length) {
+          <div class="trow tvide" [style.paddingLeft.px]="(depth + 1) * 22 + 8">Dossier vide</div>
+        }
+        </div>
       }
     </div>
   }

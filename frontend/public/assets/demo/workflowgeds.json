@@ -1,0 +1,36 @@
+{
+ "content": [
+  {
+   "id": 33,
+   "name": "validation medium",
+   "steps": [
+    {
+     "id": 33,
+     "employeId": 2,
+     "employeFullName": "Karim El Fassi",
+     "label": "Karim El Fassi",
+     "stepOrder": 1
+    }
+   ],
+   "workspaces": []
+  },
+  {
+   "id": 1,
+   "name": "Validation standard",
+   "steps": [
+    {
+     "id": 1,
+     "employeId": 1,
+     "employeFullName": "Sara Bennani",
+     "label": "Validation",
+     "stepOrder": 1
+    }
+   ],
+   "workspaces": []
+  }
+ ],
+ "total": 2,
+ "page": 0,
+ "size": 100,
+ "totalPages": 1
+}

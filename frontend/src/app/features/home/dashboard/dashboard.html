@@ -1,85 +1,242 @@
 <div class="page">
-  <!-- En-tête d'accueil — bandeau de prestige -->
-  <section class="hello">
-    <span class="hello-glow" aria-hidden="true"></span>
+  <!-- ===== Bandeau d'accueil =====
+       Scène du cap au couchant, entièrement en SVG. Le viewBox (1400x240) est
+       calé sur les proportions réelles du bandeau pour n'être jamais rogné.
+       Cinq plans se déplacent d'amplitudes différentes au mouvement de la
+       souris : c'est cet écart qui crée la profondeur. -->
+  <section class="hello" (mousemove)="surviser($event)" (mouseleave)="quitter($event)">
+    <svg class="hello-scene" viewBox="0 0 1400 240" preserveAspectRatio="xMidYMid slice"
+         aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="ciel" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3f79d4" />
+          <stop offset="28%" stop-color="#69a0e8" />
+          <stop offset="50%" stop-color="#93c0f2" />
+          <stop offset="68%" stop-color="#b8d8f7" />
+          <stop offset="82%" stop-color="#d8ebfb" />
+          <stop offset="93%" stop-color="#ecf5fe" />
+          <stop offset="100%" stop-color="#f8fcff" />
+        </linearGradient>
 
-    <div class="hello-id">
-      <span class="hello-av">{{ initials() }}</span>
-      <div class="hello-txt">
-        <h1>Bonjour, <strong>{{ firstName() }}</strong></h1>
-        <p class="date">
-          <mat-icon svgIcon="calendar"></mat-icon>{{ todayLabel }}
+        <!-- Trois halos étagés : un seul dégradé donne un cercle net, la
+             lumière réelle décroît par paliers irréguliers. -->
+        <radialGradient id="halo-large">
+          <stop offset="0%" stop-color="#ffcf8f" stop-opacity=".38" />
+          <stop offset="100%" stop-color="#ff9a4d" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient id="halo-moyen">
+          <stop offset="0%" stop-color="#ffe6b8" stop-opacity=".62" />
+          <stop offset="100%" stop-color="#ffb066" stop-opacity="0" />
+        </radialGradient>
+        <radialGradient id="halo-proche">
+          <stop offset="0%" stop-color="#fffaf0" stop-opacity=".95" />
+          <stop offset="60%" stop-color="#ffe0a8" stop-opacity=".5" />
+          <stop offset="100%" stop-color="#ffc178" stop-opacity="0" />
+        </radialGradient>
+        <linearGradient id="glare" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffd79a" stop-opacity="0" />
+          <stop offset="50%" stop-color="#fff2d6" stop-opacity=".5" />
+          <stop offset="100%" stop-color="#ffd79a" stop-opacity="0" />
+        </linearGradient>
+
+        <linearGradient id="mer" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#eaa268" />
+          <stop offset="12%" stop-color="#a85a5c" />
+          <stop offset="45%" stop-color="#422c58" />
+          <stop offset="100%" stop-color="#151a3c" />
+        </linearGradient>
+
+        <linearGradient id="faisceau" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffe6b8" stop-opacity=".45" />
+          <stop offset="55%" stop-color="#ffd79a" stop-opacity=".1" />
+          <stop offset="100%" stop-color="#ffd79a" stop-opacity="0" />
+        </linearGradient>
+
+        <linearGradient id="nuage" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#241c46" stop-opacity=".8" />
+          <stop offset="100%" stop-color="#c4744f" stop-opacity=".62" />
+        </linearGradient>
+
+        <linearGradient id="lisere" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffb877" stop-opacity="0" />
+          <stop offset="55%" stop-color="#ffc98a" stop-opacity=".22" />
+          <stop offset="100%" stop-color="#ffe0ad" stop-opacity=".85" />
+        </linearGradient>
+
+        <linearGradient id="brume" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffc98a" stop-opacity="0" />
+          <stop offset="50%" stop-color="#ffd9a8" stop-opacity=".34" />
+          <stop offset="100%" stop-color="#ffc98a" stop-opacity="0" />
+        </linearGradient>
+
+        <radialGradient id="vignette" cx="50%" cy="46%" r="72%">
+          <stop offset="55%" stop-color="#000" stop-opacity="0" />
+          <stop offset="100%" stop-color="#000" stop-opacity=".42" />
+        </radialGradient>
+
+        <filter id="flou-loin" x="-20%" y="-40%" width="140%" height="180%">
+          <feGaussianBlur stdDeviation="1.6" />
+        </filter>
+        <filter id="flou-nuage" x="-20%" y="-80%" width="140%" height="260%">
+          <feGaussianBlur stdDeviation="4" />
+        </filter>
+        <filter id="flou-doux" x="-30%" y="-60%" width="160%" height="220%">
+          <feGaussianBlur stdDeviation="2.4" />
+        </filter>
+
+        <filter id="bruit">
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" />
+          <feColorMatrix type="saturate" values="0" />
+        </filter>
+        <pattern id="grain" width="160" height="160" patternUnits="userSpaceOnUse">
+          <rect width="160" height="160" filter="url(#bruit)" opacity=".5" />
+        </pattern>
+      </defs>
+
+      <!-- PLAN 1 — le ciel et le soleil -->
+      <g class="plan plan-ciel">
+        <rect x="-60" y="-30" width="1520" height="310" fill="url(#ciel)" />
+        <g class="soleil">
+          <ellipse class="astre-halo" cx="1010" cy="146" rx="260" ry="190" fill="url(#halo-large)" />
+          <circle cx="1010" cy="146" r="120" fill="url(#halo-moyen)" />
+          <circle cx="1010" cy="147" r="52" fill="url(#halo-proche)" />
+          <rect x="700" y="140" width="620" height="14" rx="7" fill="url(#glare)" filter="url(#flou-doux)" />
+          <circle class="astre" cx="1010" cy="148" r="20" fill="#fff6e2" />
+        </g>
+      </g>
+
+      <!-- PLAN 2 — les nuages, fondus : un bord net trahit le vecteur -->
+      <g class="plan plan-nuages" filter="url(#flou-nuage)">
+        <path class="nuee n1" d="M760 62 C860 50 1020 50 1140 58 C1240 65 1300 72 1360 70
+                                 C1280 82 1120 84 980 80 C880 77 810 71 760 62 Z" fill="url(#nuage)" />
+        <path class="nuee n2" d="M880 104 C960 96 1080 95 1180 100 C1250 104 1300 108 1340 107
+                                 C1270 116 1130 118 1020 114 C940 111 910 109 880 104 Z" fill="url(#nuage)" opacity=".8" />
+        <path class="nuee n3" d="M1040 30 C1120 24 1240 24 1330 29 C1250 37 1130 39 1040 30 Z"
+              fill="url(#nuage)" opacity=".55" />
+      </g>
+
+      <!-- PLAN 3 — la mer, la brume d'horizon et la côte lointaine -->
+      <g class="plan plan-mer">
+        <rect x="-60" y="150" width="1520" height="122" fill="url(#mer)" />
+        <path d="M1460 150 L1330 136 L1258 145 L1196 138 L1150 150 Z"
+              fill="#6a4a72" opacity=".72" filter="url(#flou-loin)" />
+        <rect x="-60" y="140" width="1520" height="22" fill="url(#brume)" filter="url(#flou-doux)" />
+        <g class="trainee" fill="#ffdcac" filter="url(#flou-doux)">
+          <rect x="994" y="156" width="32" height="3" rx="1.5" />
+          <rect x="980" y="167" width="60" height="3" rx="1.5" />
+          <rect x="998" y="179" width="24" height="2.5" rx="1.2" />
+          <rect x="962" y="191" width="96" height="3" rx="1.5" />
+          <rect x="1000" y="204" width="20" height="2.5" rx="1.2" />
+          <rect x="944" y="217" width="132" height="3" rx="1.5" />
+          <rect x="988" y="230" width="44" height="2.5" rx="1.2" />
+        </g>
+      </g>
+
+      <!-- PLAN 4 — le cap et le phare -->
+      <g class="plan plan-cap">
+        <path id="crete" d="M-60 260 L-60 168 C60 164 150 156 240 142 C310 131 370 122 420 120
+                 C480 118 530 128 580 140 C620 149 650 155 690 158 L690 260 Z"
+              fill="#0b0f28" />
+        <use href="#crete" fill="none" stroke="url(#lisere)" stroke-width="1.6" />
+
+        <g class="phare">
+          <path class="faisceau" d="M420 76 L1120 34 L1120 126 Z" fill="url(#faisceau)" filter="url(#flou-doux)" />
+          <path d="M410 122 L415 82 L425 82 L430 122 Z" fill="#080c20" />
+          <path d="M392 122 L392 108 L448 108 L448 122 Z" fill="#080c20" />
+          <rect x="406" y="78" width="28" height="4.5" rx="1.5" fill="#080c20" />
+          <path d="M425 82 L430 122" stroke="#ffd9a8" stroke-width="1.1" opacity=".55" />
+          <circle class="lampe-halo" cx="420" cy="70" r="19" fill="#ffe3ad" filter="url(#flou-doux)" />
+          <rect class="lampe" x="413" y="64" width="14" height="14" rx="2" fill="#fff6e2" />
+          <path d="M411 64 L420 55 L429 64 Z" fill="#080c20" />
+        </g>
+      </g>
+
+      <!-- PLAN 5 — premier plan -->
+      <g class="plan plan-avant">
+        <path d="M-60 260 L-60 196 C70 192 170 182 270 168 C350 157 420 152 480 156
+                 C540 160 590 174 640 190 L640 260 Z"
+              fill="#05081a" />
+        <g fill="#ffc98a">
+          <rect class="lucarne l1" x="196" y="176" width="3.5" height="3" />
+          <rect class="lucarne l2" x="248" y="168" width="3.5" height="3" />
+          <rect class="lucarne l3" x="312" y="158" width="3" height="2.5" />
+          <rect class="lucarne l4" x="150" y="184" width="3.5" height="3" />
+          <rect class="lucarne l5" x="372" y="154" width="3" height="2.5" />
+          <rect class="lucarne l2" x="432" y="160" width="3" height="2.5" />
+        </g>
+      </g>
+
+      <!-- Oiseaux : ils donnent l'ÉCHELLE, sans eux rien ne dit si le cap fait
+           dix mètres ou cent. -->
+      <g class="oiseaux" stroke="#1a1636" stroke-width="1.3" fill="none" opacity=".55" stroke-linecap="round">
+        <path d="M840 66 q4 -3.5 8 0 M848 66 q4 -3.5 8 0" />
+        <path d="M886 52 q3 -2.6 6 0 M892 52 q3 -2.6 6 0" />
+        <path d="M812 84 q2.6 -2.2 5.2 0 M817 84 q2.6 -2.2 5.2 0" />
+      </g>
+
+      <!-- Grain puis vignettage : les deux gestes de l'objectif. -->
+      <rect x="-60" y="-30" width="1520" height="310" fill="url(#grain)"
+            opacity=".13" style="mix-blend-mode: overlay" />
+      <rect x="-60" y="-30" width="1520" height="310" fill="url(#vignette)" />
+
+      <!-- Voile de nuit : il se referme au rythme de la descente du soleil. -->
+      <rect class="nuit" x="-60" y="-30" width="1520" height="310" fill="#050a1c" />
+    </svg>
+
+    <!-- Arc lumineux à l'extrême droite : la courbure ouvre le cadre. -->
+    <svg class="hello-arc" viewBox="0 0 200 220" fill="none" aria-hidden="true" focusable="false">
+      <circle cx="200" cy="110" r="150" stroke="rgba(255,213,148,.34)" stroke-width="1.4" />
+      <circle cx="200" cy="110" r="186" stroke="rgba(255,213,148,.18)" stroke-width="1.2" />
+    </svg>
+
+    <div class="hello-txt">
+      <!-- Deux temps, superposés dans la même cellule de grille : la
+           salutation accueille, puis l'application se nomme. Empilés plutôt
+           que remplacés, ils occupent la même place et rien ne saute au
+           changement. -->
+      <div class="phases">
+        <h1 class="salutation">
+          <span class="salut">Bonjour,</span>
+          <span class="prenom">{{ firstName() }}</span>
+        </h1>
+        <p class="bienvenue">
+          <span class="bv-intro">Bienvenue à l'application</span>
+          <span class="bv-nom">GED <strong>Marchica Med</strong></span>
         </p>
       </div>
+      <span class="filet" aria-hidden="true"></span>
     </div>
 
-    <a routerLink="/televerser" class="hello-cta">
-      <mat-icon svgIcon="add"></mat-icon><span>Déposer un document</span>
-    </a>
   </section>
 
-  <!-- Indicateurs -->
-  <app-stat-tiles />
+  <!-- ===== Barre du tableau de bord =====
+       Elle ne porte qu'une chose : l'accès au réglage. Un titre « Tableau de
+       bord » au-dessus d'un tableau de bord n'apprendrait rien à personne. -->
+  <div class="tdb-barre">
+    <span class="tdb-date">{{ todayLabel }}</span>
+    <button type="button" class="tdb-perso" (click)="personnaliser()">
+      <mat-icon svgIcon="sliders"></mat-icon> Personnaliser
+    </button>
+  </div>
 
-  <!-- Grille principale -->
-  <div class="dash">
-    <!-- À valider -->
-    <section class="card ca-pending">
-      <div class="card-head">
-        <div class="ch-title">
-          <mat-icon svgIcon="nav-mesworkflow"></mat-icon>
-          <h2>À valider</h2>
-          @if (pending().length) { <span class="count">{{ pending().length }}</span> }
-        </div>
-        <a routerLink="/mes-workflow" class="see-all">Tout voir</a>
-      </div>
-
-      @if (pendingLoading()) {
-        <div class="hint-line">Chargement…</div>
-      } @else if (pending().length === 0) {
-        <div class="empty">
-          <span class="empty-ic ok"><mat-icon svgIcon="nav-mesworkflow"></mat-icon></span>
-          <div class="empty-title">Vous êtes à jour</div>
-          <div class="empty-sub">Aucun document n'attend votre signature.</div>
-        </div>
-      } @else {
-        <ul class="list">
-          @for (s of pending().slice(0, 5); track s.id) {
-            <li class="row">
-              <span class="fico"><mat-icon svgIcon="nav-type"></mat-icon></span>
-              <div class="rtxt">
-                <div class="rname">{{ s.document?.label }}</div>
-                <div class="rsub">
-                  <span class="tag">Étape {{ s.stepOrder }} · {{ s.stepLabel }}</span>
-                  @if (s.workspace) { <span class="rmeta">{{ s.workspace }}</span> }
-                </div>
-              </div>
-              <a mat-stroked-button routerLink="/mes-workflow" class="treat">
-                Traiter <mat-icon svgIcon="chevron-right"></mat-icon>
-              </a>
-            </li>
-          }
-        </ul>
-      }
-    </section>
-
-    <!-- Raccourcis -->
-    <section class="card ca-shortcuts">
-      <div class="card-head">
-        <div class="ch-title"><mat-icon svgIcon="nav-workflow"></mat-icon><h2>Raccourcis</h2></div>
-      </div>
-      <div class="shortcuts">
-        @for (sc of shortcuts; track sc.route) {
-          <a class="sc" [routerLink]="sc.route">
-            <span class="sc-ic" [class]="sc.cls"><mat-icon [svgIcon]="sc.icon"></mat-icon></span>
-            <span class="sc-txt">
-              <span class="sc-label">{{ sc.label }}</span>
-              <span class="sc-hint">{{ sc.hint }}</span>
-            </span>
-            <mat-icon class="sc-go" svgIcon="chevron-right"></mat-icon>
-          </a>
+  <!-- ===== Encarts =====
+       Une grille de 12 colonnes : chaque encart déclare sa largeur dans le
+       catalogue, et l'ordre suit strictement les préférences. Le gabarit ne
+       décide de rien — il rend ce que le service a retenu. -->
+  <div class="tdb">
+    @for (w of prefs.visibles(); track w.cle) {
+      <div class="case" [style.--colonnes]="w.colonnes">
+        @switch (w.cle) {
+          @case ('indicateurs')       { <app-stat-tiles /> }
+          @case ('a-valider')         { <app-w-a-valider /> }
+          @case ('raccourcis')        { <app-w-raccourcis /> }
+          @case ('documents-recents') { <app-w-documents-recents /> }
+          @case ('activite')          { <app-w-activite /> }
+          @case ('espaces')           { <app-w-espaces /> }
+          @case ('repartition')       { <app-w-repartition /> }
+          @case ('depots')            { <app-w-depots /> }
         }
       </div>
-    </section>
+    }
   </div>
 </div>

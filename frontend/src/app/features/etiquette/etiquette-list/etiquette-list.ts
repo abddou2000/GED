@@ -1,7 +1,7 @@
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
-import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
-import { MatSort, MatSortModule } from '@angular/material/sort';
+import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -9,12 +9,16 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { FormsModule } from '@angular/forms';
 import { SelectionModel } from '@angular/cdk/collections';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ColumnPicker } from '../../../core/column-picker/column-picker';
+import { ColonneDef } from '../../../core/column-prefs.service';
 import { EtiquetteService } from '../etiquette.service';
 import { Etiquette } from '../etiquette.model';
 import { EtiquetteForm } from '../etiquette-form/etiquette-form';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
+import { SelectionToggle } from '../../../core/selection-toggle/selection-toggle';
 
 /**
  * Écran « Étiquette » — CRUD, corbeille, recherche. Création / édition en boîte de dialogue.
@@ -22,49 +26,121 @@ import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
 @Component({
   selector: 'app-etiquette-list',
   imports: [
+    SelectionToggle,
     FormsModule, MatTableModule, MatPaginatorModule, MatSortModule, MatButtonModule,
-    MatIconModule, MatCheckboxModule, MatTooltipModule, MatDialogModule, SkeletonTable,
+    MatIconModule, MatCheckboxModule, MatTooltipModule, MatDialogModule, SkeletonTable, ColumnPicker,
   ],
   templateUrl: './etiquette-list.html',
   styleUrl: './etiquette-list.scss',
 })
 export class EtiquetteList implements OnInit {
+
+  /**
+   * Mode selection : les cases a cocher n'apparaissent que lorsqu'on le
+   * demande. Sortir du mode vide la selection — laisser des lignes cochees
+   * mais invisibles exposerait a une action groupee non voulue.
+   */
+  readonly modeSelection = signal(false);
+  basculerSelection(actif: boolean): void {
+    this.modeSelection.set(actif);
+    if (!actif) this.selection.clear();
+  }
   private service = inject(EtiquetteService);
   private dialog = inject(MatDialog);
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   dataSource = new MatTableDataSource<Etiquette>([]);
   selection = new SelectionModel<Etiquette>(true, []);
   archiveView = signal(false);
   loading = signal(true);
-  displayedColumns = ['select', 'id', 'code', 'tag', 'couleur', 'actions'];
+  /**
+   * Clé des préférences de colonnes. Reprend le nom d'écran de l'application
+   * d'origine pour qu'un utilisateur passant d'une GED à l'autre retrouve les
+   * colonnes qu'il avait masquées.
+   */
+  readonly ECRAN = 'etiquettes';
 
-  @ViewChild(MatPaginator) set paginator(p: MatPaginator) { if (p) this.dataSource.paginator = p; }
-  @ViewChild(MatSort) set sort(s: MatSort) { if (s) this.dataSource.sort = s; }
+  readonly COLONNES: ColonneDef[] = [
+    { cle: 'select', libelle: '', toujours: true },
+    { cle: 'id', libelle: 'ID' },
+    { cle: 'code', libelle: 'Code' },
+    { cle: 'tag', libelle: 'Étiquette' },
+    { cle: 'couleur', libelle: 'Couleur' },
+    { cle: 'actions', libelle: 'Actions', toujours: true },
+  ];
+  colonnesVisibles = signal<string[]>(['select', 'id', 'code', 'tag', 'couleur', 'actions']);
+
+  /** Taille de page mémorisée entre deux visites, comme l'original. */
+  private static readonly CLE_TAILLE = 'etiquettes-pagination';
+  taillePage = signal(Number(localStorage.getItem(EtiquetteList.CLE_TAILLE)) || 10);
+  pageCourante = signal(0);
+  recherche = signal('');
+  total = signal(0);
+  triChamp = signal('');
+  triSens = signal<'asc' | 'desc'>('desc');
+  readonly triDirection = computed<'' | 'asc' | 'desc'>(() =>
+    this.triChamp() ? this.triSens() : '');
 
   ngOnInit(): void {
-    this.dataSource.filterPredicate = (e, f) => (e.tag + ' ' + e.code).toLowerCase().includes(f);
-    this.load();
+    // L'archive vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
+    // ailleurs ramenait aux étiquettes actives sans prévenir.
+    this.route.queryParamMap.subscribe(q => {
+      const archive = q.get('trashed') === '1';
+      if (archive !== this.archiveView()) {
+        this.archiveView.set(archive);
+        this.pageCourante.set(0);
+      }
+      this.load();
+    });
   }
 
+  /** Recherche, tri et pagination côté serveur : tout charger pour filtrer
+   *  localement casse dès que la base grossit. */
   load(): void {
     this.selection.clear();
     this.loading.set(true);
-    const call = this.archiveView() ? this.service.trashed(0, 1000, '') : this.service.list(0, 1000, '');
-    call.subscribe({
-      next: res => { this.dataSource.data = res.content; this.loading.set(false); },
+    const source = this.archiveView() ? this.service.trashed : this.service.list;
+    source.call(this.service, this.pageCourante(), this.taillePage(), this.recherche(),
+                this.triChamp(), this.triSens()).subscribe({
+      next: res => {
+        this.dataSource.data = res.content;
+        this.total.set(res.total);
+        this.loading.set(false);
+      },
       error: () => { this.loading.set(false); this.notify.error('Chargement impossible.'); },
     });
   }
 
+  onSort(e: Sort): void {
+    this.triChamp.set(e.direction ? e.active : '');
+    this.triSens.set(e.direction === 'asc' ? 'asc' : 'desc');
+    this.pageCourante.set(0);
+    this.load();
+  }
+
+  onPage(e: { pageIndex: number; pageSize: number }): void {
+    this.pageCourante.set(e.pageIndex);
+    if (e.pageSize !== this.taillePage()) {
+      this.taillePage.set(e.pageSize);
+      localStorage.setItem(EtiquetteList.CLE_TAILLE, String(e.pageSize));
+    }
+    this.load();
+  }
+
   applySearch(v: string): void {
-    this.dataSource.filter = (v ?? '').trim().toLowerCase();
+    this.recherche.set((v ?? '').trim());
+    this.pageCourante.set(0);
+    this.load();
   }
 
   toggleArchive(): void {
-    this.archiveView.update(a => !a);
-    this.load();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.archiveView() ? {} : { trashed: 1 },
+    });
   }
 
   /* ---- sélection ---- */

@@ -9,17 +9,17 @@ export class WorkflowService {
   private http = inject(HttpClient);
   private url = `${API_BASE}/workflowgeds`;
 
-  /** Liste active (hors corbeille), paginée + recherche. */
-  list(page = 0, size = 10, search = ''): Observable<PageResult<Workflow>> {
+  /** Liste active (hors corbeille), paginée + recherche + tri. */
+  list(page = 0, size = 10, search = '', sortBy = '', sortDir = 'desc'): Observable<PageResult<Workflow>> {
     return this.http.get<PageResult<Workflow>>(this.url, {
-      params: { page, size, search },
+      params: { page, size, search, sortBy, sortDir },
     });
   }
 
   /** Corbeille (éléments archivés). */
-  trashed(page = 0, size = 10, search = ''): Observable<PageResult<Workflow>> {
+  trashed(page = 0, size = 10, search = '', sortBy = '', sortDir = 'desc'): Observable<PageResult<Workflow>> {
     return this.http.get<PageResult<Workflow>>(`${this.url}/trashed`, {
-      params: { page, size, search },
+      params: { page, size, search, sortBy, sortDir },
     });
   }
 

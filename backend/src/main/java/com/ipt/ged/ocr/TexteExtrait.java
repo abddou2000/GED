@@ -1,5 +1,7 @@
 package com.ipt.ged.ocr;
 
+import java.util.List;
+
 /**
  * Texte tiré d'un document, avec la façon dont il a été obtenu.
  *
@@ -7,7 +9,18 @@ package com.ipt.ged.ocr;
  * fiable, un OCR sur scan ne l'est pas au même degré. L'opérateur doit pouvoir
  * en tenir compte avant de valider une indexation.
  */
-public record TexteExtrait(String texte, Provenance provenance, int nbPages, String detail) {
+public record TexteExtrait(String texte, Provenance provenance, int nbPages, String detail,
+                           List<MotOcr> mots) {
+
+    /** Extraction sans coordonnées : couche texte native, formats bureautiques. */
+    public TexteExtrait(String texte, Provenance provenance, int nbPages, String detail) {
+        this(texte, provenance, nbPages, detail, List.of());
+    }
+
+    /** Le moteur a-t-il rendu la position des mots ? */
+    public boolean avecPositions() {
+        return mots != null && !mots.isEmpty();
+    }
 
     public enum Provenance {
         /** Couche texte du PDF, lue telle quelle — fiable. */

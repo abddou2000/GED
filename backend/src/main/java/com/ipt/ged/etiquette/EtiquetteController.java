@@ -28,16 +28,20 @@ public class EtiquetteController {
     public PageResponse<EtiquetteResponse> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "") String search) {
-        return service.list(page, size, search);
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
+        return service.list(page, size, search, sortBy, sortDir);
     }
 
     @GetMapping("/trashed")
     public PageResponse<EtiquetteResponse> trashed(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "") String search) {
-        return service.trashed(page, size, search);
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
+        return service.trashed(page, size, search, sortBy, sortDir);
     }
 
     @GetMapping("/for-select")
