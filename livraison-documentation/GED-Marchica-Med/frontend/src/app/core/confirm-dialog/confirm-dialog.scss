@@ -1,0 +1,37 @@
+:host { display: block; }
+
+.cd { padding: 22px 22px 18px; }
+
+.cd-ic {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--marine-700); color: #fff;
+}
+.cd-ic mat-icon { width: 22px; height: 22px; font-size: 22px; }
+.cd.danger .cd-ic { background: var(--danger); color: #fff; }
+
+.cd-title { margin: 13px 0 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+/* `pre-line` : les retours à la ligne du message sont respectés, les espaces
+   d'indentation non. Une confirmation qui énumère ce sur quoi elle porte — les
+   documents d'une action groupée, par exemple — voyait sinon sa liste écrasée
+   en un seul paragraphe, ce qui est précisément ce qu'on ne peut pas relire
+   avant de valider. */
+.cd-msg {
+  margin: 7px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft);
+  white-space: pre-line;
+}
+
+.cd-field { width: 100%; display: block; margin-top: 16px; }
+.cd-err { color: var(--danger); font-size: 12.5px; margin-top: -4px; }
+
+.cd-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+/* Bouton de confirmation : marine par défaut, cramoisi en mode danger (via tokens MDC) */
+.cd-confirm.mat-mdc-unelevated-button {
+  --mdc-filled-button-container-color: var(--marine-700);
+  --mdc-filled-button-label-text-color: #fff;
+  font-weight: 600;
+}
+.cd-confirm.is-danger.mat-mdc-unelevated-button {
+  --mdc-filled-button-container-color: var(--danger);
+}

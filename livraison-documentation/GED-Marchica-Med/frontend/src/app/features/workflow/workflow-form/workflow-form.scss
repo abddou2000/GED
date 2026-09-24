@@ -1,0 +1,43 @@
+.wf-form { display: flex; flex-direction: column; gap: 4px; min-width: 520px; }
+.full { width: 100%; }
+
+.steps-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 8px 0 12px;
+}
+.steps-title { font-weight: 600; color: var(--ink); font-size: 14px; }
+
+.empty {
+  text-align: center; padding: 20px; color: var(--ink-soft); font-size: 13px;
+  border: 1px dashed var(--line); border-radius: 8px; margin-bottom: 8px;
+}
+
+.steps-list { display: flex; flex-direction: column; gap: 8px; }
+
+.step-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--surface); box-sizing: border-box;
+}
+.drag-handle { color: var(--ink-soft); cursor: grab; margin-top: 14px; }
+.drag-handle:active { cursor: grabbing; }
+.step-num {
+  width: 24px; height: 24px; border-radius: 6px; background: var(--ink); color: #f4f1ea;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; margin-top: 12px; flex: 0 0 auto;
+}
+.grow { flex: 1; }
+.del { margin-top: 6px; color: var(--danger); }
+
+.server-error {
+  background: #f8ece8; color: var(--danger); border: 1px solid #e3c3b8;
+  padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 8px;
+}
+
+/* aperçu pendant le glisser-déposer */
+.cdk-drag-preview { border-radius: 10px; box-shadow: 0 8px 24px rgba(26,23,18,.25); }
+.cdk-drag-placeholder { opacity: 0.35; }
+.cdk-drop-list-dragging .step-row:not(.cdk-drag-placeholder) { transition: transform 180ms ease; }
+
+/* Message de validation des étapes — même rouge que les erreurs de champ */
+.erreur-etapes { margin: 0 0 8px; font-size: 12.5px; color: var(--danger); }

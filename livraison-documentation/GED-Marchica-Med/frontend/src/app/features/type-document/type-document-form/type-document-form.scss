@@ -1,0 +1,14 @@
+.td-form {
+  display: flex; flex-direction: column; gap: 4px;
+  padding-top: 6px; min-width: 480px;
+}
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+.grow { flex: 1; min-width: 200px; }
+.full { width: 100%; }
+.sm { width: 140px; flex: 0 0 140px; }
+
+.server-error {
+  color: var(--danger); font-size: 13px; margin-top: 8px;
+  background: #fbecec; border: 1px solid #f2d3d0; border-radius: 8px; padding: 8px 10px;
+}

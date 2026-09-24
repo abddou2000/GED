@@ -1,0 +1,12 @@
+[
+ {
+  "nom": "PDF natif (PDFBox)",
+  "priorite": 10,
+  "disponible": true
+ },
+ {
+  "nom": "Tesseract (tesseract, fra+eng)",
+  "priorite": 20,
+  "disponible": false
+ }
+]

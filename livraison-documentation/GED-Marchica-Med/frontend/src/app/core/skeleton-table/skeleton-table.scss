@@ -1,0 +1,25 @@
+:host { display: block; }
+
+.sk { padding: 2px 0 8px; }
+.sk-row {
+  display: flex; align-items: center; gap: 22px;
+  padding: 13px 6px; border-bottom: 1px solid var(--line-soft);
+}
+.sk-head { border-bottom: 1px solid var(--line); }
+.sk-cell { flex: 1; min-width: 0; }
+
+.sk-bar {
+  display: block; height: 12px; border-radius: 6px; width: 60%;
+  background: linear-gradient(90deg, var(--surface) 25%, #e7ecf3 37%, var(--surface) 63%);
+  background-size: 400% 100%;
+  animation: sk-shimmer 1.4s ease infinite;
+}
+.sk-head .sk-bar { height: 9px; width: 42%; }
+
+@keyframes sk-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-bar { animation: none; }
+}

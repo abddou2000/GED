@@ -1,0 +1,635 @@
+/* ============================================================
+   _ui.scss — Langage visuel commun GED (design system, direction A)
+   Importé globalement par styles.scss. Source unique du style des
+   écrans : cartes, tableaux, chips, pastilles, avatars, états vides.
+   Aucune duplication par écran, aucun !important.
+   ============================================================ */
+
+/* ---------- Layout d'écran ---------- */
+/* Coque à hauteur fixe (pas de défilement de page, cf. styles.scss/shell.scss) :
+   .page occupe toute la hauteur donnée par .content et la répartit en colonne
+   — titre et tuiles gardent leur taille naturelle, .card prend le reste. */
+.page {
+  max-width: none; padding: 0 24px 32px;   /* pleine largeur — style UBold */
+  flex: 1; min-height: 0;   /* percentage height ne s'impose pas de façon fiable
+                               sur un enfant flex ; flex:1 le fait toujours */
+  display: flex; flex-direction: column;
+  /* Filet de sécurité : un écran qui empile plusieurs cartes au-delà de la
+     hauteur disponible défile ici, à l'intérieur du cadre — la coque, elle,
+     ne bouge jamais. */
+  overflow-y: auto;
+}
+
+/* Dans une colonne flex, un enfant se comprime par défaut (`flex-shrink: 1`) :
+   dès que le contenu dépasse la hauteur disponible, les blocs sont écrasés au
+   lieu de faire défiler la zone. C'est ce qui rognait la bannière d'accueil.
+   On fige donc tous les enfants directs à leur hauteur naturelle ; seul le bloc
+   qui doit occuper le reste s'y soustrait explicitement (voir `.card:has(…)`). */
+.page > * { flex: 0 0 auto; }
+
+/* Barre de titre de page — style UBold (.page-title-head, min-height 70px) */
+.page-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-4); min-height: 70px; margin-bottom: 0;
+  flex: 0 0 auto;
+}
+.page-head h1 {
+  margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0;
+  color: var(--ink);            /* titre sombre — pas coloré (UBold) */
+}
+.breadcrumb { margin: 3px 0 0; font-size: 12px; color: var(--faint); }
+
+/* app-stat-tiles (quand présent) garde sa hauteur naturelle, ne rétrécit pas */
+app-stat-tiles { flex: 0 0 auto; }
+
+/* ---------- Carte / panneau — style UBold (sans bordure, ombre douce) ---------- */
+.card {
+  background: var(--surface-0); border: 0; border-radius: var(--r-card);
+  padding: 24px 26px 16px; box-shadow: var(--sh-card);
+  display: flex; flex-direction: column;
+  /* Par défaut une carte prend la hauteur de son contenu : un écran qui en
+     empile plusieurs (réglages, recherche) ne doit pas les voir se partager
+     l'espace à parts égales et s'écraser mutuellement. */
+  flex: 0 0 auto;
+}
+
+/* Seule la carte qui porte une pagination s'étire pour occuper le reste : elle
+   seule a besoin d'un bas de cadre fixe où l'épingler. Viser « une carte qui
+   contient un tableau » serait trop large — les groupes de résultats de la
+   recherche en contiennent un chacun et se partageraient la hauteur. */
+.card:has(> .mat-mdc-paginator) { flex: 1; min-height: 0; }
+
+/* .table-wrap est la SEULE zone qui défile en interne si trop de lignes —
+   jamais la page entière (topbar/menu/titre/tuiles) qui, elle, ne bouge pas.
+   Le paginateur vit hors de .table-wrap (frère dans .card, cf. markup des
+   écrans de liste) pour ne jamais partir en défilement avec le tableau. */
+.table-wrap { flex: 1; min-height: 0; overflow-y: auto; }
+.mat-mdc-paginator { flex: 0 0 auto; }
+
+/* ---------- Barre d'outils = en-tête de carte UBold (filet pointillé pleine largeur) ---------- */
+/* Bandeau pose, identique a `.barre` des ecrans deja repris. Le filet
+   pointille ne bornait rien : les commandes flottaient au-dessus du tableau
+   sans qu'on sache ou finissait l'une et ou commencait l'autre. Redefini ici
+   plutot qu'ecran par ecran — toutes les listes suivent d'un coup. */
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3); flex-wrap: wrap;
+  margin: -24px -26px 16px; padding: 13px 18px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-0) 100%);
+  border-bottom: 1px solid var(--line);
+}
+.toolbar .left { display: flex; align-items: center; gap: 6px; }
+.toolbar .right, .tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.search {
+  display: flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: 6px 10px; background: var(--surface); width: 260px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.search:focus-within { border-color: var(--navy); box-shadow: 0 0 0 3px var(--marine-050); }
+.search mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--ink-soft); }
+.search input { border: none; outline: none; background: transparent; width: 100%; font-size: 14px; color: var(--ink); }
+button.mat-mdc-outlined-button.bulk { color: var(--danger); }
+
+/* ---------- Tableaux (global) ---------- */
+.table-wrap { overflow-x: auto; }
+.mat-mdc-table { width: 100%; background: transparent; }
+/* En-tête de tableau : fond blanc, intitulé sombre et gras, casse d'origine.
+   Les petites capitales grises se lisaient comme une légende ; en gras sombre,
+   l'en-tête nomme franchement sa colonne. Seul le filet du bas le sépare. */
+/* En-tete pose et collant : sur fond transparent il se confondait avec la
+   premiere ligne, et il disparaissait des qu'on faisait defiler la liste --
+   on ne savait plus quelle colonne on lisait. */
+.mat-mdc-table th.mat-mdc-header-cell {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--table-head); color: var(--table-head-ink);
+  font-weight: 700; font-size: 13px;
+  text-transform: none; letter-spacing: 0;
+  /* Filet marine plutôt que gris : il ferme la bande au lieu de la laisser
+     fondre dans la première ligne. */
+  border-bottom: 1px solid var(--table-head-line);
+  padding-top: 11px; padding-bottom: 11px;
+}
+/* Densité des listes : ces écrans sont des files de travail où l'on enchaîne
+   des dizaines de lignes. Voir plus de lignes d'un coup vaut mieux qu'aérer une
+   ligne isolée — d'où un rythme vertical serré, appliqué à toutes les listes. */
+/* Densite et separation.
+   ------------------------------------------------------------------------
+   55px de hauteur pour une seule ligne de texte : la liste respirait tellement
+   qu'on ne voyait plus que neuf entrees sur un ecran entier. Et sans filet,
+   rien ne bornait une ligne -- l'oeil sautait d'une colonne a la voisine du
+   dessus en suivant la ligne du regard. */
+.mat-mdc-table td.mat-mdc-cell {
+  font-size: 13.5px; color: var(--ink);
+  border-bottom: 1px solid var(--line-soft);
+  padding-top: 4px; padding-bottom: 4px;
+}
+
+/* Lignes alternées. C'est le fond qui sépare les lignes, plus un filet sous
+   chacune : sur une liste dense, une bande de couleur guide l'œil d'un bout à
+   l'autre d'une ligne là où un trait fin se perd. */
+/* La bande alternee etait a #f8fafc, soit 1,5 % d'ecart avec le blanc : elle
+   ne se voyait tout simplement pas. */
+.mat-mdc-table tr.mat-mdc-row:nth-child(even) td.mat-mdc-cell {
+  background: #f2f6fc;
+}
+
+/* Boutons d'action compacts dans la colonne dédiée (les deux conventions de
+   nommage). Réglé par les tokens Material — l'API prévue pour cela — plutôt
+   qu'en forçant les règles internes du composant. */
+/* Boutons plus petits : a 34px de zone et 18px d'icone, la colonne d'actions
+   pesait autant que la donnee qu'elle accompagne. */
+/* La taille de l'icone passe par le jeton `--mdc-icon-button-icon-size`, l'API
+   prevue par Material. Forcer width/height sur `mat-icon` ne prenait que sur la
+   largeur : la boite tombait a 15px de large mais restait a 24px de haut, le
+   dessin gardait sa taille d'origine et `overflow: hidden` n'en laissait voir
+   qu'un fragment — les glyphes apparaissaient coupes. */
+.c-act, .col-actions {
+  --mat-button-filled-container-height: 32px;
+  --mat-button-outlined-container-height: 32px;
+  --mat-icon-button-state-layer-size: 32px;
+  --mdc-icon-button-icon-size: 20px;
+  --mat-icon-button-icon-size: 20px;
+}
+.c-act .mat-mdc-button-base:not(.mat-mdc-icon-button),
+.col-actions .mat-mdc-button-base:not(.mat-mdc-icon-button) {
+  font-size: 12.5px; letter-spacing: 0; padding: 0 12px; min-width: 0;
+}
+/* Survol de ligne — style UBold (pas de zébrure) */
+/* Le survol doit l'emporter sur la bande : sinon une ligne sur deux ne réagit
+   pas au passage de la souris. */
+.mat-mdc-table tr.mat-mdc-row:hover td.mat-mdc-cell { background: var(--row-hover); }
+
+/* Révélation des actions de ligne au survol (souris) ; toujours visibles au
+   clavier (focus) et sur écran tactile. */
+/* Actions : neutres au repos, colorees au survol de leur propre bouton.
+   Effacees a 32 % elles donnaient au tableau un air inacheve -- delave sur une
+   capture, et impossible a lire d'un coup d'oeil. */
+.mat-mdc-table td.c-act .mat-mdc-icon-button,
+.mat-mdc-table td.col-actions .mat-mdc-icon-button {
+  color: #93a0b1;
+  border-radius: var(--r-sm);
+  transition: color .15s ease, background-color .15s ease;
+}
+.mat-mdc-table td.c-act .mat-mdc-icon-button:hover,
+.mat-mdc-table td.col-actions .mat-mdc-icon-button:hover { background: #e7edf7; }
+
+/* largeurs de colonnes (les deux conventions de nommage) */
+.c-chk, .col-select { width: 44px; }
+.c-id, .col-id { width: 60px; }
+.c-name { font-weight: 600; }
+.c-num { width: 96px; text-align: center; white-space: nowrap; }
+/* `width` n'est qu'une indication en table-layout auto : quand les autres
+   colonnes sont larges, la cellule d'actions est comprimée sous la taille de ses
+   boutons, qui passent alors à la ligne et doublent la hauteur de toutes les
+   lignes. `nowrap` rend son contenu insécable, ce qui lui garantit sa place. */
+.c-act, .col-actions { width: 120px; text-align: right; white-space: nowrap; }
+/* Classe doublee : le `text-align` des cellules pose par les feuilles de
+   composant a la meme specificite une fois la portee Angular ajoutee, et
+   passe apres dans la cascade — les actions restaient collees a gauche de
+   leur colonne malgre la regle ci-dessus. */
+.mat-mdc-table th.c-act.c-act, .mat-mdc-table td.c-act.c-act,
+.mat-mdc-table th.col-actions.col-actions, .mat-mdc-table td.col-actions.col-actions {
+  text-align: right;
+}
+.muted { color: var(--ink-soft); }
+
+/* Couleurs des actions de ligne (modifier / archiver / supprimer). Classe
+   doublée (spécificité 0,0,2,0) : Angular Material fixe déjà `color` sur
+   `.mat-mdc-icon-button` et `.mat-mdc-menu-item` avec la même spécificité
+   qu'une classe simple (0,0,1,0) — à égalité, la règle chargée en dernier
+   l'emporte, ce qui n'est pas garanti être la nôtre. Doubler la classe
+   gagne dans tous les cas, sans !important. */
+.mat-mdc-table .danger.danger:hover { color: var(--danger); background: var(--danger-050); }
+.mat-mdc-table .act-edit.act-edit:hover { color: var(--primary); }
+.mat-mdc-table .act-accent.act-accent:hover { color: var(--cramoisi); }
+.danger.danger { color: var(--danger); }
+.act-edit.act-edit { color: var(--primary); }
+/* Accent neutre (or) pour une action administrative comme « archiver » —
+   pas d'ambre : ce ton reste réservé au sens « en attente / à traiter »
+   ailleurs dans l'app (tuiles, badges), pour ne pas le diluer. */
+.act-accent.act-accent { color: var(--cramoisi); }
+/* Approuver / rejeter : le couple vert-rouge, seul code couleur universellement
+   compris sans libellé — indispensable dès lors que l'action n'a plus de texte. */
+.act-ok.act-ok { color: var(--vert); }
+
+/* ---------- Cellules riches ---------- */
+.cell-doc { display: flex; align-items: center; gap: 10px; }
+/* Pastille de fichier — décorative : elle ne doit pas dicter la hauteur de ligne */
+/* Pastille d'icone — teinte claire, glyphe marine.
+   Elle etait en aplat `--marine-700` (#062468, un bleu quasi noir) avec un
+   glyphe blanc. Sur une liste de dix lignes, cela faisait dix blocs sombres
+   alignes en colonne : c'etait, avec le bandeau, la principale source de
+   lourdeur de l'application. Inversee, elle porte la meme information sans
+   peser. */
+.fico {
+  width: 28px; height: 28px; border-radius: var(--r-sm); flex: 0 0 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: #e6edfa; color: #1e4bb8;
+  box-shadow: inset 0 0 0 1px rgba(30, 75, 184, .10);
+}
+.fico mat-icon { width: 15px; height: 15px; font-size: 15px; }
+/* Sélecteur sur le nom seul, pas sur son conteneur : quand la cellule perd son
+   sous-titre, le conteneur disparaît et le nom retombait aux couleurs de lien
+   par défaut du navigateur — bleu, puis violet une fois visité. */
+.d-name { font-weight: 600; color: var(--ink); }
+.d-name:visited { color: var(--ink); }
+.doc-txt .d-sub { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+.owner { display: flex; align-items: center; gap: 9px; }
+.oav, .avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex: 0 0 28px; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600;
+}
+
+/* Pile d'avatars (membres) — chevauchement */
+.avatar-stack { display: inline-flex; align-items: center; }
+.avatar-stack .oav {
+  width: 26px; height: 26px; flex: 0 0 26px; margin-left: -8px;
+  border: 2px solid var(--surface-0); box-sizing: content-box;
+}
+.avatar-stack .oav:first-child { margin-left: 0; }
+.avatar-stack .oav.more { background: var(--surface); color: var(--ink-soft); font-weight: 700; }
+
+/* ---------- Chips / pastilles ---------- */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Une étiquette ne se coupe jamais en deux lignes : « Droits d'accès » scindé en
+   « Droits » / « d'accès » se lit comme deux étiquettes et gonfle la ligne. */
+.tag {
+  display: inline-block; background: var(--marine-050); border: 1px solid var(--marine-100); color: var(--navy);
+  /* Pastille arrondie, comme `.chip-marine`, `.chip-type` et `.puce`. C'etait
+     la SEULE etiquette de l'application a garder des angles droits : dans une
+     meme ligne de tableau, deux formes differentes pour une meme nature
+     d'information se lisent comme deux natures d'information. */
+  border-radius: var(--r-pill); padding: 3px 11px; font-size: 12px; font-weight: 500;
+  white-space: nowrap;
+}
+.tag.more { background: var(--surface); border-color: var(--line); color: var(--ink-soft); }
+/* Le gris marine-050 rendait cette pastille indistincte du fond zebre : elle
+   ne se lisait plus comme une valeur mais comme une zone vide. */
+.chip-marine {
+  display: inline-block; background: #eaf1fd; border: 1px solid #d3e0f7; color: var(--primary);
+  border-radius: var(--r-pill); padding: 3px 11px; font-size: 12px; font-weight: 600;
+}
+/* Etape d'un circuit de validation — pastille ambre a rang.
+   ------------------------------------------------------------------------
+   Elle etait recopiee dans « Mes workflow », le tableau de bord et le profil,
+   et « Regles de Workflow » en demandait une quatrieme copie. Meme notion,
+   meme dessin : la definition vit ici, les ecrans s'y branchent.
+
+   L'ambre est la couleur de l'attente dans toute l'application ; le rang est
+   plein pour qu'on suive l'ordre des etapes sans lire les libelles. */
+.etape {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 3px 12px 3px 3px; border-radius: var(--r-pill);
+  background: var(--ambre-050); color: #8a6212;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap;
+}
+.etape .rang {
+  width: 20px; height: 20px; border-radius: 50%; flex: 0 0 20px;
+  background: var(--ambre); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+
+.pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 4px 11px; border-radius: var(--r-pill); font-size: 12px; font-weight: 600;
+}
+.pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+/* L'etat courant se dit sans pastille pleine : « Actif » revenait sur chaque
+   ligne, en vert soutenu, pour une information qui ne varie jamais. La couleur
+   la plus forte d'une colonne doit signaler l'exception, pas la norme. */
+.st-actif { background: transparent; color: var(--ink-soft); padding-left: 0; padding-right: 0; }
+.st-actif .dot { background: var(--ok); }
+.st-ok { background: var(--ok-050); color: var(--ok); }
+.st-ok .dot { background: var(--ok); }
+.st-arch, .st-pending { background: var(--ambre-050); color: var(--ambre); }
+.st-arch .dot, .st-pending .dot { background: var(--ambre); }
+.st-inactif { background: #eef0f3; color: var(--ink-soft); }
+.st-inactif .dot { background: var(--ink-soft); }
+.st-ko { background: var(--danger-050); color: var(--danger); }
+.st-ko .dot { background: var(--danger); }
+
+/* ---------- État vide ---------- */
+.no-data { padding: 8px 0; }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 44px 0; color: var(--ink-soft);
+}
+.empty-state .empty-ic mat-icon { width: 44px; height: 44px; font-size: 44px; color: var(--beige-deep); }
+.empty-state .empty-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.empty-state .empty-sub { font-size: 12.5px; color: var(--ink-soft); }
+
+/* ---------- Libellé de section (formulaires) ---------- */
+.section-label, .section {
+  margin: 12px 0 8px; font-size: 11.5px; font-weight: 600;
+  color: var(--navy); text-transform: uppercase; letter-spacing: .05em;
+}
+.section:first-child { margin-top: 2px; }
+
+/* ---------- Erreur serveur (formulaires) ---------- */
+.server-error {
+  color: var(--danger); font-size: 13px; margin-top: 8px;
+  background: var(--danger-050); border: 1px solid #f2d3d0; border-radius: var(--r-sm); padding: 8px 10px;
+}
+
+/* ============================================================
+   CHAMPS DE FORMULAIRE — libellé au-dessus, boîte bordée simple
+   ------------------------------------------------------------
+   Material pose le libellé DANS le contour, en l'y découpant une encoche.
+   La référence retenue place le libellé au-dessus d'une boîte pleine et
+   bordée : plus lisible, et le libellé reste visible même quand le champ
+   est rempli. On neutralise donc l'encoche et on borde le champ lui-même,
+   plutôt que de recomposer chaque formulaire à la main — un seul endroit
+   à relire, et un seul à défaire.
+   ============================================================ */
+.mat-mdc-form-field {
+  /* Place réservée au libellé, qui sort de la boîte. Cette valeur suit le
+     « top » négatif du libellé (voir plus bas) : si l'une bouge, l'autre
+     doit bouger d'autant, sinon le libellé chevauche la boîte au-dessus ou
+     déborde du haut de la modale. */
+  margin-top: 18px;
+}
+
+/* L'encoche porte le trait du contour ET le libellé. La masquer supprimait
+   aussi le libellé, invisible dans toute l'application. On la garde donc
+   affichée et on lui retire seulement ses bordures : le trait est repris par
+   le champ lui-même, le libellé continue d'exister. */
+.mat-mdc-form-field .mdc-notched-outline__leading,
+.mat-mdc-form-field .mdc-notched-outline__notch,
+.mat-mdc-form-field .mdc-notched-outline__trailing {
+  border: 0 !important;
+}
+/* L'encoche est le conteneur du libellé. Material lui donne « overflow:
+   hidden » et la décale de 12px (largeur du bord gauche) : notre libellé, posé
+   à gauche 0, voyait donc ses premières lettres découpées — « Code » devenait
+   « ode ». On neutralise le découpage et on la laisse partir du bord. */
+.mat-mdc-form-field .mdc-notched-outline,
+.mat-mdc-form-field .mdc-notched-outline__notch {
+  overflow: visible !important;
+  padding: 0 !important;
+  max-width: none !important;
+}
+.mat-mdc-form-field .mdc-notched-outline__notch { width: auto !important; }
+/* Material pose en plus un « clip-path: inset(... 1px) » sur cette encoche pour
+   creuser le contour autour du libellé flottant. Notre libellé étant sorti de
+   la boîte, ce découpage rognait tout ce qui dépassait à gauche : « Code »
+   s'affichait « ode ». Le contour n'existe plus, le découpage non plus. */
+.mat-mdc-form-field .mdc-notched-outline__notch,
+.mat-mdc-form-field .mat-mdc-notch-piece { clip-path: none !important; }
+
+.mat-mdc-form-field .mat-mdc-text-field-wrapper {
+  background: var(--surface-0);
+  border: 1px solid var(--champ-bordure);
+  border-radius: var(--r-md);
+  padding: 0 12px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+/* Au survol la bordure s'affirme : rien ne signalait qu'un champ était
+   cliquable tant qu'on n'avait pas cliqué dedans. */
+.mat-mdc-form-field:not(.mat-focused):hover .mat-mdc-text-field-wrapper { border-color: #c3ccd8; }
+
+.mat-mdc-form-field.mat-focused .mat-mdc-text-field-wrapper {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(6, 36, 104, .10);
+}
+
+.mat-mdc-form-field.mat-form-field-invalid .mat-mdc-text-field-wrapper {
+  border-color: var(--danger);
+  box-shadow: none;
+}
+
+.mat-mdc-form-field .mat-mdc-form-field-disabled .mat-mdc-text-field-wrapper,
+.mat-mdc-form-field.mat-form-field-disabled .mat-mdc-text-field-wrapper {
+  background: var(--surface);
+}
+
+/* Le libellé sort de la boîte, dans les deux états que Material lui connaît
+   (flottant ou non) : il ne doit jamais retomber à l'intérieur. */
+/* Material bascule le libellé entre « dans le champ » et « flottant » : les
+   deux états sont forcés au même endroit, au-dessus de la boîte. Ses propres
+   règles portent une spécificité élevée, d'où les !important — sans eux le
+   libellé retombe à l'intérieur dès que le champ est rempli. */
+.mat-mdc-form-field .mdc-floating-label,
+.mat-mdc-form-field .mdc-floating-label--float-above {
+  position: absolute !important;
+  top: -19px !important;
+  /* Aligné sur le texte du champ, pas sur le bord extérieur de la boîte : un
+     décalage négatif sort le libellé de son conteneur, et toute modale qui
+     défile en coupe le début — « Code » devenait « e ». */
+  left: 0 !important;
+  transform: none !important;
+  font-size: 12px !important;
+  /* Material impose sa couleur de libellé par variable ; en gris pâle, le nom
+     du champ se lisait moins bien que la boîte vide elle-même. */
+  font-weight: 600;
+  color: var(--ink) !important;
+  letter-spacing: .005em;
+  overflow: visible;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Hauteur de la boîte de saisie. Le « !important » n'est pas décoratif :
+   Material pose « .mdc-text-field--outlined .mat-mdc-form-field-infix
+   { padding: var(--mat-form-field-container-vertical-padding, 16px) 0 } » à
+   spécificité égale mais plus loin dans la cascade — sans lui, le padding
+   déclaré ici n'était jamais appliqué. */
+.mat-mdc-form-field .mat-mdc-form-field-infix {
+  padding: 9px 0 !important;
+  min-height: 0;
+}
+
+/* Texte saisi : le 16px hérité de Material rendait les champs plus hauts et
+   plus lourds que le reste de l'interface. */
+.mat-mdc-form-field input.mat-mdc-input-element,
+.mat-mdc-form-field textarea.mat-mdc-input-element,
+.mat-mdc-form-field .mat-mdc-select-value-text,
+.mat-mdc-form-field .mat-mdc-select {
+  font-size: 14px;
+}
+
+/* Indices et messages d'erreur : collés sous la boîte, comme la référence. */
+.mat-mdc-form-field .mat-mdc-form-field-subscript-wrapper { margin-top: 3px; }
+
+/* L'astérisque du champ requis, en encre, se confondait avec le libellé. */
+.mat-mdc-form-field .mat-mdc-form-field-required-marker { color: var(--danger); font-weight: 700; }
+
+/* Code d'un objet : lu comme un identifiant, pas comme du texte courant. */
+.mono {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 12.5px; color: var(--ink-soft); letter-spacing: .01em;
+}
+
+/* Pastille de fichier/dossier en tete de ligne : marine plein et 28px, elle
+   etait l'encre la plus sombre de l'ecran, repetee a chaque ligne -- une
+   decoration qui criait plus fort que la donnee. Teintee et plus petite, elle
+   guide sans dominer. */
+.mat-mdc-table .fico {
+  width: 22px; height: 22px; flex: 0 0 22px;
+  background: #e6edfa; color: var(--primary);
+  border-radius: var(--r-sm); padding: 4px; box-sizing: border-box;
+}
+.mat-mdc-table .fico mat-icon { width: 14px; height: 14px; font-size: 14px; }
+
+/* Avatar du proprietaire : meme logique de calme. */
+.mat-mdc-table .oav { width: 24px; height: 24px; flex: 0 0 24px; font-size: 10.5px; }
+
+/* ---------- Colonne d'actions : groupement et hiérarchie ----------
+   Quatre icônes de même trait, même gris, même espacement se lisaient comme
+   une rangée de symboles interchangeables : rien ne disait laquelle on
+   déclenche neuf fois sur dix, ni laquelle est irréversible. */
+.act-row { display: inline-flex; align-items: center; gap: 4px; }
+
+
+
+/* Action principale : elle porte un fond, les autres non. C'est le seul écart
+   de poids nécessaire pour qu'on sache où cliquer sans lire les info-bulles. */
+
+
+/* Trait épaissi sur les petites icônes.
+   ------------------------------------------------------------------------
+   Les glyphes Lucide sont dessinés sur une grille de 24px avec un trait de 2.
+   Réduits à 15px, ce trait tombe à 1,25px effectif : l'icône devient
+   fantomatique et se brouille au rendu. On le remonte pour retrouver la
+   présence qu'elle a à sa taille d'origine. */
+.mat-mdc-table td.c-act mat-icon svg,
+.mat-mdc-table td.col-actions mat-icon svg { stroke-width: 2.25px; }
+
+/* Le SVG doit remplir sa boîte.
+   ------------------------------------------------------------------------
+   Les fichiers Lucide portent width="24" height="24" en attributs. Dès qu'on
+   réduit la boîte de l'icône sous 24px, le dessin garde sa taille d'origine et
+   `overflow: hidden` n'en laisse voir que le coin haut-gauche : les glyphes
+   apparaissaient tronqués, comme des fragments. */
+mat-icon svg { width: 100%; height: 100%; display: block; }
+
+/* Cases a cocher des listes.
+   ------------------------------------------------------------------------
+   Material leur donne une zone tactile de 40px. Dans un tableau, c'est elle —
+   et non le texte — qui fixait la hauteur des lignes : l'en-tete montait a
+   59px et chaque ligne a 50px pour une seule ligne de 13,5px. On reduit la
+   zone sans descendre sous le carre de 18px, qui reste confortable a viser. */
+/* Le jeton `--mdc-checkbox-state-layer-size` ne suffit pas : Material calcule
+   le rembourrage a partir de sa propre valeur, plus specifique. On pose donc
+   directement le rembourrage — 5px autour du carre de 18px, soit 28px de zone
+   cliquable, ce qui reste confortable a viser a la souris. */
+.mat-mdc-table .mat-mdc-checkbox { --mdc-checkbox-state-layer-size: 28px; }
+.mat-mdc-table .mdc-checkbox { padding: 5px; }
+/* La cible tactile de 48px imposait sa hauteur a la ligne entiere. */
+.mat-mdc-table .mat-mdc-checkbox-touch-target { display: none; }
+
+/* Colonne de selection : absente tant qu'on ne la demande pas.
+   ------------------------------------------------------------------------
+   Masquer la case en jouant sur l'opacite ne suffisait pas : la cellule
+   gardait la largeur de son contenu et poussait la premiere colonne loin du
+   bord — un vide que rien ne justifiait. En table-layout auto, `width: 0` ne
+   s'impose que si la cellule n'a plus de contenu : la case est donc retiree
+   du flux, et la colonne disparait vraiment.
+
+   Contrepartie assumee : hors mode, la case n'est plus atteignable au
+   clavier. Le chemin reste ouvert — le bouton « Selectionner » de la barre
+   d'outils est un bouton ordinaire, atteint en Tab comme les autres. */
+.mat-mdc-table .c-chk .mat-mdc-checkbox,
+.mat-mdc-table .col-select .mat-mdc-checkbox { display: none; }
+
+/* Classe doublee : le rembourrage commun des cellules (12px de chaque cote,
+   defini plus bas) a la meme specificite et l'emportait, laissant 24px de
+   vide la ou la colonne devait disparaitre. */
+.mat-mdc-table th.c-chk.c-chk, .mat-mdc-table td.c-chk.c-chk,
+.mat-mdc-table th.col-select.col-select, .mat-mdc-table td.col-select.col-select {
+  width: 0; padding-left: 0; padding-right: 0;
+}
+
+.mat-mdc-table.selection-on .c-chk .mat-mdc-checkbox,
+.mat-mdc-table.selection-on .col-select .mat-mdc-checkbox { display: inline-flex; }
+
+.mat-mdc-table.selection-on th.c-chk.c-chk, .mat-mdc-table.selection-on td.c-chk.c-chk,
+.mat-mdc-table.selection-on th.col-select.col-select, .mat-mdc-table.selection-on td.col-select.col-select {
+  width: 46px; padding-left: 12px; padding-right: 6px;
+}
+
+/* Pile d'avatars des membres : alignee sur les avatars simples des autres
+   colonnes. A 26px, elle etait le seul element a depasser et faisait monter
+   les lignes de « Groupe d'acces » a 50px quand toutes les autres listes sont
+   a 48. */
+.mat-mdc-table .avatar-stack .oav {
+  width: 24px; height: 24px; flex: 0 0 24px; font-size: 10px;
+}
+
+/* Rythme horizontal, cale sur « Mes workflow ».
+   ------------------------------------------------------------------------
+   Les bandes alternees y sont legerement en retrait du bord de la carte et
+   les cellules respirent a 12px. Ailleurs, elles collaient au bord avec des
+   cellules a 16px : d'un ecran a l'autre, la meme liste n'avait pas la meme
+   assise. Une seule regle, tous les tableaux suivent. */
+.mat-mdc-table { padding: 0 6px; }
+.mat-mdc-table th.mat-mdc-header-cell,
+.mat-mdc-table td.mat-mdc-cell { padding-left: 12px; padding-right: 12px; }
+
+/* Titres de section dans une fiche.
+   ------------------------------------------------------------------------
+   Deux vocabulaires cohabitaient : `.toolbar` avec son bandeau sur la fiche
+   d'un espace de travail, `.bloc-tete` en simple texte gras sur celle d'un
+   document ou d'un groupe. La meme fonction — nommer un bloc — ne peut pas
+   avoir deux apparences d'un ecran a l'autre. `.bloc-tete` prend le bandeau. */
+.card .bloc-tete {
+  display: flex; align-items: center; gap: 9px;
+  padding: 13px 18px; margin: 0 0 16px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-0) 100%);
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px; font-weight: 700; color: var(--ink);
+}
+/* Colle aux bords quand le titre coiffe la carte entiere ; un bloc imbrique,
+   lui, reste dans le rembourrage de sa carte. */
+.card > .bloc-tete { margin: -24px -26px 16px; }
+.card .bloc-tete mat-icon {
+  width: 17px; height: 17px; font-size: 17px; flex: 0 0 17px; color: var(--primary);
+}
+/* Le libelle tient sur une ligne : dans une carte etroite, le conteneur flex
+   le comprimait jusqu'a le couper en deux, et la barre de section passait de
+   48 a 68px — cassant le rythme vertical de toute l'application. */
+.card .bloc-tete > span:not(.cpt) {
+  flex: 1 1 auto; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Compteur d'elements, meme pastille que dans les barres de section. */
+.card .bloc-tete .cpt {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; padding: 0 6px;
+  border-radius: var(--r-pill); background: #eaf1fd; color: var(--primary);
+  font-size: 11.5px; font-weight: 700; line-height: 18px;
+}
+
+/* Intitule d'une section posee dans une barre — meme graisse que `.bloc-tete`
+   pour que les deux se lisent au meme niveau. */
+.toolbar .tb-titre { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.toolbar .tb-sub {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; padding: 0 6px; margin-left: 8px;
+  border-radius: var(--r-pill); background: #eaf1fd; color: var(--primary);
+  font-size: 11.5px; font-weight: 700; line-height: 18px;
+}
+
+/* Selecteur segmente — le motif de bascule de vue de l'application.
+   ------------------------------------------------------------------------
+   Il vivait recopie dans « Espaces de travail » et « Mes workflow ». Verse
+   ici, il devient disponible partout et ne peut plus deriver d'un ecran a
+   l'autre. Le segment actif est PLEIN : teinte, il ne se distinguait pas de
+   l'inactif et on ne savait pas quelle vue etait affichee. */
+.segments {
+  display: inline-flex; padding: 3px; gap: 3px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-pill);
+}
+.segments button {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 0; background: none; cursor: pointer; font: inherit;
+  font-size: 13.5px; font-weight: 600; color: var(--ink-soft);
+  padding: 7px 15px; border-radius: var(--r-pill);
+  transition: background-color .15s ease, color .15s ease;
+}
+.segments button mat-icon { width: 17px; height: 17px; font-size: 17px; flex: 0 0 17px; }
+.segments button:hover { color: var(--primary); }
+.segments button.on { background: var(--primary); color: #fff; }
+.segments button.on:hover { color: #fff; }
+.segments button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

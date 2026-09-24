@@ -1,0 +1,247 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Mes workflow</h1>
+      <p class="breadcrumb">Accueil - Documents à valider</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <!-- Barre d'outils — disposition reprise telle quelle d'« Espaces de
+         travail », le seul autre écran à onglets : les onglets seuls à gauche,
+         et TOUT le reste groupé à droite, recherche comprise, dans l'ordre
+         recherche → colonnes → rafraîchir.
+
+         Le décompte « n document(s) attendent votre décision » a disparu : il
+         répétait le compteur déjà porté par l'onglet « À traiter », et c'est
+         lui qui décalait cette barre par rapport aux autres écrans. -->
+    <div class="barre">
+      <div class="segments" role="tablist">
+        <button type="button" role="tab" [attr.aria-selected]="view() === 'pending'"
+                [class.on]="view() === 'pending'" (click)="setView('pending')">
+          À traiter
+          @if (pending().length) { <span class="compteur">{{ pending().length }}</span> }
+        </button>
+        <button type="button" role="tab" [attr.aria-selected]="view() === 'history'"
+                [class.on]="view() === 'history'" (click)="setView('history')">
+          Historique
+        </button>
+      </div>
+
+      <div class="tb-right">
+        <div class="search">
+          <mat-icon svgIcon="search"></mat-icon>
+          <input aria-label="Rechercher" placeholder="Rechercher…"
+                 [value]="recherche()" (input)="applySearch($any($event.target).value)" />
+        </div>
+        <!-- Actions groupées : elles n'apparaissent qu'une fois des lignes
+             cochées, et jamais dans l'historique — on ne re-signe pas une
+             décision déjà prise. -->
+        @if (view() === 'pending' && selection.selected.length > 0) {
+          <button mat-stroked-button class="bulk-signer" (click)="signerLot()">
+            <mat-icon svgIcon="sign"></mat-icon> Signer ({{ selection.selected.length }})
+          </button>
+          <button mat-stroked-button class="bulk-rejeter" (click)="rejeterLot()">
+            <mat-icon svgIcon="reject"></mat-icon> Rejeter ({{ selection.selected.length }})
+          </button>
+        }
+        @if (view() === 'pending') {
+          <app-selection-toggle #selToggle (change)="basculerSelection($event)"></app-selection-toggle>
+        }
+        <!-- Un sélecteur par vue : les deux tableaux n'ont pas les mêmes
+             colonnes, et masquer « Motif » dans l'historique n'a aucun sens
+             pour la liste à traiter. -->
+        @if (view() === 'pending') {
+          <app-column-picker [titre]="ECRAN_PENDING" [colonnes]="COLONNES_PENDING"
+                             (visibles)="pendingCols.set($event)"></app-column-picker>
+        } @else {
+          <app-column-picker [titre]="ECRAN_HISTORY" [colonnes]="COLONNES_HISTORY"
+                             (visibles)="historyCols.set($event)"></app-column-picker>
+        }
+        <button mat-icon-button (click)="reload()" matTooltip="Rafraîchir" aria-label="Rafraîchir">
+          <mat-icon svgIcon="refresh"></mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- ============ À TRAITER ============ -->
+    @if (view() === 'pending') {
+      <div class="table-wrap">
+        @if (loading()) {
+          <app-skeleton-table [rows]="5" [cols]="pendingCols().length"></app-skeleton-table>
+        } @else {
+        <table mat-table [dataSource]="dsPending" class="sig-table"
+               [class.selection-on]="modeSelection()">
+
+          <!-- La colonne se replie tant que le mode sélection n'est pas actif :
+               elle reste déclarée, donc l'en-tête et les lignes gardent le même
+               nombre de cellules, mais elle n'occupe aucune largeur. -->
+          <ng-container matColumnDef="select">
+            <th mat-header-cell *matHeaderCellDef class="c-chk">
+              <mat-checkbox [checked]="toutSelectionne()" (change)="basculerTout()"></mat-checkbox>
+            </th>
+            <td mat-cell *matCellDef="let s" class="c-chk">
+              <mat-checkbox [checked]="selection.isSelected(s)"
+                            (change)="selection.toggle(s)"></mat-checkbox>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="document">
+            <th mat-header-cell *matHeaderCellDef>Document</th>
+            <td mat-cell *matCellDef="let s" class="c-name">
+              <div class="cell-doc">
+                <span class="fico"><mat-icon svgIcon="nav-type"></mat-icon></span>
+                <span class="titre-doc">{{ s.document?.label }}</span>
+              </div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let s">
+              @if (s.type) { <span class="chip-type">{{ s.type }}</span> }
+              @else { <span class="muted">—</span> }
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="workspace">
+            <th mat-header-cell *matHeaderCellDef>Espace de travail</th>
+            <td mat-cell *matCellDef="let s">
+              @if (s.workspace) {
+                <span class="ou"><mat-icon svgIcon="folder"></mat-icon>{{ s.workspace }}</span>
+              } @else { <span class="muted">—</span> }
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="step">
+            <th mat-header-cell *matHeaderCellDef>Étape</th>
+            <td mat-cell *matCellDef="let s">
+              <span class="etape"><span class="rang">{{ s.stepOrder }}</span>{{ s.stepLabel }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="c-act">Actions</th>
+            <td mat-cell *matCellDef="let s" class="c-act">
+              <!-- Icones nues, comme la colonne « Actions » de tous les autres
+                   tableaux. Le libelle reste porte par l'infobulle et par
+                   `aria-label` : un lecteur d'ecran annonce toujours « Signer »
+                   et « Rejeter ». -->
+              <span class="act-row">
+                <button mat-icon-button class="signer" (click)="approve(s)"
+                        matTooltip="Signer" aria-label="Signer">
+                  <mat-icon svgIcon="sign"></mat-icon>
+                </button>
+                <button mat-icon-button class="rejeter" (click)="reject(s)"
+                        matTooltip="Rejeter" aria-label="Rejeter">
+                  <mat-icon svgIcon="reject"></mat-icon>
+                </button>
+              </span>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="pendingCols()"></tr>
+          <tr mat-row *matRowDef="let row; columns: pendingCols()"></tr>
+          <tr class="no-data-row" *matNoDataRow>
+            <td class="no-data" [attr.colspan]="pendingCols().length">
+              <div class="empty-state">
+                <span class="empty-ic"><mat-icon [svgIcon]="recherche() ? 'search' : 'inbox'"></mat-icon></span>
+                @if (recherche()) {
+                  <span class="empty-title">Aucun résultat</span>
+                  <span class="empty-sub">Aucun document à traiter ne correspond à « {{ recherche() }} ».</span>
+                } @else {
+                  <span class="empty-title">Rien à traiter</span>
+                  <span class="empty-sub">Aucun document n'attend votre signature.</span>
+                }
+              </div>
+            </td>
+          </tr>
+        </table>
+        }
+      </div>
+      @if (!loading()) {
+        <mat-paginator #pagPending [pageSizeOptions]="[10, 25, 50]" [pageSize]="10"
+                       [pageIndex]="pagePending()" (page)="onPage('pending', $event.pageIndex)"
+                       showFirstLastButtons></mat-paginator>
+      }
+    }
+
+    <!-- ============ HISTORIQUE ============ -->
+    @else {
+      <div class="table-wrap">
+        @if (loading()) {
+          <app-skeleton-table [rows]="5" [cols]="historyCols().length"></app-skeleton-table>
+        } @else {
+        <table mat-table [dataSource]="dsHistory" class="sig-table">
+          <ng-container matColumnDef="document">
+            <th mat-header-cell *matHeaderCellDef>Document</th>
+            <td mat-cell *matCellDef="let s" class="c-name">
+              <div class="cell-doc">
+                <span class="fico"><mat-icon svgIcon="nav-type"></mat-icon></span>
+                <span class="titre-doc">{{ s.document?.label }}</span>
+              </div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let s">
+              @if (s.type) { <span class="chip-type">{{ s.type }}</span> }
+              @else { <span class="muted">—</span> }
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="step">
+            <th mat-header-cell *matHeaderCellDef>Étape</th>
+            <td mat-cell *matCellDef="let s">
+              <span class="etape"><span class="rang">{{ s.stepOrder }}</span>{{ s.stepLabel }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Statut</th>
+            <td mat-cell *matCellDef="let s">
+              <span class="pill" [class]="statusBadge(s.status).cls"><span class="dot"></span>{{ statusBadge(s.status).label }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="date">
+            <th mat-header-cell *matHeaderCellDef>Date</th>
+            <td mat-cell *matCellDef="let s">{{ s.signedAt ? (s.signedAt | slice:0:10) : '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="motif">
+            <th mat-header-cell *matHeaderCellDef>Motif</th>
+            <td mat-cell *matCellDef="let s">{{ s.motif || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="c-act">Actions</th>
+            <td mat-cell *matCellDef="let s" class="c-act">
+              <!-- Un rejet arrêtait le circuit définitivement. C'est ici, là où
+                   l'opérateur constate son refus, qu'il doit pouvoir le relancer
+                   une fois la pièce corrigée. -->
+              @if (s.status === 'REJECTED') {
+                <button mat-icon-button (click)="relancer(s)"
+                        matTooltip="Relancer la validation" aria-label="Relancer la validation">
+                  <mat-icon svgIcon="refresh"></mat-icon>
+                </button>
+              }
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="historyCols()"></tr>
+          <tr mat-row *matRowDef="let row; columns: historyCols()"></tr>
+          <tr class="no-data-row" *matNoDataRow>
+            <td class="no-data" [attr.colspan]="historyCols().length">
+              <div class="empty-state">
+                <span class="empty-ic"><mat-icon [svgIcon]="recherche() ? 'search' : 'inbox'"></mat-icon></span>
+                @if (recherche()) {
+                  <span class="empty-title">Aucun résultat</span>
+                  <span class="empty-sub">Aucune décision ne correspond à « {{ recherche() }} ».</span>
+                } @else {
+                  <span class="empty-title">Historique vide</span>
+                  <span class="empty-sub">Vous n'avez encore rien signé ni rejeté.</span>
+                }
+              </div>
+            </td>
+          </tr>
+        </table>
+        }
+      </div>
+      @if (!loading()) {
+        <mat-paginator #pagHistory [pageSizeOptions]="[10, 25, 50]" [pageSize]="10"
+                       [pageIndex]="pageHistory()" (page)="onPage('history', $event.pageIndex)"
+                       showFirstLastButtons></mat-paginator>
+      }
+    }
+  </div>
+</div>

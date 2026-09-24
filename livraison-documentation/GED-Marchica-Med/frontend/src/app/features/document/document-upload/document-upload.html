@@ -1,0 +1,251 @@
+<h2 mat-dialog-title>Téléverser un document</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="up-form">
+
+    <!-- subscriptSizing dynamic : l'aide tient sur deux lignes, la zone
+         réservée sous le champ doit s'ajuster sinon le texte recouvre la
+         ligne suivante. -->
+    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+      <mat-label>Type de document</mat-label>
+      <mat-select formControlName="typeDocumentId">
+        @for (t of types(); track t.id) {
+          <mat-option [value]="t.id">{{ t.name }}</mat-option>
+        }
+      </mat-select>
+      <mat-hint>Il commande le dossier, les formats acceptés et les index à renseigner</mat-hint>
+      @if (form.get('typeDocumentId')?.touched && form.get('typeDocumentId')?.invalid) {
+        <mat-error>Le type de document est obligatoire</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Un type sans plan n'a aucun index : le dire tout de suite, plutôt que
+         de laisser l'opérateur s'étonner qu'on ne lui demande rien. -->
+    @if (typeChoisi(); as t) {
+      @if (!t.plan) {
+        <p class="sans-plan">
+          <mat-icon svgIcon="alert"></mat-icon>
+          <span>
+            Le type <strong>{{ t.name }}</strong> n'a pas de plan d'indexation :
+            le document sera déposé <strong>sans aucun index</strong>.
+          </span>
+        </p>
+      }
+    }
+
+    <div class="file-row">
+      <!-- Gelé une fois le document créé : changer de fichier après coup
+           n'aurait aucun effet sur ce qui est déjà déposé. -->
+      <button mat-stroked-button type="button" [disabled]="depotEffectue()"
+              (click)="fileInput.click()">
+        <mat-icon svgIcon="add"></mat-icon> Choisir un fichier
+      </button>
+      <input #fileInput type="file" hidden (change)="onFile($event)" />
+      <span class="file-name">{{ selectedFile()?.name || 'Aucun fichier sélectionné' }}</span>
+    </div>
+
+    <!-- Refus immédiat : il nomme la contrainte et la valeur constatée, pour
+         qu'on sache quoi corriger sans deviner. -->
+    @if (refusFichier(); as refus) {
+      <p class="refus"><mat-icon svgIcon="alert"></mat-icon><span>{{ refus }}</span></p>
+    }
+
+    <!-- ===== Indexation — sur la même page, avant le nom qu'elle compose =====
+         L'interrupteur commande la suite : la GED déduit, ou l'opérateur
+         saisit. Dans les deux cas les champs restent modifiables : ce sont des
+         propositions, jamais des verdicts. -->
+    @if (typeChoisi()?.plan) {
+      <div class="idx-bloc">
+
+        <div class="auto-bloc" [class.coupe]="!indexationAuto()">
+          <mat-slide-toggle [checked]="indexationAuto()"
+                            [disabled]="!lectureDisponible() || apercuEnCours()"
+                            (change)="basculerAuto($event.checked)">
+            Indexation automatique
+          </mat-slide-toggle>
+          <p class="ab-aide">
+            @if (motifIndisponible(); as motif) {
+              {{ motif }}
+            } @else if (indexationAuto()) {
+              La GED déduit les index du fichier. Vous relisez et corrigez avant de déposer.
+            } @else {
+              Vous saisissez les index vous-même. Activez pour que la GED tente de les remplir.
+            }
+          </p>
+        </div>
+
+        @if (apercuEnCours()) {
+          <p class="etat">Lecture du fichier en cours…</p>
+        }
+
+        @if (apercu(); as a) {
+          @if (a.planNom && indexationAuto()) {
+            <p class="charte">
+              Charte <strong>{{ a.planNom }}</strong> —
+              <strong>{{ a.nbReconnus }}/{{ a.nbAttendus }}</strong> champ(s) déduits automatiquement
+            </p>
+
+            <!-- D'où vient ce qui a été déduit. Le nom du fichier n'a pas
+                 toujours suffi : le serveur ouvre alors le document, et peut
+                 aller jusqu'à la reconnaissance optique. Une valeur lue par OCR
+                 n'a pas la même fiabilité qu'une valeur lue dans le nom — le
+                 taire revenait à la présenter comme sûre. -->
+            @if (a.provenanceTexte !== 'AUCUNE') {
+              <p class="lecture" [class.ocr]="a.provenanceTexte === 'OCR'">
+                <mat-icon [svgIcon]="a.provenanceTexte === 'OCR' ? 'alert' : 'nav-type'"></mat-icon>
+                Contenu lu —
+                <strong>{{ a.provenanceTexte === 'OCR' ? 'reconnaissance optique (scan)' : 'couche texte du PDF' }}</strong>
+                @if (a.provenanceTexte === 'OCR') { · relisez ces valeurs, la reconnaissance peut se tromper }
+              </p>
+            }
+
+            @if (a.avertissement) {
+              <p class="avert"><mat-icon svgIcon="alert"></mat-icon> {{ a.avertissement }}</p>
+            }
+          }
+        }
+
+        @if (champsIndex().length) {
+          <div class="idx-grille">
+            @for (c of champsIndex(); track c.indexFieldId) {
+              <div class="prop" [class.rejete]="indexationAuto() && !c.reconnue">
+                <div class="p-head">
+                  <span class="p-nom">
+                    {{ c.libelle }}@if (estObligatoire(c)) {<span class="p-requis" aria-label="obligatoire">*</span>}
+                  </span>
+                  @if (indexationAuto()) {
+                    @if (c.reconnue) {
+                      <span class="p-src" [class.contenu]="c.source === 'CONTENU'">
+                        {{ c.source === 'CONTENU' ? 'lu dans le document' : 'nom du fichier' }}
+                      </span>
+                    } @else {
+                      <span class="p-src ko" [matTooltip]="c.motif || ''">à saisir</span>
+                    }
+                  }
+                </div>
+
+                @switch (c.fieldType) {
+                  @case ('LISTE') {
+                    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+                      <mat-select [value]="valeurDe(c)" (selectionChange)="majValeur(c, $event.value)">
+                        <mat-option value="">—</mat-option>
+                        @for (o of c.options; track o) {
+                          <mat-option [value]="o">{{ o }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                  }
+                  @case ('DATE') {
+                    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+                      <input matInput [matDatepicker]="dpIndex" [value]="versDate(valeurDe(c))"
+                             (dateChange)="majValeur(c, versIso($event.value) ?? '')" />
+                      <mat-datepicker-toggle matIconSuffix [for]="dpIndex">
+                        <mat-icon matDatepickerToggleIcon svgIcon="calendar"></mat-icon>
+                      </mat-datepicker-toggle>
+                      <mat-datepicker #dpIndex></mat-datepicker>
+                    </mat-form-field>
+                  }
+                  @case ('NOMBRE') {
+                    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+                      <input matInput type="number" [value]="valeurDe(c)"
+                             (input)="majValeur(c, $any($event.target).value)" />
+                    </mat-form-field>
+                  }
+                  @default {
+                    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+                      <input matInput [value]="valeurDe(c)"
+                             (input)="majValeur(c, $any($event.target).value)" />
+                    </mat-form-field>
+                  }
+                }
+              </div>
+            }
+          </div>
+
+          <!-- La RÉFÉRENCE n'est pas le NOM, et l'écart est voulu : la référence
+               ne joint que les valeurs d'index, quand le nom y ajoute les jetons
+               système de la charte (date, heure). Le serveur stocke les deux
+               séparément. Un commentaire affirmait ici qu'elles « ne peuvent pas
+               diverger » — c'était faux, et ça faisait douter du champ juste
+               au-dessus. -->
+          @if (reference(); as ref) {
+            <div class="ref-bloc">
+              <span class="rb-label">Référence composée</span>
+              <code class="rb-val">{{ ref }}</code>
+            </div>
+          }
+        }
+      </div>
+    }
+
+    <!-- Nom du document — verrouillé quand la charte du plan est « Auto » :
+         il est COMPOSÉ depuis les index ci-dessus. Le laisser saisissable
+         revenait à faire écrire un nom qu'on remplacerait aussitôt. -->
+    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+      <mat-label>Nom du document</mat-label>
+      <input matInput formControlName="name"
+             [placeholder]="nomAutomatique() ? 'Composé depuis les index' : 'Par défaut : le nom du fichier'" />
+      @if (nomAutomatique()) {
+        <mat-hint>
+          Composé au dépôt d'après la charte du plan « {{ typeChoisi()?.plan }} »
+          et les index ci-dessus.
+        </mat-hint>
+      }
+    </mat-form-field>
+
+    <!-- Étiquettes : facultatives, et le libellé le dit. Le champ n'apparaît
+         que si le référentiel en contient — proposer un sélecteur vide
+         laisserait croire à une panne. -->
+    @if (etiquettes().length) {
+      <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+        <mat-label>Étiquettes (optionnel)</mat-label>
+        <mat-select formControlName="etiquetteIds" multiple>
+          @for (e of etiquettes(); track e.id) {
+            <mat-option [value]="e.id">
+              <span class="et-pastille" [style.background]="e.couleur"></span>{{ e.tag }}
+            </mat-option>
+          }
+        </mat-select>
+        <mat-hint>Pour retrouver le document en travers des dossiers et des types</mat-hint>
+      </mat-form-field>
+    }
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Date d'expiration (optionnel)</mat-label>
+      <input matInput [matDatepicker]="dpExpiration" formControlName="expirationDate"
+             placeholder="Choisir une date" />
+      <mat-datepicker-toggle matIconSuffix [for]="dpExpiration">
+        <mat-icon matDatepickerToggleIcon svgIcon="calendar"></mat-icon>
+      </mat-datepicker-toggle>
+      <mat-datepicker #dpExpiration></mat-datepicker>
+    </mat-form-field>
+
+    @if (serverError()) {
+      <div class="server-error">{{ serverError() }}</div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <!-- Compté à part du bouton : un champ vide n'interdit pas de déposer — le
+       document partira avec un « ? » dans sa référence, et c'est un choix que
+       l'opérateur doit pouvoir faire en connaissance de cause. -->
+  <!-- Deux comptes distincts, et la nuance est celle qui compte : un champ
+       facultatif vide n'empêche pas de déposer, un OBLIGATOIRE vide oui — le
+       serveur le refuserait après avoir créé le document. -->
+  @if (obligatoiresVides().length > 0) {
+    <span class="reste requis">
+      {{ obligatoiresVides().length }} champ(s) obligatoire(s) à renseigner
+    </span>
+  } @else if (manquants() > 0) {
+    <span class="reste">{{ manquants() }} champ(s) non renseigné(s)</span>
+  }
+  <button mat-button type="button" (click)="cancel()">
+    {{ depotEffectue() ? 'Fermer' : 'Annuler' }}
+  </button>
+  <button mat-flat-button color="primary" type="button"
+          [disabled]="loading() || apercuEnCours() || !!refusFichier() || obligatoiresVides().length > 0"
+          (click)="submit()">
+    {{ loading() ? 'Téléversement…' : (depotEffectue() ? 'Réessayer l\'indexation' : 'Téléverser') }}
+  </button>
+</mat-dialog-actions>

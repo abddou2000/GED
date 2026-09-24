@@ -1,0 +1,73 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>{{ groupe()?.name || "Groupe d'accès" }}</h1>
+      <p class="breadcrumb">
+        <a routerLink="/groupe-d-acces">Groupes d'accès</a>
+        @if (groupe(); as g) { <span> · </span><span>{{ g.name }}</span> }
+      </p>
+    </div>
+    @if (groupe()) {
+      <button mat-flat-button color="primary" (click)="modifier()">
+        <mat-icon svgIcon="edit"></mat-icon> Modifier
+      </button>
+    }
+  </div>
+
+  @if (chargement()) {
+    <div class="card"><p class="etat">Chargement…</p></div>
+  } @else if (introuvable()) {
+    <div class="card">
+      <div class="empty-state">
+        <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+        <span class="empty-title">Groupe d'accès introuvable</span>
+        <span class="empty-sub">Il a peut-être été supprimé. <a routerLink="/groupe-d-acces">Revenir à la liste</a></span>
+      </div>
+    </div>
+  } @else if (groupe(); as g) {
+
+    <!-- ===== Identification ===== -->
+    <div class="card">
+      <dl class="fiche-grille">
+        <div><dt>Code</dt><dd class="mono">{{ g.code }}</dd></div>
+        <div><dt>Espaces couverts</dt><dd>{{ g.workspacesCount }}</dd></div>
+        <div><dt>Membres</dt><dd>{{ g.usersCount }}</dd></div>
+      </dl>
+    </div>
+
+    <!-- ===== Membres et espaces ===== -->
+    <div class="card col-listes">
+      <div class="bloc">
+        <div class="bloc-tete"><mat-icon svgIcon="user"></mat-icon><span>Utilisateurs</span><span class="cpt">{{ g.users.length }}</span></div>
+        @if (g.users.length) {
+          <ul class="liste">
+            @for (u of g.users; track u.id) {
+              <li>
+                <span class="oav" [style.background]="avatarColor(u.id)" [style.color]="avatarInk(u.id)">{{ initials(u.label) }}</span>
+                <span class="lbl">{{ u.label }}</span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="etat">Aucun utilisateur assigné.</p>
+        }
+      </div>
+
+      <div class="bloc">
+        <div class="bloc-tete"><mat-icon svgIcon="folder"></mat-icon><span>Espaces de travail</span><span class="cpt">{{ g.workspaces.length }}</span></div>
+        @if (g.workspaces.length) {
+          <ul class="liste">
+            @for (w of g.workspaces; track w.id) {
+              <li>
+                <mat-icon class="ic-dossier" svgIcon="folder"></mat-icon>
+                <a class="lbl lien-dossier" [routerLink]="['/espaces-de-travail', w.id]">{{ w.label }}</a>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="etat">Aucun espace de travail assigné.</p>
+        }
+      </div>
+    </div>
+  }
+</div>

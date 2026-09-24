@@ -1,0 +1,47 @@
+[
+ {
+  "id": 1,
+  "name": "Comptabilité",
+  "status": "ACTIF",
+  "parentId": null,
+  "children": [
+   {
+    "id": 2,
+    "name": "2026",
+    "status": "ACTIF",
+    "parentId": 1,
+    "children": [
+     {
+      "id": 3,
+      "name": "Factures",
+      "status": "ACTIF",
+      "parentId": 2,
+      "children": []
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": 4,
+  "name": "Ressources Humaines",
+  "status": "ACTIF",
+  "parentId": null,
+  "children": [
+   {
+    "id": 5,
+    "name": "Contrats",
+    "status": "ACTIF",
+    "parentId": 4,
+    "children": []
+   }
+  ]
+ },
+ {
+  "id": 6,
+  "name": "Projets",
+  "status": "ACTIF",
+  "parentId": null,
+  "children": []
+ }
+]

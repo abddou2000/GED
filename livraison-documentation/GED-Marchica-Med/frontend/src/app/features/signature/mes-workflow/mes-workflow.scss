@@ -1,0 +1,113 @@
+/* Spécifique — Mes workflow.
+   ------------------------------------------------------------------------
+   Cet écran est une file de décision : on y arrive pour signer ou rejeter, pas
+   pour consulter. Il doit donc dire d'un coup d'œil ce qui attend, où en est
+   chaque document, et offrir la décision sans la chercher.
+
+   Le commun (page, carte, tableau, densité, état vide) vient de _ui.scss. */
+
+/* Ombre courte et claire. Une grande ombre diffuse assombrit tout ce qui
+   l'entoure et donne l'impression d'un écran sous-exposé ; un liseré net plus
+   une ombre rasante posent le relief sans éteindre la page. */
+.page > .card {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 0; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(38, 48, 63, .05), 0 1px 2px rgba(38, 48, 63, .05), 0 6px 14px rgba(38, 48, 63, .05);
+}
+
+/* ---------- Barre d'outils ---------- */
+.barre {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  padding: 14px 18px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-0) 100%);
+  border-bottom: 1px solid var(--line);
+}
+
+/* Sélecteur segmenté : le segment actif est plein, pas teinté — un état actif
+   à peine plus clair que l'inactif ne se lit pas. */
+/* Le selecteur segmente vient de _ui.scss — voir « Selecteur segmente ». */
+
+.compteur {
+  min-width: 20px; padding: 0 6px; border-radius: var(--r-pill);
+  font-size: 11.5px; font-weight: 700; line-height: 18px; text-align: center;
+  background: var(--danger); color: #fff;
+}
+.segments button.on .compteur { background: rgba(255, 255, 255, .22); }
+
+/* Groupe de droite de la barre d'outils : meme regle que les autres ecrans
+   de liste (alignement centre, 8px entre les commandes). */
+.barre .tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- Tableau ---------- */
+.table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.sig-table { padding: 0 6px; }
+/* `:not(.c-chk)` est indispensable : sans lui, ce rembourrage local laisse
+   24px de vide a la place de la colonne de cases a cocher repliee. La regle
+   globale qui la replie a la meme specificite une fois l'attribut de portee
+   ajoute par Angular, et c'est alors l'ordre d'injection — les styles de
+   composant passent apres — qui tranche en faveur de celle-ci. */
+.sig-table th.mat-mdc-header-cell:not(.c-chk),
+.sig-table td.mat-mdc-cell:not(.c-chk) { padding-left: 12px; padding-right: 12px; }
+
+/* Le survol allume la ligne et pose un filet à gauche : le regard suit la
+   ligne jusqu'aux boutons de décision, à l'autre bout. */
+.sig-table tbody tr.mat-mdc-row { position: relative; }
+.sig-table tbody tr.mat-mdc-row:hover td.mat-mdc-cell { background: var(--marine-050); }
+.sig-table tbody tr.mat-mdc-row:hover td.mat-mdc-cell:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.titre-doc { font-weight: 600; color: var(--ink); }
+
+/* Meme forme que la puce d'etape : pilule, memes retraits, meme graisse. Un
+   rectangle a coins droits a cote d'une pilule donnait deux vocabulaires
+   visuels sur la meme ligne. Seule la teinte differe, pour que les deux
+   colonnes restent distinctes. */
+.chip-type {
+  display: inline-flex; align-items: center;
+  padding: 3px 12px; border-radius: var(--r-pill);
+  background: #eaf1fd; border: 0;
+  font-size: 12.5px; font-weight: 600; color: var(--primary);
+}
+
+.ou { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); }
+.ou mat-icon { width: 16px; height: 16px; font-size: 16px; flex: 0 0 16px; color: var(--faint); }
+
+/* Étape : le rang dans une pastille, l'ambre dit « en cours ». Une puce grise
+   ne distinguait pas une étape en attente d'une étape passée. */
+
+/* ---------- Décision ---------- */
+/* Signer et rejeter sont la raison d'être de l'écran : ils portent un fond, un
+   libellé pour l'action positive, et restent visibles sans survol. Deux
+   cercles fins au bout de la ligne se lisaient comme des icônes décoratives. */
+.c-act { width: 168px; }
+/* ---------- Decision ----------
+   Deux icones nues, comme la colonne « Actions » de tous les autres tableaux.
+   Elles portaient un fond, un libelle et un contour : trois traitements pour
+   une action qui, ailleurs, se dit par un seul glyphe. La couleur reste — elle
+   distingue signer de rejeter — mais elle n'arrive qu'au survol, ou elle
+   confirme le geste au lieu de le crier sur trente lignes. */
+.sig-table td.c-act .mat-mdc-icon-button.signer { color: var(--vert); }
+.sig-table td.c-act .mat-mdc-icon-button.signer:hover { background: var(--vert-050); }
+.sig-table td.c-act .mat-mdc-icon-button.rejeter { color: var(--danger); }
+.sig-table td.c-act .mat-mdc-icon-button.rejeter:hover { background: var(--danger-050); }
+
+/* Actions groupees de la barre d'outils : elles reprennent EXACTEMENT les
+   couleurs des boutons de ligne. Un « Signer » vert en bout de ligne et un
+   « Signer » neutre dans la barre se liraient comme deux actions differentes. */
+button.mat-mdc-outlined-button.bulk-signer {
+  background: var(--vert-050); color: var(--vert); border-color: #cfe0d0;
+}
+button.mat-mdc-outlined-button.bulk-rejeter {
+  background: var(--danger-050); color: var(--danger); border-color: #f2d3d0;
+}
+
+/* ---------- Paginateur ---------- */
+/* Collé au bas de la carte : entre la dernière ligne et lui s'ouvrait une
+   grande bande vide dès que la page n'était pas pleine. */
+.page > .card > .mat-mdc-paginator {
+  flex: 0 0 auto; border-top: 1px solid var(--line);
+}

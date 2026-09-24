@@ -1,0 +1,87 @@
+/* Spécifique — Documents déposés. Le commun (cellule fichier, tableau,
+   pastilles, état vide) vient de _ui.scss */
+
+/* Extension accolée au nom du document */
+.ext {
+  font-weight: 400; color: var(--ink-soft);
+  font-family: var(--font-mono); font-size: 12px; margin-left: 2px;
+}
+
+/* Pastille d'etiquette : la couleur vient de la donnee, le texte doit rester
+   lisible dessus quelle que soit la teinte choisie. */
+.pastille {
+  display: inline-block; padding: 2px 9px; border-radius: var(--r-pill);
+  font-size: 12px; font-weight: 600; color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .25);
+}
+
+/* La table defile dans sa carte plutot que de pousser la page entiere. Le
+   plancher est descendu de 1200 a 1040px : avec « Chemin » masque, il forcait
+   un defilement lateral que le contenu ne justifiait plus. */
+.table-wrap { overflow-x: auto; }
+.doc-table { min-width: 1040px; }
+
+/* Barre d'outils posee — meme motif que « Espaces de travail » et
+   « Mes workflow ». Le filet pointille laissait les commandes flotter
+   au-dessus du tableau sans limite franche. */
+.barre {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  margin: -24px -26px 0; padding: 14px 18px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-0) 100%);
+  border-bottom: 1px solid var(--line);
+}
+.barre .left { display: flex; align-items: center; gap: 8px; }
+.barre .tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Meme pastille que dans « Mes workflow » : un type de document doit se lire
+   pareil d'un ecran a l'autre. */
+.chip-type {
+  display: inline-flex; align-items: center;
+  padding: 3px 12px; border-radius: var(--r-pill);
+  background: #eaf1fd; font-size: 12.5px; font-weight: 600; color: var(--primary);
+}
+
+/* Espace de travail : l'icone dit « c'est un dossier » sans ajouter de mot. */
+.ou { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); }
+.ou mat-icon { width: 16px; height: 16px; font-size: 16px; flex: 0 0 16px; color: var(--faint); }
+
+/* Date depassee : elle demande une action, elle ne peut pas se lire comme
+   n'importe quelle autre date. */
+.perimee { color: var(--danger); font-weight: 600; }
+
+/* Le nom du document ne se souligne qu'au survol : souligne en permanence sur
+   dix lignes, le tableau se lisait comme une page de liens. */
+.doc-table .d-name { text-decoration: none; }
+.doc-table .d-name:hover { text-decoration: underline; }
+
+/* Largeurs de colonnes.
+   ------------------------------------------------------------------------
+   Aucune largeur n'etait posee : le navigateur repartissait au jugé et
+   « Date de creation » se retrouvait a 109px, trop etroit pour son propre
+   en-tete, qui passait sur deux lignes et faisait respirer toutes les
+   lignes du tableau. En proportions, chaque colonne recoit ce que son
+   contenu demande, et le surplus se repartit au lieu de s'accumuler. */
+.doc-table .mat-column-name { width: 26%; min-width: 200px; }
+.doc-table .mat-column-createdAt { width: 11%; min-width: 124px; }
+.doc-table .mat-column-createdBy { width: 13%; min-width: 140px; }
+.doc-table .mat-column-workspace { width: 14%; min-width: 140px; }
+.doc-table .mat-column-type { width: 13%; min-width: 130px; }
+.doc-table .mat-column-expiration { width: 11%; min-width: 124px; }
+.doc-table .mat-column-etiquettes { width: 12%; min-width: 110px; }
+
+/* Dates : chiffres a chasse fixe, elles s'alignent en colonne au lieu de
+   danser d'une ligne a l'autre. */
+.doc-table .mat-column-createdAt,
+.doc-table .mat-column-expiration { font-variant-numeric: tabular-nums; }
+
+/* Un en-tete ne doit jamais se couper en deux : la ligne d'en-tete doublait
+   de hauteur et desalignait le filet du bas. */
+.doc-table th.mat-mdc-header-cell { white-space: nowrap; }
+
+
+/* L'en-tete tenait sur 59px : le conteneur de tri de Material empile son
+   libelle et sa fleche des que la place manque. On le remet en ligne. */
+.doc-table th .mat-sort-header-container { align-items: center; }
+.doc-table th .mat-sort-header-content { white-space: nowrap; }

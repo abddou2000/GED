@@ -1,0 +1,68 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>{{ type()?.typeDeDocument || 'Type de document' }}</h1>
+      <p class="breadcrumb">
+        <a routerLink="/type-de-document">Types de document</a>
+        @if (type(); as t) { <span> · </span><span>{{ t.typeDeDocument }}</span> }
+      </p>
+    </div>
+    @if (type()) {
+      <button mat-flat-button color="primary" (click)="modifier()">
+        <mat-icon svgIcon="edit"></mat-icon> Modifier
+      </button>
+    }
+  </div>
+
+  @if (chargement()) {
+    <div class="card"><p class="etat">Chargement…</p></div>
+  } @else if (introuvable()) {
+    <div class="card">
+      <div class="empty-state">
+        <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+        <span class="empty-title">Type de document introuvable</span>
+        <span class="empty-sub">Il a peut-être été supprimé. <a routerLink="/type-de-document">Revenir à la liste</a></span>
+      </div>
+    </div>
+  } @else if (type(); as t) {
+    <div class="card">
+      <!-- Cartouches de l'en-tête d'origine : code, espace, formats, description. -->
+      <div class="cartouches">
+        <div class="cartouche">
+          <span class="val mono">{{ t.code }}</span>
+          <span class="lib">Code</span>
+        </div>
+        <div class="cartouche">
+          <span class="val">
+            @if (t.workspace) {
+              <a [routerLink]="['/espaces-de-travail', t.workspace.id]">{{ t.workspace.label }}</a>
+            } @else { <span class="muted">—</span> }
+          </span>
+          <span class="lib">Espace de travail</span>
+        </div>
+        <div class="cartouche">
+          <span class="val formats">
+            @if (t.typeAutorise.length) { {{ t.typeAutorise.join(' / ') }} }
+            @else { <span class="muted">—</span> }
+          </span>
+          <span class="lib">Types autorisés</span>
+        </div>
+        <div class="cartouche">
+          <span class="val">{{ t.tailleMaxMo }} Mo</span>
+          <span class="lib">Taille maximale</span>
+        </div>
+        <div class="cartouche">
+          <span class="val">
+            @if (t.planIndexation) { {{ t.planIndexation.label }} }
+            @else { <span class="muted">Aucun</span> }
+          </span>
+          <span class="lib">Plan d'indexation</span>
+        </div>
+        <div class="cartouche large">
+          <span class="val">{{ t.description || '—' }}</span>
+          <span class="lib">Description</span>
+        </div>
+      </div>
+    </div>
+  }
+</div>

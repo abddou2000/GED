@@ -1,0 +1,15 @@
+/* Le menu est projeté dans un overlay hors du composant : les règles doivent
+   viser la classe posée sur le panneau, d'où ::ng-deep. */
+::ng-deep .cp-menu .mat-mdc-menu-content { padding: 0; min-width: 210px; }
+
+::ng-deep .cp-menu .cp-tete {
+  padding: 10px 14px 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-soft); border-bottom: 1px solid var(--line);
+}
+::ng-deep .cp-menu .cp-ligne { padding: 3px 14px; }
+::ng-deep .cp-menu .cp-ligne:first-of-type { padding-top: 8px; }
+::ng-deep .cp-menu .cp-ligne .mdc-form-field { font-size: 13.5px; }
+::ng-deep .cp-menu .cp-pied {
+  padding: 4px 8px 6px; margin-top: 4px; border-top: 1px solid var(--line);
+}

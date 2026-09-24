@@ -1,0 +1,15 @@
+/* Spécifique — Type de document. Le commun vient de _ui.scss */
+
+/* Formats autorisés : chips marine en majuscules */
+.tag { text-transform: uppercase; letter-spacing: .02em; }
+
+/* Formats autorises : une icone par extension. Teintes distinctes pour que la
+   nature du fichier se lise sans survoler — le rouge du PDF et le vert du
+   tableur sont les conventions que tout le monde a deja en tete. */
+.formats { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+/* 24px : l'extension inscrite dans le bandeau doit rester lisible. En
+   dessous de 22, les trois lettres deviennent une tache. */
+.fmt { width: 24px; height: 24px; font-size: 24px; flex: 0 0 24px; color: var(--ink-soft); }
+.fmt-pdf { color: #c0392b; }
+.fmt-doc, .fmt-docx { color: #2f62d6; }
+.fmt-xls, .fmt-xlsx { color: #1e7a46; }

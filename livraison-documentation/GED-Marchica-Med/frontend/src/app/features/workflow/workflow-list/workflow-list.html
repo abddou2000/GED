@@ -1,0 +1,141 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Règles de Workflow</h1>
+      <p class="breadcrumb">Accueil - Listes des Règles de Workflow</p>
+    </div>
+    <button mat-flat-button color="primary" (click)="create()">
+      <mat-icon svgIcon="add"></mat-icon> Créer Règles de Workflow
+    </button>
+  </div>
+
+  <div class="card" [class.fullscreen]="fullscreen()">
+
+    <!-- Barre d'outils -->
+    <div class="toolbar">
+      <!-- La recherche seule a gauche, les reglages du tableau a droite :
+           c'est l'ordre des six autres ecrans de liste. Ici « Selectionner » et
+           « Colonnes » etaient rangees a l'extreme gauche, AVANT la recherche —
+           on cherchait le bouton de selection la ou il n'est nulle part
+           ailleurs, et on croyait qu'il manquait. -->
+      <div class="left">
+        <div class="search">
+          <mat-icon svgIcon="search"></mat-icon>
+          <input aria-label="Rechercher" placeholder="Rechercher…"
+                 #searchInput (input)="applySearch(searchInput.value)" />
+        </div>
+      </div>
+
+      <div class="right">
+        @if (selection.selected.length > 0) {
+          <button mat-stroked-button class="bulk" (click)="bulk()">
+            <mat-icon [svgIcon]="archiveView() ? 'restore' : 'delete'"></mat-icon>
+            {{ archiveView() ? 'Restaurer' : 'Supprimer' }} ({{ selection.selected.length }})
+          </button>
+        }
+        <app-selection-toggle #selToggle (change)="basculerSelection($event)"></app-selection-toggle>
+        <app-column-picker [titre]="ECRAN" [colonnes]="COLONNES"
+                           (visibles)="colonnesVisibles.set($event)"></app-column-picker>
+        <button mat-icon-button (click)="load()" matTooltip="Rafraîchir" aria-label="Rafraîchir"><mat-icon svgIcon="refresh"></mat-icon></button>
+        <button mat-icon-button (click)="fullscreen.set(!fullscreen())" matTooltip="Plein écran" aria-label="Plein écran">
+          <mat-icon svgIcon="fullscreen"></mat-icon>
+        </button>
+        <button mat-stroked-button (click)="toggleArchive()">
+          <mat-icon svgIcon="archive"></mat-icon>
+          {{ archiveView() ? 'Actifs' : 'Archive' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Tableau -->
+    <div class="table-wrap">
+      <!-- Squelette au premier chargement seulement. Démonter le tableau à
+           chaque requête détruirait la directive de tri, qui repartirait de
+           zéro : le sens demandé ne s'inverserait jamais. -->
+      @if (loading() && dataSource.data.length === 0) {
+        <app-skeleton-table [cols]="colonnesVisibles().length"></app-skeleton-table>
+      } @else {
+      <table mat-table [dataSource]="dataSource" matSort
+             [matSortActive]="triChamp()" [matSortDirection]="triDirection()"
+             (matSortChange)="onSort($event)" class="wf-table"
+               [class.selection-on]="modeSelection()">
+
+        <ng-container matColumnDef="select">
+          <th mat-header-cell *matHeaderCellDef class="col-select">
+            <mat-checkbox (change)="toggleAll()" [checked]="isAllSelected()"></mat-checkbox>
+          </th>
+          <td mat-cell *matCellDef="let w" class="col-select">
+            <mat-checkbox (change)="selection.toggle(w)" [checked]="selection.isSelected(w)"></mat-checkbox>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="id">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="id" class="col-id">ID</th>
+          <td mat-cell *matCellDef="let w" class="col-id">{{ w.id }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Nom</th>
+          <td mat-cell *matCellDef="let w" class="name">
+            <div class="cell-doc">
+              <span class="fico"><mat-icon svgIcon="nav-workflow"></mat-icon></span>
+              <span class="d-name">{{ w.name }}</span>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="steps">
+          <th mat-header-cell *matHeaderCellDef>Étapes</th>
+          <td mat-cell *matCellDef="let w">
+            <span class="tags">
+              @for (s of w.steps; track s.stepOrder) {
+                <span class="etape"><span class="rang">{{ s.stepOrder }}</span>{{ s.label }}</span>
+              }
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="workspaces">
+          <th mat-header-cell *matHeaderCellDef>Espaces de travail</th>
+          <td mat-cell *matCellDef="let w">
+            @if (w.workspaces.length) { {{ w.workspaces.join(', ') }} }
+            @else { <span class="muted">—</span> }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef class="col-actions">Actions</th>
+          <td mat-cell *matCellDef="let w" class="col-actions">
+            @if (archiveView()) {
+              <button mat-icon-button (click)="restoreOne(w)" matTooltip="Restaurer" aria-label="Restaurer"><mat-icon svgIcon="restore"></mat-icon></button>
+            } @else {
+              <button mat-icon-button class="act-edit" (click)="edit(w)" matTooltip="Modifier" aria-label="Modifier"><mat-icon svgIcon="edit"></mat-icon></button>
+              <button mat-icon-button class="danger" (click)="remove(w)" matTooltip="Supprimer" aria-label="Supprimer"><mat-icon svgIcon="delete"></mat-icon></button>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="colonnesVisibles()"></tr>
+        <tr mat-row *matRowDef="let row; columns: colonnesVisibles()"></tr>
+
+        <tr class="no-data-row" *matNoDataRow>
+          <td class="no-data" [attr.colspan]="colonnesVisibles().length">
+            <div class="empty-state">
+              <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+              <span class="empty-title">Aucune règle de workflow</span>
+              <span class="empty-sub">Créez votre première règle pour lancer un circuit de validation.</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+      }
+    </div>
+
+    @if (!loading()) {
+      <mat-paginator [pageSizeOptions]="[10, 25, 50]"
+                     [pageSize]="taillePage()" [pageIndex]="pageCourante()"
+                     [length]="total()" (page)="onPage($event)"
+                     showFirstLastButtons></mat-paginator>
+    }
+  </div>
+</div>

@@ -1,0 +1,55 @@
+/* Fiche d'un espace de travail. Le commun (page, carte, tableau, pastilles,
+   état vide) vient de core/_ui.scss */
+
+.page { gap: 16px; }
+
+/* La liste des documents absorbe la hauteur restante et défile en interne :
+   sinon trois cartes empilées poussent la page entière au défilement, ce que
+   le reste de l'application évite partout ailleurs. */
+.page > .card-docs { flex: 1 1 auto; min-height: 180px; }
+.card-docs > .table-wrap { flex: 1; min-height: 0; overflow: auto; }
+.tete-actions { display: flex; align-items: center; gap: 8px; }
+.etat { font-size: 13px; color: var(--ink-soft); padding: 10px 0; }
+
+/* ---------- Identité du dossier ---------- */
+.fiche-grille {
+  display: grid; gap: 14px 24px; margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+.fiche-grille > div { min-width: 0; }
+/* La description court sur toute la largeur : la tronquer en colonne étroite
+   la rendrait illisible alors que c'est le seul champ de texte libre. */
+.fiche-grille > .pleine { grid-column: 1 / -1; }
+.fiche-grille dt {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 4px;
+}
+.fiche-grille dd { margin: 0; font-size: 13.5px; color: var(--ink); }
+.mono { font-family: var(--font-mono); font-size: 12.5px; }
+.grp { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ---------- Sous-dossiers ---------- */
+.sous-dossiers {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+}
+.sd {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; cursor: pointer; text-align: left;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
+  font: inherit; font-size: 13.5px; color: var(--ink);
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.sd:hover { border-color: var(--marine-100); background: var(--marine-050); }
+.sd mat-icon { width: 18px; height: 18px; font-size: 18px; flex: 0 0 18px; color: var(--navy); }
+.sd-nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sd-compte {
+  font-size: 11px; font-weight: 700; color: var(--ink-soft);
+  background: var(--surface-0); border: 1px solid var(--line);
+  border-radius: var(--r-pill); padding: 1px 7px;
+}
+.sd-chev { color: var(--faint); }
+
+.tb-titre { font-size: 14px; font-weight: 700; color: var(--ink); }
+.tb-sub { font-size: 12px; color: var(--ink-soft); margin-left: 8px; }

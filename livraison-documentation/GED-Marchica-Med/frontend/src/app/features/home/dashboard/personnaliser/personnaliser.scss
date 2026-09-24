@@ -1,0 +1,118 @@
+/* Panneau « Personnaliser ».
+   Il s'ouvre en tiroir sur le bord droit (positionnement posé à l'ouverture,
+   côté composant hôte) : le tableau de bord reste visible pendant le réglage,
+   et chaque bascule s'y répercute sous les yeux. Une boîte centrée le
+   masquerait, et l'on réglerait à l'aveugle. */
+:host { display: block; height: 100%; }
+
+.perso {
+  display: flex; flex-direction: column;
+  height: 100%; background: var(--surface-0);
+}
+
+/* ---------- En-tête ---------- */
+.perso-tete {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 18px 20px 16px; flex: 0 0 auto;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-0) 100%);
+}
+.perso-tete > mat-icon {
+  width: 20px; height: 20px; font-size: 20px; flex: 0 0 20px;
+  color: var(--primary); margin-top: 2px;
+}
+.perso-titre { flex: 1; min-width: 0; }
+.perso-titre h2 { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+.perso-titre p { margin: 3px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+
+/* ---------- Liste des encarts ---------- */
+.perso-liste {
+  list-style: none; margin: 0; padding: 10px 12px;
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.perso-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 11px; border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-0);
+  transition: opacity .15s ease, border-color .15s ease, background-color .15s ease;
+}
+/* Un encart masqué s'estompe sans disparaître : il faut pouvoir le retrouver
+   pour le réactiver. */
+.perso-item.off { opacity: .5; background: var(--surface); }
+
+.perso-ic {
+  width: 32px; height: 32px; border-radius: 9px; flex: 0 0 32px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--primary);
+}
+.perso-ic mat-icon { width: 16px; height: 16px; font-size: 16px; }
+
+.perso-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.perso-nom {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+}
+.perso-fixe {
+  padding: 1px 7px; border-radius: var(--r-pill);
+  background: var(--surface); color: var(--faint);
+  font-size: 10.5px; font-weight: 600; letter-spacing: .02em;
+}
+.perso-resume {
+  font-size: 11.5px; color: var(--ink-soft); line-height: 1.35;
+}
+
+/* ---------- Commandes de ligne ---------- */
+.perso-cmd { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+
+.ico-btn {
+  width: 28px; height: 28px; padding: 0; flex: 0 0 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 8px; background: transparent;
+  color: var(--ink-soft); cursor: pointer;
+  transition: background-color .13s ease, color .13s ease;
+}
+.ico-btn mat-icon { width: 15px; height: 15px; font-size: 15px; }
+.ico-btn:hover:not(:disabled) { background: var(--surface); color: var(--primary); }
+.ico-btn:disabled { color: var(--line); cursor: default; }
+
+/* Bascule d'affichage : elle porte la couleur, les flèches restent neutres.
+   C'est la décision principale de la ligne. */
+.bascule {
+  width: 30px; height: 28px; margin-left: 4px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: 8px;
+  background: var(--primary-050, #eef3fc); color: var(--primary); cursor: pointer;
+  transition: background-color .13s ease, color .13s ease, border-color .13s ease;
+}
+.bascule mat-icon { width: 16px; height: 16px; font-size: 16px; }
+.bascule[aria-checked='false'] {
+  background: transparent; border-color: var(--line); color: var(--faint);
+}
+.bascule:hover { border-color: #c9d8f2; }
+
+/* ---------- Pied ---------- */
+.perso-pied {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 16px; flex: 0 0 auto;
+  border-top: 1px solid var(--line); background: var(--surface);
+}
+.lien-reset {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0; border: none; background: none; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+}
+.lien-reset mat-icon { width: 14px; height: 14px; font-size: 14px; }
+.lien-reset:hover:not(:disabled) { color: var(--primary); }
+.lien-reset:disabled { color: var(--line); cursor: default; }
+
+.valider {
+  margin-left: auto; height: 34px; padding: 0 20px;
+  border: none; border-radius: var(--r-pill);
+  background: var(--primary); color: #fff; cursor: pointer;
+  font-size: 13px; font-weight: 600;
+  transition: filter .15s ease;
+}
+.valider:hover { filter: brightness(1.12); }
+
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

@@ -1,0 +1,60 @@
+GED MARCHICA MED — VARIANTE B
+=============================
+
+POUR DEMARRER
+-------------
+Double-cliquez sur : index.html
+
+C'est tout. Aucune installation, aucun serveur, aucune connexion
+internet. La page de connexion s'ouvre dans votre navigateur.
+
+
+SE CONNECTER
+------------
+Cliquez simplement sur « Se connecter ». Il n'y a rien a saisir :
+cette variante est une maquette, elle ne verifie aucun mot de passe.
+
+L'application n'a qu'un seul compte, celui de l'administrateur.
+Toutes les actions lui sont ouvertes, sans exception.
+
+
+CE QUE VOUS POUVEZ ESSAYER
+--------------------------
+Les ecrans reagissent : ce ne sont pas des images.
+
+  - deposer un document : choisissez un type, puis un fichier.
+    Les champs d'indexation apparaissent des le choix du type et se
+    remplissent au choix du fichier ; le nom definitif se recompose
+    sous vos yeux d'apres la charte de nommage ;
+  - signer ou rejeter une etape dans « Mes workflow ». Un rejet
+    exige un motif, et le motif est conserve. Une etape rejetee
+    arrete le circuit ; elle se relance depuis l'historique ;
+  - creer, modifier, supprimer et restaurer des espaces de travail,
+    types de documents, index, plans d'indexation, groupes d'acces,
+    etiquettes et regles de workflow ;
+  - les espaces de travail s'affichent en tableau ou en arbre ; les
+    deux vues montrent la meme chose, toujours d'accord entre elles ;
+  - les compteurs suivent chaque action : pastille du menu, pied de
+    tableau, tuiles de l'accueil.
+
+
+CE QUE CETTE VERSION NE FAIT PAS
+--------------------------------
+C'est une MAQUETTE, pas l'application. Deux limites en decoulent,
+et il vaut mieux les connaitre avant d'essayer.
+
+  - Rien n'est enregistre. Vos actions vivent le temps de la page :
+    recharger l'ecran repart du jeu de depart. C'est voulu — une
+    demonstration doit pouvoir se rejouer propre.
+
+  - Le contenu des fichiers n'est pas lu. Les informations
+    d'indexation sont deduites du NOM du fichier uniquement.
+    Pour voir la reconnaissance a l'oeuvre, nommez votre fichier
+    d'essai selon la charte, par exemple :
+        99003_2026-10-20_Nador_Haute.pdf
+
+
+SI RIEN NE S'OUVRE
+------------------
+Ouvrez votre navigateur, puis faites glisser le fichier index.html
+dedans. Vous pouvez aussi ouvrir directement login.html.

@@ -1,0 +1,76 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Modifier Règles de Workflow' : 'Créer Règles de Workflow' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="wf-form">
+
+    <!-- Nom de la regle -->
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Nom de la règle</mat-label>
+      <input matInput formControlName="name" placeholder="Ex. : Validation comptable" />
+      @if (form.get('name')?.touched && form.get('name')?.invalid) {
+        <mat-error>Le nom est obligatoire</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Etapes du circuit -->
+    <div class="steps-head">
+      <span class="steps-title">Étapes du circuit</span>
+      <button mat-stroked-button type="button" (click)="addStep()">
+        <mat-icon svgIcon="add"></mat-icon> Ajouter une étape
+      </button>
+    </div>
+
+    @if (erreurEtapes(); as err) {
+      <p class="erreur-etapes">{{ err }}</p>
+    }
+
+    @if (steps.length === 0) {
+      <div class="empty">Aucune étape pour l'instant. Cliquez sur « Ajouter une étape » pour composer le circuit.</div>
+    }
+
+    <div cdkDropList (cdkDropListDropped)="drop($event)" class="steps-list">
+      @for (step of steps.controls; track $index; let i = $index) {
+        <div class="step-row" cdkDrag [formGroup]="stepGroup(i)">
+          <mat-icon class="drag-handle" cdkDragHandle svgIcon="drag"></mat-icon>
+          <span class="step-num">{{ i + 1 }}</span>
+
+          <mat-form-field appearance="outline" class="grow">
+            <mat-label>Étape {{ i + 1 }} — approbateur</mat-label>
+            <mat-select formControlName="employeId"
+                        (selectionChange)="onEmployeChange(i, $event.value)">
+              @for (emp of employes(); track emp.id) {
+                <mat-option [value]="emp.id">{{ emp.fullName }}</mat-option>
+              }
+            </mat-select>
+            @if (step.get('employeId')?.touched && step.get('employeId')?.invalid) {
+              <mat-error>L'approbateur est obligatoire</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="grow">
+            <mat-label>Libellé de l'étape</mat-label>
+            <input matInput formControlName="label" placeholder="Ex. : Vérification technique" />
+            @if (step.get('label')?.touched && step.get('label')?.invalid) {
+              <mat-error>Le libellé est obligatoire</mat-error>
+            }
+          </mat-form-field>
+
+          <button mat-icon-button type="button" class="del" (click)="removeStep(i)" matTooltip="Retirer" aria-label="Retirer">
+            <mat-icon svgIcon="close"></mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+
+    @if (serverError()) {
+      <div class="server-error">{{ serverError() }}</div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Annuler</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+    {{ loading() ? 'Enregistrement…' : (isEdit ? 'Modifier' : 'Créer') }}
+  </button>
+</mat-dialog-actions>

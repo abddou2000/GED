@@ -1,0 +1,257 @@
+package com.ipt.ged.workspace;
+
+import com.ipt.ged.common.PageResponse;
+import com.ipt.ged.common.Tri;
+import com.ipt.ged.employe.Employe;
+import com.ipt.ged.employe.EmployeRepository;
+import com.ipt.ged.workflow.WorkflowGed;
+import com.ipt.ged.workflow.WorkflowRepository;
+import com.ipt.ged.workspace.dto.TreeNode;
+import com.ipt.ged.workspace.dto.WorkSpaceRequest;
+import com.ipt.ged.workspace.dto.WorkSpaceResponse;
+import jakarta.persistence.EntityNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Logique métier des espaces de travail : CRUD, corbeille, déplacement (anti-cycle),
+ * archivage, et construction de l'arborescence.
+ */
+@Service
+public class WorkSpaceService {
+
+    /** Colonnes triables de l'écran « Espaces de travail ». */
+    private static final Set<String> TRIS = Set.of("id", "code", "name", "status");
+
+    private final WorkSpaceRepository repo;
+    private final EmployeRepository employeRepository;
+    private final WorkflowRepository workflowRepository;
+
+    public WorkSpaceService(WorkSpaceRepository repo, EmployeRepository employeRepository,
+                            WorkflowRepository workflowRepository) {
+        this.repo = repo;
+        this.employeRepository = employeRepository;
+        this.workflowRepository = workflowRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<WorkSpaceResponse> list(int page, int size, String search, String sortBy, String sortDir) {
+        Page<WorkSpace> result = repo.findByDeletedFalseAndNameContainingIgnoreCase(
+                search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
+        return PageResponse.of(result, this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<WorkSpaceResponse> trashed(int page, int size, String search, String sortBy, String sortDir) {
+        Page<WorkSpace> result = repo.findByDeletedTrueAndNameContainingIgnoreCase(
+                search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
+        return PageResponse.of(result, this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public WorkSpaceResponse get(Long id) {
+        return toResponse(load(id));
+    }
+
+    @Transactional
+    public WorkSpaceResponse create(WorkSpaceRequest req) {
+        if (repo.existsByCodeIgnoreCase(req.code())) {
+            throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
+        }
+        WorkSpace w = new WorkSpace(req.name(), req.code());
+        apply(w, req);
+        return toResponse(repo.save(w));
+    }
+
+    @Transactional
+    public WorkSpaceResponse update(Long id, WorkSpaceRequest req) {
+        WorkSpace w = loadPourEcriture(id);
+        if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
+            throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
+        }
+        w.setName(req.name());
+        w.setCode(req.code());
+        apply(w, req);
+        return toResponse(repo.save(w));
+    }
+
+    @Transactional
+    public void softDelete(Long id) {
+        load(id).setDeleted(true);
+    }
+
+    // Restauration = inverse de la mise en corbeille.
+    @Transactional
+    public void restore(Long id) {
+        load(id).setDeleted(false);
+    }
+
+    @Transactional
+    public void multipleDelete(List<Long> ids) {
+        repo.findByIdInAndDeletedFalse(ids).forEach(w -> w.setDeleted(true));
+    }
+
+    @Transactional
+    public void multipleRestore(List<Long> ids) {
+        repo.findByIdInAndDeletedTrue(ids).forEach(w -> w.setDeleted(false));
+    }
+
+    /** Déplace un dossier sous un nouveau parent (null = racine), en interdisant les cycles. */
+    @Transactional
+    public WorkSpaceResponse move(Long id, Long newParentId) {
+        WorkSpace w = loadPourEcriture(id);
+        if (newParentId != null) {
+            if (newParentId.equals(id)) {
+                throw new IllegalArgumentException("Un dossier ne peut pas être son propre parent");
+            }
+            if (descendantIds(id).contains(newParentId)) {
+                throw new IllegalArgumentException("Un dossier ne peut pas être déplacé dans sa propre descendance");
+            }
+            WorkSpace parent = repo.findById(newParentId)
+                    .orElseThrow(() -> new EntityNotFoundException("Dossier parent introuvable : " + newParentId));
+            w.setParent(parent);
+        } else {
+            w.setParent(null);
+        }
+        return toResponse(repo.save(w));
+    }
+
+    /** Bascule ACTIF <-> ARCHIVE. */
+    @Transactional
+    public WorkSpaceResponse archiveToggle(Long id) {
+        WorkSpace w = loadPourEcriture(id);
+        w.setStatus(w.getStatus() == WorkspaceStatus.ARCHIVE ? WorkspaceStatus.ACTIF : WorkspaceStatus.ARCHIVE);
+        return toResponse(repo.save(w));
+    }
+
+    /** Forêt de dossiers actifs (racines + enfants imbriqués). */
+    @Transactional(readOnly = true)
+    public List<TreeNode> tree() {
+        List<WorkSpace> all = repo.findByDeletedFalseOrderByIdAsc().stream()
+                .filter(w -> w.getStatus() == WorkspaceStatus.ACTIF)
+                .toList();
+
+        Map<Long, TreeNodeBuilder> byId = new LinkedHashMap<>();
+        for (WorkSpace w : all) {
+            Long parentId = w.getParent() != null ? w.getParent().getId() : null;
+            byId.put(w.getId(), new TreeNodeBuilder(w.getId(), w.getName(), w.getStatus().name(), parentId));
+        }
+        List<TreeNodeBuilder> roots = new ArrayList<>();
+        for (TreeNodeBuilder b : byId.values()) {
+            if (b.parentId != null && byId.containsKey(b.parentId)) {
+                byId.get(b.parentId).children.add(b);
+            } else {
+                roots.add(b);
+            }
+        }
+        // On fige les records SEULEMENT après avoir relié tous les enfants.
+        return roots.stream().map(TreeNodeBuilder::build).toList();
+    }
+
+    /** Liste allégée {id, name} pour les sélecteurs (parent). */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> forSelect() {
+        return repo.findByDeletedFalseOrderByIdAsc().stream()
+                .map(w -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", w.getId());
+                    m.put("name", w.getName());
+                    return m;
+                })
+                .toList();
+    }
+
+    /* ---------- privé ---------- */
+
+    private WorkSpace load(Long id) {
+        return repo.findWithRefsById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Espace de travail introuvable : " + id));
+    }
+
+    /**
+     * Chargement pour écriture : même règle de corbeille que pour les documents
+     * — la fiche reste consultable (l'écran « supprimés » doit pouvoir la
+     * décrire avant restauration), mais plus rien n'y est modifiable. Renommer,
+     * déplacer ou archiver un dossier que l'utilisateur croit supprimé revient à
+     * travailler sur une organisation qui n'apparaît nulle part.
+     */
+    private WorkSpace loadPourEcriture(Long id) {
+        WorkSpace w = load(id);
+        if (w.isDeleted()) {
+            throw new IllegalArgumentException(
+                    "Espace de travail en corbeille : modification impossible. Restaurez-le d'abord.");
+        }
+        return w;
+    }
+
+    /** Ids de toute la descendance d'un dossier (parcours en largeur via la base). */
+    private java.util.Set<Long> descendantIds(Long id) {
+        java.util.Set<Long> result = new java.util.HashSet<>();
+        java.util.Deque<Long> queue = new java.util.ArrayDeque<>();
+        queue.add(id);
+        while (!queue.isEmpty()) {
+            Long current = queue.poll();
+            for (WorkSpace child : repo.findByParentIdAndDeletedFalse(current)) {
+                if (result.add(child.getId())) {
+                    queue.add(child.getId());
+                }
+            }
+        }
+        return result;
+    }
+
+    private void apply(WorkSpace w, WorkSpaceRequest req) {
+        w.setDescription(req.description());
+        w.setStatus(req.status() != null ? req.status() : WorkspaceStatus.ACTIF);
+
+        Employe owner = employeRepository.findById(req.employeId())
+                .orElseThrow(() -> new EntityNotFoundException("Employé introuvable : " + req.employeId()));
+        w.setOwner(owner);
+
+        WorkflowGed workflow = workflowRepository.findById(req.workflowId())
+                .orElseThrow(() -> new EntityNotFoundException("Règle de workflow introuvable : " + req.workflowId()));
+        w.setWorkflow(workflow);
+
+        if (req.parentId() != null) {
+            WorkSpace parent = repo.findById(req.parentId())
+                    .orElseThrow(() -> new EntityNotFoundException("Dossier parent introuvable : " + req.parentId()));
+            w.setParent(parent);
+        } else {
+            w.setParent(null);
+        }
+    }
+
+    private WorkSpaceResponse toResponse(WorkSpace w) {
+        return WorkSpaceResponse.from(w, repo.countByParentIdAndDeletedFalse(w.getId()));
+    }
+
+    /** Petit builder mutable pour assembler l'arbre avant de figer les records. */
+    private static final class TreeNodeBuilder {
+        final Long id;
+        final String name;
+        final String status;
+        final Long parentId;
+        final List<TreeNodeBuilder> children = new ArrayList<>();
+
+        TreeNodeBuilder(Long id, String name, String status, Long parentId) {
+            this.id = id;
+            this.name = name;
+            this.status = status;
+            this.parentId = parentId;
+        }
+
+        TreeNode build() {
+            return new TreeNode(id, name, status, parentId,
+                    children.stream().map(TreeNodeBuilder::build).toList());
+        }
+    }
+}

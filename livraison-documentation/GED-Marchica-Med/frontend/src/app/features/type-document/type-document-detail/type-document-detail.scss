@@ -1,0 +1,32 @@
+/* Fiche d'un type de document. Le commun (page, carte, état vide) vient de
+   core/_ui.scss */
+
+.page { gap: 16px; }
+.etat { font-size: 13px; color: var(--ink-soft); padding: 8px 0 0; margin: 0; }
+
+/* Cartouches en pointillé, comme l'en-tête d'origine : chaque fait tient dans
+   sa boîte, valeur d'abord, intitulé en dessous. */
+.cartouches {
+  display: flex; flex-wrap: wrap; gap: 12px;
+}
+.cartouche {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 150px; max-width: 100%;
+  padding: 8px 14px;
+  border: 1px dashed var(--line); border-radius: var(--r-md);
+}
+/* La description est du texte libre : la contraindre à la largeur des autres
+   cartouches la rendrait illisible. */
+.cartouche.large { flex: 1 1 100%; min-width: 0; }
+
+.cartouche .val { font-size: 14px; font-weight: 600; color: var(--ink); word-break: break-word; }
+.cartouche .val a { color: var(--navy); }
+.cartouche .lib {
+  font-size: 11px; font-weight: 500; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.mono { font-family: var(--font-mono, monospace); font-size: 13px; }
+
+/* Les extensions sont stockées en minuscules ; la liste les affiche en
+   capitales, la fiche doit lire pareil. */
+.cartouche .formats { text-transform: uppercase; }

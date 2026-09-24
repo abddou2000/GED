@@ -1,0 +1,40 @@
+/* Espace de travail — formulaire de la modale.
+   ------------------------------------------------------------------------
+   Sept champs empilés sur une colonne imposaient un défilement dans la modale :
+   on ne voyait jamais le formulaire entier, et les boutons restaient hors vue.
+   Deux sections sur deux colonnes tiennent d'un seul écran, et le groupement
+   dit à quoi sert chaque bloc. */
+
+.ws-form { min-width: 640px; }
+
+/* Intertitre : le trait le prolonge jusqu'au bord, il sépare sans peser. */
+.section {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 0 6px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--primary);
+}
+.section::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--line); }
+.grille + .section { margin-top: 16px; }
+
+/* 20px entre colonnes : le libellé du champ de droite, posé au-dessus de sa
+   boîte, doit rester visiblement rattaché à elle et non à sa voisine. */
+.grille {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 20px;
+  align-items: start;
+}
+.grille .pleine { grid-column: 1 / -1; }
+.grille .mat-mdc-form-field { width: 100%; }
+
+.server-error {
+  background: #f8ece8; color: var(--danger); border: 1px solid #e3c3b8;
+  padding: 10px 12px; border-radius: var(--r-md); font-size: 13px; margin-top: 12px;
+}
+
+/* Sous 720px la deuxième colonne n'a plus la place : on repasse en pile. */
+@media (max-width: 720px) {
+  .ws-form { min-width: 0; }
+  .grille { grid-template-columns: 1fr; }
+}

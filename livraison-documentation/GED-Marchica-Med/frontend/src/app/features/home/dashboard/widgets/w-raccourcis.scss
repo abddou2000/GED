@@ -1,0 +1,28 @@
+@use './liste' as *;
+
+/* Les raccourcis se répartissent sur la hauteur de l'encart : quatre pavés
+   tassés en haut d'une carte haute laissent un vide qui se lit comme un oubli. */
+.raccourcis {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 9px 10px 10px; height: 100%; justify-content: space-evenly;
+}
+.rac {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 10px; border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-0); text-decoration: none;
+  transition: border-color .15s ease, background-color .15s ease,
+              box-shadow .15s ease, transform .15s ease;
+}
+.rac:hover {
+  border-color: #ccd6e6; background: var(--surface);
+  box-shadow: var(--sh-sm); transform: translateY(-1px);
+}
+.rac .pastille { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; }
+.rac .pastille mat-icon { width: 17px; height: 17px; font-size: 17px; }
+.rac .nom { font-size: 13px; }
+.rac .meta { display: block; margin-top: 1px; }
+.fleche {
+  width: 16px; height: 16px; font-size: 16px; flex: 0 0 16px; color: var(--faint);
+  transition: color .15s ease, transform .15s ease;
+}
+.rac:hover .fleche { color: var(--primary); transform: translateX(3px); }

@@ -1,0 +1,79 @@
+/* Rangée d'indicateurs.
+   ------------------------------------------------------------------------
+   Chaque tuile occupait 166px de haut pour afficher un nombre : libellé, puis
+   rond de 46px, puis grand chiffre, puis filet pointillé, puis une précision
+   qui répétait le libellé. Cinq niveaux empilés, et une rangée qui pesait
+   autant que le contenu de la page.
+
+   Ici tout tient sur une ligne — la pastille, le chiffre, ce qu'il compte — et
+   la tuile est un lien : un indicateur qu'on ne peut pas ouvrir est une
+   impasse. */
+.tiles {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+}
+@media (max-width: 1100px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+
+.tile {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 14px;
+  padding: 15px 16px;
+  background: var(--surface-0);
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  box-shadow: var(--sh-sm);
+  text-decoration: none; color: inherit;
+  transition: transform .2s cubic-bezier(.22, .61, .36, 1),
+              box-shadow .2s ease, border-color .2s ease;
+}
+
+/* Liseré de famille sur le bord gauche : éteint au repos, il s'allume au
+   survol. C'est le seul endroit où la couleur de la tuile revient hors de sa
+   pastille — répétée partout, elle ferait carnaval. */
+.tile::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: currentColor; opacity: 0;
+  transition: opacity .2s ease;
+}
+.tile:hover {
+  transform: translateY(-2px);
+  border-color: #ccd6e6; box-shadow: var(--sh-card);
+}
+.tile:hover::before { opacity: 1; }
+.tile:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Pastille : dégradé plutôt qu'aplat. À cette taille, un aplat se lit comme
+   une gommette ; le dégradé lui donne du volume. */
+.ico {
+  width: 44px; height: 44px; border-radius: 13px; flex: 0 0 44px;
+  display: flex; align-items: center; justify-content: center;
+  background-image: var(--degrade);
+  box-shadow: inset 0 -9px 16px rgba(0, 0, 0, .16), 0 4px 10px var(--ombre);
+}
+/* L'encre du glyphe suit la famille : blanche sur les teintes assez sombres,
+   foncee sur l'ambre et le vert clair, ou du blanc tomberait a 1,9:1. */
+.ico mat-icon { width: 21px; height: 21px; font-size: 21px; color: var(--encre-pastille, #fff); }
+
+.t-txt { display: flex; flex-direction: column; min-width: 0; }
+.n {
+  font-size: 25px; font-weight: 800; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; line-height: 1.08; color: var(--ink);
+}
+.lb {
+  font-size: 12.5px; font-weight: 500; color: var(--ink-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Chevron effacé : il dit que la tuile mène quelque part sans disputer
+   l'attention au chiffre. */
+.t-go {
+  margin-left: auto; flex: 0 0 17px;
+  width: 17px; height: 17px; font-size: 17px; color: var(--faint);
+  transition: color .2s ease, transform .2s ease;
+}
+.tile:hover .t-go { color: currentColor; transform: translateX(3px); }
+
+/* Familles de couleur. `color` porte la teinte de la tuile : le liseré et le
+   chevron la reprennent par `currentColor`, sans la redéclarer trois fois. */
+.i-marine   { color: var(--primary);  --degrade: linear-gradient(140deg, #5b8ae8, #1e4bb8); --ombre: rgba(6, 36, 104, .28); }
+.i-vert     { color: #14967d;         --encre-pastille: #06503e; --degrade: linear-gradient(140deg, #5fe6ca, #17a888); --ombre: rgba(18, 137, 114, .28); }
+.i-ambre    { color: #c58322;         --encre-pastille: #6b4406; --degrade: linear-gradient(140deg, #f0b04a, #d08a1e); --ombre: rgba(197, 131, 34, .28); }
+.i-cramoisi { color: var(--cramoisi); --degrade: linear-gradient(140deg, #d0475a, #9e1b32); --ombre: rgba(158, 27, 50, .28); }

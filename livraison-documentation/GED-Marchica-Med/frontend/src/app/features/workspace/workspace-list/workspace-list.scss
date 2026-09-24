@@ -1,0 +1,166 @@
+/* Spécifique — Espaces de travail (écran vedette).
+   ------------------------------------------------------------------------
+   Même traitement que « Mes workflow » : une barre d'outils qui se distingue
+   du contenu, un sélecteur de vue franc, et un arbre où la hiérarchie se lit
+   sans effort. Le commun (page, carte, tableau, avatars, pastilles) vient de
+   _ui.scss. */
+
+.page > .card {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 0; overflow: hidden;
+}
+
+/* ---------- Barre d'outils ---------- */
+/* Zone posée : sans fond ni filet, les commandes flottaient au-dessus du
+   tableau sans qu'on sache où finissait l'une et où commençait l'autre. */
+.barre {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  padding: 14px 18px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-0) 100%);
+  border-bottom: 1px solid var(--line);
+}
+.tb-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Sélecteur de vue : le segment actif est plein. Teinté, il ne se distinguait
+   pas de l'inactif et on ne savait pas quelle vue était affichée. */
+/* Le selecteur segmente vient de _ui.scss — voir « Selecteur segmente ». */
+
+/* ---------- Tableau ---------- */
+.table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.ws-table { padding: 0 6px; }
+.ws-table th.mat-mdc-header-cell,
+.ws-table td.mat-mdc-cell { padding-left: 12px; padding-right: 12px; }
+
+/* Le survol allume la ligne et pose un filet à gauche : le regard la suit
+   jusqu'aux actions, à l'autre bout. */
+.ws-table tbody tr.mat-mdc-row:hover td.mat-mdc-cell { background: var(--marine-050); }
+.ws-table tbody tr.mat-mdc-row:hover td.mat-mdc-cell:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+/* Largeurs de colonnes.
+   ------------------------------------------------------------------------
+   Sans largeur imposée, « Dossier » absorbait tout l'espace restant : 430px
+   pour 150px de contenu, un vide béant au milieu du tableau. Des largeurs
+   fixes ne font que déplacer ce vide sur la colonne élastique : en proportions,
+   l'espace en trop se répartit sur toutes les colonnes et aucune ne bâille.
+   Les min-width empêchent l'écrasement sur écran étroit — la zone défile. */
+.ws-table .mat-column-code { width: 10%; min-width: 120px; }
+.ws-table .mat-column-name { width: 19%; min-width: 190px; }
+.ws-table .mat-column-parent { width: 12%; min-width: 130px; }
+.ws-table .mat-column-workflow { width: 13%; min-width: 150px; }
+.ws-table .mat-column-description { width: 19%; min-width: 140px; }
+.ws-table .mat-column-owner { width: 14%; min-width: 165px; }
+.ws-table .mat-column-status { width: 8%; min-width: 96px; }
+.ws-table .c-act { width: 138px; }
+
+.ws-table .c-id { color: var(--faint); font-variant-numeric: tabular-nums; }
+.ws-table .d-name { text-decoration: none; }
+.ws-table .d-name:hover { text-decoration: underline; }
+.ws-table .mat-column-description { color: var(--ink-soft); }
+
+.act-row { display: inline-flex; align-items: center; gap: 2px; }
+
+.page > .card > .mat-mdc-paginator { flex: 0 0 auto; border-top: 1px solid var(--line); }
+
+/* ---------- Arbre des dossiers ---------- */
+.tree { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px 16px; }
+
+.trow {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: var(--r-md);
+  transition: background-color .12s ease, box-shadow .12s ease;
+}
+.trow:hover { background: var(--marine-050); box-shadow: inset 3px 0 0 var(--primary); }
+
+.texp {
+  border: none; background: none; cursor: pointer; padding: 0;
+  color: var(--faint); display: inline-flex; align-items: center;
+  border-radius: var(--r-sm);
+}
+.texp:hover { color: var(--primary); }
+/* Le chevron pivote au lieu d'être remplacé : la rotation accompagne
+   l'ouverture, un échange de glyphe la contredirait par une coupure nette. */
+.texp mat-icon { transition: transform .24s cubic-bezier(.22, .61, .36, 1); }
+.texp.ouvert { color: var(--primary); }
+.texp.ouvert mat-icon { transform: rotate(90deg); }
+.texp mat-icon { font-size: 20px; width: 20px; height: 20px; }
+.tspace { width: 20px; display: inline-block; }
+
+/* Dossier : pastille pleine. Une icône seule au milieu du texte ne donnait
+   aucun point d'ancrage aux niveaux de l'arborescence. */
+.tfolder {
+  /* 48px de pastille pour 28px de dessin — l'icone de dossier est le reperage
+     qu'on suit du regard en descendant l'arborescence.
+
+     Le traitement est VOLONTAIREMENT sobre : un aplat marine tres clair et un
+     filet. Le degrade fonce essaye juste avant faisait de chaque ligne un pave
+     sombre — a six lignes cela devenait une colonne de blocs, et l'oeil ne
+     lisait plus les noms. Une arborescence se parcourt ; ses reperes doivent
+     se laisser survoler, pas retenir le regard.
+
+     L'etat ouvert se marque par un cran de teinte, pas par un renversement de
+     contraste. */
+  width: 48px; height: 48px; flex: 0 0 48px;
+  border-radius: 13px; padding: 10px; box-sizing: border-box;
+  background: #eef3fc;
+  box-shadow: inset 0 0 0 1px rgba(30, 75, 184, .12);
+  color: #2f62d6;
+  transition: background-color .18s ease, box-shadow .18s ease, color .18s ease;
+}
+
+.tfolder.ouvert {
+  background: #dbe6fa;
+  box-shadow: inset 0 0 0 1px rgba(30, 75, 184, .22);
+  color: var(--navy);
+}
+
+.tname { font-size: 14px; font-weight: 600; color: var(--ink); flex: 1; min-width: 0; }
+a.tname { text-decoration: none; }
+a.tname:hover { text-decoration: underline; }
+.tdots { margin-left: auto; }
+
+/* ---------- Documents en feuilles de l'arbre ---------- */
+/* Plus discrets que les dossiers : sans cet écart, fichiers et dossiers se
+   confondent au même niveau et la hiérarchie disparaît. */
+.tdoc .tname { font-size: 13.5px; font-weight: 400; color: var(--ink-soft); }
+.tfile {
+  width: 28px; height: 28px; flex: 0 0 28px; border-radius: var(--r-sm);
+  background: var(--surface); color: var(--faint);
+  padding: 6px; box-sizing: border-box;
+}
+.tchip { flex: 0 0 auto; }
+.tsize {
+  flex: 0 0 auto; font-size: 12px; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.tvide { font-size: 12.5px; color: var(--faint); font-style: italic; padding-left: 10px; }
+
+/* ---------- Ouverture d'un dossier ---------- */
+/* Le conteneur est déplié par l'animation Angular (hauteur + opacité). Les
+   lignes, elles, entrent en cascade : c'est ce décalage qui donne le sens de
+   lecture — on voit le contenu sortir du dossier, de haut en bas. */
+.tenfants > .trow,
+.tenfants > .tnode > .trow {
+  animation: entree-ligne .26s cubic-bezier(.22, .61, .36, 1) both;
+  /* 28 ms entre deux lignes, plafonné : au-delà de huit lignes la cascade
+     deviendrait une attente. */
+  animation-delay: calc(min(var(--rang, 0) * 28ms, 224ms));
+}
+
+@keyframes entree-ligne {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Mouvement réduit demandé par le système : on garde l'apparition, on retire
+   le déplacement et la cascade. Une animation n'est jamais une raison de
+   rendre une interface pénible à quelqu'un. */
+@media (prefers-reduced-motion: reduce) {
+  .tenfants > .trow,
+  .tenfants > .tnode > .trow { animation: none; }
+  .texp mat-icon { transition: none; }
+}

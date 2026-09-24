@@ -1,0 +1,86 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Modifier le type de document' : 'Créer un type de document' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="td-form">
+
+    <div class="row">
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Code</mat-label>
+        <input matInput formControlName="code" placeholder="Ex. TD-FACT" />
+        @if (form.get('code')?.touched && form.get('code')?.invalid) {
+          <mat-error>Le code est obligatoire</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Type de document</mat-label>
+        <input matInput formControlName="typeDeDocument" placeholder="Ex. Facture" />
+        @if (form.get('typeDeDocument')?.touched && form.get('typeDeDocument')?.invalid) {
+          <mat-error>Le type est obligatoire</mat-error>
+        }
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Description</mat-label>
+      <textarea matInput formControlName="description" rows="2" placeholder="Entrez une description"></textarea>
+      @if (form.get('description')?.touched && form.get('description')?.invalid) {
+        <mat-error>La description est obligatoire</mat-error>
+      }
+    </mat-form-field>
+
+    <div class="row">
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Espace de travail</mat-label>
+        <mat-select formControlName="workspaceId">
+          @for (w of workspaces(); track w.id) {
+            <mat-option [value]="w.id">{{ w.name }}</mat-option>
+          }
+        </mat-select>
+        @if (form.get('workspaceId')?.touched && form.get('workspaceId')?.invalid) {
+          <mat-error>L'espace de travail est obligatoire</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Plan d'indexation</mat-label>
+        <mat-select formControlName="planIndexationId">
+          <mat-option [value]="null">— Aucun —</mat-option>
+          @for (p of plans(); track p.id) {
+            <mat-option [value]="p.id">{{ p.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="row">
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Type de fichier</mat-label>
+        <mat-select formControlName="typeAutorise" multiple>
+          @for (f of fileTypes; track f.value) {
+            <mat-option [value]="f.value">{{ f.label }}</mat-option>
+          }
+        </mat-select>
+        @if (form.get('typeAutorise')?.touched && form.get('typeAutorise')?.invalid) {
+          <mat-error>Au moins un format est requis</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="sm">
+        <mat-label>Taille max (Mo)</mat-label>
+        <input matInput type="number" formControlName="tailleMaxMo" min="5" />
+        @if (form.get('tailleMaxMo')?.touched && form.get('tailleMaxMo')?.invalid) {
+          <mat-error>5 Mo minimum</mat-error>
+        }
+      </mat-form-field>
+    </div>
+
+    @if (serverError()) {
+      <div class="server-error">{{ serverError() }}</div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Annuler</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+    {{ loading() ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Ajouter') }}
+  </button>
+</mat-dialog-actions>

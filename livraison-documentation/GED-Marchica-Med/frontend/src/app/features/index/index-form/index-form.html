@@ -1,0 +1,81 @@
+<h2 mat-dialog-title>{{ isEdit ? 'Modifier l\'index' : 'Créer un index' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="idx-form">
+
+    <div class="row">
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Nom de l'index</mat-label>
+        <input matInput formControlName="nomIndex" placeholder="Ex. Numéro de facture" />
+        @if (form.get('nomIndex')?.touched && form.get('nomIndex')?.invalid) {
+          <mat-error>Le nom est obligatoire</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="grow">
+        <mat-label>Code</mat-label>
+        <input matInput formControlName="code" placeholder="Ex. IDX-NUMFACT" />
+        @if (form.get('code')?.touched && form.get('code')?.invalid) {
+          <mat-error>Le code est obligatoire</mat-error>
+        }
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Type de champ</mat-label>
+      <mat-select formControlName="fieldType">
+        @for (t of fieldTypes; track t.value) {
+          <mat-option [value]="t.value">{{ t.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    @if (isListe) {
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Valeurs (Options)</mat-label>
+        <mat-chip-grid #grille aria-label="Valeurs de la liste">
+          @for (v of valeursListe(); track v) {
+            <mat-chip-row (removed)="retirerValeur(v)">
+              {{ v }}
+              <button matChipRemove [attr.aria-label]="'Retirer ' + v">
+                <mat-icon svgIcon="close"></mat-icon>
+              </button>
+            </mat-chip-row>
+          }
+          <input placeholder="Ajoutez une option puis Entrée"
+                 [matChipInputFor]="grille"
+                 [matChipInputSeparatorKeyCodes]="separateurs"
+                 (matChipInputTokenEnd)="ajouterValeur($event)" />
+        </mat-chip-grid>
+        <mat-hint>Entrée ou virgule pour valider chaque option</mat-hint>
+      </mat-form-field>
+      <!-- Message hors du champ : Material n'affiche <mat-error> que si le
+           contrôle lui-même est invalide, or la grille de puces n'est pas un
+           FormControl — l'enregistrement était bloqué sans rien dire. -->
+      @if (erreurValeurs()) {
+        <p class="err-valeurs">Indiquez au moins une valeur</p>
+      }
+    }
+
+    <mat-form-field appearance="outline" class="full">
+      <mat-label>Valeur par défaut</mat-label>
+      <input matInput formControlName="valeurParDefaut" />
+    </mat-form-field>
+
+    <div class="toggles">
+      <mat-slide-toggle formControlName="obligatoire">Obligatoire</mat-slide-toggle>
+      <mat-slide-toggle formControlName="indexePourRecherche">Indexé pour recherche</mat-slide-toggle>
+      <mat-slide-toggle formControlName="indexDeGroupage">Index de groupage</mat-slide-toggle>
+    </div>
+
+    @if (serverError()) {
+      <div class="server-error">{{ serverError() }}</div>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">Annuler</button>
+  <button mat-flat-button color="primary" type="button" [disabled]="loading()" (click)="submit()">
+    {{ loading() ? 'Enregistrement…' : (isEdit ? 'Mettre à jour' : 'Ajouter') }}
+  </button>
+</mat-dialog-actions>
