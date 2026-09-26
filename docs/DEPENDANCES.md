@@ -115,7 +115,7 @@ redistribuer la GED sans obligation de publier son code ni redevance :
 | commons-io:commons-io | 2.16.1 | Apache-2.0 | Compatible | transitive de org.apache.poi:poi-ooxml |
 | commons-logging:commons-logging | 1.4.0 | Apache-2.0 | Compatible | transitive de org.apache.pdfbox:pdfbox |
 | io.micrometer:micrometer-commons | 1.14.2 | Apache-2.0 | Compatible | transitive de org.springframework.boot:spring-boot-starter-web |
-| io.micrometer:micrometer-core | 1.14.2 | Apache-2.0 | Compatible | transitive de org.springframework.boot:spring-boot-starter-actuator |
+| io.micrometer:micrometer-core | 1.14.2 | Apache-2.0 | Compatible | transitive de io.micrometer:micrometer-registry-prometheus |
 | io.micrometer:micrometer-jakarta9 | 1.14.2 | Apache-2.0 | Compatible | transitive de org.springframework.boot:spring-boot-starter-actuator |
 | io.micrometer:micrometer-observation | 1.14.2 | Apache-2.0 | Compatible | transitive de org.springframework.boot:spring-boot-starter-web |
 | io.prometheus:prometheus-metrics-config | 1.3.5 | Apache-2.0 | Compatible | transitive de io.micrometer:micrometer-registry-prometheus |
@@ -156,13 +156,13 @@ redistribuer la GED sans obligation de publier son code ni redevance :
 | org.glassfish.jaxb:jaxb-core | 4.0.5 | BSD-3-Clause | Compatible | transitive de org.springframework.boot:spring-boot-starter-data-jpa |
 | org.glassfish.jaxb:jaxb-runtime | 4.0.5 | BSD-3-Clause | Compatible | transitive de org.springframework.boot:spring-boot-starter-data-jpa |
 | org.glassfish.jaxb:txw2 | 4.0.5 | BSD-3-Clause | Compatible | transitive de org.springframework.boot:spring-boot-starter-data-jpa |
-| org.hdrhistogram:HdrHistogram | 2.2.2 | CC0-1.0 ou BSD-2-Clause | Compatible | transitive de org.springframework.boot:spring-boot-starter-actuator |
+| org.hdrhistogram:HdrHistogram | 2.2.2 | CC0-1.0 ou BSD-2-Clause | Compatible | transitive de io.micrometer:micrometer-registry-prometheus |
 | org.hibernate.common:hibernate-commons-annotations | 7.0.3.Final | Apache-2.0 | Compatible | transitive de org.springframework.boot:spring-boot-starter-data-jpa |
 | org.hibernate.orm:hibernate-core | 6.6.4.Final | LGPL-2.1-only | Compatible sous condition | transitive de org.springframework.boot:spring-boot-starter-data-jpa |
 | org.hibernate.validator:hibernate-validator | 8.0.2.Final | Apache-2.0 | Compatible | transitive de org.springframework.boot:spring-boot-starter-validation |
 | org.jboss.logging:jboss-logging | 3.6.1.Final | Apache-2.0 | Compatible | transitive de org.springframework.boot:spring-boot-starter-data-jpa |
 | org.jspecify:jspecify | 1.0.0 | Apache-2.0 | Compatible | transitive de org.springdoc:springdoc-openapi-starter-webmvc-ui |
-| org.latencyutils:LatencyUtils | 2.0.3 | CC0-1.0 | Compatible | transitive de org.springframework.boot:spring-boot-starter-actuator |
+| org.latencyutils:LatencyUtils | 2.0.3 | CC0-1.0 | Compatible | transitive de io.micrometer:micrometer-registry-prometheus |
 | org.slf4j:jul-to-slf4j | 2.0.16 | MIT | Compatible | transitive de org.springframework.boot:spring-boot-starter-web |
 | org.slf4j:slf4j-api | 2.0.16 | MIT | Compatible | transitive de org.springframework.boot:spring-boot-starter-web |
 | org.springdoc:springdoc-openapi-starter-common | 2.7.0 | Apache-2.0 | Compatible | transitive de org.springdoc:springdoc-openapi-starter-webmvc-ui |
