@@ -1,0 +1,50 @@
+# =====================================================================
+#  Extrait de prometheus.yml pour la GED (DAT 6.7) — à fusionner dans la
+#  configuration de l'outil de supervision de MMED, ou à utiliser tel quel
+#  si Prometheus est installé pour la GED.
+#  Contrôle : promtool check config prometheus.yml
+# =====================================================================
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/regles/ged-alertes.yml   # copie de alertes.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["127.0.0.1:9093"]
+
+scrape_configs:
+  # Métriques et sondes du back-end : port de MANAGEMENT, réseau interne
+  # seulement (GED_MANAGEMENT_ADRESSE:GED_MANAGEMENT_PORT). Jamais via NGINX.
+  - job_name: ged
+    metrics_path: /actuator/prometheus
+    static_configs:
+      # L'étiquette environnement est posée par l'application elle-même
+      # (management.metrics.tags) : ne pas la redéfinir ici.
+      - targets: ["ged-app.marchica.local:8081"]
+
+  # Disques et système des serveurs de la GED (node_exporter).
+  - job_name: ged-noeuds
+    static_configs:
+      - targets:
+          - "ged-app.marchica.local:9100"
+          - "ged-db.marchica.local:9100"
+          - "ged-web.marchica.local:9100"
+
+  # Expiration du certificat TLS public (blackbox_exporter, module http_2xx).
+  - job_name: ged-tls
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["https://ged.marchica.ma/"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "127.0.0.1:9115"
