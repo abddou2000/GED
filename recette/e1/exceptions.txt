@@ -1,0 +1,14 @@
+# Écarts aux conventions E1 JUSTIFIÉS PAR LE DAT V3 lui-même.
+# Format : contrôle|motif d'objet (expression régulière bash)|justification
+# Toute nouvelle ligne doit citer le paragraphe du DAT qui l'impose ; un écart de
+# confort n'a rien à faire ici (il se corrige dans le changeset).
+
+# §7.4.1 : « id, horodatage — Identifiant séquentiel ». Le journal d'audit n'est pas
+# exposé par l'API par son identifiant ; la séquence garantit l'ordre du chaînage.
+E1-C05|^journal_audit\.id$|DAT 7.4.1 : identifiant séquentiel du journal d'audit
+E1-C06|^journal_audit\.id$|DAT 7.4.1 : identifiant séquentiel du journal d'audit
+# §7.4.3 : partitionnement mensuel ; PostgreSQL impose la clé de partition dans la clé primaire.
+E1-C04|^journal_audit$|DAT 7.4.3 : partition mensuelle, clé primaire (id, horodatage) imposée par PostgreSQL
+# §12.5 : « indicateur de suppression douce (supprime, supprime_par, supprime_le) » — le DAT
+# nomme lui-même la colonne ; elle référence l'utilisateur sans suffixe _id.
+E1-C07|\.supprime_par$|DAT 12.5 : nom de colonne supprime_par imposé
