@@ -1,7 +1,7 @@
 package com.ipt.ged.document.dto;
 
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Donnees recues pour modifier la fiche d'un document deja depose.

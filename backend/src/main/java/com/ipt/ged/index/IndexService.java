@@ -1,7 +1,6 @@
 package com.ipt.ged.index;
 
 import com.ipt.ged.common.ActeurCourant;
-import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.index.dto.IndexRequest;
@@ -16,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Logique métier des index (champs de métadonnées) : CRUD, corbeille et

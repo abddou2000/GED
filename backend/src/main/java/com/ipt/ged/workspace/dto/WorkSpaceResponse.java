@@ -1,9 +1,9 @@
 package com.ipt.ged.workspace.dto;
 
-import java.util.UUID;
 import com.ipt.ged.workspace.WorkSpace;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour un espace de travail (colonnes de la liste).

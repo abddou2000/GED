@@ -1,6 +1,5 @@
 package com.ipt.ged.typedocument;
 
-import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.typedocument.dto.TypeDocumentRequest;
 import com.ipt.ged.typedocument.dto.TypeDocumentResponse;
@@ -11,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST des types de document. Base : /api/v1/type-documents

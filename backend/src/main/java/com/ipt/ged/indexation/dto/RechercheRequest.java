@@ -1,7 +1,7 @@
 package com.ipt.ged.indexation.dto;
 
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Corps d'une recherche multi-critères.

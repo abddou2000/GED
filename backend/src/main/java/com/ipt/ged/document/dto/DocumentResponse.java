@@ -1,10 +1,10 @@
 package com.ipt.ged.document.dto;
 
-import java.util.UUID;
 import com.ipt.ged.document.UploadDocument;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour un document déposé.

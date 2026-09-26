@@ -1,6 +1,5 @@
 package com.ipt.ged.document;
 
-import java.util.UUID;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
@@ -28,6 +27,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import com.ipt.ged.support.Comptes;
 import org.springframework.security.test.context.support.WithUserDetails;
+
+import java.util.UUID;
 
 /**
  * Campagne de tests du dépôt de documents (Phase 1) : upload avec validation

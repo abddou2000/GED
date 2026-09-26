@@ -1,7 +1,6 @@
 package com.ipt.ged.document;
 
 import com.ipt.ged.common.ActeurCourant;
-import java.util.UUID;
 import com.ipt.ged.common.Limites;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
@@ -28,6 +27,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Logique métier du dépôt de documents (Phase 1) : upload avec validation des

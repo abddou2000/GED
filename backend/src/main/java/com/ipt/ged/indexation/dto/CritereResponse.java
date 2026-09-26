@@ -1,7 +1,7 @@
 package com.ipt.ged.indexation.dto;
 
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Descripteur d'un critère de recherche, <b>généré depuis un index</b> et non codé

@@ -1,6 +1,5 @@
 package com.ipt.ged.indexation;
 
-import java.util.UUID;
 import com.ipt.ged.indexation.dto.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Indexation & recherche par index.

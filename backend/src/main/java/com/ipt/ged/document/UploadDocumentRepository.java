@@ -1,6 +1,5 @@
 package com.ipt.ged.document;
 
-import java.util.UUID;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface UploadDocumentRepository extends JpaRepository<UploadDocument, UUID> {
 

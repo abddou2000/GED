@@ -1,6 +1,5 @@
 package com.ipt.ged.accessgroup;
 
-import java.util.UUID;
 import com.ipt.ged.accessgroup.dto.AccessGroupRequest;
 import com.ipt.ged.accessgroup.dto.AccessGroupResponse;
 import com.ipt.ged.common.PageResponse;
@@ -11,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST des groupes d'accès. Base : /api/v1/access-groups

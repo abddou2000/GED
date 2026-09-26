@@ -1,13 +1,14 @@
 package com.ipt.ged.workflow;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.common.Auditable;
 import com.ipt.ged.employe.Employe;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.UUID;
 
 /**
  * Une étape d'un circuit : un approbateur (employé) + un libellé + un rang d'ordre.

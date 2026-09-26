@@ -1,6 +1,5 @@
 package com.ipt.ged.workspace;
 
-import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.workspace.dto.TreeNode;
 import com.ipt.ged.workspace.dto.WorkSpaceRequest;
@@ -12,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST des espaces de travail (dossiers). Base : /api/v1/workspaces

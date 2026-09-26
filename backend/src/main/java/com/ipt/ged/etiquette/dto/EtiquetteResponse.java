@@ -1,7 +1,8 @@
 package com.ipt.ged.etiquette.dto;
 
-import java.util.UUID;
 import com.ipt.ged.etiquette.Etiquette;
+
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour une étiquette.

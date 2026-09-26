@@ -1,7 +1,6 @@
 package com.ipt.ged.security;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.employe.Employe;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -9,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Compte de connexion d'un employé.

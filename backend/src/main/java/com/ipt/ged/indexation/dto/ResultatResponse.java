@@ -1,7 +1,7 @@
 package com.ipt.ged.indexation.dto;
 
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 
 /** Un document trouvé, accompagné des valeurs d'index qui le décrivent. */
 public record ResultatResponse(

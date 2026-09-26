@@ -1,7 +1,6 @@
 package com.ipt.ged.planindexation;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.index.IndexField;
 import jakarta.persistence.*;
@@ -11,6 +10,7 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Plan d'indexation : regroupe des index (champs de métadonnées) en une « fiche »,

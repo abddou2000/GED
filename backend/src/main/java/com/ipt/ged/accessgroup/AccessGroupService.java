@@ -1,7 +1,6 @@
 package com.ipt.ged.accessgroup;
 
 import com.ipt.ged.common.ActeurCourant;
-import java.util.UUID;
 import com.ipt.ged.accessgroup.dto.AccessGroupRequest;
 import com.ipt.ged.accessgroup.dto.AccessGroupResponse;
 import com.ipt.ged.common.PageResponse;
@@ -21,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Logique métier des groupes d'accès : CRUD, corbeille et affectation des espaces

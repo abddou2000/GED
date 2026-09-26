@@ -1,7 +1,6 @@
 package com.ipt.ged.document;
 
 import com.ipt.ged.support.Comptes;
-import java.util.UUID;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.typedocument.TypeDocument;
@@ -23,6 +22,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

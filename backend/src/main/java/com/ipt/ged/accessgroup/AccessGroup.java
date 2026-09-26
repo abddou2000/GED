@@ -1,7 +1,6 @@
 package com.ipt.ged.accessgroup;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.workspace.WorkSpace;
@@ -12,6 +11,7 @@ import lombok.Setter;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Groupe d'accès : rattache des utilisateurs (employés) à des espaces de travail.

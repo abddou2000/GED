@@ -1,6 +1,5 @@
 package com.ipt.ged.planindexation;
 
-import java.util.UUID;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.index.IndexField;
 import com.ipt.ged.index.IndexFieldType;
@@ -16,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;

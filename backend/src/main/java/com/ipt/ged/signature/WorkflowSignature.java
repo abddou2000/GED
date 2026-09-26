@@ -1,7 +1,6 @@
 package com.ipt.ged.signature;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.common.Auditable;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.employe.Employe;
@@ -11,6 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Une demande de signature dans le circuit de validation d'un document.

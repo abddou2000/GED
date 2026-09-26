@@ -1,6 +1,5 @@
 package com.ipt.ged.etiquette;
 
-import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.etiquette.dto.EtiquetteRequest;
 import com.ipt.ged.etiquette.dto.EtiquetteResponse;
@@ -11,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST des étiquettes. Base : /api/v1/etiquettes

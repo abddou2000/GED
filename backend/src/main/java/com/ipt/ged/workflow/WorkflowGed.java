@@ -1,7 +1,6 @@
 package com.ipt.ged.workflow;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.common.Supprimable;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -10,6 +9,7 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Circuit de validation (« Règle de Workflow ») : un nom + une liste d'étapes ordonnées.

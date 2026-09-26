@@ -1,7 +1,8 @@
 package com.ipt.ged.index.dto;
 
-import java.util.UUID;
 import com.ipt.ged.index.IndexField;
+
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour un index.

@@ -1,8 +1,9 @@
 package com.ipt.ged.signature.dto;
 
-import java.util.UUID;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.signature.WorkflowSignature;
+
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour une demande de signature.

@@ -1,9 +1,9 @@
 package com.ipt.ged.planindexation.dto;
 
-import java.util.UUID;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données reçues pour créer / modifier un plan d'indexation.

@@ -1,7 +1,6 @@
 package com.ipt.ged.typedocument;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.planindexation.PlanIndexation;
 import com.ipt.ged.workspace.WorkSpace;
@@ -9,6 +8,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.UUID;
 
 /**
  * Type de document : définit, pour un espace de travail, un genre de document

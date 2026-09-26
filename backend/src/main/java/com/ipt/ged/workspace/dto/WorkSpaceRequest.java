@@ -1,9 +1,10 @@
 package com.ipt.ged.workspace.dto;
 
-import java.util.UUID;
 import com.ipt.ged.workspace.WorkspaceStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
+import java.util.UUID;
 
 /**
  * Données reçues pour créer / modifier un espace de travail.

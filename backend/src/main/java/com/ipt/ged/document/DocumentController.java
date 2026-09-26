@@ -1,6 +1,5 @@
 package com.ipt.ged.document;
 
-import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.document.dto.DocumentRequest;
 import com.ipt.ged.document.dto.DocumentResponse;
@@ -17,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST du dépôt de documents. Base : /api/v1/documents

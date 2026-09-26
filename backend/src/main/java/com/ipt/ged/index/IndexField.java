@@ -1,12 +1,13 @@
 package com.ipt.ged.index;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.common.Supprimable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.UUID;
 
 /**
  * Index : un champ de métadonnée configurable, attaché aux documents pour les

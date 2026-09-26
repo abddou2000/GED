@@ -1,10 +1,10 @@
 package com.ipt.ged.typedocument.dto;
 
-import java.util.UUID;
 import com.ipt.ged.typedocument.TypeDocument;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour un type de document.

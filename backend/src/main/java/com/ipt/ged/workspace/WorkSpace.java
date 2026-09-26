@@ -1,7 +1,6 @@
 package com.ipt.ged.workspace;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.accessgroup.AccessGroup;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.employe.Employe;
@@ -15,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Espace de travail (dossier) — organisé en arborescence auto-référencée.

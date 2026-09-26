@@ -1,9 +1,9 @@
 package com.ipt.ged.workflow.dto;
 
-import java.util.UUID;
 import com.ipt.ged.workflow.WorkflowGed;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour une règle de workflow.

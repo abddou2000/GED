@@ -1,6 +1,5 @@
 package com.ipt.ged.planindexation;
 
-import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.planindexation.dto.PlanIndexationRequest;
 import com.ipt.ged.planindexation.dto.PlanIndexationResponse;
@@ -11,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST des plans d'indexation. Base : /api/v1/plan-indexations

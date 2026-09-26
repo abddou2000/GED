@@ -1,10 +1,10 @@
 package com.ipt.ged.ocr;
 
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * OCRisation — lecture du contenu des documents.

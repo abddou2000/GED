@@ -1,6 +1,5 @@
 package com.ipt.ged.employe;
 
-import java.util.UUID;
 import com.ipt.ged.accessgroup.AccessGroup;
 import com.ipt.ged.accessgroup.AccessGroupRepository;
 import com.ipt.ged.document.UploadDocument;
@@ -18,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Assemble la fiche de profil d'un utilisateur.

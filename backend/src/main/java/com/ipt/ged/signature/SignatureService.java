@@ -1,6 +1,5 @@
 package com.ipt.ged.signature;
 
-import java.util.UUID;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.signature.dto.SignatureResponse;
 import com.ipt.ged.workflow.WorkflowGed;
@@ -13,6 +12,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Circuit de signature (machine à états). Les demandes sont créées à l'upload,

@@ -1,8 +1,8 @@
 package com.ipt.ged.employe.dto;
 
-import java.util.UUID;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Fiche de profil d'un utilisateur : identité et activité réelle dans la GED.

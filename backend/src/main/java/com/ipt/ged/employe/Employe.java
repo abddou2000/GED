@@ -1,12 +1,13 @@
 package com.ipt.ged.employe;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.common.Auditable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.UUID;
 
 /**
  * Employé — la personne métier (propriétaire de dossier, approbateur de workflow…).

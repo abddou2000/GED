@@ -1,7 +1,6 @@
 package com.ipt.ged.document;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.etiquette.Etiquette;
@@ -21,6 +20,7 @@ import java.util.Map;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Document déposé dans la GED : fiche, fichier stocké sur disque, étiquettes,

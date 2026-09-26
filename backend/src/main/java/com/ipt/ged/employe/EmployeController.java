@@ -1,6 +1,5 @@
 package com.ipt.ged.employe;
 
-import java.util.UUID;
 import com.ipt.ged.employe.dto.ProfilResponse;
 import com.ipt.ged.security.UtilisateurConnecte;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -11,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Expose la liste des employés (utilisée par les menus déroulants du frontend,

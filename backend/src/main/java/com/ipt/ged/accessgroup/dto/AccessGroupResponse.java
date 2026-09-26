@@ -1,9 +1,9 @@
 package com.ipt.ged.accessgroup.dto;
 
-import java.util.UUID;
 import com.ipt.ged.accessgroup.AccessGroup;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour un groupe d'accès (liste + détail).

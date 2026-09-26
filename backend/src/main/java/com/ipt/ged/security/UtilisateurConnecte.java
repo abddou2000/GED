@@ -1,11 +1,11 @@
 package com.ipt.ged.security;
 
-import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * L'utilisateur tel que Spring Security le manipule.

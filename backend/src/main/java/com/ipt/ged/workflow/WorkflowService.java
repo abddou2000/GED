@@ -1,7 +1,6 @@
 package com.ipt.ged.workflow;
 
 import com.ipt.ged.common.ActeurCourant;
-import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.employe.Employe;
@@ -19,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Logique métier des circuits de workflow — reproduit l'application d'origine :

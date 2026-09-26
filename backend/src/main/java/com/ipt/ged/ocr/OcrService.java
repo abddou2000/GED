@@ -1,6 +1,5 @@
 package com.ipt.ged.ocr;
 
-import java.util.UUID;
 import com.ipt.ged.document.StorageService;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
@@ -13,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Chaîne d'OCRisation.

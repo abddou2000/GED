@@ -1,6 +1,5 @@
 package com.ipt.ged.workflow;
 
-import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.workflow.dto.WorkflowRequest;
 import com.ipt.ged.workflow.dto.WorkflowResponse;
@@ -11,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST des circuits de workflow (« Règles de Workflow »).

@@ -1,7 +1,7 @@
 package com.ipt.ged.workspace.dto;
 
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Nœud de l'arborescence (vue « Arbre ») : un dossier + ses sous-dossiers imbriqués.

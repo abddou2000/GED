@@ -1,12 +1,13 @@
 package com.ipt.ged.etiquette;
 
 import com.ipt.ged.common.IdentifiantUuid;
-import java.util.UUID;
 import com.ipt.ged.common.Supprimable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.UUID;
 
 /**
  * Étiquette : un tag coloré (libellé + couleur) applicable aux documents.

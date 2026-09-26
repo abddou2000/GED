@@ -1,6 +1,5 @@
 package com.ipt.ged.signature;
 
-import java.util.UUID;
 import com.ipt.ged.security.UtilisateurConnecte;
 import com.ipt.ged.signature.dto.SignatureResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -8,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST du circuit de signature (« Mes workflow »). Base : /api/v1/signatures

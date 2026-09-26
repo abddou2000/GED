@@ -1,11 +1,11 @@
 package com.ipt.ged.planindexation.dto;
 
-import java.util.UUID;
 import com.ipt.ged.index.IndexField;
 import com.ipt.ged.planindexation.CharteNommage;
 import com.ipt.ged.planindexation.PlanIndexation;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour un plan d'indexation, avec un aperçu

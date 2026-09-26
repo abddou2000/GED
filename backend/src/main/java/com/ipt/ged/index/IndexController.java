@@ -1,6 +1,5 @@
 package com.ipt.ged.index;
 
-import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.index.dto.IndexRequest;
 import com.ipt.ged.index.dto.IndexResponse;
@@ -11,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST des index (champs de métadonnées). Base : /api/v1/indices

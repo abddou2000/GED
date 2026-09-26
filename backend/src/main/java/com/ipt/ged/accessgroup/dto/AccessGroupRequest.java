@@ -1,11 +1,11 @@
 package com.ipt.ged.accessgroup.dto;
 
-import java.util.UUID;
 import com.ipt.ged.common.Limites;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données reçues pour créer / modifier un groupe d'accès : son identité et les
