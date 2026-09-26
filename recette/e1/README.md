@@ -1,6 +1,6 @@
 # Recette E1 — socle de données
 
-Scripts indépendants du code applicatif (bash, psql, Python 3 stdlib, Java 17). Tous
+Scripts indépendants du code applicatif (bash, psql, Java 17 en mode fichier source ; **aucun Python**, décision D5). Tous
 produisent des lignes `RESULTAT|id|OK/ECHEC/AVERT/NA|libellé|détail` puis `BILAN|…` ;
 code de sortie 0 si aucun `ECHEC`. Connexion par les variables libpq (`PGHOST`,
 `PGPORT`, `PGUSER`, `PGPASSWORD` ou `~/.pgpass`) ; aucun secret dans les scripts.
@@ -10,7 +10,7 @@ code de sortie 0 si aucun `ECHEC`. Connexion par les variables libpq (`PGHOST`,
 | `verifier-base-vierge.sh` | Critère de sortie E1 : base vierge créée **uniquement** par Liquibase (compte `ged_owner`), puis tous les contrôles ci-dessous ; avec `--demarrer-application`, l'application démarre en `ged_app` et le DDL reste identique (Hibernate ne crée rien) | Oui : base jetable `ged_qa_recette_e1` (refuse tout nom qui n'est pas `ged_qa*` ou `*recette*`) |
 | `verifier-rollback.sh` | Retour arrière de tous les changesets, schéma vidé, registre vidé, aller-retour update → rollback → update au DDL identique ; `--pas-a-pas` isole le changeset fautif | Oui : même base jetable |
 | `verifier-socle.sh` | 38 contrôles de catalogue (nommage snake_case/idx_/uk_/fk_/ck_, PK `id` uuid, pas d'auto-incrément, suppression douce, `metadonnees` JSONB + GIN, registre Liquibase, `data-initial`, rôles et privilèges) + 17 sondes réelles `SET ROLE` (ged_app sans DDL, ged_readonly sans écriture, audit en INSERT seul) | Non (sondes annulées par sous-transaction) |
-| `analyser-changelogs.py` | Revue statique : nom des fichiers `AAAAMMJJHHmm_objet.xml`, `<rollback>` sur tout changeset non auto-réversible, données étiquetées `data-initial`, aucun référentiel métier amorcé, `ddl-auto` validate/none, pas de Flyway/MySQL/H2, pas d'amorçage Java | Non |
+| `AnalyseurChangelogs.java` (`java -Dfile.encoding=UTF-8 AnalyseurChangelogs.java --backend backend`) | Revue statique : nom des fichiers `AAAAMMJJHHmm_objet.xml`, `<rollback>` sur tout changeset non auto-réversible, données étiquetées `data-initial`, aucun référentiel métier amorcé, `ddl-auto` validate/none, pas de Flyway/MySQL/H2, pas d'amorçage Java | Non |
 | `autotest/lancer-autotest.sh` | Les contrôles eux-mêmes : schéma conforme → 0 écart ; schéma non conforme → 36 écarts volontaires détectés ; changelogs conformes/non conformes → 16 écarts détectés | Base `ged_qa_test` (schémas `recette_ok`, `recette_ko`, rôles `qa_ged_*`) |
 | `autotest/lancer-autotest-liquibase.sh BACKEND` | `verifier-rollback.sh` détecte un changeset sans rollback et un faux rollback | Base jetable `ged_qa_recette_e1_at`, supprimée à la fin |
 

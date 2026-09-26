@@ -54,15 +54,12 @@ trouver_psql() {
 # PGPASSWORD ou ~/.pgpass). Aucune valeur secrète n'est écrite dans les scripts.
 pg() { "$PSQL" -X -v ON_ERROR_STOP=1 -q "$@"; }
 
-# Python 3 sans module tiers (les scripts d'analyse n'utilisent que la stdlib).
-trouver_python() {
-  if [[ -n "${PYTHON:-}" ]]; then return; fi
-  for c in python3 python; do
-    if command -v "$c" >/dev/null 2>&1 && "$c" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' 2>/dev/null; then
-      PYTHON="$c"; return
-    fi
-  done
-  fatal "Python 3.8+ introuvable : définir PYTHON=/chemin/vers/python3"
+# Programmes Java de la recette lancés en mode « fichier source » (JDK 17) : aucun Python
+# (décision D5 de la revue technique). UTF-8 imposé : sous Windows, le JDK 17 lirait le
+# source en cp1252 et mutilerait les libellés accentués.
+java_source() {
+  command -v java >/dev/null 2>&1 || fatal "java (JDK 17) introuvable"
+  java -Dfile.encoding=UTF-8 "$@"
 }
 
 # Garde-fou : les scripts destructifs (création/suppression de base, rollback)

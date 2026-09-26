@@ -5,7 +5,7 @@
 #   1. suppression puis préparation de la base par backend/scripts/db/preparer-base.sql
 #      (base, schémas ged et ged_liquibase, droits ; les rôles doivent exister) ;
 #   2. application du changelog complet par Liquibase avec le compte ged_owner ;
-#   3. contrôle du résultat : verifier-socle.sh --base-vierge + analyser-changelogs.py ;
+#   3. contrôle du résultat : verifier-socle.sh --base-vierge + AnalyseurChangelogs.java ;
 #   4. (option --demarrer-application) démarrage de l'application sur cette base avec
 #      le compte ged_app : Hibernate doit valider le schéma sans le modifier — le DDL
 #      avant et après démarrage doit être IDENTIQUE, preuve qu'aucune table n'est créée
@@ -37,7 +37,7 @@ while [[ $# -gt 0 ]]; do
 done
 refuser_production "$BASE"
 [[ "$BASE" == ged_qa* || "$BASE" == *recette* ]] || fatal "la base « $BASE » n'est pas une base jetable de recette"
-trouver_psql; trouver_python
+trouver_psql
 export PGHOST="${PGHOST:-localhost}" PGPORT="${PGPORT:-5432}" PGUSER="${PGUSER:-postgres}"
 TRAVAIL="$(mktemp -d "${TMPDIR:-/tmp}/qa-e1-vierge.XXXXXX")"
 LB_URL="jdbc:postgresql://${PGHOST}:${PGPORT}/${BASE}"
@@ -73,7 +73,7 @@ info "schéma produit : $(grep -c '^CREATE TABLE' "$TRAVAIL/schema-liquibase.sql
 # 3. Contrôles du résultat.
 PGDATABASE="$BASE" bash "$ICI/verifier-socle.sh" --schema ged --schema-liquibase ged_liquibase --base-vierge | tee "$TRAVAIL/socle.log" | grep -E '^RESULTAT'
 grep -q '|ECHEC|' "$TRAVAIL/socle.log" && NB_ECHEC=$((NB_ECHEC + 1))
-"$PYTHON" "$ICI/analyser-changelogs.py" --backend "$BACKEND" | tr -d '\r' | tee "$TRAVAIL/analyse.log" | grep -E '^RESULTAT'
+java_source "$ICI/AnalyseurChangelogs.java" --backend "$BACKEND" | tr -d '\r' | tee "$TRAVAIL/analyse.log" | grep -E '^RESULTAT'
 grep -q '|ECHEC|' "$TRAVAIL/analyse.log" && NB_ECHEC=$((NB_ECHEC + 1))
 
 # 4. Démarrage de l'application : Hibernate valide, ne modifie rien.

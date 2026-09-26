@@ -74,9 +74,8 @@ SORTIE_SU2="$(bash "$E1/verifier-socle.sh" --schema recette_ok --owner postgres 
   || resultat AT-06 ECHEC "Rôle superutilisateur détecté (E1-C31)" "$(statut_de "$SORTIE_SU2" E1-C31)"
 
 # 4. Analyse statique des changelogs (sans base) : conforme puis non conforme.
-trouver_python
-SORTIE_A_OK="$("$PYTHON" "$E1/analyser-changelogs.py" --backend "$ICI/changelogs/conforme" 2>&1)"; CODE_A_OK=$?
-SORTIE_A_KO="$("$PYTHON" "$E1/analyser-changelogs.py" --backend "$ICI/changelogs/non-conforme" 2>&1)"; CODE_A_KO=$?
+SORTIE_A_OK="$(java_source "$E1/AnalyseurChangelogs.java" --backend "$ICI/changelogs/conforme" 2>&1)"; CODE_A_OK=$?
+SORTIE_A_KO="$(java_source "$E1/AnalyseurChangelogs.java" --backend "$ICI/changelogs/non-conforme" 2>&1)"; CODE_A_KO=$?
 SORTIE_A_OK="${SORTIE_A_OK//$'\r'/}"; SORTIE_A_KO="${SORTIE_A_KO//$'\r'/}"
 [[ $CODE_A_OK -eq 0 ]] && ! grep -q '|ECHEC|' <<< "$SORTIE_A_OK" \
   && resultat AT-07 OK "Changelogs conformes : aucun écart signalé" \

@@ -39,7 +39,7 @@ liquibase_executer() {
   fi
   _lb_classpath || return 1
   LB_URL="$LB_URL" LB_SEARCH_PATH="${LB_RESSOURCES:-$BACKEND/src/main/resources}" \
-    java -cp "$_LB_CP" "$RECETTE_RACINE/lib/LiquibaseRecette.java" "$but" "$@"
+    java_source -cp "$_LB_CP" "$RECETTE_RACINE/lib/LiquibaseRecette.java" "$but" "$@"
 }
 
 # Empreinte normalisée du schéma : DDL seul, sans commentaires ni SET, pour comparer
