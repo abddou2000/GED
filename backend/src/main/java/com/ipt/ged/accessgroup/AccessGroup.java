@@ -37,8 +37,9 @@ public class AccessGroup extends Supprimable {
     private String name;
 
     /**
-     * Colonnes héritées, conservées pour ne rien détruire en base (le mapping les
-     * garde donc {@code ddl-auto: update} ne les touche pas). Plus jamais lues ni
+     * Colonnes héritées, conservées pour ne rien perdre des données reprises de
+     * l'ancienne base (le schéma Liquibase les porte, le mapping doit donc les
+     * déclarer pour que {@code ddl-auto: validate} passe). Plus jamais lues ni
      * écrites par l'application.
      */
     @Embedded
