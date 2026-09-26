@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271020_creation_table_session.xml">
+
+    <!--
+        Sessions (dossier technique §3.4.1) : une ligne par jeton de renouvellement
+        émis. Seule l'EMPREINTE SHA-256 du jeton est conservée, jamais le jeton.
+        `famille_id` relie les jetons successifs d'une même connexion (rotation à
+        chaque usage) ; `expire_le` est la borne absolue de la famille (8 h par
+        défaut, paramétrable) ; `derniere_activite_le` sert à l'inactivité (30 min).
+        Un jeton déjà consommé (`consomme_le`) présenté à nouveau révoque toute la
+        famille. `revoquee_le` / `motif_revocation` : déconnexion, révocation par
+        l'Administrateur, réutilisation, expiration.
+    -->
+    <changeSet id="202609271020-1" author="ged">
+        <comment>Sessions et jetons de renouvellement.</comment>
+        <createTable tableName="session">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_session" nullable="false"/></column>
+            <column name="utilisateur_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="famille_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="empreinte" type="VARCHAR(64)"><constraints nullable="false"/></column>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="derniere_activite_le" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="expire_le" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="consomme_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="revoquee_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="motif_revocation" type="VARCHAR(30)"/>
+            <column name="adresse_ip" type="VARCHAR(45)"/>
+            <column name="agent_utilisateur" type="VARCHAR(255)"/>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_session_empreinte" tableName="session" columnNames="empreinte"/>
+        <addForeignKeyConstraint constraintName="fk_session_utilisateur" baseTableName="session" baseColumnNames="utilisateur_id"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex indexName="idx_session_utilisateur_id" tableName="session">
+            <column name="utilisateur_id"/>
+        </createIndex>
+        <createIndex indexName="idx_session_famille_id" tableName="session">
+            <column name="famille_id"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.session ADD CONSTRAINT ck_session_empreinte CHECK (empreinte ~ '^[0-9a-f]{64}$')</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.session ADD CONSTRAINT ck_session_motif_revocation CHECK (
+            (revoquee_le IS NULL AND motif_revocation IS NULL) OR (revoquee_le IS NOT NULL AND motif_revocation IN
+            ('DECONNEXION', 'REVOCATION_ADMINISTRATEUR', 'REUTILISATION', 'EXPIRATION', 'INACTIVITE')))</sql>
+        <rollback>
+            <dropTable tableName="session"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

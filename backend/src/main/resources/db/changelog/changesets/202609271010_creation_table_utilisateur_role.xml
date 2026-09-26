@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271010_creation_table_utilisateur_role.xml">
+
+    <!--
+        Rôles attribués à une identité par l'Administrateur (jamais déduits d'un
+        groupe ou d'une unité de l'annuaire, principe P2). Une identité fraîchement
+        provisionnée n'en a aucun. Le lot E3 ajoutera l'attribution sur nœud
+        (table habilitation) ; cette table porte l'attribution globale.
+    -->
+    <changeSet id="202609271010-1" author="ged">
+        <comment>Association identité / rôle.</comment>
+        <createTable tableName="utilisateur_role">
+            <column name="utilisateur_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="role_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="attribue_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="attribue_par" type="UUID"/>
+        </createTable>
+        <addPrimaryKey constraintName="pk_utilisateur_role" tableName="utilisateur_role" columnNames="utilisateur_id, role_id"/>
+        <addForeignKeyConstraint constraintName="fk_utilisateur_role_utilisateur" baseTableName="utilisateur_role" baseColumnNames="utilisateur_id"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_utilisateur_role_role" baseTableName="utilisateur_role" baseColumnNames="role_id"
+                                 referencedTableName="role" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_utilisateur_role_attribue_par" baseTableName="utilisateur_role" baseColumnNames="attribue_par"
+                                 referencedTableName="utilisateur" referencedColumnNames="id"/>
+        <createIndex indexName="idx_utilisateur_role_role_id" tableName="utilisateur_role">
+            <column name="role_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="utilisateur_role"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271000_creation_table_role.xml">
+
+    <!--
+        Rôles GED (dossier technique §12.2.1). Le lot E2 n'en a besoin que pour
+        distinguer une identité provisionnée SANS rôle (page d'accueil vide) d'une
+        identité habilitée ; permissions et habilitations sur nœud arrivent au
+        lot E3 (tables permission, role_permission, habilitation).
+        `acces_global` porte le traitement par le code de la Direction Générale.
+    -->
+    <changeSet id="202609271000-1" author="ged">
+        <comment>Table des rôles GED.</comment>
+        <createTable tableName="role">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_role" nullable="false"/></column>
+            <column name="code" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="libelle" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="systeme" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="acces_global" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_role_code" tableName="role" columnNames="code"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.role ADD CONSTRAINT ck_role_code CHECK (code ~ '^[A-Z][A-Z0-9_]*$')</sql>
+        <rollback>
+            <dropTable tableName="role"/>
+        </rollback>
+    </changeSet>
+
+    <!--
+        Amorçage technique (§4.2.1) : les quatre rôles SYSTÈME livrés avec la GED.
+        Identifiants fixes, identiques dans tous les environnements : ce sont des
+        valeurs de référence, pas des données métier propres à un environnement.
+    -->
+    <changeSet id="202609271000-2" author="ged" labels="data-initial">
+        <comment>Rôles système : Administrateur, Agent d'archive, Direction Générale, Utilisateur standard.</comment>
+        <insert tableName="role">
+            <column name="id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="code" value="ADMINISTRATEUR"/>
+            <column name="libelle" value="Administrateur"/>
+            <column name="systeme" valueBoolean="true"/>
+            <column name="acces_global" valueBoolean="false"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+        <insert tableName="role">
+            <column name="id" value="0192a000-0000-7000-8000-000000000002"/>
+            <column name="code" value="AGENT_ARCHIVE"/>
+            <column name="libelle" value="Agent d'archive"/>
+            <column name="systeme" valueBoolean="true"/>
+            <column name="acces_global" valueBoolean="false"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+        <insert tableName="role">
+            <column name="id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="code" value="DIRECTION_GENERALE"/>
+            <column name="libelle" value="Direction Générale"/>
+            <column name="systeme" valueBoolean="true"/>
+            <column name="acces_global" valueBoolean="true"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+        <insert tableName="role">
+            <column name="id" value="0192a000-0000-7000-8000-000000000004"/>
+            <column name="code" value="UTILISATEUR_STANDARD"/>
+            <column name="libelle" value="Utilisateur standard"/>
+            <column name="systeme" valueBoolean="true"/>
+            <column name="acces_global" valueBoolean="false"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+        <rollback>
+            <delete tableName="role">
+                <where>id IN ('0192a000-0000-7000-8000-000000000001', '0192a000-0000-7000-8000-000000000002',
+                              '0192a000-0000-7000-8000-000000000003', '0192a000-0000-7000-8000-000000000004')</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
