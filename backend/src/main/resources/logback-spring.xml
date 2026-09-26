@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Journalisation technique de la GED (DAT 7.1 et 7.3.1).
+
+  - Pattern : celui de l'Article 50, reproduit À LA LETTRE (DAT 7.1). Le MDC
+    (username, ip, traceId, spanId) est alimenté par
+    com.ipt.ged.journalisation.FiltreContexteRequete et FiltreUtilisateurJournalisation.
+  - Niveaux : INFO par défaut (exploitation.yml). Ils se changent SANS
+    redéploiement par la configuration externalisée, par exemple dans
+    /etc/ged/ged.env : LOGGING_LEVEL_COM_IPT_GED=DEBUG, puis redémarrage du
+    service. DEBUG est réservé à DEV et UAT (DAT 7.3.1).
+  - Fichier (profils uat et prod) : rotation quotidienne ET à 100 Mo,
+    archives compressées en gzip, rétention 90 jours. Ces valeurs se règlent
+    par ged.journalisation.* si le Maître d'Ouvrage fixe une autre durée.
+  - Ce journal technique ne remplace pas le journal d'audit fonctionnel
+    (table journal_audit, DAT 7.4), dont la rétention est de 10 ans.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Article 50 : ne pas modifier sans avenant. Un test (PatternJournalisationTest)
+         compare cette valeur au texte du dossier. -->
+    <property name="GED_PATTERN"
+              value="%d{HH:mm:ss.SSS} - [%X{username:-}] [%X{ip:-}] [%thread] - %X{traceId:-}/%X{spanId:-} %-5level - %logger{36} - %msg%n"/>
+
+    <springProperty scope="context" name="GED_LOG_REPERTOIRE" source="logging.file.path" defaultValue="logs"/>
+    <springProperty scope="context" name="GED_LOG_TAILLE_MAX" source="ged.journalisation.taille-max-fichier" defaultValue="100MB"/>
+    <springProperty scope="context" name="GED_LOG_RETENTION_JOURS" source="ged.journalisation.retention-jours" defaultValue="90"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${GED_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="FICHIER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${GED_LOG_REPERTOIRE}/ged.log</file>
+        <!-- Taille ET date : %d fait basculer chaque jour, %i dès que le fichier
+             du jour atteint la taille maximale ; .gz compresse chaque archive. -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${GED_LOG_REPERTOIRE}/ged.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>${GED_LOG_TAILLE_MAX}</maxFileSize>
+            <!-- Unité de %d = le jour : maxHistory compte donc des jours. -->
+            <maxHistory>${GED_LOG_RETENTION_JOURS}</maxHistory>
+            <!-- Purge aussi au démarrage : un service arrêté pendant des semaines
+                 ne doit pas garder des journaux au-delà de la rétention. -->
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${GED_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Environnements déployés : fichier seul. La sortie standard irait aussi
+         dans journald via systemd et dupliquerait chaque ligne. -->
+    <springProfile name="uat | prod">
+        <root level="INFO">
+            <appender-ref ref="FICHIER"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!(uat | prod)">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>
