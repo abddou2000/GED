@@ -28,7 +28,10 @@
 --    tests  (facultative, valeur `oui`) base de TEST uniquement : donne à
 --           ged_owner le droit de créer des schémas dans la base, pour que la
 --           suite de tests puisse dérouler toutes les migrations puis leur
---           retour arrière dans un schéma jetable.
+--           retour arrière dans un schéma jetable ;
+--    reprise (facultative, valeur `oui`) le temps d'une reprise de données :
+--           même droit, pour le schéma de transit `reprise_source`. Rejouer
+--           ensuite le script SANS la variable retire le droit.
 -- =====================================================================
 
 \set ON_ERROR_STOP on
@@ -58,8 +61,15 @@ SELECT format('CREATE DATABASE %I ENCODING %L TEMPLATE template0', :'base', 'UTF
 SELECT format('REVOKE ALL ON DATABASE %I FROM PUBLIC', :'base') \gexec
 SELECT format('GRANT CONNECT, TEMPORARY ON DATABASE %I TO ged_owner, ged_app, ged_readonly', :'base') \gexec
 
+-- Création de schémas par ged_owner : seulement pour une base de test ou le
+-- temps d'une reprise de données. Sans l'une des deux variables, le droit est
+-- retiré : rejouer ce script remet la base dans son état d'exploitation.
 \if :{?tests}
 SELECT format('GRANT CREATE ON DATABASE %I TO ged_owner', :'base') \gexec
+\elif :{?reprise}
+SELECT format('GRANT CREATE ON DATABASE %I TO ged_owner', :'base') \gexec
+\else
+SELECT format('REVOKE CREATE ON DATABASE %I FROM ged_owner', :'base') \gexec
 \endif
 
 \connect :"base"
