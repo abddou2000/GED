@@ -52,5 +52,5 @@ le mot-témoin du scan français ; le DOCX s'ouvre (1 tableau, témoin présent)
 Imprimer `pdf_texte_fr_convention.pdf` et `pdf_texte_ar_courrier.pdf`, les numériser en
 300 dpi niveaux de gris, PDF image sans OCR du scanner (désactiver la « reconnaissance de
 texte » du pilote, sinon le PDF porte déjà une couche texte et l'OCR de la GED n'est pas
-exercé). Contrôle : `python -c "import fitz;print(any(p.get_text().strip() for p in fitz.open('x.pdf')))"`
-doit afficher `False`.
+exercé). Contrôle : `pdftotext x.pdf - | tr -d '[:space:]' | wc -c` (poppler-utils) doit
+afficher `0`.
