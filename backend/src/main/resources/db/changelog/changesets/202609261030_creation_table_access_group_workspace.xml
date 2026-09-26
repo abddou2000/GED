@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261030_creation_table_access_group_workspace.xml">
+
+    <changeSet id="202609261030-1" author="ged">
+        <comment>Association groupe d'accès / espace de travail.</comment>
+        <createTable tableName="access_group_workspace">
+            <column name="access_group_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="workspace_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey constraintName="pk_access_group_workspace" tableName="access_group_workspace" columnNames="access_group_id, workspace_id"/>
+        <addForeignKeyConstraint constraintName="fk_access_group_workspace_access_group" baseTableName="access_group_workspace" baseColumnNames="access_group_id"
+                                 referencedTableName="access_group" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_access_group_workspace_workspace" baseTableName="access_group_workspace" baseColumnNames="workspace_id"
+                                 referencedTableName="workspace" referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex indexName="idx_access_group_workspace_workspace_id" tableName="access_group_workspace">
+            <column name="workspace_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="access_group_workspace"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

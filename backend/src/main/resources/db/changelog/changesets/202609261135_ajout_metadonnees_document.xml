@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261135_ajout_metadonnees_document.xml">
+
+    <!--
+        Métadonnées additionnelles en JSONB (dossier technique §12.1, §12.7).
+        Préparation du lot E7 : la colonne existe et est indexée, mais aucune
+        fonction ne l'alimente encore. NOT NULL avec un objet vide par défaut :
+        un document sans métadonnée porte `{}`, jamais NULL, ce qui évite de
+        traiter deux formes de l'absence dans chaque requête.
+
+        L'index GIN (opérateurs jsonb_ops, la classe par défaut) sert les
+        recherches par clé et par contenu (?, ?&, @>) que le lot E7 exposera.
+    -->
+    <changeSet id="202609261135-1" author="ged">
+        <comment>Colonne metadonnees JSONB et index GIN sur document.</comment>
+        <addColumn tableName="document">
+            <column name="metadonnees" type="JSONB" defaultValueComputed="'{}'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_metadonnees CHECK (jsonb_typeof(metadonnees) = 'object')</sql>
+        <sql>CREATE INDEX idx_document_metadonnees ON ${database.defaultSchemaName}.document USING gin (metadonnees)</sql>
+        <rollback>
+            <sql>DROP INDEX ${database.defaultSchemaName}.idx_document_metadonnees</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_metadonnees</sql>
+            <dropColumn tableName="document" columnName="metadonnees"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Changelog maître de la GED (dossier technique §4.2).
+
+    SEULE source du schéma : aucune instruction DDL n'est appliquée à la base en
+    dehors d'un changeset référencé ici. Hibernate se contente de vérifier
+    (`ddl-auto: validate`) dans tous les profils.
+
+    Règles (§4.2.2) :
+      - un fichier par évolution, nommé AAAAMMJJHHmm_objet_metier.xml, inclus
+        explicitement ci-dessous dans l'ordre d'application ; un fichier déjà
+        appliqué ne se modifie JAMAIS (Liquibase en compare l'empreinte) : toute
+        correction est une évolution suivante ;
+      - noms en snake_case minuscule ; clé primaire `id` (UUID) ; clé étrangère
+        `<table>_id` ; index idx_<table>_<colonnes> ; contraintes pk_, uk_, fk_, ck_ ;
+      - chaque changeset porte une clause <rollback> explicite ;
+      - une opération destructrice suit le schéma « expand / contract » (ajout,
+        bascule, suppression dans une version ultérieure) et est précédée d'une
+        sauvegarde ciblée ;
+      - l'amorçage technique (permissions élémentaires, rôles système, niveaux
+        de confidentialité, valeurs par défaut) est porté par des changesets
+        étiquetés `labels="data-initial"`, jamais une donnée métier : les
+        référentiels métier se créent depuis l'interface d'administration.
+
+    Les objets sont créés dans le schéma par défaut de Liquibase
+    (spring.liquibase.default-schema, `ged`) ; le registre des migrations vit
+    dans un schéma séparé (`ged_liquibase`) inaccessible au compte applicatif.
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/db.changelog-master.xml">
+
+    <!--
+        Prérequis de la stack imposée (§2.2.1), vérifiés à CHAQUE exécution :
+        PostgreSQL 16 ou plus, et configuration de recherche plein texte `arabic`
+        présente (le lot E6 en dépend). Un serveur non conforme arrête le
+        déploiement avant toute écriture, au lieu d'échouer plus tard sur une
+        recherche.
+    -->
+    <preConditions onFail="HALT" onError="HALT">
+        <dbms type="postgresql"/>
+        <sqlCheck expectedResult="1">SELECT CASE WHEN current_setting('server_version_num')::int &gt;= 160000 THEN 1 ELSE 0 END</sqlCheck>
+        <sqlCheck expectedResult="1">SELECT count(*) FROM pg_catalog.pg_ts_config WHERE cfgname = 'arabic'</sqlCheck>
+    </preConditions>
+
+    <include file="changesets/202609261000_creation_table_employe.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261005_creation_table_compte_utilisateur.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261010_creation_table_workflow_ged.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261015_creation_table_workflow_ged_etape.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261020_creation_table_workspace.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261025_creation_table_access_group.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261030_creation_table_access_group_workspace.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261035_creation_table_access_group_employe.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261040_creation_table_etiquette.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261045_creation_table_index_def.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261050_creation_table_plan_indexation.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261055_creation_table_plan_index.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261100_creation_table_type_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261105_creation_table_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261110_creation_table_version_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261115_creation_table_document_etiquette.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261120_creation_table_document_index_valeur.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261125_creation_table_workflow_ged_signature.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261130_ajout_auteur_suppression_douce.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261135_ajout_metadonnees_document.xml" relativeToChangelogFile="true"/>
+
+</databaseChangeLog>

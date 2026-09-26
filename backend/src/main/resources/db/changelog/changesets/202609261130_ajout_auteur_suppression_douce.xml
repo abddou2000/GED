@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261130_ajout_auteur_suppression_douce.xml">
+
+    <!--
+        Suppression douce avec auteur et date (dossier technique §12.1, §12.5).
+        L'indicateur `deleted` existait seul : on savait qu'un objet était en
+        corbeille, jamais qui l'y avait mis ni quand. `supprime_par` porte
+        l'employé auteur, `supprime_le` l'instant ; tous deux sont renseignés à la
+        suppression et vidés à la restauration.
+
+        La contrainte ck_<table>_suppression interdit un auteur ou une date sur un
+        objet vivant. Elle ne l'exige pas sur un objet supprimé : les lignes mises
+        en corbeille avant cette évolution (reprise) n'ont ni l'un ni l'autre.
+    -->
+    <changeSet id="202609261130-1" author="ged">
+        <comment>Auteur et date de la suppression douce sur toutes les tables à corbeille.</comment>
+        <addColumn tableName="workflow_ged">
+            <column name="supprime_par" type="UUID"/>
+            <column name="supprime_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_workflow_ged_supprime_par" baseTableName="workflow_ged" baseColumnNames="supprime_par"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.workflow_ged ADD CONSTRAINT ck_workflow_ged_suppression CHECK (deleted OR (supprime_par IS NULL AND supprime_le IS NULL))</sql>
+        <addColumn tableName="workspace">
+            <column name="supprime_par" type="UUID"/>
+            <column name="supprime_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_workspace_supprime_par" baseTableName="workspace" baseColumnNames="supprime_par"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.workspace ADD CONSTRAINT ck_workspace_suppression CHECK (deleted OR (supprime_par IS NULL AND supprime_le IS NULL))</sql>
+        <addColumn tableName="access_group">
+            <column name="supprime_par" type="UUID"/>
+            <column name="supprime_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_access_group_supprime_par" baseTableName="access_group" baseColumnNames="supprime_par"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.access_group ADD CONSTRAINT ck_access_group_suppression CHECK (deleted OR (supprime_par IS NULL AND supprime_le IS NULL))</sql>
+        <addColumn tableName="etiquette">
+            <column name="supprime_par" type="UUID"/>
+            <column name="supprime_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_etiquette_supprime_par" baseTableName="etiquette" baseColumnNames="supprime_par"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.etiquette ADD CONSTRAINT ck_etiquette_suppression CHECK (deleted OR (supprime_par IS NULL AND supprime_le IS NULL))</sql>
+        <addColumn tableName="index_def">
+            <column name="supprime_par" type="UUID"/>
+            <column name="supprime_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_index_def_supprime_par" baseTableName="index_def" baseColumnNames="supprime_par"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.index_def ADD CONSTRAINT ck_index_def_suppression CHECK (deleted OR (supprime_par IS NULL AND supprime_le IS NULL))</sql>
+        <addColumn tableName="plan_indexation">
+            <column name="supprime_par" type="UUID"/>
+            <column name="supprime_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_plan_indexation_supprime_par" baseTableName="plan_indexation" baseColumnNames="supprime_par"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.plan_indexation ADD CONSTRAINT ck_plan_indexation_suppression CHECK (deleted OR (supprime_par IS NULL AND supprime_le IS NULL))</sql>
+        <addColumn tableName="type_document">
+            <column name="supprime_par" type="UUID"/>
+            <column name="supprime_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_type_document_supprime_par" baseTableName="type_document" baseColumnNames="supprime_par"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.type_document ADD CONSTRAINT ck_type_document_suppression CHECK (deleted OR (supprime_par IS NULL AND supprime_le IS NULL))</sql>
+        <addColumn tableName="document">
+            <column name="supprime_par" type="UUID"/>
+            <column name="supprime_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_document_supprime_par" baseTableName="document" baseColumnNames="supprime_par"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_suppression CHECK (deleted OR (supprime_par IS NULL AND supprime_le IS NULL))</sql>
+        <rollback>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_suppression</sql>
+            <dropForeignKeyConstraint baseTableName="document" constraintName="fk_document_supprime_par"/>
+            <dropColumn tableName="document">
+                <column name="supprime_le"/>
+                <column name="supprime_par"/>
+            </dropColumn>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.type_document DROP CONSTRAINT ck_type_document_suppression</sql>
+            <dropForeignKeyConstraint baseTableName="type_document" constraintName="fk_type_document_supprime_par"/>
+            <dropColumn tableName="type_document">
+                <column name="supprime_le"/>
+                <column name="supprime_par"/>
+            </dropColumn>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.plan_indexation DROP CONSTRAINT ck_plan_indexation_suppression</sql>
+            <dropForeignKeyConstraint baseTableName="plan_indexation" constraintName="fk_plan_indexation_supprime_par"/>
+            <dropColumn tableName="plan_indexation">
+                <column name="supprime_le"/>
+                <column name="supprime_par"/>
+            </dropColumn>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.index_def DROP CONSTRAINT ck_index_def_suppression</sql>
+            <dropForeignKeyConstraint baseTableName="index_def" constraintName="fk_index_def_supprime_par"/>
+            <dropColumn tableName="index_def">
+                <column name="supprime_le"/>
+                <column name="supprime_par"/>
+            </dropColumn>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.etiquette DROP CONSTRAINT ck_etiquette_suppression</sql>
+            <dropForeignKeyConstraint baseTableName="etiquette" constraintName="fk_etiquette_supprime_par"/>
+            <dropColumn tableName="etiquette">
+                <column name="supprime_le"/>
+                <column name="supprime_par"/>
+            </dropColumn>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.access_group DROP CONSTRAINT ck_access_group_suppression</sql>
+            <dropForeignKeyConstraint baseTableName="access_group" constraintName="fk_access_group_supprime_par"/>
+            <dropColumn tableName="access_group">
+                <column name="supprime_le"/>
+                <column name="supprime_par"/>
+            </dropColumn>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.workspace DROP CONSTRAINT ck_workspace_suppression</sql>
+            <dropForeignKeyConstraint baseTableName="workspace" constraintName="fk_workspace_supprime_par"/>
+            <dropColumn tableName="workspace">
+                <column name="supprime_le"/>
+                <column name="supprime_par"/>
+            </dropColumn>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.workflow_ged DROP CONSTRAINT ck_workflow_ged_suppression</sql>
+            <dropForeignKeyConstraint baseTableName="workflow_ged" constraintName="fk_workflow_ged_supprime_par"/>
+            <dropColumn tableName="workflow_ged">
+                <column name="supprime_le"/>
+                <column name="supprime_par"/>
+            </dropColumn>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
