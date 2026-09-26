@@ -1,5 +1,11 @@
 # Profil de TEST — base H2 en mémoire, isolée (recréée à chaque exécution).
 spring:
+  # Liquibase n'est sur le classpath de test que pour appliquer les changesets
+  # « a-integrer » du lot E6 à la base PostgreSQL de test (dev3). Le contexte
+  # Spring de test reste sur H2 sans changelog maître : l'autoconfiguration
+  # est coupée ici, jusqu'à l'intégration du socle Liquibase de dev1.
+  liquibase:
+    enabled: false
   # Flyway est desactive ici : le schema de developpement est cree par
   # `ddl-auto: update`, et les migrations sont ecrites en dialecte MySQL —
   # les appliquer a H2 echouerait. Elles ne concernent que la production.

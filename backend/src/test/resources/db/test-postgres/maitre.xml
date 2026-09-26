@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEST UNIQUEMENT — ordre d'application attendu des changesets « a-integrer ». -->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+    <include file="db/test-postgres/000_socle_simule.xml"/>
+    <include file="db/changelog/a-integrer/202609261200_cle_fichier.xml"/>
+    <include file="db/changelog/a-integrer/202609261205_version_document_fichier.xml"/>
+    <include file="db/changelog/a-integrer/202609271000_recherche_normalisation.xml"/>
+    <include file="db/changelog/a-integrer/202609271005_ocr_job.xml"/>
+    <include file="db/changelog/a-integrer/202609271010_document_texte.xml"/>
+    <include file="db/changelog/a-integrer/202609271015_ocr_recherche_references.xml"/>
+</databaseChangeLog>
