@@ -1,0 +1,2 @@
+# Export de référence au format COPY de PostgreSQL : octets figés (LF).
+*.tsv text eol=lf
