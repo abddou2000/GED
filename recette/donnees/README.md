@@ -2,7 +2,9 @@
 
 Tous les contenus sont **fictifs** (aucune donnée réelle de Marchica Med). Chaque fichier
 porte un mot-témoin inventé, absent de tout dictionnaire, pour qu'une recherche qui le
-retrouve prouve la lecture du contenu : `zarkolinet` (français) et `زركولين` (arabe).
+retrouve prouve la lecture du contenu : `zarkolinet` (français) et `زركولين` (arabe). Chaque
+page des scans porte en pied un marqueur propre, `zarkopage01`, `zarkopage02`… : retrouver
+`zarkopage20` prouve que la 20e page a été traitée (aucun plafond de pages, §4.3.4).
 
 `MANIFESTE.csv` donne pour chaque fichier sa taille, son empreinte SHA-256, le type réel
 que Tika doit détecter et la réponse attendue au dépôt.
@@ -45,7 +47,7 @@ est **reproductible à l'octet près** (identifiant PDF et dates ZIP fixés, dé
 tirées d'une graine fixe) : `MANIFESTE.csv` ne change que si le contenu change.
 
 Vérifié le 2026-09-26 : les scans n'ont aucune couche texte ; Tesseract `fra` restitue
-le mot-témoin du scan français ; le DOCX s'ouvre (1 tableau, témoin présent).
+le mot-témoin du scan français et `zarkopage20` sur la 20e page du scan de 20 pages ; le DOCX s'ouvre (1 tableau, témoin présent).
 
 ## Produire un vrai scan (si l'échantillon MMED n'est pas encore disponible)
 

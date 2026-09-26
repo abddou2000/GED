@@ -2,9 +2,9 @@ fichier;octets;sha256;type_reel_attendu;reponse_depot_attendue;remarque
 pdf_texte_fr_convention.pdf;2564;93641c8f51f948bc6e60ff40d48e2e49fad439f7bde5f40e7bd59b37aa00fbbf;application/pdf;201 (ou 202 si OCR en attente);Couche texte native ; témoin « zarkolinet »
 pdf_texte_fr_facture.pdf;1668;d95600a3056e8d2a77bd207008e2794619b3e5ba1d4cf570b3aad5cdaab1f25e;application/pdf;201 (ou 202);Couche texte native, montants et dates
 pdf_texte_ar_courrier.pdf;19408;dd8a939d13fd989a30a16478996b2ccb530c00a8e6e204fc028d9ad5a0a6eecc;application/pdf;201 (ou 202);Couche texte arabe (formes de présentation Unicode, ordre visuel) ; témoin « زركولين »
-scan_fr_courrier.pdf;817000;5909fddba04f3d562ba89999eddce16c2f9f92392356ffd7767e5ceafc260a93;application/pdf;202 EN_ATTENTE_OCR;Images seules 300 dpi, aucune couche texte ; témoin « zarkolinet » après OCR fra
-scan_ar_courrier.pdf;657536;1355223df2193c5f98e60a70085115c337c10561a3d88602039a50f32cbe88ad;application/pdf;202 EN_ATTENTE_OCR;Images seules 300 dpi, arabe ; témoin « زركولين » après OCR ara
-image_scan_fr.png;197352;f9fabecefb0c767d2c7a28ab08cf2e60372c55168d1426040bdae4cbadf1e365;image/png;201 (ou 202);Image 200 dpi, OCR fra
+scan_fr_courrier.pdf;822215;be6509203854f05a3a5f4e75c7a0945519d4ff8400cdbb1457156127fccc840d;application/pdf;202 EN_ATTENTE_OCR;Images seules 300 dpi, aucune couche texte ; témoin « zarkolinet » après OCR fra
+scan_ar_courrier.pdf;663134;a3866e81d5d765f3273873c3fa599ca0749cb2c944180add7e100fd33c74c44f;application/pdf;202 EN_ATTENTE_OCR;Images seules 300 dpi, arabe ; témoin « زركولين » après OCR ara
+image_scan_fr.png;201037;7ee568f0b293bf5a416affe7ee1db11fab6cd2f3792221483c33844e97deb254;image/png;201 (ou 202);Image 200 dpi, OCR fra
 document_fr.docx;1767;14d02b76dab4293a69d6bc35b504cdd6bb58518976e11cbaad6aad2c6c5b7e77;application/vnd.openxmlformats-officedocument.wordprocessingml.document;201;Témoin « zarkolinet-docx » ; prévisualisation via LibreOffice
 note_texte_brut.txt;91;0413ffc5d4fe856eeb562f3674ed847ed0ea5fde52a3506768d74421017a3a4e;text/plain;201 si le type l'autorise;Format autorisé par défaut
 tableau_decomptes.csv;124;27778d143cec6f5be2159ce76e53e01d476fbbc41fa80491544cbee843da1980;text/csv;201 si le type l'autorise;Format autorisé par défaut

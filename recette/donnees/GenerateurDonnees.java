@@ -282,7 +282,10 @@ public class GenerateurDonnees {
         FontRenderContext frc = g.getFontRenderContext();
         float marge = 60f * dpi / 72f, largeur = l - 2 * marge, y = marge;
         List<String> tout = new ArrayList<>(lignes);
-        tout.add(rtl ? "الصفحة " + numero + " من " + total : "— " + numero + " / " + total + " —");
+        // Marqueur propre à la page (zarkopage01, zarkopage02…) : retrouver « zarkopage20 » prouve que
+        // la 20e page a été OCRisée (aucun plafond de pages, DAT §4.3.4).
+        String marqueur = String.format("zarkopage%02d", numero);
+        tout.add(rtl ? "الصفحة " + numero + " من " + total + " " + marqueur : "— " + numero + " / " + total + " — " + marqueur);
         for (String paragraphe : tout) {
             AttributedString as = new AttributedString(paragraphe);
             as.addAttribute(TextAttribute.FONT, police);

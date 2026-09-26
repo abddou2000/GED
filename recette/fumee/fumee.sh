@@ -15,7 +15,8 @@
 #   --delai-sante N      secondes d'attente maximale de la sonde de santé (défaut : 120)
 # Identifiants : GED_RECETTE_IDENTIFIANT et GED_RECETTE_MOT_DE_PASSE (compte de test
 # dédié, jamais un compte nominatif), ou GED_RECETTE_JETON, ou GED_RECETTE_CLE_API.
-# Contrat d'API paramétrable : voir recette/lib/api.sh.
+# Contrat d'API paramétrable : voir recette/lib/api.sh. GED_EXIGER_UUID=1 : l'identifiant
+# renvoyé au dépôt doit être un UUID (à activer dès l'intégration de E1).
 # Dépendances : bash 4, curl, sha256sum. Aucune (ni jq, ni Python).
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/commun.sh"
@@ -89,7 +90,10 @@ else etape F03 ECHEC "Appel authentifié (/auth/me)" "HTTP $HTTP_CODE"; fi
 MARQUE="fumee$(date +%Y%m%d%H%M%S)$RANDOM"
 EXT="${FICHIER##*.}"
 api_depot "$FICHIER" "${MARQUE}.${EXT}"
-if [[ -n "$DEPOT_ID" ]]; then etape F04 OK "Dépôt d'un document" "HTTP $HTTP_CODE, id $DEPOT_ID"
+UUID_RE='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+if [[ -n "$DEPOT_ID" && "${GED_EXIGER_UUID:-0}" == 1 && ! "$DEPOT_ID" =~ $UUID_RE ]]; then
+  etape F04 ECHEC "Dépôt d'un document" "identifiant « $DEPOT_ID » non UUID (DAT §5.3.2, §12.1 ; GED_EXIGER_UUID=1)"
+elif [[ -n "$DEPOT_ID" ]]; then etape F04 OK "Dépôt d'un document" "HTTP $HTTP_CODE, id $DEPOT_ID"
 elif [[ "$HTTP_CODE" == 000 ]]; then etape F04 ECHEC "Dépôt d'un document" "requête non aboutie : $(erreur_curl)"
 else etape F04 ECHEC "Dépôt d'un document" "HTTP $HTTP_CODE $(code_metier) $(head -c 300 "$HTTP_CORPS")"; fi
 
