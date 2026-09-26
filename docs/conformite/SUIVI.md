@@ -10,8 +10,9 @@ ajoutées, numéros P-01 à P-22) et revue technique client (`DECISIONS-REVUE-TE
 décision tentative ou une question ouverte ne change rien (le V3 s'applique). Pour le reste, le
 PDF fait foi. Les lignes modifiées par la revue portent la mention « Source : revue client (Dx) ».
 
-Dernière mise à jour : 26/09/2026 — intégration de la revue technique client ; vague 1 en cours
-(aucun commit encore sur les branches `ct/dev1`, `ct/dev2`, `ct/dev3`, `ct/qa`).
+Dernière mise à jour : 26/09/2026 — vague 1, partie 1 intégrée : `ct/dev1` (E1, fusion `409970b`)
+et `ct/dev3` (E5 en composants autonomes, fusion `65eb0ae`). `ct/dev2` et `ct/qa` pas encore
+fusionnés. Aucune ligne « Vérifié » tant que qa n'a pas recetté l'intégration.
 
 ## Statuts courants
 
@@ -34,9 +35,9 @@ est marquée **« Identique contesté »** dans la colonne Init. et suivie comme
 
 | Statut courant | Lignes | Part |
 |---|---|---|
-| À faire | 81 | 57 % |
-| En cours | 36 | 26 % |
-| Livré | 0 | 0 % |
+| À faire | 80 | 57 % |
+| En cours | 20 | 14 % |
+| Livré | 17 | 12 % |
 | Vérifié | 0 | 0 % |
 | Identique | 23 | 16 % |
 | Hors périmètre | 1 | 1 % |
@@ -67,11 +68,11 @@ changement (T-008, T-012, T-026, T-080, T-095, T-099, T-110), 2 renvoient à une
 | Étape | Contenu | Vague | Lignes | À faire | En cours | Livré | Vérifié | Identique |
 |---|---|---|---|---|---|---|---|---|
 | E0 | Cadrage et outillage | 1 | 6 | 0 | 6 | 0 | 0 | 0 |
-| E1 | Socle de données | 1 | 13 | 1 | 12 | 0 | 0 | 0 |
+| E1 | Socle de données | 1 | 13 | 1 | 2 | 10 | 0 | 0 |
 | E2 | Identité et sessions | 2 | 12 | 12 | 0 | 0 | 0 | 0 |
 | E3 | Autorisation et confidentialité | 3 | 7 | 7 | 0 | 0 | 0 | 0 |
 | E4 | Journalisation et audit | 1 (logs) + 2 | 6 | 4 | 2 | 0 | 0 | 0 |
-| E5 | Stockage sécurisé des fichiers | 1 + 2 | 9 | 2 | 7 | 0 | 0 | 0 |
+| E5 | Stockage sécurisé des fichiers (composants livrés, branchement en vague 2) | 1 + 2 | 9 | 1 | 1 | 7 | 0 | 0 |
 | E6 | OCR asynchrone et plein texte (+ dépôt en deux temps) | 3 | 15 | 15 | 0 | 0 | 0 | 0 |
 | E7 | Modèle documentaire et cycle de vie (+ espace de partage R-03) | 4 | 12 | 12 | 0 | 0 | 0 | 0 |
 | E8 | Workflow, conservation, notifications | 5 | 5 | 5 | 0 | 0 | 0 | 0 |
@@ -80,16 +81,16 @@ changement (T-008, T-012, T-026, T-080, T-095, T-099, T-110), 2 renvoient à une
 | E10 | Exploitation et infrastructure | 1 + 5 | 13 | 4 | 9 | 0 | 0 | 0 |
 | E11 | Recette de conformité (lignes déjà Identique, points hors code) | 6 | 26 | 3 | 0 | 0 | 0 | 23 |
 | — | Hors périmètre (R-04) | — | 1 | — | — | — | — | — |
-| **Total** | | | **141** | **81** | **36** | **0** | **0** | **23** |
+| **Total** | | | **141** | **80** | **20** | **17** | **0** | **23** |
 
 ### Répartition par responsable
 
-| Responsable | Lignes | En cours (vague 1) |
-|---|---|---|
-| dev1 | 48 | 12 (E1) |
-| dev2 | 55 | 17 (E0, E10, logs E4) |
-| dev3 | 36 | 7 (E5 composants) |
-| pm | 2 | 0 (P-18 engagement contractuel ; R-04 hors périmètre, confirmation écrite) |
+| Responsable | Lignes | Livré | En cours |
+|---|---|---|---|
+| dev1 | 48 | 10 (E1) | 2 (T-025 et T-104, partie E1 livrée, clôture en E9 et E7) |
+| dev2 | 55 | 0 | 17 (E0, E10, logs E4 ; branche non fusionnée) |
+| dev3 | 36 | 7 (E5 en composants) | 1 (T-009, clôture en E10) |
+| pm | 2 | 0 | 0 (P-18 engagement contractuel ; R-04 hors périmètre, confirmation écrite) |
 
 qa vérifie toutes les lignes (passage à « Vérifié ») ; il n'est responsable d'aucune ligne
 de développement.
@@ -121,12 +122,12 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | T-001 | 2.1 | Séparation stricte front et back, communication uniquement par API | I | E11 | dev2 | Identique | Revue d'architecture en recette : aucun accès front hors `/api/v1`. |
 | T-002 | 2.2 | Front-end Angular | I | E11 | dev2 | Identique | `frontend/package.json` ; version LTS courante confirmée en recette. |
 | T-003 | 2.2 | Back-end Java 17 et Spring Boot 3 (Security, Data JPA, Bean Validation) | I | E11 | dev1 | Identique | `backend/pom.xml`. |
-| T-004 | 2.2 | SGBD PostgreSQL 16 ou plus, configuration de recherche arabe vérifiée | N | E1 | dev1 | En cours | Profils dev, test, uat, prod sur PostgreSQL ; driver MySQL et H2 retirés ; test qui vérifie la présence de la configuration `arabic` ; `mvn test` vert sur PostgreSQL. |
-| T-005 | 2.2 | Outil de migration Liquibase 4 | N | E1 | dev1 | En cours | Flyway retiré du `pom.xml` ; changelog maître Liquibase ; base vierge créée uniquement par Liquibase. |
+| T-004 | 2.2 | SGBD PostgreSQL 16 ou plus, configuration de recherche arabe vérifiée | N | E1 | dev1 | Livré | Profils dev, test, uat, prod sur PostgreSQL ; driver MySQL et H2 retirés ; test qui vérifie la présence de la configuration `arabic` ; `mvn test` vert sur PostgreSQL. **Livré** : fusion `409970b` (ct/dev1 `8ca3760`), 156 tests verts sur PostgreSQL ; en attente de recette qa. |
+| T-005 | 2.2 | Outil de migration Liquibase 4 | N | E1 | dev1 | Livré | Flyway retiré du `pom.xml` ; changelog maître Liquibase ; base vierge créée uniquement par Liquibase. **Livré** : fusion `409970b` (ct/dev1 `8ca3760`), 156 tests verts sur PostgreSQL ; en attente de recette qa. |
 | T-006 | 2.2 | Hébergement du front sur un serveur NGINX | P | E10 | dev2 | En cours | Configuration NGINX livrée dans le dépôt, servant le paquet Angular et `config.json`. Vérifiable seulement par relecture sur ce poste (NGINX absent). |
 | T-007 | 2.3 | Une API REST unique pour le front et les applications tierces | I | E11 | dev2 | Identique | Recette E9 : une application de test utilise les mêmes points d'entrée que le front. |
 | T-008 | 2.3.2 | Briques Tesseract 5 et Apache PDFBox | I | E11 | dev3 | Identique | À revérifier après E6 (modèle `ara` ajouté). Confirmé par la revue client D5 : appel du binaire Tesseract depuis Java, aucun Python. |
-| T-009 | 2.3.2 | Briques Apache Tika, ClamAV, LibreOffice, veraPDF, keystore ou KMS, Prometheus | N | E5 (clôture E10) | dev3 | En cours | Chaque brique intégrée derrière une interface, testée avec un simulateur si absente du poste ; Prometheus livré par dev2 en E10 ; veraPDF en E7. |
+| T-009 | 2.3.2 | Briques Apache Tika, ClamAV, LibreOffice, veraPDF, keystore ou KMS, Prometheus | N | E5 (clôture E10) | dev3 | En cours | Chaque brique intégrée derrière une interface, testée avec un simulateur si absente du poste ; Prometheus livré par dev2 en E10 ; veraPDF en E7. Tika, keystore PKCS#12, client ClamAV et prévisualisation LibreOffice livrés en composants (fusion `65eb0ae`) ; veraPDF (E7) et Prometheus (E10) restent à livrer. |
 
 ### Authentification et identités (§3)
 
@@ -146,13 +147,13 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 
 | N° | Réf. | Exigence | Init. | Étape | Resp. | Statut | Preuve attendue |
 |---|---|---|---|---|---|---|---|
-| T-019 | 4.2.1 | Aucune modification de schéma hors migration versionnée | P | E1 | dev1 | En cours | `ddl-auto: validate` sur tous les profils ; aucun DDL hors changelog. |
-| T-020 | 4.2.1 | Amorçage initial par migration, référentiels métier uniquement via l'interface | P | E1 | dev1 | En cours | Seeders Java d'amorçage supprimés ; changesets étiquetés `data-initial` sans donnée métier propre à un environnement. |
-| T-021 | 4.2.2 | Conventions de nommage des changesets et des objets (snake_case, idx_, uk_, fk_) | P | E1 | dev1 | En cours | Fichiers `AAAAMMJJHHmm_objet_metier.xml` ; contrôle automatique des noms d'objets (`idx_<table>_<colonnes>`, `uk_`, `fk_`, `ck_`, clé `id`, clés étrangères `<table>_id`). |
-| T-022 | 4.2.2 | Retour arrière explicite par changeset, schéma expand et contract | N | E1 | dev1 | En cours | Chaque changeset porte un `rollback` ; test `updateTestingRollback` sur base vierge. |
-| T-023 | 4.2.3 | Trois rôles PostgreSQL : propriétaire, application, lecture seule | N | E1 | dev1 | En cours | Script idempotent des rôles `ged_owner`, `ged_app`, `ged_readonly`, aucun superutilisateur ; application exécutée sous `ged_app`. |
-| T-024 | 12.1 | Clés primaires UUID | N | E1 | dev1 | En cours | Toutes les clés primaires en `uuid` ; front adapté (identifiants en chaîne). |
-| T-025 | 12.1 | Modèle logique en sept groupes de tables | P | E1 (clôture E9) | dev1 | En cours | Toutes les tables du tableau 12.1 présentes, avec leurs noms exacts, après E9. |
+| T-019 | 4.2.1 | Aucune modification de schéma hors migration versionnée | P | E1 | dev1 | Livré | `ddl-auto: validate` sur tous les profils ; aucun DDL hors changelog. **Livré** : fusion `409970b` (ct/dev1 `8ca3760`), 156 tests verts sur PostgreSQL ; en attente de recette qa. |
+| T-020 | 4.2.1 | Amorçage initial par migration, référentiels métier uniquement via l'interface | P | E1 | dev1 | Livré | Seeders Java d'amorçage supprimés ; changesets étiquetés `data-initial` sans donnée métier propre à un environnement. **Livré** : fusion `409970b` (ct/dev1 `8ca3760`), 156 tests verts sur PostgreSQL ; en attente de recette qa. |
+| T-021 | 4.2.2 | Conventions de nommage des changesets et des objets (snake_case, idx_, uk_, fk_) | P | E1 | dev1 | Livré | Fichiers `AAAAMMJJHHmm_objet_metier.xml` ; contrôle automatique des noms d'objets (`idx_<table>_<colonnes>`, `uk_`, `fk_`, `ck_`, clé `id`, clés étrangères `<table>_id`). **Livré** : fusion `409970b` (ct/dev1 `8ca3760`), 156 tests verts sur PostgreSQL ; en attente de recette qa. |
+| T-022 | 4.2.2 | Retour arrière explicite par changeset, schéma expand et contract | N | E1 | dev1 | Livré | Chaque changeset porte un `rollback` ; test `updateTestingRollback` sur base vierge. **Livré** : fusion `409970b` (ct/dev1 `8ca3760`), 156 tests verts sur PostgreSQL ; en attente de recette qa. |
+| T-023 | 4.2.3 | Trois rôles PostgreSQL : propriétaire, application, lecture seule | N | E1 | dev1 | Livré | Script idempotent des rôles `ged_owner`, `ged_app`, `ged_readonly`, aucun superutilisateur ; application exécutée sous `ged_app`. **Livré** : fusion `409970b` (ct/dev1 `8ca3760`), 156 tests verts sur PostgreSQL ; en attente de recette qa. |
+| T-024 | 12.1 | Clés primaires UUID | N | E1 | dev1 | Livré | Toutes les clés primaires en `uuid` ; front adapté (identifiants en chaîne). **Livré** : fusion `409970b` (ct/dev1 `8ca3760`), 156 tests verts sur PostgreSQL ; en attente de recette qa. |
+| T-025 | 12.1 | Modèle logique en sept groupes de tables | P | E1 (clôture E9) | dev1 | En cours | Toutes les tables du tableau 12.1 présentes, avec leurs noms exacts, après E9. Partie E1 livrée (fusion `409970b`) ; les groupes Identités, Habilitations, Traçabilité et Circuits restent à créer. |
 
 ### Moteur OCR et recherche plein texte (§4.3, §4.4)
 
@@ -183,7 +184,7 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | T-043 | 5.3 | Opérations : dépôt avec métadonnées en une seule opération | P | E6 | dev3 | À faire | `POST /documents` multipart (fichier + métadonnées JSON) en une requête ; avancé en E6 avec le dépôt en deux temps. |
 | T-044 | 5.3 | Opérations : dépôt pour le compte d'un utilisateur, rattachement, consultation des droits | N | E9 | dev2 | À faire | `X-On-Behalf-Of` (dev2), `POST/DELETE /documents/{id}/rattachements` (dev1, E7), `GET /documents/{id}/droits` et `/noeuds/{id}/droits?pourUtilisateur` (dev1, E3). |
 | T-045 | 5.3.1 | Recherche multicritère et plein texte filtrée par droits, paginée | P | E6 | dev3 | À faire | `POST /recherches` : critères en ET avec le plein texte, filtre de droits à la source, pagination, total limité au périmètre. |
-| T-046 | 5.3.2 | JSON UTF-8, dates ISO 8601 en UTC, identifiants opaques UUID | P | E1 | dev1 | En cours | Identifiants UUID dans tous les DTO ; dates sérialisées en UTC ; test de sérialisation. |
+| T-046 | 5.3.2 | JSON UTF-8, dates ISO 8601 en UTC, identifiants opaques UUID | P | E1 | dev1 | Livré | Identifiants UUID dans tous les DTO ; dates sérialisées en UTC ; test de sérialisation. **Livré** : fusion `409970b` (ct/dev1 `8ca3760`), 156 tests verts sur PostgreSQL ; en attente de recette qa. |
 | T-047 | 5.3.2 | Erreurs au format problem+json (RFC 7807) avec code métier stable | P | E9 (avancé en vague 2) | dev2 | À faire | `application/problem+json`, champ `code` stable, dictionnaire d'erreurs par champ pour les 400 ; catalogue des codes documenté. |
 | T-048 | 5.3.2 | Codes 403, 404 hors périmètre, 409, 413, 415, 422, 429 | P | E9 | dev2 | À faire | Test par code ; 413/415/422 posés par dev3 (E5), 404 hors périmètre par dev1 (E3), 429 par dev1 (connexion) et dev2 (quotas). |
 | T-049 | 5.3.2 | En-tête Idempotency-Key obligatoire sur les créations | N | E9 | dev2 | À faire | Table `idempotence_cle` ; tests : rejeu identique = réponse initiale, contenu différent = 422, mémorisation 24 h par application. |
@@ -199,14 +200,14 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | N° | Réf. | Exigence | Init. | Étape | Resp. | Statut | Preuve attendue |
 |---|---|---|---|---|---|---|---|
 | T-056 | 6.1.1 | Fichiers stockés hors base | I | E11 | dev3 | Identique | À revérifier après E5 (interface `FileStore`). |
-| T-057 | 6.1.1 | Identifiant opaque, arborescence aa/bb, écriture unique et atomique | P | E5 | dev3 | En cours | `/<racine>/aa/bb/<uuid>.enc` ; écriture fichier temporaire, `fsync`, renommage ; test d'interruption. |
-| T-058 | 6.1.2 | Chiffrement AES-256-GCM, clé par version, clé maîtresse en keystore, rotation | N | E5 | dev3 | En cours | IV de 96 bits unique, DEK par version enveloppée par la KEK (table `cle_fichier`), keystore PKCS#12 via `KeyProvider`, rotation par réenveloppement ; test d'altération détectée. |
-| T-059 | 6.1.4 | Empreinte SHA-256 par version, vérification périodique | N | E5 | dev3 | En cours | `version_document.empreinte` du contenu en clair ; tâche mensuelle et commande à la demande ; divergence = alerte et événement d'audit. |
+| T-057 | 6.1.1 | Identifiant opaque, arborescence aa/bb, écriture unique et atomique | P | E5 | dev3 | Livré | `/<racine>/aa/bb/<uuid>.enc` ; écriture fichier temporaire, `fsync`, renommage ; test d'interruption. **Livré en composants autonomes** : fusion `65eb0ae` (ct/dev3 `32e8fc2`), tests verts ; **non branché** sur le dépôt, le versement et le téléchargement (vague 2) : ne peut pas passer « Identique » avant ce branchement. |
+| T-058 | 6.1.2 | Chiffrement AES-256-GCM, clé par version, clé maîtresse en keystore, rotation | N | E5 | dev3 | Livré | IV de 96 bits unique, DEK par version enveloppée par la KEK (table `cle_fichier`), keystore PKCS#12 via `KeyProvider`, rotation par réenveloppement ; test d'altération détectée. **Livré en composants autonomes** : fusion `65eb0ae` (ct/dev3 `32e8fc2`), tests verts ; **non branché** sur le dépôt, le versement et le téléchargement (vague 2) : ne peut pas passer « Identique » avant ce branchement. |
+| T-059 | 6.1.4 | Empreinte SHA-256 par version, vérification périodique | N | E5 | dev3 | Livré | `version_document.empreinte` du contenu en clair ; tâche mensuelle et commande à la demande ; divergence = alerte et événement d'audit. **Livré en composants autonomes** : fusion `65eb0ae` (ct/dev3 `32e8fc2`), tests verts ; **non branché** sur le dépôt, le versement et le téléchargement (vague 2) : ne peut pas passer « Identique » avant ce branchement. |
 | T-060 | 6.1.4 | Copie de conservation PDF/A-2 validée par veraPDF (**revue client D10** : conversion en PDF obligatoire à l'archivage, fichiers Word archivables) | N | E7 | dev3 | À faire | Copie PDF/A-2 à l'archivage (LibreOffice ou PDFBox), validée par veraPDF, chiffrée ; original conservé ; échec non bloquant et signalé ; Word accepté. Nature de la conversion (image ou texte) : question QR7. Simulateur pour LibreOffice sur ce poste. Source : revue client (D10). |
-| T-061 | 6.1.5 | Type réel détecté par le contenu (Apache Tika) | N | E5 | dev3 | En cours | Test : fichier renommé refusé en 415 ; liste blanche par type (PDF, TIFF, JPEG, PNG, texte, CSV, Office, OpenDocument). |
-| T-062 | 6.1.5 | Taille maximale par type, plafond de plateforme | IC | E5 | dev3 | À faire | Contesté : plafond de plateforme de 200 Mo aligné sur NGINX et sur les limites multipart de Spring (100 Mo aujourd'hui). Test 413. |
-| T-063 | 6.1.5 | Antivirus ClamAV, refus si indisponible | N | E5 | dev3 | En cours | Protocole clamd `INSTREAM` ; tests avec serveur clamd factice : infecté = 422 `FICHIER_INFECTE` et audit ; indisponible = refus. Vérifié seulement par simulateur sur ce poste. |
-| T-064 | 6.1.6 | Prévisualisation déchiffrée à la volée, droits appliqués, audit | N | E5 | dev3 | En cours | PDF et images en flux sans copie en clair ; bureautique convertie par LibreOffice, cache chiffré ; mêmes contrôles que le téléchargement ; événement d'audit distinct ; visionneuse Angular. |
+| T-061 | 6.1.5 | Type réel détecté par le contenu (Apache Tika) | N | E5 | dev3 | Livré | Test : fichier renommé refusé en 415 ; liste blanche par type (PDF, TIFF, JPEG, PNG, texte, CSV, Office, OpenDocument). **Livré en composants autonomes** : fusion `65eb0ae` (ct/dev3 `32e8fc2`), tests verts ; **non branché** sur le dépôt, le versement et le téléchargement (vague 2) : ne peut pas passer « Identique » avant ce branchement. |
+| T-062 | 6.1.5 | Taille maximale par type, plafond de plateforme | IC | E5 | dev3 | Livré | Contesté : plafond de plateforme de 200 Mo aligné sur NGINX et sur les limites multipart de Spring (100 Mo aujourd'hui). Test 413. **Livré en composants autonomes** : fusion `65eb0ae` (ct/dev3 `32e8fc2`), tests verts ; **non branché** sur le dépôt, le versement et le téléchargement (vague 2) : ne peut pas passer « Identique » avant ce branchement. |
+| T-063 | 6.1.5 | Antivirus ClamAV, refus si indisponible | N | E5 | dev3 | Livré | Protocole clamd `INSTREAM` ; tests avec serveur clamd factice : infecté = 422 `FICHIER_INFECTE` et audit ; indisponible = refus. Vérifié seulement par simulateur sur ce poste. **Livré en composants autonomes** : fusion `65eb0ae` (ct/dev3 `32e8fc2`), tests verts ; **non branché** sur le dépôt, le versement et le téléchargement (vague 2) : ne peut pas passer « Identique » avant ce branchement. |
+| T-064 | 6.1.6 | Prévisualisation déchiffrée à la volée, droits appliqués, audit | N | E5 | dev3 | Livré | PDF et images en flux sans copie en clair ; bureautique convertie par LibreOffice, cache chiffré ; mêmes contrôles que le téléchargement ; événement d'audit distinct ; visionneuse Angular. **Livré en composants autonomes** : fusion `65eb0ae` (ct/dev3 `32e8fc2`), tests verts ; **non branché** sur le dépôt, le versement et le téléchargement (vague 2) : ne peut pas passer « Identique » avant ce branchement. |
 | T-065 | 6.2.1 | TLS 1.2 minimum, certificat MMED, LDAPS et base chiffrés | N | E10 | dev2 | En cours | Configuration NGINX (TLS 1.2+, suites modernes) ; `sslmode=verify-full` et LDAPS configurés pour UAT et PROD. Relecture seulement sur ce poste. |
 | T-066 | 6.2.2 | NGINX durci : server_tokens off, HSTS, CSP, limitation de débit, HTTPS forcé | N | E10 | dev2 | En cours | Configuration livrée avec `server_tokens off`, HSTS, `X-Content-Type-Options`, `X-Frame-Options`, CSP adaptée à Angular, `limit_req` sur connexion et API, redirection HTTPS, `client_max_body_size 200m`. |
 | T-067 | 6.2.3 | A01 : refus par défaut, 404 pour un objet hors périmètre | P | E3 | dev1 | À faire | Tests de chaque chemin d'accès : objet hors périmètre = 404, indistinct d'un objet absent. |
@@ -256,12 +257,12 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | T-096 | 12.3 | Confidentialité PUBLIC, PRIVE, CONFIDENTIEL et personnes désignées | N | E3 | dev1 | À faire | Colonne obligatoire, `document_confidentiel_designe` ; prédicat SQL appliqué à la source ; niveau par défaut par type ; déposant désigné par défaut ; tests de chaque niveau. |
 | T-097 | 12.4 | Rattachement d'un document à plusieurs espaces | N | E3 (table et droits) + E7 (API) | dev1 | À faire | `document.noeud_principal_id`, `document_rattachement` unique ; droits en union ; suppression, déplacement et export conformes au 12.4 ; audit `RATTACHEMENT_AJOUTE` et `RATTACHEMENT_RETIRE`. |
 | T-098 | 12.5 | Déplacement transactionnel avec sous-arborescence et anti-cycle | P | E7 | dev1 | À faire | Mise à jour du chemin matérialisé en une requête ; déplacement de document ; 409 si verrouillé ; audit origine et destination. |
-| T-099 | 12.5 | Suppression douce avec auteur et date (**confirmé par la revue client D14** : corbeille pour toute suppression) | P | E1 | dev1 | En cours | Colonnes `supprime`, `supprime_par`, `supprime_le` ; cascade sur la sous-arborescence (E3/E7). Source : revue client (D14). |
+| T-099 | 12.5 | Suppression douce avec auteur et date (**confirmé par la revue client D14** : corbeille pour toute suppression) | P | E1 | dev1 | Livré | Colonnes `supprime`, `supprime_par`, `supprime_le` ; cascade sur la sous-arborescence (E3/E7). Source : revue client (D14). **Livré** : fusion `409970b` (ct/dev1 `8ca3760`), 156 tests verts sur PostgreSQL ; en attente de recette qa. |
 | T-100 | 12.5 | Purge définitive avec destruction cryptographique | N | E7 | dev3 | À faire | Purge depuis la corbeille seulement, permission Purger ; suppression des lignes, du fichier et de la DEK ; audit conservé ; test : fichier indéchiffrable après purge. |
 | T-101 | 12.6 | **Revue client D10** : archivage par **action manuelle** d'un utilisateur, jamais automatique ; applicable à **un dossier entier** en une fois ; **drapeau d'archivage sur les documents et sur les nœuds (dossiers)** ; lecture seule, empreinte, PDF/A ; job par lot | N | E7 | dev3 | À faire | `document.statut_conservation` et drapeau sur `noeud` ; archivage d'un dossier = `job_archivage` sur ses documents (tranches de 100, reprise, annulation) ; aucune tâche d'archivage automatique ; lecture seule en service et contrainte en base ; désarchivage réservé ; un événement par document. Dépôt dans un dossier archivé : question QR7. Source : revue client (D10). |
 | T-102 | 12.7 | Méta-modèle d'index : nature dont booléen, obligatoire, défaut, liste, recherche | P | E7 | dev1 | À faire | Nature booléenne ajoutée (back et Angular) ; test. |
 | T-103 | 12.7 | Plan d'indexation et charte de nommage automatique | I | E11 | dev1 | Identique | À revérifier après E7 (plan versionné). |
-| T-104 | 12.7 | Métadonnées en JSONB avec index GIN | N | E1 (colonne) + E7 (validation) | dev1 | En cours | `document.metadonnees` JSONB, index GIN, index d'expression dates et nombres ; validation contre le plan en E7. |
+| T-104 | 12.7 | Métadonnées en JSONB avec index GIN | N | E1 (colonne) + E7 (validation) | dev1 | En cours | `document.metadonnees` JSONB, index GIN, index d'expression dates et nombres ; validation contre le plan en E7. Partie E1 livrée (fusion `409970b`) : colonne JSONB et index GIN ; validation contre le plan en E7. |
 | T-105 | 12.7 | Type : durée de conservation, confidentialité par défaut, plan versionné, re-typologisation | N | E7 | dev1 | À faire | Durée en mois et point de départ ; plan versionné ; `RESTRICT` sur un type utilisé ; `job_retypage` avec table de correspondance, rapport et audit par document. |
 | T-106 | 12.8 | Versions : numéro, empreinte, auteur, une seule version courante. **Revue client D9** : l'utilisateur rattache explicitement le nouveau fichier au document existant ; la nouvelle version devient courante et **l'ancienne est automatiquement conservée en lecture seule dans l'historique** (ce n'est pas l'archivage de D10) | P | E7 | dev1 | À faire | `version_document(id, document_id, numero, empreinte, auteur_id, cree_le, courante)` ; index unique partiel ; versement = bascule automatique de la version courante ; versions antérieures immuables. Désignation d'une version antérieure comme courante conservée (V3) en attendant QR6. Source : revue client (D9). |
 | T-107 | 12.8 | Verrou avec auteur, date et motif (gel complet du V3 conservé, question QR4) | P | E7 | dev1 | À faire | Verrou posé et levé par l'Administrateur, audité ; 409 sur toute écriture (fiche, versement, déplacement, réindexation, archivage). |
