@@ -65,6 +65,14 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Export des metriques au format Prometheus (DAT 6.7). Le point
+             /actuator/prometheus n'est servi que sur le port de management,
+             lie au reseau interne (voir exploitation.yml). -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
         <!-- Security (auth + ACL) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
