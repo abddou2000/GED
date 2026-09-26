@@ -23,6 +23,12 @@
 #                    repli sur admin@<ged.securite.domaine-email>.
 #    GED_NOM_ADMIN   nom affiché de l'employé créé pour porter ce compte si
 #                    aucun employé existant ne correspond à l'adresse.
+#    GED_KEYSTORE_CHEMIN keystore PKCS#12 des clés maîtresses (KEK), hors du
+#                    référentiel de fichiers. Absent = refus de démarrer.
+#    GED_KEYSTORE_MDP phrase secrète du keystore (coffre de secrets). Absente
+#                    = refus de démarrer.
+#    GED_CLAMAV_HOTE / GED_CLAMAV_PORT  démon clamd (échec fermé : injoignable
+#                    = dépôt refusé). L'antivirus ne peut pas être désactivé.
 #  Voir backend/.env.example.
 # ============================================================
 ged:

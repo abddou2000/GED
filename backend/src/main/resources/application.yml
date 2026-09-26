@@ -10,9 +10,12 @@ spring:
     active: dev
   servlet:
     multipart:
-      # Taille max des fichiers téléversés (documents GED)
-      max-file-size: 100MB
-      max-request-size: 120MB
+      # Plafond de plateforme (§6.1.5) : 200 Mo par fichier, aligné sur
+      # `client_max_body_size 210m` de NGINX (la requête porte aussi les champs
+      # du formulaire). La taille par type documentaire (100 Mo par défaut) est
+      # contrôlée ensuite par l'application ; ceci n'est que le plafond dur.
+      max-file-size: 200MB
+      max-request-size: 210MB
 
   # ------------------------------------------------------------
   # Connexion applicative : compte ged_app (DML seulement, §4.2.3).
@@ -110,6 +113,43 @@ ged:
   storage:
     root: ./storage/ged        # dossier racine des documents
     temp: ./storage/temp       # pages rendues en image avant OCR, purgées après lecture
+
+  # ------------------------------------------------------------
+  #  Stockage sécurisé des fichiers (lot E5, §6.1)
+  # ------------------------------------------------------------
+  fichiers:
+    # Référentiel chiffré : /<racine>/aa/bb/<uuid>.enc (écriture unique et atomique)
+    racine: ${GED_STOCKAGE_RACINE:./storage/coffre}
+    # Cache chiffré des aperçus bureautiques convertis en PDF
+    racine-cache-apercu: ${GED_CACHE_APERCU_RACINE:./storage/cache-apercu}
+    taille-max-defaut-mo: 100       # par type documentaire, si le type n'en fixe pas
+    plafond-plateforme-mo: 200      # = spring.servlet.multipart.max-file-size = NGINX
+    formats-par-defaut: pdf,tiff,jpeg,png,txt,csv,docx,xlsx,pptx,odt,ods,odp
+    cles:
+      # Keystore PKCS#12 des clés maîtresses (KEK). HORS du référentiel de
+      # fichiers, distinct pour DEV, UAT et PROD. Aucune valeur par défaut ici :
+      # voir backend/.env.example.
+      keystore: ${GED_KEYSTORE_CHEMIN:}
+      mot-de-passe: ${GED_KEYSTORE_MDP:}
+      creer-si-absent: false         # vrai seulement en dev et en test
+      rotation-planifiee: false      # rotation annuelle automatique de la KEK
+      rotation-cron: "0 0 2 1 1 *"
+    antivirus:
+      actif: true                    # échec fermé : ClamAV absent = dépôt refusé
+      hote: ${GED_CLAMAV_HOTE:localhost}
+      port: ${GED_CLAMAV_PORT:3310}
+      delai-connexion-ms: 2000
+      delai-lecture-ms: 120000
+      taille-bloc-octets: 65536
+    integrite:
+      verification-planifiee: false  # à activer une fois les empreintes en base
+      cron: "0 0 3 1 * *"            # le 1er de chaque mois à 3 h
+    previsualisation:
+      api-active: false              # à activer une fois le résolveur de versions branché
+      libreoffice-commande: ${GED_LIBREOFFICE:soffice}
+      delai-conversion-s: 120
+      # tmpfs en production : la conversion y dépose une copie en clair éphémère
+      repertoire-travail: ${GED_APERCU_TRAVAIL:${java.io.tmpdir}/ged-apercu}
 
   # Chaîne d'OCRisation. Étage 1 (couche texte des PDF natifs) : toujours actif,
   # aucune installation requise. Étage 2 (Tesseract) : utilisé seulement si le
