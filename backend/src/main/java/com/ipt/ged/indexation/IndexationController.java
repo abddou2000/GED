@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Indexation & recherche par index.
@@ -39,7 +40,7 @@ public class IndexationController {
     }
 
     @GetMapping("/documents/{id}/champs")
-    public List<CritereResponse> champs(@PathVariable Long id) {
+    public List<CritereResponse> champs(@PathVariable UUID id) {
         return service.champsDuDocument(id);
     }
 
@@ -53,7 +54,7 @@ public class IndexationController {
      * fichier. Lecture seule et sans effet de bord.
      */
     @PostMapping(value = "/apercu", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApercuResponse apercu(@RequestParam Long typeDocumentId,
+    public ApercuResponse apercu(@RequestParam UUID typeDocumentId,
                                  @RequestParam(required = false) MultipartFile file,
                                  @RequestParam(required = false) String nomFichier) {
         String nom = nomFichier != null && !nomFichier.isBlank() ? nomFichier
@@ -62,17 +63,17 @@ public class IndexationController {
     }
 
     @GetMapping("/documents/{id}/analyse")
-    public AnalyseResponse analyser(@PathVariable Long id) {
+    public AnalyseResponse analyser(@PathVariable UUID id) {
         return service.analyser(id);
     }
 
     @GetMapping("/documents/{id}")
-    public List<ResultatResponse.ValeurResponse> valeurs(@PathVariable Long id) {
+    public List<ResultatResponse.ValeurResponse> valeurs(@PathVariable UUID id) {
         return service.valeurs(id);
     }
 
     @PutMapping("/documents/{id}")
-    public List<ResultatResponse.ValeurResponse> enregistrer(@PathVariable Long id,
+    public List<ResultatResponse.ValeurResponse> enregistrer(@PathVariable UUID id,
                                                              @Valid @RequestBody ValeurRequest requete) {
         return service.enregistrer(id, requete);
     }

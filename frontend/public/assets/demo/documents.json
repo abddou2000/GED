@@ -1,369 +1,369 @@
 {
- "content": [
-  {
-   "id": 172,
-   "name": "sali ala nabi",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "GED-architecture-backend.pdf",
-   "extension": "pdf",
-   "sizeKo": 576,
-   "sizeLabel": "576 Ko",
-   "expirationDate": "2005-05-08",
-   "active": false,
-   "createdAt": "2026-08-04T10:56:55.884225Z"
-  },
-  {
-   "id": 171,
-   "name": "rou7ani",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "GED-architecture-backend.pdf",
-   "extension": "pdf",
-   "sizeKo": 576,
-   "sizeLabel": "576 Ko",
-   "expirationDate": "5888-08-06",
-   "active": false,
-   "createdAt": "2026-08-04T10:49:58.270853Z"
-  },
-  {
-   "id": 169,
-   "name": "roudani",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "GED-architecture-backend.pdf",
-   "extension": "pdf",
-   "sizeKo": 576,
-   "sizeLabel": "576 Ko",
-   "expirationDate": "2008-08-08",
-   "active": false,
-   "createdAt": "2026-08-04T10:42:25.210904Z"
-  },
-  {
-   "id": 166,
-   "name": "facruez",
-   "workspace": {
-    "id": 2,
-    "label": "2026"
-   },
-   "typeDocument": {
-    "id": 2,
-    "label": "Contrat"
-   },
-   "fileName": "Indexation-GED-Marchica-Med.pdf",
-   "extension": "pdf",
-   "sizeKo": 170,
-   "sizeLabel": "170 Ko",
-   "expirationDate": "2026-08-13",
-   "active": false,
-   "createdAt": "2026-08-04T10:30:09.777638Z"
-  },
-  {
-   "id": 163,
-   "name": "rororo",
-   "workspace": {
-    "id": 2,
-    "label": "2026"
-   },
-   "typeDocument": {
-    "id": 2,
-    "label": "Contrat"
-   },
-   "fileName": "Indexation-GED-Marchica-Med.pdf",
-   "extension": "pdf",
-   "sizeKo": 170,
-   "sizeLabel": "170 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-08-04T10:26:48.503926Z"
-  },
-  {
-   "id": 129,
-   "name": "Scan sans nom parlant",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "scan0001.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T16:41:57.705133Z"
-  },
-  {
-   "id": 97,
-   "name": "Facture Nova juin",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "2026111_2026-06-10_Nova Import_Urgente.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T14:17:56.071576Z"
-  },
-  {
-   "id": 74,
-   "name": "Facture Zenata mai",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture-test.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T14:00:24.408965Z"
-  },
-  {
-   "id": 73,
-   "name": "Facture Rif avril",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture-test.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T14:00:24.290984Z"
-  },
-  {
-   "id": 72,
-   "name": "Facture Rif janvier",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture-test.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T14:00:24.172715Z"
-  },
-  {
-   "id": 71,
-   "name": "Facture Sogema avril",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture-test.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T14:00:24.050876Z"
-  },
-  {
-   "id": 70,
-   "name": "Facture Sogema fevrier",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture-test.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T14:00:23.929453Z"
-  },
-  {
-   "id": 69,
-   "name": "Facture Atlas mars",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture-test.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T14:00:23.822022Z"
-  },
-  {
-   "id": 68,
-   "name": "Facture Atlas janvier",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture-test.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T14:00:23.723680Z"
-  },
-  {
-   "id": 67,
-   "name": "Facture ACME mars",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture-test.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T14:00:23.614548Z"
-  },
-  {
-   "id": 66,
-   "name": "Facture ACME fevrier",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture-test.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-07-28T14:00:23.488938Z"
-  },
-  {
-   "id": 65,
-   "name": "Facture ACME janvier",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture-test.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": true,
-   "createdAt": "2026-07-28T14:00:23.295327Z"
-  },
-  {
-   "id": 33,
-   "name": "Facture circuit",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "f.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": true,
-   "createdAt": "2026-07-24T08:27:02.070700Z"
-  },
-  {
-   "id": 1,
-   "name": "Facture janvier",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "facture.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": true,
-   "createdAt": "2026-07-24T08:15:29.945244Z"
-  }
- ],
- "total": 19,
- "page": 0,
- "size": 100,
- "totalPages": 1
+  "content": [
+    {
+      "id": "01920000-0000-7000-8000-0000000000ac",
+      "name": "sali ala nabi",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "GED-architecture-backend.pdf",
+      "extension": "pdf",
+      "sizeKo": 576,
+      "sizeLabel": "576 Ko",
+      "expirationDate": "2005-05-08",
+      "active": false,
+      "createdAt": "2026-08-04T10:56:55.884225Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-0000000000ab",
+      "name": "rou7ani",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "GED-architecture-backend.pdf",
+      "extension": "pdf",
+      "sizeKo": 576,
+      "sizeLabel": "576 Ko",
+      "expirationDate": "5888-08-06",
+      "active": false,
+      "createdAt": "2026-08-04T10:49:58.270853Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-0000000000a9",
+      "name": "roudani",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "GED-architecture-backend.pdf",
+      "extension": "pdf",
+      "sizeKo": 576,
+      "sizeLabel": "576 Ko",
+      "expirationDate": "2008-08-08",
+      "active": false,
+      "createdAt": "2026-08-04T10:42:25.210904Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-0000000000a6",
+      "name": "facruez",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "label": "2026"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "label": "Contrat"
+      },
+      "fileName": "Indexation-GED-Marchica-Med.pdf",
+      "extension": "pdf",
+      "sizeKo": 170,
+      "sizeLabel": "170 Ko",
+      "expirationDate": "2026-08-13",
+      "active": false,
+      "createdAt": "2026-08-04T10:30:09.777638Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-0000000000a3",
+      "name": "rororo",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "label": "2026"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "label": "Contrat"
+      },
+      "fileName": "Indexation-GED-Marchica-Med.pdf",
+      "extension": "pdf",
+      "sizeKo": 170,
+      "sizeLabel": "170 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-08-04T10:26:48.503926Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000081",
+      "name": "Scan sans nom parlant",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "scan0001.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T16:41:57.705133Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000061",
+      "name": "Facture Nova juin",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "2026111_2026-06-10_Nova Import_Urgente.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T14:17:56.071576Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-00000000004a",
+      "name": "Facture Zenata mai",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture-test.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T14:00:24.408965Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000049",
+      "name": "Facture Rif avril",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture-test.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T14:00:24.290984Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000048",
+      "name": "Facture Rif janvier",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture-test.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T14:00:24.172715Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000047",
+      "name": "Facture Sogema avril",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture-test.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T14:00:24.050876Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000046",
+      "name": "Facture Sogema fevrier",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture-test.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T14:00:23.929453Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000045",
+      "name": "Facture Atlas mars",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture-test.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T14:00:23.822022Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000044",
+      "name": "Facture Atlas janvier",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture-test.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T14:00:23.723680Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000043",
+      "name": "Facture ACME mars",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture-test.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T14:00:23.614548Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000042",
+      "name": "Facture ACME fevrier",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture-test.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-07-28T14:00:23.488938Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000041",
+      "name": "Facture ACME janvier",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture-test.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": true,
+      "createdAt": "2026-07-28T14:00:23.295327Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000021",
+      "name": "Facture circuit",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "f.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": true,
+      "createdAt": "2026-07-24T08:27:02.070700Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000001",
+      "name": "Facture janvier",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "facture.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": true,
+      "createdAt": "2026-07-24T08:15:29.945244Z"
+    }
+  ],
+  "total": 19,
+  "page": 0,
+  "size": 100,
+  "totalPages": 1
 }

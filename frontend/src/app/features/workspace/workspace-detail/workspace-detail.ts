@@ -40,7 +40,7 @@ export class WorkspaceDetail implements OnInit {
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
 
-  id = signal<number | null>(null);
+  id = signal<string | null>(null);
   espace = signal<WorkSpace | null>(null);
   sousDossiers = signal<TreeNode[]>([]);
   docs = signal<DocumentItem[]>([]);
@@ -48,14 +48,14 @@ export class WorkspaceDetail implements OnInit {
   introuvable = signal(false);
 
   /** Chemin depuis la racine, reconstruit à partir de l'arborescence complète. */
-  chemin = signal<{ id: number; name: string }[]>([]);
+  chemin = signal<{ id: string; name: string }[]>([]);
 
   readonly colonnesDocs = ['name', 'type', 'size', 'actions'];
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(p => {
-      const id = Number(p.get('id'));
-      if (!Number.isFinite(id) || id <= 0) { this.introuvable.set(true); return; }
+      const id = p.get('id');
+      if (!id) { this.introuvable.set(true); return; }
       this.id.set(id);
       this.charger();
     });
@@ -89,7 +89,7 @@ export class WorkspaceDetail implements OnInit {
   }
 
   /** Retrouve les enfants directs du dossier dans l'arborescence renvoyée à plat. */
-  private enfantsDe(arbre: TreeNode[], id: number): TreeNode[] {
+  private enfantsDe(arbre: TreeNode[], id: string): TreeNode[] {
     const trouve = (noeuds: TreeNode[]): TreeNode | null => {
       for (const n of noeuds) {
         if (n.id === id) return n;
@@ -102,8 +102,8 @@ export class WorkspaceDetail implements OnInit {
   }
 
   /** Fil d'Ariane : la suite des dossiers menant de la racine à celui-ci. */
-  private cheminVers(arbre: TreeNode[], id: number): { id: number; name: string }[] {
-    const parcours = (noeuds: TreeNode[], acc: { id: number; name: string }[]): { id: number; name: string }[] | null => {
+  private cheminVers(arbre: TreeNode[], id: string): { id: string; name: string }[] {
+    const parcours = (noeuds: TreeNode[], acc: { id: string; name: string }[]): { id: string; name: string }[] | null => {
       for (const n of noeuds) {
         const suite = [...acc, { id: n.id, name: n.name }];
         if (n.id === id) return suite;
@@ -121,7 +121,7 @@ export class WorkspaceDetail implements OnInit {
     return { label: 'Actif', cls: 'st-actif' };
   }
 
-  ouvrir(id: number): void {
+  ouvrir(id: string): void {
     this.router.navigate(['/espaces-de-travail', id]);
   }
 
@@ -151,7 +151,7 @@ export class WorkspaceDetail implements OnInit {
 
   /** Identifiants en cours de téléchargement : un clic répété sur la même ligne
    *  ne doit pas relancer la requête ni enregistrer deux fois le fichier. */
-  readonly telechargements = signal(new Set<number>());
+  readonly telechargements = signal(new Set<string>());
 
   /**
    * Télécharge par `HttpClient` (et non plus `window.open`) : seule cette voie

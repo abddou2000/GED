@@ -5,6 +5,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * L'utilisateur tel que Spring Security le manipule.
@@ -31,7 +32,7 @@ public class UtilisateurConnecte implements UserDetails {
         return compte;
     }
 
-    public Long getEmployeId() {
+    public UUID getEmployeId() {
         return compte.getEmploye().getId();
     }
 

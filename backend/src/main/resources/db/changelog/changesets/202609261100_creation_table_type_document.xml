@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261100_creation_table_type_document.xml">
+
+    <changeSet id="202609261100-1" author="ged">
+        <comment>Types de document : formats, taille maximale, plan d'indexation.</comment>
+        <createTable tableName="type_document">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_type_document" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type_de_document" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="workspace_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="plan_indexation_id" type="UUID"/>
+            <column name="type_autorise" type="VARCHAR(255)"/>
+            <column name="taille_max_mo" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_type_document_code" tableName="type_document" columnNames="code"/>
+        <addForeignKeyConstraint constraintName="fk_type_document_workspace" baseTableName="type_document" baseColumnNames="workspace_id"
+                                 referencedTableName="workspace" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_type_document_plan_indexation" baseTableName="type_document" baseColumnNames="plan_indexation_id"
+                                 referencedTableName="plan_indexation" referencedColumnNames="id"/>
+        <createIndex indexName="idx_type_document_deleted" tableName="type_document">
+            <column name="deleted"/>
+        </createIndex>
+        <createIndex indexName="idx_type_document_workspace_id" tableName="type_document">
+            <column name="workspace_id"/>
+        </createIndex>
+        <createIndex indexName="idx_type_document_plan_indexation_id" tableName="type_document">
+            <column name="plan_indexation_id"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.type_document ADD CONSTRAINT ck_type_document_taille_max_mo CHECK (taille_max_mo &gt;= 0)</sql>
+        <rollback>
+            <dropTable tableName="type_document"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

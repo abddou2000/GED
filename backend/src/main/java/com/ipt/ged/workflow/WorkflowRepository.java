@@ -7,8 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface WorkflowRepository extends JpaRepository<WorkflowGed, Long> {
+public interface WorkflowRepository extends JpaRepository<WorkflowGed, UUID> {
 
     /**
      * Liste active (hors corbeille), filtrée par nom, paginée.
@@ -21,9 +22,9 @@ public interface WorkflowRepository extends JpaRepository<WorkflowGed, Long> {
     Page<WorkflowGed> findByDeletedTrueAndNameContainingIgnoreCase(String name, Pageable pageable);
 
     @EntityGraph(attributePaths = {"steps", "steps.employe"})
-    Optional<WorkflowGed> findWithStepsById(Long id);
+    Optional<WorkflowGed> findWithStepsById(UUID id);
 
-    List<WorkflowGed> findByIdInAndDeletedFalse(List<Long> ids);
+    List<WorkflowGed> findByIdInAndDeletedFalse(List<UUID> ids);
 
-    List<WorkflowGed> findByIdInAndDeletedTrue(List<Long> ids);
+    List<WorkflowGed> findByIdInAndDeletedTrue(List<UUID> ids);
 }

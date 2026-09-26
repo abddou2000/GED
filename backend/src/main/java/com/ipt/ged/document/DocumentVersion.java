@@ -1,10 +1,13 @@
 package com.ipt.ged.document;
 
+import com.ipt.ged.common.IdentifiantUuid;
 import com.ipt.ged.common.Auditable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.UUID;
 
 /**
  * Une version d'un document : un fichier de plus sous la même fiche.
@@ -15,15 +18,15 @@ import lombok.Setter;
  * arrière — écraser le fichier rendrait l'ancienne version irrécupérable.
  */
 @Entity
-@Table(name = "document_versions")
+@Table(name = "version_document")
 @Getter
 @Setter
 @NoArgsConstructor
 public class DocumentVersion extends Auditable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "document_id", nullable = false)

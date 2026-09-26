@@ -49,7 +49,7 @@ export class SignatureService {
     return this.http.get<Signature[]>(`${this.url}/history`);
   }
 
-  approve(id: number, motif: string | null): Observable<Signature> {
+  approve(id: string, motif: string | null): Observable<Signature> {
     return this.http.patch<Signature>(`${this.url}/${id}/approve`, { motif })
       .pipe(tap(() => this.signalerChangement()));
   }
@@ -61,12 +61,12 @@ export class SignatureService {
    * toujours, la suivante bloquée derrière, et le document ne revenait dans
    * aucune file. La pièce était perdue — il fallait la redéposer.</p>
    */
-  relancer(documentId: number): Observable<Signature[]> {
+  relancer(documentId: string): Observable<Signature[]> {
     return this.http.patch<Signature[]>(`${this.url}/document/${documentId}/relancer`, {})
       .pipe(tap(() => this.signalerChangement()));
   }
 
-  reject(id: number, motif: string): Observable<Signature> {
+  reject(id: string, motif: string): Observable<Signature> {
     return this.http.patch<Signature>(`${this.url}/${id}/reject`, { motif })
       .pipe(tap(() => this.signalerChangement()));
   }

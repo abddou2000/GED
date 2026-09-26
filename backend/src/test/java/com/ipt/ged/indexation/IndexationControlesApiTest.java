@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -60,10 +61,10 @@ class IndexationControlesApiTest {
     private static final String BASE = "/api/v1/indexation";
 
     /** Type dont le plan porte DEUX index obligatoires + une charte à jetons système. */
-    private long typeId;
-    private long idFournisseur, idMontant, idFacultatif;
+    private UUID typeId;
+    private UUID idFournisseur, idMontant, idFacultatif;
     /** Index existant mais absent du plan de ce type. */
-    private long idHorsPlan;
+    private UUID idHorsPlan;
 
     @BeforeEach
     void setup() {
@@ -84,7 +85,7 @@ class IndexationControlesApiTest {
                 "_", false));
         planRepository.save(plan);
 
-        Employe e = employeRepository.findById(1L).orElseThrow();
+        Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         WorkflowGed wf = workflowRepository.save(new WorkflowGed("WF contrôles"));
 
         WorkSpace w = new WorkSpace("Contrôles", "WS-CTRL");
@@ -110,17 +111,17 @@ class IndexationControlesApiTest {
         return indexRepository.save(f);
     }
 
-    private long deposer(String nom) throws Exception {
+    private UUID deposer(String nom) throws Exception {
         String reponse = mvc.perform(multipart("/api/v1/documents")
                         .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", "x".getBytes()))
                         .param("name", nom)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(reponse).get("id").asLong();
+        return UUID.fromString(om.readTree(reponse).get("id").asText());
     }
 
-    private String nomDu(long documentId) throws Exception {
+    private String nomDu(UUID documentId) throws Exception {
         String reponse = mvc.perform(get("/api/v1/documents/" + documentId))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
@@ -130,7 +131,7 @@ class IndexationControlesApiTest {
     @Test
     @DisplayName("2a. Un corps vide ne renomme plus rien : 400 tant qu'un index obligatoire manque")
     void corpsVideRefuse() throws Exception {
-        long doc = deposer("Facture intacte");
+        UUID doc = deposer("Facture intacte");
 
         /* Avant correction : 200, et le nom du document devenait
            « 260811_105301_?_? » — les seuls jetons système, suivis d'un « ? »
@@ -148,10 +149,10 @@ class IndexationControlesApiTest {
     @Test
     @DisplayName("2b. Envoyer le seul index facultatif ne dispense pas des index obligatoires (400)")
     void obligatoiresEsquivesRefuses() throws Exception {
-        long doc = deposer("Facture esquive");
+        UUID doc = deposer("Facture esquive");
 
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON)
-                        .content("{\"valeurs\":[{\"indexFieldId\":" + idFacultatif + ",\"valeur\":\"une note\"}]}"))
+                        .content("{\"valeurs\":[{\"indexFieldId\":\"" + idFacultatif + "\",\"valeur\":\"une note\"}]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("obligatoire")));
 
@@ -163,7 +164,7 @@ class IndexationControlesApiTest {
     @Test
     @DisplayName("2c. Un document verrouillé refuse l'indexation, comme il refuse déjà PUT /documents/{id}")
     void documentVerrouille() throws Exception {
-        long doc = deposer("Facture verrouillée");
+        UUID doc = deposer("Facture verrouillée");
         mvc.perform(patch("/api/v1/documents/" + doc + "/verrou").param("verrouille", "true"))
                 .andExpect(status().isOk());
 
@@ -172,8 +173,8 @@ class IndexationControlesApiTest {
            qui renomme pourtant elle aussi le document. */
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON)
                         .content("{\"valeurs\":["
-                                + "{\"indexFieldId\":" + idFournisseur + ",\"valeur\":\"ACME\"},"
-                                + "{\"indexFieldId\":" + idMontant + ",\"valeur\":\"100\"}]}"))
+                                + "{\"indexFieldId\":\"" + idFournisseur + "\",\"valeur\":\"ACME\"},"
+                                + "{\"indexFieldId\":\"" + idMontant + "\",\"valeur\":\"100\"}]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("errouill")));
 
@@ -183,7 +184,7 @@ class IndexationControlesApiTest {
     @Test
     @DisplayName("3. Un index étranger au plan du type est refusé (400) et n'atteint jamais la recherche")
     void indexHorsPlanRefuse() throws Exception {
-        long doc = deposer("Facture hors plan");
+        UUID doc = deposer("Facture hors plan");
 
         /* Avant correction : `indexRepository.findById` sans contrôle
            d'appartenance. La valeur était stockée, invisible dans le formulaire
@@ -191,9 +192,9 @@ class IndexationControlesApiTest {
            de recherche. */
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON)
                         .content("{\"valeurs\":["
-                                + "{\"indexFieldId\":" + idFournisseur + ",\"valeur\":\"ACME\"},"
-                                + "{\"indexFieldId\":" + idMontant + ",\"valeur\":\"100\"},"
-                                + "{\"indexFieldId\":" + idHorsPlan + ",\"valeur\":\"contrebande\"}]}"))
+                                + "{\"indexFieldId\":\"" + idFournisseur + "\",\"valeur\":\"ACME\"},"
+                                + "{\"indexFieldId\":\"" + idMontant + "\",\"valeur\":\"100\"},"
+                                + "{\"indexFieldId\":\"" + idHorsPlan + "\",\"valeur\":\"contrebande\"}]}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("plan d'indexation")));
 
@@ -230,15 +231,15 @@ class IndexationControlesApiTest {
     @Test
     @DisplayName("11. Le nom composé n'emporte jamais de « ? » : un jeton non résolu est omis")
     void nomSansPointInterrogation() throws Exception {
-        long doc = deposer("Facture partielle");
+        UUID doc = deposer("Facture partielle");
 
         // Les deux obligatoires sont fournis, le facultatif reste vide : la
         // charte compte pourtant quatre jetons (date, heure, fournisseur, montant).
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON)
                         .content("{\"valeurs\":["
-                                + "{\"indexFieldId\":" + idFournisseur + ",\"valeur\":\"ACME\"},"
-                                + "{\"indexFieldId\":" + idMontant + ",\"valeur\":\"100\"},"
-                                + "{\"indexFieldId\":" + idFacultatif + ",\"valeur\":null}]}"))
+                                + "{\"indexFieldId\":\"" + idFournisseur + "\",\"valeur\":\"ACME\"},"
+                                + "{\"indexFieldId\":\"" + idMontant + "\",\"valeur\":\"100\"},"
+                                + "{\"indexFieldId\":\"" + idFacultatif + "\",\"valeur\":null}]}"))
                 .andExpect(status().isOk());
 
         String nom = nomDu(doc);

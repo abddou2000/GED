@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -40,11 +41,11 @@ class EtiquetteApiTest {
         return "{\"code\":\"" + code + "\",\"tag\":\"" + tag + "\",\"couleur\":\"" + couleur + "\"}";
     }
 
-    private long create(String code, String tag, String couleur) throws Exception {
+    private UUID create(String code, String tag, String couleur) throws Exception {
         String res = mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(body(code, tag, couleur)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(res).get("id").asLong();
+        return UUID.fromString(om.readTree(res).get("id").asText());
     }
 
     @Test
@@ -84,7 +85,7 @@ class EtiquetteApiTest {
     @Test
     @DisplayName("5. Mise à jour du libellé et de la couleur")
     void update() throws Exception {
-        long id = create("TAG-UP", "Avant", "#000000");
+        UUID id = create("TAG-UP", "Avant", "#000000");
         mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON).content(body("TAG-UP", "Apres", "#1e7a46")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tag").value("Apres"))
@@ -94,11 +95,11 @@ class EtiquetteApiTest {
     @Test
     @DisplayName("6. Corbeille : suppression puis restauration")
     void softDeleteRestore() throws Exception {
-        long id = create("TAG-DEL", "ASupprimer", "#000000");
+        UUID id = create("TAG-DEL", "ASupprimer", "#000000");
         mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem((int) id))));
-        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem(id.toString()))));
+        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
         mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
     }
 }

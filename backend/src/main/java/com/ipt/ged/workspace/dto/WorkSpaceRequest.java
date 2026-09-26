@@ -4,6 +4,8 @@ import com.ipt.ged.workspace.WorkspaceStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.UUID;
+
 /**
  * Données reçues pour créer / modifier un espace de travail.
  */
@@ -19,10 +21,10 @@ public record WorkSpaceRequest(
         WorkspaceStatus status,
 
         @NotNull(message = "Le propriétaire est obligatoire")
-        Long employeId,
+        UUID employeId,
 
-        Long parentId,
+        UUID parentId,
 
         @NotNull(message = "La règle de workflow est obligatoire")
-        Long workflowId
+        UUID workflowId
 ) {}

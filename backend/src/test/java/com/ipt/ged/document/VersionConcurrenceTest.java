@@ -1,5 +1,6 @@
 package com.ipt.ged.document;
 
+import com.ipt.ged.support.Comptes;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.typedocument.TypeDocument;
@@ -21,6 +22,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,12 +63,12 @@ class VersionConcurrenceTest {
     @Autowired private WorkflowRepository workflowRepository;
     @Autowired private EmployeRepository employeRepository;
 
-    private long typeId, workspaceId, workflowId;
-    private final List<Long> documentsCrees = new ArrayList<>();
+    private UUID typeId, workspaceId, workflowId;
+    private final List<UUID> documentsCrees = new ArrayList<>();
 
     @BeforeEach
     void setup() {
-        Employe e = employeRepository.findById(1L).orElseThrow();
+        Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         // Circuit SANS étape : aucun document de ce test n'entre en signature,
         // ce qui garde le nettoyage simple et le test centré sur les versions.
         WorkflowGed wf = workflowRepository.save(new WorkflowGed("WF concurrence"));
@@ -99,20 +101,20 @@ class VersionConcurrenceTest {
         return new MockMultipartFile("file", nom, "application/pdf", ("contenu " + nom).getBytes());
     }
 
-    private long deposer(String nom) {
-        long id = service.upload(fichier(nom), nom, typeId, null, null, null).id();
+    private UUID deposer(String nom) {
+        UUID id = service.upload(fichier(nom), nom, typeId, null, null, null).id();
         documentsCrees.add(id);
         return id;
     }
 
-    private List<DocumentVersion> principales(long documentId) {
+    private List<DocumentVersion> principales(UUID documentId) {
         return versionRepository.findByDocumentIdAndPrincipaleTrueOrderByIdDesc(documentId);
     }
 
     @Test
     @DisplayName("1a. Six dépôts de version simultanés : une seule version principale, aucun 500, document toujours utilisable")
     void depotsSimultanes() throws Exception {
-        long docId = deposer("depart.pdf");
+        UUID docId = deposer("depart.pdf");
 
         int concurrents = 6;
         ExecutorService pool = Executors.newFixedThreadPool(concurrents);
@@ -158,7 +160,7 @@ class VersionConcurrenceTest {
     @Test
     @DisplayName("1b. Un document déjà abîmé (deux versions principales) se répare par l'API au lieu d'échouer pour toujours")
     void etatAbimeReparable() {
-        long docId = deposer("abime.pdf");
+        UUID docId = deposer("abime.pdf");
         service.ajouterVersion(docId, fichier("v2.pdf"), "deuxième");
 
         // On recrée à la main l'état que la course produisait : DEUX principales.

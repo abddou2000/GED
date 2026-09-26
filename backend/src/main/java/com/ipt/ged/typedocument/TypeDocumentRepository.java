@@ -5,8 +5,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.UUID;
 
-public interface TypeDocumentRepository extends JpaRepository<TypeDocument, Long> {
+public interface TypeDocumentRepository extends JpaRepository<TypeDocument, UUID> {
 
     /* Le tri n'est plus figé dans le nom des méthodes : un « OrderByIdDesc »
        l'emporte sur le Sort du Pageable, ce qui rendait les en-têtes de colonne
@@ -16,13 +17,13 @@ public interface TypeDocumentRepository extends JpaRepository<TypeDocument, Long
 
     Page<TypeDocument> findByDeletedTrueAndTypeDeDocumentContainingIgnoreCase(String search, Pageable pageable);
 
-    List<TypeDocument> findByIdInAndDeletedFalse(List<Long> ids);
+    List<TypeDocument> findByIdInAndDeletedFalse(List<UUID> ids);
 
-    List<TypeDocument> findByIdInAndDeletedTrue(List<Long> ids);
+    List<TypeDocument> findByIdInAndDeletedTrue(List<UUID> ids);
 
     List<TypeDocument> findByDeletedFalseOrderByIdAsc();
 
     boolean existsByCodeIgnoreCase(String code);
 
-    boolean existsByCodeIgnoreCaseAndIdNot(String code, Long id);
+    boolean existsByCodeIgnoreCaseAndIdNot(String code, UUID id);
 }

@@ -1,11 +1,11 @@
 export interface Ref {
-  id: number;
+  id: string;
   label: string;
 }
 
 /** Un groupe d'accès tel que renvoyé par l'API. */
 export interface AccessGroup {
-  id: number;
+  id: string;
   code: string;
   name: string;
   workspaces: Ref[];
@@ -18,8 +18,8 @@ export interface AccessGroup {
 export interface AccessGroupRequest {
   code: string;
   name: string;
-  workspaceIds: number[];
-  userIds: number[];
+  workspaceIds: string[];
+  userIds: string[];
 }
 
 export interface PageResult<T> {
@@ -31,6 +31,6 @@ export interface PageResult<T> {
 }
 
 export interface SelectOption {
-  id: number;
+  id: string;
   name: string;
 }

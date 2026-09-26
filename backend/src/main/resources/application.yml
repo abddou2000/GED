@@ -1,6 +1,7 @@
 # ============================================================
-#  Configuration commune GED — profil actif : dev (H2) par défaut
-#  Bascule vers MySQL en prod : lancer avec  -Dspring.profiles.active=prod
+#  Configuration commune GED — profil actif : dev par défaut
+#  Profils : dev (base ged_dev1), test (base <DB_NAME>_test), prod.
+#  SGBD : PostgreSQL 16+ dans TOUS les profils (dossier technique §2.2, §4.1).
 # ============================================================
 spring:
   application:
@@ -15,6 +16,42 @@ spring:
       # contrôlée ensuite par l'application ; ceci n'est que le plafond dur.
       max-file-size: 200MB
       max-request-size: 210MB
+
+  # ------------------------------------------------------------
+  # Connexion applicative : compte ged_app (DML seulement, §4.2.3).
+  # Le nom de base vient du profil (ged.base.nom) ; tout le reste est
+  # surchargeable par variables d'environnement, voir backend/.env.example.
+  # ------------------------------------------------------------
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${ged.base.nom}?currentSchema=${DB_SCHEMA:ged}
+    username: ${DB_USER:ged_app}
+    password: ${DB_PASSWORD:}
+
+  # ------------------------------------------------------------
+  # Migrations : Liquibase, SEULE source du schéma (§4.2.1).
+  # Il se connecte avec le compte propriétaire ged_owner — jamais celui de
+  # l'application, qui n'a aucun droit DDL. Même URL que la datasource.
+  # ------------------------------------------------------------
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    user: ${DB_OWNER_USER:ged_owner}
+    password: ${DB_OWNER_PASSWORD:}
+    default-schema: ${DB_SCHEMA:ged}
+    # Registre des migrations dans un schéma à part, hors de portée de ged_app.
+    liquibase-schema: ${DB_SCHEMA_LIQUIBASE:ged_liquibase}
+
+  jpa:
+    hibernate:
+      # Hibernate ne crée ni ne modifie jamais le schéma : il vérifie que les
+      # entités correspondent à ce que Liquibase a produit, et refuse de
+      # démarrer sinon. Identique dans tous les profils.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        # Horodatages écrits et relus en UTC (timestamptz), quel que soit le
+        # fuseau du serveur d'application.
+        jdbc:
+          time_zone: UTC
 
 server:
   port: 8080

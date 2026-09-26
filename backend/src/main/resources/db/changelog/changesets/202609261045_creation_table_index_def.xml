@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261045_creation_table_index_def.xml">
+
+    <changeSet id="202609261045-1" author="ged">
+        <comment>Définition des index (champs de métadonnées).</comment>
+        <createTable tableName="index_def">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_index_def" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nom_index" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type_champs" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="valeurs" type="TEXT"/>
+            <column name="valeur_par_defaut" type="VARCHAR(255)"/>
+            <column name="obligatoire" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="indexe_pour_recherche" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="index_de_groupage" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_index_def_code" tableName="index_def" columnNames="code"/>
+        <createIndex indexName="idx_index_def_deleted" tableName="index_def">
+            <column name="deleted"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.index_def ADD CONSTRAINT ck_index_def_type_champs CHECK (type_champs IN ('DATE', 'LISTE', 'NOMBRE', 'TEXTE'))</sql>
+        <rollback>
+            <dropTable tableName="index_def"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

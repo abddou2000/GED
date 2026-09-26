@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Assemble la fiche de profil d'un utilisateur.
@@ -47,7 +48,7 @@ public class ProfilService {
     }
 
     @Transactional(readOnly = true)
-    public ProfilResponse profil(Long employeId) {
+    public ProfilResponse profil(UUID employeId) {
         Employe e = employes.findById(employeId)
                 .orElseThrow(() -> new EntityNotFoundException("Employé introuvable : " + employeId));
 
@@ -85,7 +86,7 @@ public class ProfilService {
     }
 
     /** Les membres sont chargés paresseusement : hors session, on ne conclut pas. */
-    private boolean membre(AccessGroup g, Long employeId) {
+    private boolean membre(AccessGroup g, UUID employeId) {
         try {
             return g.getUsers().stream().anyMatch(u -> u.getId().equals(employeId));
         } catch (RuntimeException ex) {
@@ -93,7 +94,7 @@ public class ProfilService {
         }
     }
 
-    private boolean auteur(UploadDocument d, Long employeId) {
+    private boolean auteur(UploadDocument d, UUID employeId) {
         return d.getCreatedBy() != null && d.getCreatedBy().getId().equals(employeId);
     }
 

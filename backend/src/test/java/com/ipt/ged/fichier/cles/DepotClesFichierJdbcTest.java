@@ -9,26 +9,50 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Dépôt JDBC de {@code cle_fichier}, sur une base H2 en mode PostgreSQL dont
- * la table reproduit le changeset {@code 202609261200_cle_fichier.xml}.
- * (Le changeset lui-même a été appliqué et annulé sur PostgreSQL 16, voir le
- * suivi dev3 ; la base de test commune n'a pas encore Liquibase.)
+ * Dépôt JDBC de {@code cle_fichier}, sur PostgreSQL : la table reproduit le
+ * changeset {@code 202609261200_cle_fichier.xml} dans un schéma <b>jetable</b>
+ * de la base de test, créé avec le compte propriétaire {@code ged_owner} et
+ * supprimé après chaque test (même principe que {@code SchemaLiquibaseTest}).
+ * Le changeset n'est pas encore dans le changelog maître : il sera branché avec
+ * le stockage chiffré, et ce test deviendra alors un test du schéma réel.
+ *
+ * <p>Prérequis : base de test préparée avec {@code preparer-base.sql -v tests=oui}.
+ * Connexion par les mêmes variables que le profil {@code test} : {@code DB_HOST},
+ * {@code DB_PORT}, {@code DB_NAME_TEST} (sinon {@code <DB_NAME>_test}),
+ * {@code DB_OWNER_USER}, {@code DB_OWNER_PASSWORD}.
  */
 class DepotClesFichierJdbcTest {
 
+    private JdbcTemplate proprietaire;
     private JdbcTemplate jdbc;
     private DepotClesFichierJdbc depot;
+    private String schema;
+
+    private static String env(String nom, String defaut) {
+        Map<String, String> e = System.getenv();
+        String v = e.get(nom);
+        return v == null || v.isBlank() ? defaut : v;
+    }
+
+    private static DriverManagerDataSource source(String schemaCourant) {
+        String base = env("DB_NAME_TEST", env("DB_NAME", "ged_dev1") + "_test");
+        String url = "jdbc:postgresql://" + env("DB_HOST", "localhost") + ":" + env("DB_PORT", "5432")
+                + "/" + base + (schemaCourant == null ? "" : "?currentSchema=" + schemaCourant);
+        return new DriverManagerDataSource(url, env("DB_OWNER_USER", "ged_owner"), env("DB_OWNER_PASSWORD", ""));
+    }
 
     @BeforeEach
     void preparer() {
-        DriverManagerDataSource ds = new DriverManagerDataSource(
-                "jdbc:h2:mem:cles" + UUID.randomUUID() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1", "sa", "");
-        jdbc = new JdbcTemplate(ds);
+        schema = "ged_verif_cles_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        proprietaire = new JdbcTemplate(source(null));
+        proprietaire.execute("CREATE SCHEMA " + schema);
+        jdbc = new JdbcTemplate(source(schema));
         jdbc.execute("""
                 CREATE TABLE cle_fichier (
                     id uuid NOT NULL CONSTRAINT pk_cle_fichier PRIMARY KEY,
@@ -45,7 +69,7 @@ class DepotClesFichierJdbcTest {
 
     @AfterEach
     void fermer() {
-        jdbc.execute("SHUTDOWN");
+        proprietaire.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
     }
 
     private static CleFichier cle(UUID id, String kek) {

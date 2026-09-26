@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données reçues pour créer / modifier un groupe d'accès : son identité et les
@@ -24,7 +25,7 @@ public record AccessGroupRequest(
         @Size(max = Limites.TEXTE, message = "Le nom ne peut pas dépasser " + Limites.TEXTE + " caractères")
         String name,
 
-        List<Long> workspaceIds,
+        List<UUID> workspaceIds,
 
-        List<Long> userIds
+        List<UUID> userIds
 ) {}

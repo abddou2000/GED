@@ -95,17 +95,13 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- DEV database: H2 (file-based, zero install) -->
+        <!-- SGBD imposé par le CPS (dossier technique §2.2, §4.1) : PostgreSQL 16+,
+             dans TOUS les profils. H2 et MySQL sont retirés : un schéma testé sur
+             un autre moteur que celui de production ne prouve rien (types JSONB,
+             UUID, index GIN et recherche plein texte n'y existent pas). -->
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-
-        <!-- PROD database driver: MySQL (activated via profile) -->
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
@@ -120,22 +116,12 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- Migrations de schema.
-             En prod, `ddl-auto: validate` compare le schema attendu a celui de
-             la base et refuse de demarrer s'il manque quelque chose. Sans outil
-             de migration, une base vierge ne pouvait donc JAMAIS accueillir
-             l'application : elle echouait au demarrage sans qu'aucun script ne
-             soit fourni. Flyway applique `db/migration/V*.sql` au demarrage et
-             tient le registre de ce qui a deja tourne. -->
+        <!-- Migrations de schéma : Liquibase 4, outil nommé par le CPS (Article 50,
+             dossier technique §4.2). C'est la SEULE source du schéma : Hibernate
+             ne fait que vérifier (`ddl-auto: validate`) dans tous les profils. -->
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
-        </dependency>
-        <!-- Flyway 10 sort le support MySQL dans un module a part. -->
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-mysql</artifactId>
-            <scope>runtime</scope>
+            <groupId>org.liquibase</groupId>
+            <artifactId>liquibase-core</artifactId>
         </dependency>
 
         <!-- API documentation (Swagger UI) -->
@@ -159,23 +145,6 @@
         </dependency>
         <!-- ===== FIN lot E5 (dev3) ===== -->
 
-        <!-- ===== DEBUT lot E6 (dev3) — OCR asynchrone et recherche plein texte ===== -->
-        <!-- Tests d'intégration de la file ocr_job (SKIP LOCKED) et de la
-             recherche tsvector sur la base PostgreSQL locale ged_dev3_test.
-             Portée « test » seulement : le lot de dev1 ajoute le pilote en
-             runtime et Liquibase en compile — à la fusion, garder SES
-             déclarations et retirer celles-ci. Versions gérées par Spring Boot. -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.liquibase</groupId>
-            <artifactId>liquibase-core</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <!-- ===== FIN lot E6 (dev3) ===== -->
 
         <!-- Tests -->
         <dependency>

@@ -152,7 +152,7 @@ export class DocumentList implements OnInit {
   }
 
   /** Ouvre la fiche du document. */
-  ouvrir(id: number): void {
+  ouvrir(id: string): void {
     this.router.navigate(['/televerser', id]);
   }
 
@@ -236,7 +236,7 @@ export class DocumentList implements OnInit {
 
   /** Identifiants en cours de téléchargement : un clic répété sur la même ligne
    *  ne doit pas relancer la requête ni enregistrer deux fois le fichier. */
-  readonly telechargements = signal(new Set<number>());
+  readonly telechargements = signal(new Set<string>());
 
   /**
    * Télécharge par `HttpClient` (et non plus `window.open`) : seule cette voie
@@ -257,7 +257,7 @@ export class DocumentList implements OnInit {
     });
   }
 
-  remove(id: number, name: string): void {
+  remove(id: string, name: string): void {
     this.confirm.ask({
       title: 'Supprimer ce document',
       message: `« ${name} » sera déplacé vers la corbeille.`,
@@ -271,7 +271,7 @@ export class DocumentList implements OnInit {
       });
     });
   }
-  restoreOne(id: number): void {
+  restoreOne(id: string): void {
     this.service.restore(id).subscribe({
       next: () => { this.load(); this.notify.success('Document restauré.'); },
       error: () => this.notify.error('Restauration impossible.'),

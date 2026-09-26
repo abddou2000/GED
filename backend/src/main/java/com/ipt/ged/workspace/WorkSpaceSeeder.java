@@ -18,7 +18,10 @@ import java.util.List;
  */
 @Component
 @Order(3)
-@Profile("!test")
+// Jeu de DÉMONSTRATION, profil dev uniquement : ce sont des référentiels
+// métier, qui ne se créent en production que depuis l'interface (dossier
+// technique §4.2.1). Ni changeset ni amorçage automatique en prod.
+@Profile("dev")
 public class WorkSpaceSeeder implements CommandLineRunner {
 
     private final WorkSpaceRepository repo;

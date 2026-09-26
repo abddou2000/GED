@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261035_creation_table_access_group_employe.xml">
+
+    <changeSet id="202609261035-1" author="ged">
+        <comment>Association groupe d'accès / membre.</comment>
+        <createTable tableName="access_group_employe">
+            <column name="access_group_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey constraintName="pk_access_group_employe" tableName="access_group_employe" columnNames="access_group_id, employe_id"/>
+        <addForeignKeyConstraint constraintName="fk_access_group_employe_access_group" baseTableName="access_group_employe" baseColumnNames="access_group_id"
+                                 referencedTableName="access_group" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_access_group_employe_employe" baseTableName="access_group_employe" baseColumnNames="employe_id"
+                                 referencedTableName="employe" referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex indexName="idx_access_group_employe_employe_id" tableName="access_group_employe">
+            <column name="employe_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="access_group_employe"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

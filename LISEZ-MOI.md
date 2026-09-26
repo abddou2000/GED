@@ -1,6 +1,6 @@
 # GED Marchica Med
 
-Backend **Spring Boot 3.4.1 / Java 17** · Frontend **Angular 22**.
+Backend **Spring Boot 3.4.1 / Java 17** · Base **PostgreSQL 16** (Liquibase 4) · Frontend **Angular 22**.
 
 ## Ce que vous obtenez en clonant
 
@@ -8,16 +8,28 @@ Le code source seul. `node_modules`, `frontend/dist`, `frontend/.angular` et
 `backend/target` sont ignorés : ce sont des dépendances téléchargées et des artefacts
 de compilation, reconstruits par les commandes ci-dessous.
 
-**La base H2 de développement n'est PAS versionnée** (`backend/data` est ignoré, et
-c'est voulu : elle contient des données et des empreintes de mots de passe). Au premier
-démarrage, les seeders reconstruisent un jeu complet — à condition que
-`GED_MDP_INITIAL` soit défini, faute de quoi aucun compte n'est créé et **personne ne
-peut se connecter** (voir la table des variables plus bas).
+**Aucune base n'est versionnée.** Le schéma est créé par Liquibase au premier
+démarrage, dans une base PostgreSQL préparée au préalable (voir « Démarrer »). En
+dev, les seeders reconstruisent un jeu de démonstration — à condition que
+`GED_MDP_INITIAL` soit défini, faute de quoi aucun compte n'est créé et
+**personne ne peut se connecter** (voir la table des variables plus bas).
 
 ## Démarrer
 
-Prérequis : JDK 17 et Node. Développé avec
-`C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot` et Maven 3.9.9.
+Prérequis : JDK 17, Node et **PostgreSQL 16 ou plus**. Développé avec
+`C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot`, Maven 3.9.9 et PostgreSQL 16.
+
+**Base de données, une fois par poste** (superutilisateur PostgreSQL) :
+
+```bash
+cd backend/scripts/db
+psql -U postgres -d postgres -f creer-roles.sql                       # rôles ged_owner, ged_app, ged_readonly
+psql -U postgres -d postgres -v base=ged_dev1 -f preparer-base.sql    # base de dev
+psql -U postgres -d postgres -v base=ged_dev1_test -v tests=oui -f preparer-base.sql   # base des tests
+```
+
+Sur un poste en authentification `trust`, aucun mot de passe n'est nécessaire.
+Sinon, voir `DB_PASSWORD` et `DB_OWNER_PASSWORD` dans `backend/.env.example`.
 
 **Backend** — port 8080 :
 
@@ -42,6 +54,9 @@ attendues sont décrites dans `backend/.env.example` :
 | `GED_ORIGINES` | Origines CORS autorisées | repli `localhost` | repli `localhost` + `WARN` |
 | `GED_EMAIL_ADMIN` | Adresse du compte administrateur unique | `sara.bennani@marchica.ma` (profil dev) | repli `admin@<domaine>` |
 | `GED_NOM_ADMIN` | Nom affiché de l'employé créé pour porter ce compte | `Administrateur GED` | `Administrateur GED` |
+| `DB_HOST` `DB_PORT` `DB_NAME` | Serveur et base PostgreSQL | `localhost:5432/ged_dev1` | `localhost:5432/ged` |
+| `DB_USER` / `DB_PASSWORD` | Compte applicatif `ged_app` (DML seulement) | `ged_app`, sans mot de passe | `ged_app`, **mot de passe obligatoire** |
+| `DB_OWNER_USER` / `DB_OWNER_PASSWORD` | Compte `ged_owner`, utilisé par Liquibase seul | `ged_owner`, sans mot de passe | `ged_owner`, **mot de passe obligatoire** |
 
 **Se connecter la première fois, en dev** : `sara.bennani@marchica.ma` / `dev-local-only`
 (valeurs du profil `dev`, dans `application-dev.yml`). En production, ces deux valeurs
@@ -86,25 +101,36 @@ npm start -- --port 4301
 
 ## Le schéma de base de données
 
-Il est créé et maintenu par **Flyway**, depuis `backend/src/main/resources/db/migration/` :
+**PostgreSQL 16 ou plus dans tous les profils** (dev, test, prod) : il n'y a plus
+de base H2 ni MySQL. Le schéma est créé et maintenu **uniquement par Liquibase**
+(dossier technique §4.2), depuis `backend/src/main/resources/db/changelog/` :
 
 | Fichier | Contenu |
 |---|---|
-| `V1__schema_initial.sql` | les 18 tables, clés étrangères et contraintes d'unicité |
-| `V2__index_de_performance.sql` | 17 index sur les colonnes réellement filtrées ou triées |
+| `db.changelog-master.xml` | changelog maître : prérequis (PostgreSQL ≥ 16, configuration de recherche `arabic`) et liste ordonnée des changesets |
+| `changesets/AAAAMMJJHHmm_objet_metier.xml` | un fichier par évolution, avec son `rollback` explicite |
 
-En **production**, Flyway applique ces migrations au démarrage, puis Hibernate
-vérifie le résultat (`ddl-auto: validate`). Une base vierge se peuple donc toute
-seule — vérifié sur MySQL 8.4 : 19 tables, 17 index, connexion fonctionnelle.
+Liquibase s'exécute au démarrage avec le compte propriétaire `ged_owner` ;
+l'application tourne ensuite avec `ged_app`, qui n'a **aucun droit DDL**. Hibernate
+ne fait que vérifier (`ddl-auto: validate`, identique dans tous les profils) : une
+entité qui ne correspond pas au schéma empêche le démarrage.
 
-En **développement et en test**, Flyway est désactivé : le schéma vient de
-`ddl-auto: update` sous H2, et les migrations sont écrites en dialecte MySQL.
+Conventions : tables et colonnes en `snake_case`, clé primaire `id` en **UUID v7**
+(ordonné dans le temps, opaque pour les appelants), clé étrangère `<table>_id`,
+index `idx_<table>_<colonnes>`, contraintes `pk_`, `uk_`, `fk_`, `ck_`. Les
+suppressions sont douces : `deleted`, plus l'auteur (`supprime_par`) et la date
+(`supprime_le`). `document.metadonnees` est un JSONB indexé GIN (alimenté au lot E7).
 
-`baseline-on-migrate` est actif : une base existante, créée jadis par
-`ddl-auto: update`, accepte la première migration sans être recréée.
+**Faire évoluer le modèle** : on n'édite jamais un changeset déjà appliqué —
+Liquibase en compare l'empreinte et refuserait de démarrer. On ajoute un fichier
+`changesets/AAAAMMJJHHmm_objet.xml` avec sa clause `<rollback>`, et on l'inclut à la
+fin de `db.changelog-master.xml`. Les données de référence techniques passent par
+des changesets `labels="data-initial"` ; les référentiels métier (types, index,
+plans, espaces, workflows) se créent uniquement depuis l'interface — les jeux de
+démonstration sont limités au profil `dev`.
 
-**Faire évoluer le modèle** : on n'édite jamais une migration déjà appliquée —
-Flyway compare une empreinte et refuserait de démarrer. On ajoute `V3__…​.sql`.
+Reprise d'une ancienne base MySQL (identifiants numériques) : `backend/scripts/reprise/`,
+procédure dans `DEPLOIEMENT.md`.
 
 ## Vérifier
 
@@ -112,7 +138,13 @@ Flyway compare une empreinte et refuserait de démarrer. On ajoute `V3__…​.s
 cd backend && mvn test
 ```
 
-122 tests, tous verts.
+La suite tourne sur PostgreSQL réel, base `ged_dev1_test` (ou `<DB_NAME>_test`) :
+le schéma y est **vidé puis recréé par Liquibase** à chaque exécution, et
+l'application s'y connecte avec `ged_app`. Elle comprend la montée du changelog
+sur un schéma vierge, le retour arrière de chaque changeset, le contrôle des
+droits de `ged_app` et la reprise des données sur un export d'essai.
+
+156 tests, tous verts.
 
 ## Points d'entrée
 

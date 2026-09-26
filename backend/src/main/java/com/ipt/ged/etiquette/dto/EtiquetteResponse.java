@@ -2,11 +2,13 @@ package com.ipt.ged.etiquette.dto;
 
 import com.ipt.ged.etiquette.Etiquette;
 
+import java.util.UUID;
+
 /**
  * Données renvoyées au frontend pour une étiquette.
  */
 public record EtiquetteResponse(
-        Long id,
+        UUID id,
         String code,
         String tag,
         String couleur

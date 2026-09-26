@@ -3,12 +3,13 @@ package com.ipt.ged.workspace.dto;
 import com.ipt.ged.workspace.WorkSpace;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour un espace de travail (colonnes de la liste).
  */
 public record WorkSpaceResponse(
-        Long id,
+        UUID id,
         String name,
         String code,
         String description,
@@ -27,7 +28,7 @@ public record WorkSpaceResponse(
         List<Ref> accessGroups
 ) {
     /** Référence légère (id + libellé) vers une entité liée. */
-    public record Ref(Long id, String label) {}
+    public record Ref(UUID id, String label) {}
 
     /**
      * Les groupes sont chargés paresseusement : hors transaction la collection

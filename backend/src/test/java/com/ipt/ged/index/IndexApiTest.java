@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -43,11 +44,11 @@ class IndexApiTest {
                 + ",\"obligatoire\":false,\"indexePourRecherche\":true,\"indexDeGroupage\":false}";
     }
 
-    private long create(String code, String nom, String type, String valeurs) throws Exception {
+    private UUID create(String code, String nom, String type, String valeurs) throws Exception {
         String res = mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(body(code, nom, type, valeurs)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(res).get("id").asLong();
+        return UUID.fromString(om.readTree(res).get("id").asText());
     }
 
     @Test
@@ -64,7 +65,7 @@ class IndexApiTest {
     @Test
     @DisplayName("2. Valeurs ignorées si le type n'est pas LISTE")
     void valeursClearedForNonListe() throws Exception {
-        long id = create("IDX-TXT", "Fournisseur", "TEXTE", "ignoré1,ignoré2");
+        UUID id = create("IDX-TXT", "Fournisseur", "TEXTE", "ignoré1,ignoré2");
         mvc.perform(get(BASE + "/" + id))
                 .andExpect(jsonPath("$.fieldType").value("TEXTE"))
                 .andExpect(jsonPath("$.valeurs").doesNotExist());
@@ -91,7 +92,7 @@ class IndexApiTest {
     @Test
     @DisplayName("5. Mise à jour : changer le type vide les valeurs")
     void updateChangesType() throws Exception {
-        long id = create("IDX-UP", "Champ", "LISTE", "A,B,C");
+        UUID id = create("IDX-UP", "Champ", "LISTE", "A,B,C");
         mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON)
                         .content(body("IDX-UP", "Champ", "TEXTE", "A,B,C")))
                 .andExpect(status().isOk())
@@ -102,11 +103,11 @@ class IndexApiTest {
     @Test
     @DisplayName("6. Corbeille : suppression puis restauration")
     void softDeleteRestore() throws Exception {
-        long id = create("IDX-DEL", "ASupprimer", "TEXTE", null);
+        UUID id = create("IDX-DEL", "ASupprimer", "TEXTE", null);
         mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem((int) id))));
-        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem(id.toString()))));
+        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
         mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
     }
 }

@@ -25,7 +25,7 @@ export class EtiquetteService {
     return p;
   }
 
-  get(id: number): Observable<Etiquette> {
+  get(id: string): Observable<Etiquette> {
     return this.http.get<Etiquette>(`${this.url}/${id}`);
   }
 
@@ -33,23 +33,23 @@ export class EtiquetteService {
     return this.http.post<Etiquette>(this.url, body);
   }
 
-  update(id: number, body: EtiquetteRequest): Observable<Etiquette> {
+  update(id: string, body: EtiquetteRequest): Observable<Etiquette> {
     return this.http.put<Etiquette>(`${this.url}/${id}`, body);
   }
 
-  delete(id: number): Observable<void> {
+  delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
   }
 
-  restore(id: number): Observable<void> {
+  restore(id: string): Observable<void> {
     return this.http.patch<void>(`${this.url}/${id}/restore`, {});
   }
 
-  multipleDelete(ids: number[]): Observable<void> {
+  multipleDelete(ids: string[]): Observable<void> {
     return this.http.delete<void>(`${this.url}/multiple-delete`, { body: { ids } });
   }
 
-  multipleRestore(ids: number[]): Observable<void> {
+  multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids });
   }
 }

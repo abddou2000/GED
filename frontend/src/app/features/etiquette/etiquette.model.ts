@@ -1,6 +1,6 @@
 /** Une étiquette (tag coloré) telle que renvoyée par l'API. */
 export interface Etiquette {
-  id: number;
+  id: string;
   code: string;
   tag: string;
   couleur: string;

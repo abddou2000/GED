@@ -150,7 +150,7 @@ export class AccessGroupList implements OnInit {
   }
 
   /** Ouvre la fiche du groupe. */
-  ouvrir(id: number): void {
+  ouvrir(id: string): void {
     this.router.navigate(['/groupe-d-acces', id]);
   }
 
@@ -194,7 +194,7 @@ export class AccessGroupList implements OnInit {
 
   /* ---- actions ---- */
   create(): void { this.openDialog(null); }
-  edit(id: number): void {
+  edit(id: string): void {
     this.service.get(id).subscribe(g => this.openDialog(g));
   }
   private openDialog(g: AccessGroup | null): void {
@@ -213,7 +213,7 @@ export class AccessGroupList implements OnInit {
       this.load();
     });
   }
-  remove(id: number, name: string): void {
+  remove(id: string, name: string): void {
     this.confirm.ask({
       title: 'Supprimer ce groupe',
       message: `« ${name} » sera déplacé vers la corbeille.`,
@@ -227,7 +227,7 @@ export class AccessGroupList implements OnInit {
       });
     });
   }
-  restoreOne(id: number): void {
+  restoreOne(id: string): void {
     this.service.restore(id).subscribe({
       next: () => { this.load(); this.notify.success("Groupe d'accès restauré."); },
       error: () => this.notify.error('Restauration impossible.'),

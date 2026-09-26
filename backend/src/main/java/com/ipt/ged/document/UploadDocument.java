@@ -1,35 +1,41 @@
 package com.ipt.ged.document;
 
-import com.ipt.ged.common.Auditable;
+import com.ipt.ged.common.IdentifiantUuid;
+import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.etiquette.Etiquette;
 import com.ipt.ged.typedocument.TypeDocument;
 import com.ipt.ged.workspace.WorkSpace;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Document déposé dans la GED : fiche, fichier stocké sur disque, étiquettes,
  * versions et valeurs d'index. Reproduit {@code UploadDocument} de CCISTTA.
  */
 @Entity
-@Table(name = "documents_file")
+@Table(name = "document")
 @Getter
 @Setter
 @NoArgsConstructor
-public class UploadDocument extends Auditable {
+public class UploadDocument extends Supprimable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @Column(nullable = false)
     private String name;
@@ -82,7 +88,7 @@ public class UploadDocument extends Auditable {
 
     /** Étiquettes apposées au document (N–N). */
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "pivot_document_etiquettes",
+    @JoinTable(name = "document_etiquette",
             joinColumns = @JoinColumn(name = "document_id"),
             inverseJoinColumns = @JoinColumn(name = "etiquette_id"))
     private Set<Etiquette> etiquettes = new LinkedHashSet<>();
@@ -101,9 +107,16 @@ public class UploadDocument extends Auditable {
     @OrderBy("id DESC")
     private List<DocumentVersion> versions = new ArrayList<>();
 
-    /** Corbeille : true = supprimé de façon réversible. */
-    @Column(nullable = false)
-    private boolean deleted = false;
+    /**
+     * Métadonnées additionnelles, en JSONB indexé GIN (dossier technique §12.7).
+     *
+     * <p>Préparation du lot E7 : aucune fonction ne l'alimente encore. Jamais
+     * {@code null} — un document sans métadonnée porte un objet vide, comme le
+     * garantit la colonne ({@code NOT NULL DEFAULT '{}'}).
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadonnees", nullable = false)
+    private Map<String, Object> metadonnees = new HashMap<>();
 
     public UploadDocument(String name) {
         this.name = name;

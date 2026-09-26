@@ -1,6 +1,7 @@
 package com.ipt.ged.indexation.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Proposition d'indexation automatique pour un document — <b>rien n'est écrit</b>.
@@ -11,7 +12,7 @@ import java.util.List;
  * humaine reste obligatoire avant tout enregistrement.
  */
 public record AnalyseResponse(
-        Long documentId,
+        UUID documentId,
         String fichier,
         String planNom,
         String separateur,
@@ -31,7 +32,7 @@ public record AnalyseResponse(
 ) {
     /** Une valeur proposée pour un index, avec le verdict du contrôle de type. */
     public record Proposition(
-            Long indexFieldId,
+            UUID indexFieldId,
             String code,
             String libelle,
             String fieldType,

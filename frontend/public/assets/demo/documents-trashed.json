@@ -1,141 +1,141 @@
 {
- "content": [
-  {
-   "id": 170,
-   "name": "essai-toggle",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "essai-toggle.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-08-04T10:48:56.637057Z"
-  },
-  {
-   "id": 168,
-   "name": "essai-bouton",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "essai-bouton.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-08-04T10:41:48.974061Z"
-  },
-  {
-   "id": 167,
-   "name": "test-date",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "test-date.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": "2027-03-15",
-   "active": false,
-   "createdAt": "2026-08-04T10:35:13.660017Z"
-  },
-  {
-   "id": 165,
-   "name": "essai-facture",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "essai-facture.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-08-04T10:29:03.673243Z"
-  },
-  {
-   "id": 164,
-   "name": "essai-contrat",
-   "workspace": {
-    "id": 2,
-    "label": "2026"
-   },
-   "typeDocument": {
-    "id": 2,
-    "label": "Contrat"
-   },
-   "fileName": "essai-contrat.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-08-04T10:28:43.473699Z"
-  },
-  {
-   "id": 162,
-   "name": "scan0001",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "scan0001.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-08-04T10:12:38.113944Z"
-  },
-  {
-   "id": 130,
-   "name": "scan0001",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "typeDocument": {
-    "id": 1,
-    "label": "Facture"
-   },
-   "fileName": "scan0001.pdf",
-   "extension": "pdf",
-   "sizeKo": 0,
-   "sizeLabel": "0 Ko",
-   "expirationDate": null,
-   "active": false,
-   "createdAt": "2026-08-04T09:46:11.769427Z"
-  }
- ],
- "total": 7,
- "page": 0,
- "size": 100,
- "totalPages": 1
+  "content": [
+    {
+      "id": "01920000-0000-7000-8000-0000000000aa",
+      "name": "essai-toggle",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "essai-toggle.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-08-04T10:48:56.637057Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-0000000000a8",
+      "name": "essai-bouton",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "essai-bouton.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-08-04T10:41:48.974061Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-0000000000a7",
+      "name": "test-date",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "test-date.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": "2027-03-15",
+      "active": false,
+      "createdAt": "2026-08-04T10:35:13.660017Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-0000000000a5",
+      "name": "essai-facture",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "essai-facture.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-08-04T10:29:03.673243Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-0000000000a4",
+      "name": "essai-contrat",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "label": "2026"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "label": "Contrat"
+      },
+      "fileName": "essai-contrat.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-08-04T10:28:43.473699Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-0000000000a2",
+      "name": "scan0001",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "scan0001.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-08-04T10:12:38.113944Z"
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000082",
+      "name": "scan0001",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "typeDocument": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Facture"
+      },
+      "fileName": "scan0001.pdf",
+      "extension": "pdf",
+      "sizeKo": 0,
+      "sizeLabel": "0 Ko",
+      "expirationDate": null,
+      "active": false,
+      "createdAt": "2026-08-04T09:46:11.769427Z"
+    }
+  ],
+  "total": 7,
+  "page": 0,
+  "size": 100,
+  "totalPages": 1
 }

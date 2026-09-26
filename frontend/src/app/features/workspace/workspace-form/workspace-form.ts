@@ -13,7 +13,7 @@ import { Workflow } from '../../workflow/workflow.model';
 
 interface DialogData {
   workspace: WorkSpace | null;
-  parentId?: number | null;
+  parentId?: string | null;
 }
 
 /** Formulaire créer / éditer un espace de travail — boîte de dialogue Material. */
@@ -49,7 +49,7 @@ export class WorkspaceForm implements OnInit {
     description: [''],
     workflowId: [null, Validators.required],
     employeId: [null, Validators.required],
-    parentId: [null as number | null],
+    parentId: [null as string | null],
     status: ['ACTIF', Validators.required],
   });
 

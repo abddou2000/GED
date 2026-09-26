@@ -1,14 +1,15 @@
 package com.ipt.ged.workspace.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Nœud de l'arborescence (vue « Arbre ») : un dossier + ses sous-dossiers imbriqués.
  */
 public record TreeNode(
-        Long id,
+        UUID id,
         String name,
         String status,
-        Long parentId,
+        UUID parentId,
         List<TreeNode> children
 ) {}

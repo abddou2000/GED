@@ -1,6 +1,7 @@
 package com.ipt.ged.indexation.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Corps d'une recherche multi-critères.
@@ -11,15 +12,15 @@ import java.util.List;
  * @param grouperPar     identifiant de l'index de groupage retenu (facultatif)
  */
 public record RechercheRequest(
-    Long workspaceId,
-    Long typeDocumentId,
+    UUID workspaceId,
+    UUID typeDocumentId,
     List<FiltreIndex> criteres,
-    Long grouperPar
+    UUID grouperPar
 ) {
     /**
      * Un filtre sur un index.
      * <p>TEXTE : {@code valeur} (contient) — LISTE : {@code valeur} (égal)
      * <br>DATE / NOMBRE : {@code de} et/ou {@code a} (bornes incluses)
      */
-    public record FiltreIndex(Long indexFieldId, String valeur, String de, String a) {}
+    public record FiltreIndex(UUID indexFieldId, String valeur, String de, String a) {}
 }

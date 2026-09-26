@@ -55,7 +55,7 @@ export class DocumentDetail implements OnInit {
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
 
-  id = signal<number | null>(null);
+  id = signal<string | null>(null);
   doc = signal<DocumentItem | null>(null);
   etiquettes = signal<Etiquette[]>([]);
   types = signal<SelectOption[]>([]);
@@ -71,9 +71,9 @@ export class DocumentDetail implements OnInit {
 
   form: FormGroup = this.fb.group({
     name: [''],
-    typeDocumentId: [null as number | null],
+    typeDocumentId: [null as string | null],
     expirationDate: [null as Date | null],
-    etiquetteIds: [[] as number[]],
+    etiquetteIds: [[] as string[]],
     active: [true],
     observation: [''],
   });
@@ -85,8 +85,8 @@ export class DocumentDetail implements OnInit {
     this.typeService.forSelect().subscribe(l => this.types.set(l));
 
     this.route.paramMap.subscribe(p => {
-      const id = Number(p.get('id'));
-      if (!Number.isFinite(id) || id <= 0) {
+      const id = p.get('id');
+      if (!id) {
         this.introuvable.set(true);
         this.chargement.set(false);
         return;

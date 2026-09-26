@@ -171,7 +171,7 @@ export class EtiquetteList implements OnInit {
 
   /* ---- actions ---- */
   create(): void { this.openDialog(null); }
-  edit(id: number): void {
+  edit(id: string): void {
     this.service.get(id).subscribe(e => this.openDialog(e));
   }
   private openDialog(e: Etiquette | null): void {
@@ -184,7 +184,7 @@ export class EtiquetteList implements OnInit {
       this.notify.success(e ? 'Étiquette modifiée.' : 'Étiquette créée.');
     });
   }
-  remove(id: number, name: string): void {
+  remove(id: string, name: string): void {
     this.confirm.ask({
       title: 'Supprimer cette étiquette',
       message: `« ${name} » sera déplacée vers la corbeille.`,
@@ -198,7 +198,7 @@ export class EtiquetteList implements OnInit {
       });
     });
   }
-  restoreOne(id: number): void {
+  restoreOne(id: string): void {
     this.service.restore(id).subscribe({
       next: () => { this.load(); this.notify.success('Étiquette restaurée.'); },
       error: () => this.notify.error('Restauration impossible.'),

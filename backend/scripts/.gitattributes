@@ -1,0 +1,4 @@
+# Scripts d'exploitation exécutés sous Linux (bash, psql) : fins de ligne LF
+# quel que soit le poste qui les extrait, sinon bash lit « \r » comme une commande.
+*.sh  text eol=lf
+*.sql text eol=lf

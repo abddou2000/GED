@@ -3,11 +3,13 @@ package com.ipt.ged.signature.dto;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.signature.WorkflowSignature;
 
+import java.util.UUID;
+
 /**
  * Données renvoyées au frontend pour une demande de signature.
  */
 public record SignatureResponse(
-        Long id,
+        UUID id,
         Ref document,
         String type,
         String workspace,
@@ -19,7 +21,7 @@ public record SignatureResponse(
         String motif,
         boolean documentActive
 ) {
-    public record Ref(Long id, String label) {}
+    public record Ref(UUID id, String label) {}
 
     public static SignatureResponse from(WorkflowSignature s) {
         UploadDocument d = s.getDocument();

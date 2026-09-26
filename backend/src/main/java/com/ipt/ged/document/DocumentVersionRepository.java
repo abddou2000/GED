@@ -3,10 +3,11 @@ package com.ipt.ged.document;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.UUID;
 
-public interface DocumentVersionRepository extends JpaRepository<DocumentVersion, Long> {
+public interface DocumentVersionRepository extends JpaRepository<DocumentVersion, UUID> {
 
-    List<DocumentVersion> findByDocumentIdOrderByIdDesc(Long documentId);
+    List<DocumentVersion> findByDocumentIdOrderByIdDesc(UUID documentId);
 
     /**
      * Versions marquées « principale », les plus récentes d'abord.
@@ -23,5 +24,5 @@ public interface DocumentVersionRepository extends JpaRepository<DocumentVersion
      * document, cf. {@code DocumentService}). La lecture, elle, tolère un état
      * abîmé hérité et le corrige au lieu de s'y casser.
      */
-    List<DocumentVersion> findByDocumentIdAndPrincipaleTrueOrderByIdDesc(Long documentId);
+    List<DocumentVersion> findByDocumentIdAndPrincipaleTrueOrderByIdDesc(UUID documentId);
 }
