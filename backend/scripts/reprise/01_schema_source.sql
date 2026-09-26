@@ -12,6 +12,12 @@
 --  application les écrivait (serverTimezone=UTC) ; la conversion en
 --  timestamptz se fait à la reprise.
 --
+--  Les comptes locaux (comptes_utilisateurs, empreintes BCrypt) ne sont PAS
+--  repris : depuis le lot E2 l'authentification passe par l'annuaire, et la GED
+--  ne conserve aucun mot de passe (dossier technique §3.2). Chaque personne
+--  retrouve sa fiche employé à sa première connexion par l'annuaire
+--  (rapprochement par courriel, voir ServiceIdentites).
+--
 --  Exécuté par ged_owner (droit CREATE sur la base). Rejouable : le schéma est
 --  recréé à vide.
 -- =====================================================================
@@ -22,10 +28,6 @@ CREATE SCHEMA reprise_source;
 CREATE TABLE reprise_source.employes (
     id bigint, first_name text, last_name text, has_user boolean,
     created_at timestamp, updated_at timestamp);
-
-CREATE TABLE reprise_source.comptes_utilisateurs (
-    id bigint, email text, mot_de_passe text, actif boolean, employe_id bigint,
-    derniere_connexion timestamp);
 
 CREATE TABLE reprise_source.workflow_ged (
     id bigint, name text, deleted boolean, created_at timestamp, updated_at timestamp);

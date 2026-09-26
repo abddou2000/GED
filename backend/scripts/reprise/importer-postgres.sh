@@ -25,7 +25,7 @@ CIBLE="${2:-ged}"
 ICI="$(cd "$(dirname "$0")" && pwd)"
 PSQL="${PSQL:-psql}"
 
-TABLES=(employes comptes_utilisateurs workflow_ged workflow_ged_steps work_spaces access_groups
+TABLES=(employes workflow_ged workflow_ged_steps work_spaces access_groups
         pivot_workspace_groups pivot_employe_groups etiquettes indices plan_d_indexations
         pivot_plan_d_indexation_indices type_de_documents documents_file document_versions
         pivot_document_etiquettes document_index_values workflow_ged_signatures)

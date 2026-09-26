@@ -12,23 +12,15 @@
 #  base, schémas et droits : backend/scripts/db/preparer-base.sql (par base).
 #
 #  SÉCURITÉ — obligatoires en prod, aucune valeur par défaut nulle part :
-#    GED_JWT_CLE     clé de signature JWT (openssl rand -base64 48).
-#                    Absente = refus de démarrer (ServiceJeton).
-#    GED_ORIGINES    origines CORS réelles du frontend. Laisser le repli
-#                    localhost en prod déclenche un WARN au démarrage.
-#    GED_MDP_INITIAL mot de passe d'amorçage du compte administrateur. Absent =
-#                    aucun compte créé (fail-closed), ce qui est le comportement
-#                    attendu une fois le compte en place.
-#    GED_EMAIL_ADMIN adresse du compte unique (l'administrateur). Absente =
-#                    repli sur admin@<ged.securite.domaine-email>.
-#    GED_NOM_ADMIN   nom affiché de l'employé créé pour porter ce compte si
-#                    aucun employé existant ne correspond à l'adresse.
-#    GED_KEYSTORE_CHEMIN keystore PKCS#12 des clés maîtresses (KEK), hors du
-#                    référentiel de fichiers. Absent = refus de démarrer.
-#    GED_KEYSTORE_MDP phrase secrète du keystore (coffre de secrets). Absente
-#                    = refus de démarrer.
-#    GED_CLAMAV_HOTE / GED_CLAMAV_PORT  démon clamd (échec fermé : injoignable
-#                    = dépôt refusé). L'antivirus ne peut pas être désactivé.
+#    GED_LDAP_URLS, GED_LDAP_BASE, GED_LDAP_COMPTE_SERVICE,
+#    GED_LDAP_MOT_DE_PASSE(_FICHIER), GED_LDAP_TRUSTSTORE(_MOT_DE_PASSE)
+#                    annuaire LDAPS (ldap:// refusé au démarrage).
+#    GED_JWT_KEYSTORE, GED_JWT_KEYSTORE_MOT_DE_PASSE, GED_JWT_ALIAS
+#                    clé privée RSA de signature des jetons (RS256).
+#                    Absente = refus de démarrer.
+#    GED_ADMINISTRATEURS  sAMAccountName du ou des premiers administrateurs
+#                    (rôle attribué à leur première connexion seulement).
+#    GED_ORIGINES    origines CORS réelles du frontend.
 #  Voir backend/.env.example.
 # ============================================================
 ged:

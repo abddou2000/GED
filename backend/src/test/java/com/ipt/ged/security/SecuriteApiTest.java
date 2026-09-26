@@ -20,7 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -65,30 +65,22 @@ class SecuriteApiTest {
 
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper om;
-    @Autowired private ServiceUtilisateurs utilisateurs;
+    @Autowired private UserDetailsService utilisateurs;
     @Autowired private WorkflowRepository workflowRepository;
     @Autowired private EmployeRepository employeRepository;
     @Autowired private WorkSpaceRepository workspaceRepository;
     @Autowired private TypeDocumentRepository typeRepository;
-    @Autowired private CompteUtilisateurRepository compteRepository;
-    @Autowired private PasswordEncoder encodeur;
 
     private UUID typeId;
 
-    /** Incarne un compte réel : principal de type {@code UtilisateurConnecte}. */
-    private RequestPostProcessor enTantQue(String email) {
-        return user(utilisateurs.loadUserByUsername(email));
+    /** Incarne une identité réelle : principal de type {@code UtilisateurConnecte}. */
+    private RequestPostProcessor enTantQue(String identifiant) {
+        return user(utilisateurs.loadUserByUsername(identifiant));
     }
 
     @BeforeEach
     void setup() {
         Employe sara = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
-
-        /* Second acteur : l'amorçage n'ouvre qu'un compte (utilisateur unique).
-           Le test d'usurpation a besoin de deux principaux distincts pour être
-           autre chose qu'une tautologie. */
-        Comptes.ouvrirCompte(compteRepository, employeRepository, encodeur,
-                Comptes.idSecondActeur(employeRepository), Comptes.SECOND_ACTEUR, "test-only-password");
 
         WorkflowGed wf = new WorkflowGed("Circuit sécurité");
         wf.addStep(new WorkflowStep(sara, "Contrôle", 1));
@@ -134,7 +126,8 @@ class SecuriteApiTest {
     @DisplayName("B. La connexion reste ouverte : identifiants faux → 401, pas 403 ni 500")
     void connexionOuverteMaisControlee() throws Exception {
         mvc.perform(post("/api/v1/auth/login").contentType(APPLICATION_JSON)
-                        .content("{\"email\":\"inconnu@marchica.ma\",\"motDePasse\":\"faux\"}"))
+                        .with(r -> { r.setRemoteAddr("10.99.0.1"); return r; })
+                        .content("{\"identifiant\":\"inconnu\",\"motDePasse\":\"faux\"}"))
                 .andExpect(status().isUnauthorized());
     }
 

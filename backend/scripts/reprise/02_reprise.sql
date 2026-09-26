@@ -34,7 +34,7 @@ DECLARE
     t text;
     n bigint;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['employe', 'compte_utilisateur', 'workflow_ged', 'workflow_ged_etape',
+    FOREACH t IN ARRAY ARRAY['employe', 'utilisateur', 'workflow_ged', 'workflow_ged_etape',
         'workspace', 'access_group', 'access_group_workspace', 'access_group_employe', 'etiquette',
         'index_def', 'plan_indexation', 'plan_index', 'type_document', 'document', 'version_document',
         'document_etiquette', 'document_index_valeur', 'workflow_ged_signature']
@@ -99,7 +99,6 @@ $$;
 DO $$
 BEGIN
     PERFORM reprise_source.correspondre('employes', 'created_at');
-    PERFORM reprise_source.correspondre('comptes_utilisateurs', 'NULL::timestamp');
     PERFORM reprise_source.correspondre('workflow_ged', 'created_at');
     PERFORM reprise_source.correspondre('workflow_ged_steps', 'created_at');
     PERFORM reprise_source.correspondre('work_spaces', 'created_at');
@@ -125,11 +124,9 @@ SELECT reprise_source.nouvel_id('employes', s.id), s.first_name, s.last_name, co
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.employes s;
 
-INSERT INTO compte_utilisateur (id, email, mot_de_passe, actif, employe_id, derniere_connexion)
-SELECT reprise_source.nouvel_id('comptes_utilisateurs', s.id), lower(trim(s.email)), s.mot_de_passe,
-       coalesce(s.actif, true), reprise_source.nouvel_id('employes', s.employe_id),
-       reprise_source.utc(s.derniere_connexion)
-  FROM reprise_source.comptes_utilisateurs s;
+-- Comptes locaux et empreintes de mot de passe : non repris (lot E2, §3.2).
+-- Les identités GED (table utilisateur) naissent à la première connexion par
+-- l'annuaire, rattachées à la fiche employé reprise ci-dessus.
 
 INSERT INTO workflow_ged (id, name, deleted, created_at, updated_at)
 SELECT reprise_source.nouvel_id('workflow_ged', s.id), s.name, coalesce(s.deleted, false),

@@ -61,7 +61,7 @@ class RepriseDonneesTest {
     private static final Path JEU = Path.of("src", "test", "resources", "reprise", "jeu-essai");
 
     private static final List<String> TABLES_SOURCE = List.of(
-            "employes", "comptes_utilisateurs", "workflow_ged", "workflow_ged_steps", "work_spaces",
+            "employes", "workflow_ged", "workflow_ged_steps", "work_spaces",
             "access_groups", "pivot_workspace_groups", "pivot_employe_groups", "etiquettes", "indices",
             "plan_d_indexations", "pivot_plan_d_indexation_indices", "type_de_documents", "documents_file",
             "document_versions", "pivot_document_etiquettes", "document_index_values",
@@ -146,8 +146,8 @@ class RepriseDonneesTest {
         // Horodatage UTC de l'ancienne base -> timestamptz.
         assertEquals(Instant.parse("2026-01-15T10:00:00Z"),
                 instant(c, "SELECT created_at FROM document WHERE file_name = 'facture 01.pdf'"));
-        // Adresse de connexion normalisée comme le fait l'application.
-        assertEquals("sara.bennani@marchica.ma", texte(c, "SELECT email FROM compte_utilisateur"));
+        // Aucun compte local ni mot de passe n'est repris (lot E2, §3.2).
+        assertEquals(0, compter(c, "SELECT count(*) FROM utilisateur"));
         // Associations.
         assertEquals(3, compter(c, "SELECT count(*) FROM access_group_workspace ag JOIN access_group g"
                 + " ON g.id = ag.access_group_id WHERE g.code = 'AG-ADMIN'"));

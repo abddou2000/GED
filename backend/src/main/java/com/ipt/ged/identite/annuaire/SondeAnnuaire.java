@@ -20,7 +20,7 @@ import java.time.Instant;
  * sonde dans un groupe de supervision, pas dans la sonde de disponibilité
  * ({@code readiness}) qui retirerait l'instance du répartiteur.
  */
-@Component("annuaire")
+@Component("annuaireHealthIndicator")
 public class SondeAnnuaire implements HealthIndicator {
 
     private static final Duration VALIDITE = Duration.ofSeconds(30);

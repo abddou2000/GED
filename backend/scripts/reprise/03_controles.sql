@@ -10,7 +10,6 @@
 WITH controles(ordre, controle, attendu, obtenu) AS (
     -- 1. Complétude : autant de lignes de chaque côté.
               SELECT 1, 'lignes employe',                 (SELECT count(*) FROM reprise_source.employes),               (SELECT count(*) FROM employe)
-    UNION ALL SELECT 2, 'lignes compte_utilisateur',      (SELECT count(*) FROM reprise_source.comptes_utilisateurs),   (SELECT count(*) FROM compte_utilisateur)
     UNION ALL SELECT 3, 'lignes workflow_ged',            (SELECT count(*) FROM reprise_source.workflow_ged),           (SELECT count(*) FROM workflow_ged)
     UNION ALL SELECT 4, 'lignes workflow_ged_etape',      (SELECT count(*) FROM reprise_source.workflow_ged_steps),     (SELECT count(*) FROM workflow_ged_etape)
     UNION ALL SELECT 5, 'lignes workspace',               (SELECT count(*) FROM reprise_source.work_spaces),            (SELECT count(*) FROM workspace)
@@ -77,7 +76,7 @@ WITH controles(ordre, controle, attendu, obtenu) AS (
     UNION ALL SELECT 40, 'identifiants non UUID v7', 0::bigint,
         (SELECT count(*) FROM reprise_source.correspondance WHERE substr(id::text, 15, 1) <> '7')
     UNION ALL SELECT 41, 'correspondances enregistrées',
-        (SELECT (SELECT count(*) FROM reprise_source.employes) + (SELECT count(*) FROM reprise_source.comptes_utilisateurs)
+        (SELECT (SELECT count(*) FROM reprise_source.employes)
               + (SELECT count(*) FROM reprise_source.workflow_ged) + (SELECT count(*) FROM reprise_source.workflow_ged_steps)
               + (SELECT count(*) FROM reprise_source.work_spaces) + (SELECT count(*) FROM reprise_source.access_groups)
               + (SELECT count(*) FROM reprise_source.etiquettes) + (SELECT count(*) FROM reprise_source.indices)
