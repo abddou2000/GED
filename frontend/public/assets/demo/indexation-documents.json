@@ -1,631 +1,631 @@
 {
- "analyse": {
-  "172": {
-   "documentId": 172,
-   "fichier": "GED-architecture-backend.pdf",
-   "planNom": "Fiche Facture",
-   "separateur": "_",
-   "majuscule": false,
-   "modeAutomatique": true,
-   "segments": [
-    "GED-architecture-backend"
-   ],
-   "propositions": [
-    {
-     "indexFieldId": 1,
-     "code": "IDX-NUMFACT",
-     "libelle": "Numéro de facture",
-     "fieldType": "NOMBRE",
-     "options": [],
-     "valeurProposee": "3.4",
-     "source": "CONTENU",
-     "valeurActuelle": "3.4",
-     "reconnue": true,
-     "motif": null
+  "analyse": {
+    "01920000-0000-7000-8000-0000000000ac": {
+      "documentId": "01920000-0000-7000-8000-0000000000ac",
+      "fichier": "GED-architecture-backend.pdf",
+      "planNom": "Fiche Facture",
+      "separateur": "_",
+      "majuscule": false,
+      "modeAutomatique": true,
+      "segments": [
+        "GED-architecture-backend"
+      ],
+      "propositions": [
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000001",
+          "code": "IDX-NUMFACT",
+          "libelle": "Numéro de facture",
+          "fieldType": "NOMBRE",
+          "options": [],
+          "valeurProposee": "3.4",
+          "source": "CONTENU",
+          "valeurActuelle": "3.4",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000002",
+          "code": "IDX-DATEEMI",
+          "libelle": "Date d'émission",
+          "fieldType": "DATE",
+          "options": [],
+          "valeurProposee": null,
+          "source": null,
+          "valeurActuelle": "2008-08-05",
+          "reconnue": false,
+          "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 2."
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000003",
+          "code": "IDX-FOURN",
+          "libelle": "Fournisseur",
+          "fieldType": "TEXTE",
+          "options": [],
+          "valeurProposee": "JPA.",
+          "source": "CONTENU",
+          "valeurActuelle": "JPA.",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000004",
+          "code": "IDX-PRIO",
+          "libelle": "Priorité",
+          "fieldType": "LISTE",
+          "options": [
+            "Basse",
+            "Normale",
+            "Haute",
+            "Urgente"
+          ],
+          "valeurProposee": null,
+          "source": null,
+          "valeurActuelle": "Normale",
+          "reconnue": false,
+          "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 4."
+        }
+      ],
+      "referenceProposee": "3.4_?_JPA._?",
+      "nbReconnus": 2,
+      "nbAttendus": 4,
+      "avertissement": "2 champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.",
+      "provenanceTexte": "COUCHE_TEXTE",
+      "detailTexte": "Couche texte lue sur 18 page(s)."
     },
-    {
-     "indexFieldId": 2,
-     "code": "IDX-DATEEMI",
-     "libelle": "Date d'émission",
-     "fieldType": "DATE",
-     "options": [],
-     "valeurProposee": null,
-     "source": null,
-     "valeurActuelle": "2008-08-05",
-     "reconnue": false,
-     "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 2."
+    "01920000-0000-7000-8000-0000000000ab": {
+      "documentId": "01920000-0000-7000-8000-0000000000ab",
+      "fichier": "GED-architecture-backend.pdf",
+      "planNom": "Fiche Facture",
+      "separateur": "_",
+      "majuscule": false,
+      "modeAutomatique": true,
+      "segments": [
+        "GED-architecture-backend"
+      ],
+      "propositions": [
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000001",
+          "code": "IDX-NUMFACT",
+          "libelle": "Numéro de facture",
+          "fieldType": "NOMBRE",
+          "options": [],
+          "valeurProposee": "3.4",
+          "source": "CONTENU",
+          "valeurActuelle": "3.4",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000002",
+          "code": "IDX-DATEEMI",
+          "libelle": "Date d'émission",
+          "fieldType": "DATE",
+          "options": [],
+          "valeurProposee": null,
+          "source": null,
+          "valeurActuelle": "2005-09-05",
+          "reconnue": false,
+          "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 2."
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000003",
+          "code": "IDX-FOURN",
+          "libelle": "Fournisseur",
+          "fieldType": "TEXTE",
+          "options": [],
+          "valeurProposee": "JPA.",
+          "source": "CONTENU",
+          "valeurActuelle": "JPA.",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000004",
+          "code": "IDX-PRIO",
+          "libelle": "Priorité",
+          "fieldType": "LISTE",
+          "options": [
+            "Basse",
+            "Normale",
+            "Haute",
+            "Urgente"
+          ],
+          "valeurProposee": null,
+          "source": null,
+          "valeurActuelle": "Normale",
+          "reconnue": false,
+          "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 4."
+        }
+      ],
+      "referenceProposee": "3.4_?_JPA._?",
+      "nbReconnus": 2,
+      "nbAttendus": 4,
+      "avertissement": "2 champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.",
+      "provenanceTexte": "COUCHE_TEXTE",
+      "detailTexte": "Couche texte lue sur 18 page(s)."
     },
-    {
-     "indexFieldId": 3,
-     "code": "IDX-FOURN",
-     "libelle": "Fournisseur",
-     "fieldType": "TEXTE",
-     "options": [],
-     "valeurProposee": "JPA.",
-     "source": "CONTENU",
-     "valeurActuelle": "JPA.",
-     "reconnue": true,
-     "motif": null
+    "01920000-0000-7000-8000-0000000000a9": {
+      "documentId": "01920000-0000-7000-8000-0000000000a9",
+      "fichier": "GED-architecture-backend.pdf",
+      "planNom": "Fiche Facture",
+      "separateur": "_",
+      "majuscule": false,
+      "modeAutomatique": true,
+      "segments": [
+        "GED-architecture-backend"
+      ],
+      "propositions": [
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000001",
+          "code": "IDX-NUMFACT",
+          "libelle": "Numéro de facture",
+          "fieldType": "NOMBRE",
+          "options": [],
+          "valeurProposee": "3.4",
+          "source": "CONTENU",
+          "valeurActuelle": "3.4",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000002",
+          "code": "IDX-DATEEMI",
+          "libelle": "Date d'émission",
+          "fieldType": "DATE",
+          "options": [],
+          "valeurProposee": null,
+          "source": null,
+          "valeurActuelle": "0008-08-08",
+          "reconnue": false,
+          "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 2."
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000003",
+          "code": "IDX-FOURN",
+          "libelle": "Fournisseur",
+          "fieldType": "TEXTE",
+          "options": [],
+          "valeurProposee": "JPA.",
+          "source": "CONTENU",
+          "valeurActuelle": "JPA.",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000004",
+          "code": "IDX-PRIO",
+          "libelle": "Priorité",
+          "fieldType": "LISTE",
+          "options": [
+            "Basse",
+            "Normale",
+            "Haute",
+            "Urgente"
+          ],
+          "valeurProposee": null,
+          "source": null,
+          "valeurActuelle": "Basse",
+          "reconnue": false,
+          "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 4."
+        }
+      ],
+      "referenceProposee": "3.4_?_JPA._?",
+      "nbReconnus": 2,
+      "nbAttendus": 4,
+      "avertissement": "2 champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.",
+      "provenanceTexte": "COUCHE_TEXTE",
+      "detailTexte": "Couche texte lue sur 18 page(s)."
     },
-    {
-     "indexFieldId": 4,
-     "code": "IDX-PRIO",
-     "libelle": "Priorité",
-     "fieldType": "LISTE",
-     "options": [
-      "Basse",
-      "Normale",
-      "Haute",
-      "Urgente"
-     ],
-     "valeurProposee": null,
-     "source": null,
-     "valeurActuelle": "Normale",
-     "reconnue": false,
-     "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 4."
+    "01920000-0000-7000-8000-0000000000a6": {
+      "documentId": "01920000-0000-7000-8000-0000000000a6",
+      "fichier": "Indexation-GED-Marchica-Med.pdf",
+      "planNom": null,
+      "separateur": "_",
+      "majuscule": false,
+      "modeAutomatique": false,
+      "segments": [],
+      "propositions": [],
+      "referenceProposee": null,
+      "nbReconnus": 0,
+      "nbAttendus": 0,
+      "avertissement": "Le type « Contrat » n'a pas de plan d'indexation : aucune analyse possible.",
+      "provenanceTexte": "AUCUNE",
+      "detailTexte": null
+    },
+    "01920000-0000-7000-8000-0000000000a3": {
+      "documentId": "01920000-0000-7000-8000-0000000000a3",
+      "fichier": "Indexation-GED-Marchica-Med.pdf",
+      "planNom": null,
+      "separateur": "_",
+      "majuscule": false,
+      "modeAutomatique": false,
+      "segments": [],
+      "propositions": [],
+      "referenceProposee": null,
+      "nbReconnus": 0,
+      "nbAttendus": 0,
+      "avertissement": "Le type « Contrat » n'a pas de plan d'indexation : aucune analyse possible.",
+      "provenanceTexte": "AUCUNE",
+      "detailTexte": null
+    },
+    "01920000-0000-7000-8000-000000000081": {
+      "documentId": "01920000-0000-7000-8000-000000000081",
+      "fichier": "scan0001.pdf",
+      "planNom": "Fiche Facture",
+      "separateur": "_",
+      "majuscule": false,
+      "modeAutomatique": true,
+      "segments": [
+        "scan0001"
+      ],
+      "propositions": [
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000001",
+          "code": "IDX-NUMFACT",
+          "libelle": "Numéro de facture",
+          "fieldType": "NOMBRE",
+          "options": [],
+          "valeurProposee": "2026999",
+          "source": "CONTENU",
+          "valeurActuelle": "2026999",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000002",
+          "code": "IDX-DATEEMI",
+          "libelle": "Date d'émission",
+          "fieldType": "DATE",
+          "options": [],
+          "valeurProposee": "2026-06-22",
+          "source": "CONTENU",
+          "valeurActuelle": "2026-06-22",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000003",
+          "code": "IDX-FOURN",
+          "libelle": "Fournisseur",
+          "fieldType": "TEXTE",
+          "options": [],
+          "valeurProposee": "Nova Import",
+          "source": "CONTENU",
+          "valeurActuelle": "Nova Import",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000004",
+          "code": "IDX-PRIO",
+          "libelle": "Priorité",
+          "fieldType": "LISTE",
+          "options": [
+            "Basse",
+            "Normale",
+            "Haute",
+            "Urgente"
+          ],
+          "valeurProposee": "Urgente",
+          "source": "CONTENU",
+          "valeurActuelle": "Urgente",
+          "reconnue": true,
+          "motif": null
+        }
+      ],
+      "referenceProposee": "2026999_2026-06-22_Nova Import_Urgente",
+      "nbReconnus": 4,
+      "nbAttendus": 4,
+      "avertissement": null,
+      "provenanceTexte": "COUCHE_TEXTE",
+      "detailTexte": "Couche texte lue sur 1 page(s)."
+    },
+    "01920000-0000-7000-8000-000000000061": {
+      "documentId": "01920000-0000-7000-8000-000000000061",
+      "fichier": "2026111_2026-06-10_Nova Import_Urgente.pdf",
+      "planNom": "Fiche Facture",
+      "separateur": "_",
+      "majuscule": false,
+      "modeAutomatique": true,
+      "segments": [
+        "2026111",
+        "2026-06-10",
+        "Nova Import",
+        "Urgente"
+      ],
+      "propositions": [
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000001",
+          "code": "IDX-NUMFACT",
+          "libelle": "Numéro de facture",
+          "fieldType": "NOMBRE",
+          "options": [],
+          "valeurProposee": "2026111",
+          "source": "NOM_FICHIER",
+          "valeurActuelle": "2026111",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000002",
+          "code": "IDX-DATEEMI",
+          "libelle": "Date d'émission",
+          "fieldType": "DATE",
+          "options": [],
+          "valeurProposee": "2026-06-10",
+          "source": "NOM_FICHIER",
+          "valeurActuelle": "2026-06-10",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000003",
+          "code": "IDX-FOURN",
+          "libelle": "Fournisseur",
+          "fieldType": "TEXTE",
+          "options": [],
+          "valeurProposee": "Nova Import",
+          "source": "NOM_FICHIER",
+          "valeurActuelle": "Nova Import",
+          "reconnue": true,
+          "motif": null
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000004",
+          "code": "IDX-PRIO",
+          "libelle": "Priorité",
+          "fieldType": "LISTE",
+          "options": [
+            "Basse",
+            "Normale",
+            "Haute",
+            "Urgente"
+          ],
+          "valeurProposee": "Urgente",
+          "source": "NOM_FICHIER",
+          "valeurActuelle": "Urgente",
+          "reconnue": true,
+          "motif": null
+        }
+      ],
+      "referenceProposee": "2026111_2026-06-10_Nova Import_Urgente",
+      "nbReconnus": 4,
+      "nbAttendus": 4,
+      "avertissement": null,
+      "provenanceTexte": "AUCUNE",
+      "detailTexte": "Nom de fichier suffisant : contenu non sollicité."
+    },
+    "01920000-0000-7000-8000-00000000004a": {
+      "documentId": "01920000-0000-7000-8000-00000000004a",
+      "fichier": "facture-test.pdf",
+      "planNom": "Fiche Facture",
+      "separateur": "_",
+      "majuscule": false,
+      "modeAutomatique": true,
+      "segments": [
+        "facture-test"
+      ],
+      "propositions": [
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000001",
+          "code": "IDX-NUMFACT",
+          "libelle": "Numéro de facture",
+          "fieldType": "NOMBRE",
+          "options": [],
+          "valeurProposee": null,
+          "source": null,
+          "valeurActuelle": "2026110",
+          "reconnue": false,
+          "motif": "« Numéro de facture » attend un nombre."
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000002",
+          "code": "IDX-DATEEMI",
+          "libelle": "Date d'émission",
+          "fieldType": "DATE",
+          "options": [],
+          "valeurProposee": null,
+          "source": null,
+          "valeurActuelle": "2026-05-11",
+          "reconnue": false,
+          "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 2."
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000003",
+          "code": "IDX-FOURN",
+          "libelle": "Fournisseur",
+          "fieldType": "TEXTE",
+          "options": [],
+          "valeurProposee": null,
+          "source": null,
+          "valeurActuelle": "Zenata Services",
+          "reconnue": false,
+          "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 3."
+        },
+        {
+          "indexFieldId": "01920000-0000-7000-8000-000000000004",
+          "code": "IDX-PRIO",
+          "libelle": "Priorité",
+          "fieldType": "LISTE",
+          "options": [
+            "Basse",
+            "Normale",
+            "Haute",
+            "Urgente"
+          ],
+          "valeurProposee": null,
+          "source": null,
+          "valeurActuelle": "Normale",
+          "reconnue": false,
+          "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 4."
+        }
+      ],
+      "referenceProposee": "?_?_?_?",
+      "nbReconnus": 0,
+      "nbAttendus": 4,
+      "avertissement": "Ni le nom du fichier (charte « Numéro de facture_Date d'émission_Fournisseur_Priorité ») ni le contenu n'ont permis de conclure : renseignez les champs à la main.",
+      "provenanceTexte": "AUCUNE",
+      "detailTexte": "Tesseract (tesseract, fra+eng) indisponible sur ce serveur."
     }
-   ],
-   "referenceProposee": "3.4_?_JPA._?",
-   "nbReconnus": 2,
-   "nbAttendus": 4,
-   "avertissement": "2 champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.",
-   "provenanceTexte": "COUCHE_TEXTE",
-   "detailTexte": "Couche texte lue sur 18 page(s)."
   },
-  "171": {
-   "documentId": 171,
-   "fichier": "GED-architecture-backend.pdf",
-   "planNom": "Fiche Facture",
-   "separateur": "_",
-   "majuscule": false,
-   "modeAutomatique": true,
-   "segments": [
-    "GED-architecture-backend"
-   ],
-   "propositions": [
-    {
-     "indexFieldId": 1,
-     "code": "IDX-NUMFACT",
-     "libelle": "Numéro de facture",
-     "fieldType": "NOMBRE",
-     "options": [],
-     "valeurProposee": "3.4",
-     "source": "CONTENU",
-     "valeurActuelle": "3.4",
-     "reconnue": true,
-     "motif": null
-    },
-    {
-     "indexFieldId": 2,
-     "code": "IDX-DATEEMI",
-     "libelle": "Date d'émission",
-     "fieldType": "DATE",
-     "options": [],
-     "valeurProposee": null,
-     "source": null,
-     "valeurActuelle": "2005-09-05",
-     "reconnue": false,
-     "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 2."
-    },
-    {
-     "indexFieldId": 3,
-     "code": "IDX-FOURN",
-     "libelle": "Fournisseur",
-     "fieldType": "TEXTE",
-     "options": [],
-     "valeurProposee": "JPA.",
-     "source": "CONTENU",
-     "valeurActuelle": "JPA.",
-     "reconnue": true,
-     "motif": null
-    },
-    {
-     "indexFieldId": 4,
-     "code": "IDX-PRIO",
-     "libelle": "Priorité",
-     "fieldType": "LISTE",
-     "options": [
-      "Basse",
-      "Normale",
-      "Haute",
-      "Urgente"
-     ],
-     "valeurProposee": null,
-     "source": null,
-     "valeurActuelle": "Normale",
-     "reconnue": false,
-     "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 4."
-    }
-   ],
-   "referenceProposee": "3.4_?_JPA._?",
-   "nbReconnus": 2,
-   "nbAttendus": 4,
-   "avertissement": "2 champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.",
-   "provenanceTexte": "COUCHE_TEXTE",
-   "detailTexte": "Couche texte lue sur 18 page(s)."
-  },
-  "169": {
-   "documentId": 169,
-   "fichier": "GED-architecture-backend.pdf",
-   "planNom": "Fiche Facture",
-   "separateur": "_",
-   "majuscule": false,
-   "modeAutomatique": true,
-   "segments": [
-    "GED-architecture-backend"
-   ],
-   "propositions": [
-    {
-     "indexFieldId": 1,
-     "code": "IDX-NUMFACT",
-     "libelle": "Numéro de facture",
-     "fieldType": "NOMBRE",
-     "options": [],
-     "valeurProposee": "3.4",
-     "source": "CONTENU",
-     "valeurActuelle": "3.4",
-     "reconnue": true,
-     "motif": null
-    },
-    {
-     "indexFieldId": 2,
-     "code": "IDX-DATEEMI",
-     "libelle": "Date d'émission",
-     "fieldType": "DATE",
-     "options": [],
-     "valeurProposee": null,
-     "source": null,
-     "valeurActuelle": "0008-08-08",
-     "reconnue": false,
-     "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 2."
-    },
-    {
-     "indexFieldId": 3,
-     "code": "IDX-FOURN",
-     "libelle": "Fournisseur",
-     "fieldType": "TEXTE",
-     "options": [],
-     "valeurProposee": "JPA.",
-     "source": "CONTENU",
-     "valeurActuelle": "JPA.",
-     "reconnue": true,
-     "motif": null
-    },
-    {
-     "indexFieldId": 4,
-     "code": "IDX-PRIO",
-     "libelle": "Priorité",
-     "fieldType": "LISTE",
-     "options": [
-      "Basse",
-      "Normale",
-      "Haute",
-      "Urgente"
-     ],
-     "valeurProposee": null,
-     "source": null,
-     "valeurActuelle": "Basse",
-     "reconnue": false,
-     "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 4."
-    }
-   ],
-   "referenceProposee": "3.4_?_JPA._?",
-   "nbReconnus": 2,
-   "nbAttendus": 4,
-   "avertissement": "2 champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.",
-   "provenanceTexte": "COUCHE_TEXTE",
-   "detailTexte": "Couche texte lue sur 18 page(s)."
-  },
-  "166": {
-   "documentId": 166,
-   "fichier": "Indexation-GED-Marchica-Med.pdf",
-   "planNom": null,
-   "separateur": "_",
-   "majuscule": false,
-   "modeAutomatique": false,
-   "segments": [],
-   "propositions": [],
-   "referenceProposee": null,
-   "nbReconnus": 0,
-   "nbAttendus": 0,
-   "avertissement": "Le type « Contrat » n'a pas de plan d'indexation : aucune analyse possible.",
-   "provenanceTexte": "AUCUNE",
-   "detailTexte": null
-  },
-  "163": {
-   "documentId": 163,
-   "fichier": "Indexation-GED-Marchica-Med.pdf",
-   "planNom": null,
-   "separateur": "_",
-   "majuscule": false,
-   "modeAutomatique": false,
-   "segments": [],
-   "propositions": [],
-   "referenceProposee": null,
-   "nbReconnus": 0,
-   "nbAttendus": 0,
-   "avertissement": "Le type « Contrat » n'a pas de plan d'indexation : aucune analyse possible.",
-   "provenanceTexte": "AUCUNE",
-   "detailTexte": null
-  },
-  "129": {
-   "documentId": 129,
-   "fichier": "scan0001.pdf",
-   "planNom": "Fiche Facture",
-   "separateur": "_",
-   "majuscule": false,
-   "modeAutomatique": true,
-   "segments": [
-    "scan0001"
-   ],
-   "propositions": [
-    {
-     "indexFieldId": 1,
-     "code": "IDX-NUMFACT",
-     "libelle": "Numéro de facture",
-     "fieldType": "NOMBRE",
-     "options": [],
-     "valeurProposee": "2026999",
-     "source": "CONTENU",
-     "valeurActuelle": "2026999",
-     "reconnue": true,
-     "motif": null
-    },
-    {
-     "indexFieldId": 2,
-     "code": "IDX-DATEEMI",
-     "libelle": "Date d'émission",
-     "fieldType": "DATE",
-     "options": [],
-     "valeurProposee": "2026-06-22",
-     "source": "CONTENU",
-     "valeurActuelle": "2026-06-22",
-     "reconnue": true,
-     "motif": null
-    },
-    {
-     "indexFieldId": 3,
-     "code": "IDX-FOURN",
-     "libelle": "Fournisseur",
-     "fieldType": "TEXTE",
-     "options": [],
-     "valeurProposee": "Nova Import",
-     "source": "CONTENU",
-     "valeurActuelle": "Nova Import",
-     "reconnue": true,
-     "motif": null
-    },
-    {
-     "indexFieldId": 4,
-     "code": "IDX-PRIO",
-     "libelle": "Priorité",
-     "fieldType": "LISTE",
-     "options": [
-      "Basse",
-      "Normale",
-      "Haute",
-      "Urgente"
-     ],
-     "valeurProposee": "Urgente",
-     "source": "CONTENU",
-     "valeurActuelle": "Urgente",
-     "reconnue": true,
-     "motif": null
-    }
-   ],
-   "referenceProposee": "2026999_2026-06-22_Nova Import_Urgente",
-   "nbReconnus": 4,
-   "nbAttendus": 4,
-   "avertissement": null,
-   "provenanceTexte": "COUCHE_TEXTE",
-   "detailTexte": "Couche texte lue sur 1 page(s)."
-  },
-  "97": {
-   "documentId": 97,
-   "fichier": "2026111_2026-06-10_Nova Import_Urgente.pdf",
-   "planNom": "Fiche Facture",
-   "separateur": "_",
-   "majuscule": false,
-   "modeAutomatique": true,
-   "segments": [
-    "2026111",
-    "2026-06-10",
-    "Nova Import",
-    "Urgente"
-   ],
-   "propositions": [
-    {
-     "indexFieldId": 1,
-     "code": "IDX-NUMFACT",
-     "libelle": "Numéro de facture",
-     "fieldType": "NOMBRE",
-     "options": [],
-     "valeurProposee": "2026111",
-     "source": "NOM_FICHIER",
-     "valeurActuelle": "2026111",
-     "reconnue": true,
-     "motif": null
-    },
-    {
-     "indexFieldId": 2,
-     "code": "IDX-DATEEMI",
-     "libelle": "Date d'émission",
-     "fieldType": "DATE",
-     "options": [],
-     "valeurProposee": "2026-06-10",
-     "source": "NOM_FICHIER",
-     "valeurActuelle": "2026-06-10",
-     "reconnue": true,
-     "motif": null
-    },
-    {
-     "indexFieldId": 3,
-     "code": "IDX-FOURN",
-     "libelle": "Fournisseur",
-     "fieldType": "TEXTE",
-     "options": [],
-     "valeurProposee": "Nova Import",
-     "source": "NOM_FICHIER",
-     "valeurActuelle": "Nova Import",
-     "reconnue": true,
-     "motif": null
-    },
-    {
-     "indexFieldId": 4,
-     "code": "IDX-PRIO",
-     "libelle": "Priorité",
-     "fieldType": "LISTE",
-     "options": [
-      "Basse",
-      "Normale",
-      "Haute",
-      "Urgente"
-     ],
-     "valeurProposee": "Urgente",
-     "source": "NOM_FICHIER",
-     "valeurActuelle": "Urgente",
-     "reconnue": true,
-     "motif": null
-    }
-   ],
-   "referenceProposee": "2026111_2026-06-10_Nova Import_Urgente",
-   "nbReconnus": 4,
-   "nbAttendus": 4,
-   "avertissement": null,
-   "provenanceTexte": "AUCUNE",
-   "detailTexte": "Nom de fichier suffisant : contenu non sollicité."
-  },
-  "74": {
-   "documentId": 74,
-   "fichier": "facture-test.pdf",
-   "planNom": "Fiche Facture",
-   "separateur": "_",
-   "majuscule": false,
-   "modeAutomatique": true,
-   "segments": [
-    "facture-test"
-   ],
-   "propositions": [
-    {
-     "indexFieldId": 1,
-     "code": "IDX-NUMFACT",
-     "libelle": "Numéro de facture",
-     "fieldType": "NOMBRE",
-     "options": [],
-     "valeurProposee": null,
-     "source": null,
-     "valeurActuelle": "2026110",
-     "reconnue": false,
-     "motif": "« Numéro de facture » attend un nombre."
-    },
-    {
-     "indexFieldId": 2,
-     "code": "IDX-DATEEMI",
-     "libelle": "Date d'émission",
-     "fieldType": "DATE",
-     "options": [],
-     "valeurProposee": null,
-     "source": null,
-     "valeurActuelle": "2026-05-11",
-     "reconnue": false,
-     "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 2."
-    },
-    {
-     "indexFieldId": 3,
-     "code": "IDX-FOURN",
-     "libelle": "Fournisseur",
-     "fieldType": "TEXTE",
-     "options": [],
-     "valeurProposee": null,
-     "source": null,
-     "valeurActuelle": "Zenata Services",
-     "reconnue": false,
-     "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 3."
-    },
-    {
-     "indexFieldId": 4,
-     "code": "IDX-PRIO",
-     "libelle": "Priorité",
-     "fieldType": "LISTE",
-     "options": [
-      "Basse",
-      "Normale",
-      "Haute",
-      "Urgente"
-     ],
-     "valeurProposee": null,
-     "source": null,
-     "valeurActuelle": "Normale",
-     "reconnue": false,
-     "motif": "Le nom du fichier ne compte que 1 segment(s) : rien en position 4."
-    }
-   ],
-   "referenceProposee": "?_?_?_?",
-   "nbReconnus": 0,
-   "nbAttendus": 4,
-   "avertissement": "Ni le nom du fichier (charte « Numéro de facture_Date d'émission_Fournisseur_Priorité ») ni le contenu n'ont permis de conclure : renseignez les champs à la main.",
-   "provenanceTexte": "AUCUNE",
-   "detailTexte": "Tesseract (tesseract, fra+eng) indisponible sur ce serveur."
+  "valeurs": {
+    "01920000-0000-7000-8000-0000000000ac": [
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000001",
+        "code": "IDX-NUMFACT",
+        "libelle": "Numéro de facture",
+        "valeur": "3.4"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000002",
+        "code": "IDX-DATEEMI",
+        "libelle": "Date d'émission",
+        "valeur": "2008-08-05"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000003",
+        "code": "IDX-FOURN",
+        "libelle": "Fournisseur",
+        "valeur": "JPA."
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000004",
+        "code": "IDX-PRIO",
+        "libelle": "Priorité",
+        "valeur": "Normale"
+      }
+    ],
+    "01920000-0000-7000-8000-0000000000ab": [
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000001",
+        "code": "IDX-NUMFACT",
+        "libelle": "Numéro de facture",
+        "valeur": "3.4"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000002",
+        "code": "IDX-DATEEMI",
+        "libelle": "Date d'émission",
+        "valeur": "2005-09-05"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000003",
+        "code": "IDX-FOURN",
+        "libelle": "Fournisseur",
+        "valeur": "JPA."
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000004",
+        "code": "IDX-PRIO",
+        "libelle": "Priorité",
+        "valeur": "Normale"
+      }
+    ],
+    "01920000-0000-7000-8000-0000000000a9": [
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000001",
+        "code": "IDX-NUMFACT",
+        "libelle": "Numéro de facture",
+        "valeur": "3.4"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000002",
+        "code": "IDX-DATEEMI",
+        "libelle": "Date d'émission",
+        "valeur": "0008-08-08"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000003",
+        "code": "IDX-FOURN",
+        "libelle": "Fournisseur",
+        "valeur": "JPA."
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000004",
+        "code": "IDX-PRIO",
+        "libelle": "Priorité",
+        "valeur": "Basse"
+      }
+    ],
+    "01920000-0000-7000-8000-0000000000a6": [],
+    "01920000-0000-7000-8000-0000000000a3": [],
+    "01920000-0000-7000-8000-000000000081": [
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000001",
+        "code": "IDX-NUMFACT",
+        "libelle": "Numéro de facture",
+        "valeur": "2026999"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000002",
+        "code": "IDX-DATEEMI",
+        "libelle": "Date d'émission",
+        "valeur": "2026-06-22"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000003",
+        "code": "IDX-FOURN",
+        "libelle": "Fournisseur",
+        "valeur": "Nova Import"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000004",
+        "code": "IDX-PRIO",
+        "libelle": "Priorité",
+        "valeur": "Urgente"
+      }
+    ],
+    "01920000-0000-7000-8000-000000000061": [
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000001",
+        "code": "IDX-NUMFACT",
+        "libelle": "Numéro de facture",
+        "valeur": "2026111"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000002",
+        "code": "IDX-DATEEMI",
+        "libelle": "Date d'émission",
+        "valeur": "2026-06-10"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000003",
+        "code": "IDX-FOURN",
+        "libelle": "Fournisseur",
+        "valeur": "Nova Import"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000004",
+        "code": "IDX-PRIO",
+        "libelle": "Priorité",
+        "valeur": "Urgente"
+      }
+    ],
+    "01920000-0000-7000-8000-00000000004a": [
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000001",
+        "code": "IDX-NUMFACT",
+        "libelle": "Numéro de facture",
+        "valeur": "2026110"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000002",
+        "code": "IDX-DATEEMI",
+        "libelle": "Date d'émission",
+        "valeur": "2026-05-11"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000003",
+        "code": "IDX-FOURN",
+        "libelle": "Fournisseur",
+        "valeur": "Zenata Services"
+      },
+      {
+        "indexFieldId": "01920000-0000-7000-8000-000000000004",
+        "code": "IDX-PRIO",
+        "libelle": "Priorité",
+        "valeur": "Normale"
+      }
+    ]
   }
- },
- "valeurs": {
-  "172": [
-   {
-    "indexFieldId": 1,
-    "code": "IDX-NUMFACT",
-    "libelle": "Numéro de facture",
-    "valeur": "3.4"
-   },
-   {
-    "indexFieldId": 2,
-    "code": "IDX-DATEEMI",
-    "libelle": "Date d'émission",
-    "valeur": "2008-08-05"
-   },
-   {
-    "indexFieldId": 3,
-    "code": "IDX-FOURN",
-    "libelle": "Fournisseur",
-    "valeur": "JPA."
-   },
-   {
-    "indexFieldId": 4,
-    "code": "IDX-PRIO",
-    "libelle": "Priorité",
-    "valeur": "Normale"
-   }
-  ],
-  "171": [
-   {
-    "indexFieldId": 1,
-    "code": "IDX-NUMFACT",
-    "libelle": "Numéro de facture",
-    "valeur": "3.4"
-   },
-   {
-    "indexFieldId": 2,
-    "code": "IDX-DATEEMI",
-    "libelle": "Date d'émission",
-    "valeur": "2005-09-05"
-   },
-   {
-    "indexFieldId": 3,
-    "code": "IDX-FOURN",
-    "libelle": "Fournisseur",
-    "valeur": "JPA."
-   },
-   {
-    "indexFieldId": 4,
-    "code": "IDX-PRIO",
-    "libelle": "Priorité",
-    "valeur": "Normale"
-   }
-  ],
-  "169": [
-   {
-    "indexFieldId": 1,
-    "code": "IDX-NUMFACT",
-    "libelle": "Numéro de facture",
-    "valeur": "3.4"
-   },
-   {
-    "indexFieldId": 2,
-    "code": "IDX-DATEEMI",
-    "libelle": "Date d'émission",
-    "valeur": "0008-08-08"
-   },
-   {
-    "indexFieldId": 3,
-    "code": "IDX-FOURN",
-    "libelle": "Fournisseur",
-    "valeur": "JPA."
-   },
-   {
-    "indexFieldId": 4,
-    "code": "IDX-PRIO",
-    "libelle": "Priorité",
-    "valeur": "Basse"
-   }
-  ],
-  "166": [],
-  "163": [],
-  "129": [
-   {
-    "indexFieldId": 1,
-    "code": "IDX-NUMFACT",
-    "libelle": "Numéro de facture",
-    "valeur": "2026999"
-   },
-   {
-    "indexFieldId": 2,
-    "code": "IDX-DATEEMI",
-    "libelle": "Date d'émission",
-    "valeur": "2026-06-22"
-   },
-   {
-    "indexFieldId": 3,
-    "code": "IDX-FOURN",
-    "libelle": "Fournisseur",
-    "valeur": "Nova Import"
-   },
-   {
-    "indexFieldId": 4,
-    "code": "IDX-PRIO",
-    "libelle": "Priorité",
-    "valeur": "Urgente"
-   }
-  ],
-  "97": [
-   {
-    "indexFieldId": 1,
-    "code": "IDX-NUMFACT",
-    "libelle": "Numéro de facture",
-    "valeur": "2026111"
-   },
-   {
-    "indexFieldId": 2,
-    "code": "IDX-DATEEMI",
-    "libelle": "Date d'émission",
-    "valeur": "2026-06-10"
-   },
-   {
-    "indexFieldId": 3,
-    "code": "IDX-FOURN",
-    "libelle": "Fournisseur",
-    "valeur": "Nova Import"
-   },
-   {
-    "indexFieldId": 4,
-    "code": "IDX-PRIO",
-    "libelle": "Priorité",
-    "valeur": "Urgente"
-   }
-  ],
-  "74": [
-   {
-    "indexFieldId": 1,
-    "code": "IDX-NUMFACT",
-    "libelle": "Numéro de facture",
-    "valeur": "2026110"
-   },
-   {
-    "indexFieldId": 2,
-    "code": "IDX-DATEEMI",
-    "libelle": "Date d'émission",
-    "valeur": "2026-05-11"
-   },
-   {
-    "indexFieldId": 3,
-    "code": "IDX-FOURN",
-    "libelle": "Fournisseur",
-    "valeur": "Zenata Services"
-   },
-   {
-    "indexFieldId": 4,
-    "code": "IDX-PRIO",
-    "libelle": "Priorité",
-    "valeur": "Normale"
-   }
-  ]
- }
 }

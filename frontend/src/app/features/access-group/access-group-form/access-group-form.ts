@@ -45,8 +45,8 @@ export class AccessGroupForm implements OnInit {
   form: FormGroup = this.fb.group({
     code: ['', Validators.required],
     name: ['', Validators.required],
-    workspaceIds: [[] as number[]],
-    userIds: [[] as number[]],
+    workspaceIds: [[] as string[]],
+    userIds: [[] as string[]],
   });
 
   get isEdit(): boolean {

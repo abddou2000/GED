@@ -1,11 +1,11 @@
 export interface Ref {
-  id: number;
+  id: string;
   label: string;
 }
 
 /** Un document déposé tel que renvoyé par l'API. */
 export interface DocumentItem {
-  id: number;
+  id: string;
   name: string;
   workspace: Ref | null;
   typeDocument: Ref | null;
@@ -26,14 +26,14 @@ export interface DocumentItem {
 
 /** Etiquette apposee a un document, avec sa couleur. */
 export interface Tag {
-  id: number;
+  id: string;
   tag: string;
   couleur: string;
 }
 
 /** Une version du fichier ; une seule est courante. */
 export interface Version {
-  id: number;
+  id: string;
   fileName: string;
   observation: string | null;
   principale: boolean;
@@ -44,10 +44,10 @@ export interface Version {
 /** Corps envoye pour modifier la fiche d'un document. */
 export interface DocumentRequest {
   name?: string;
-  typeDocumentId?: number;
+  typeDocumentId?: string;
   expirationDate?: string | null;
   active?: boolean;
-  etiquetteIds?: number[];
+  etiquetteIds?: string[];
 }
 
 export interface PageResult<T> {
@@ -59,6 +59,6 @@ export interface PageResult<T> {
 }
 
 export interface SelectOption {
-  id: number;
+  id: string;
   name: string;
 }

@@ -1,119 +1,119 @@
 {
- "content": [
-  {
-   "id": 6,
-   "name": "Projets",
-   "code": "WS-PROJETS",
-   "description": null,
-   "status": "ACTIF",
-   "owner": {
-    "id": 3,
-    "label": "Yasmine Alaoui"
-   },
-   "parent": null,
-   "workflow": {
-    "id": 1,
-    "label": "Validation standard"
-   },
-   "childrenCount": 0
-  },
-  {
-   "id": 5,
-   "name": "Contrats",
-   "code": "WS-CONTRATS",
-   "description": null,
-   "status": "ACTIF",
-   "owner": {
-    "id": 3,
-    "label": "Yasmine Alaoui"
-   },
-   "parent": {
-    "id": 4,
-    "label": "Ressources Humaines"
-   },
-   "workflow": {
-    "id": 1,
-    "label": "Validation standard"
-   },
-   "childrenCount": 0
-  },
-  {
-   "id": 4,
-   "name": "Ressources Humaines",
-   "code": "WS-RH",
-   "description": null,
-   "status": "ACTIF",
-   "owner": {
-    "id": 2,
-    "label": "Karim El Fassi"
-   },
-   "parent": null,
-   "workflow": {
-    "id": 1,
-    "label": "Validation standard"
-   },
-   "childrenCount": 1
-  },
-  {
-   "id": 3,
-   "name": "Factures",
-   "code": "WS-FACT",
-   "description": null,
-   "status": "ACTIF",
-   "owner": {
-    "id": 2,
-    "label": "Karim El Fassi"
-   },
-   "parent": {
-    "id": 2,
-    "label": "2026"
-   },
-   "workflow": {
-    "id": 1,
-    "label": "Validation standard"
-   },
-   "childrenCount": 0
-  },
-  {
-   "id": 2,
-   "name": "2026",
-   "code": "WS-2026",
-   "description": null,
-   "status": "ACTIF",
-   "owner": {
-    "id": 1,
-    "label": "Sara Bennani"
-   },
-   "parent": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "workflow": {
-    "id": 1,
-    "label": "Validation standard"
-   },
-   "childrenCount": 1
-  },
-  {
-   "id": 1,
-   "name": "Comptabilité",
-   "code": "WS-COMPTA",
-   "description": null,
-   "status": "ACTIF",
-   "owner": {
-    "id": 1,
-    "label": "Sara Bennani"
-   },
-   "parent": null,
-   "workflow": {
-    "id": 1,
-    "label": "Validation standard"
-   },
-   "childrenCount": 1
-  }
- ],
- "total": 6,
- "page": 0,
- "size": 100,
- "totalPages": 1
+  "content": [
+    {
+      "id": "01920000-0000-7000-8000-000000000006",
+      "name": "Projets",
+      "code": "WS-PROJETS",
+      "description": null,
+      "status": "ACTIF",
+      "owner": {
+        "id": "01920000-0000-7000-8000-000000000003",
+        "label": "Yasmine Alaoui"
+      },
+      "parent": null,
+      "workflow": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Validation standard"
+      },
+      "childrenCount": 0
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000005",
+      "name": "Contrats",
+      "code": "WS-CONTRATS",
+      "description": null,
+      "status": "ACTIF",
+      "owner": {
+        "id": "01920000-0000-7000-8000-000000000003",
+        "label": "Yasmine Alaoui"
+      },
+      "parent": {
+        "id": "01920000-0000-7000-8000-000000000004",
+        "label": "Ressources Humaines"
+      },
+      "workflow": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Validation standard"
+      },
+      "childrenCount": 0
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000004",
+      "name": "Ressources Humaines",
+      "code": "WS-RH",
+      "description": null,
+      "status": "ACTIF",
+      "owner": {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "label": "Karim El Fassi"
+      },
+      "parent": null,
+      "workflow": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Validation standard"
+      },
+      "childrenCount": 1
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000003",
+      "name": "Factures",
+      "code": "WS-FACT",
+      "description": null,
+      "status": "ACTIF",
+      "owner": {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "label": "Karim El Fassi"
+      },
+      "parent": {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "label": "2026"
+      },
+      "workflow": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Validation standard"
+      },
+      "childrenCount": 0
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000002",
+      "name": "2026",
+      "code": "WS-2026",
+      "description": null,
+      "status": "ACTIF",
+      "owner": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Sara Bennani"
+      },
+      "parent": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "workflow": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Validation standard"
+      },
+      "childrenCount": 1
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000001",
+      "name": "Comptabilité",
+      "code": "WS-COMPTA",
+      "description": null,
+      "status": "ACTIF",
+      "owner": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Sara Bennani"
+      },
+      "parent": null,
+      "workflow": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Validation standard"
+      },
+      "childrenCount": 1
+    }
+  ],
+  "total": 6,
+  "page": 0,
+  "size": 100,
+  "totalPages": 1
 }

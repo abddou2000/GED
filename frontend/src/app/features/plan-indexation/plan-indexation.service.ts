@@ -34,7 +34,7 @@ export class PlanIndexationService {
     return p;
   }
 
-  get(id: number): Observable<PlanIndexation> {
+  get(id: string): Observable<PlanIndexation> {
     return this.http.get<PlanIndexation>(`${this.url}/${id}`);
   }
 
@@ -42,23 +42,23 @@ export class PlanIndexationService {
     return this.http.post<PlanIndexation>(this.url, body);
   }
 
-  update(id: number, body: PlanIndexationRequest): Observable<PlanIndexation> {
+  update(id: string, body: PlanIndexationRequest): Observable<PlanIndexation> {
     return this.http.put<PlanIndexation>(`${this.url}/${id}`, body);
   }
 
-  delete(id: number): Observable<void> {
+  delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
   }
 
-  restore(id: number): Observable<void> {
+  restore(id: string): Observable<void> {
     return this.http.patch<void>(`${this.url}/${id}/restore`, {});
   }
 
-  multipleDelete(ids: number[]): Observable<void> {
+  multipleDelete(ids: string[]): Observable<void> {
     return this.http.delete<void>(`${this.url}/multiple-delete`, { body: { ids } });
   }
 
-  multipleRestore(ids: number[]): Observable<void> {
+  multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids });
   }
 }

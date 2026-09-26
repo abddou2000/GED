@@ -23,7 +23,7 @@ export class WorkflowService {
     });
   }
 
-  get(id: number): Observable<Workflow> {
+  get(id: string): Observable<Workflow> {
     return this.http.get<Workflow>(`${this.url}/${id}`);
   }
 
@@ -31,24 +31,24 @@ export class WorkflowService {
     return this.http.post<Workflow>(this.url, body);
   }
 
-  update(id: number, body: WorkflowRequest): Observable<Workflow> {
+  update(id: string, body: WorkflowRequest): Observable<Workflow> {
     return this.http.put<Workflow>(`${this.url}/${id}`, body);
   }
 
   /** Suppression réversible (corbeille). */
-  delete(id: number): Observable<void> {
+  delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
   }
 
-  restore(id: number): Observable<void> {
+  restore(id: string): Observable<void> {
     return this.http.patch<void>(`${this.url}/${id}/restore`, {});
   }
 
-  multipleDelete(ids: number[]): Observable<void> {
+  multipleDelete(ids: string[]): Observable<void> {
     return this.http.delete<void>(`${this.url}/multiple-delete`, { body: { ids } });
   }
 
-  multipleRestore(ids: number[]): Observable<void> {
+  multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids });
   }
 }

@@ -29,7 +29,7 @@ export class AccessGroupService {
     return this.http.get<SelectOption[]>(`${this.url}/for-select`);
   }
 
-  get(id: number): Observable<AccessGroup> {
+  get(id: string): Observable<AccessGroup> {
     return this.http.get<AccessGroup>(`${this.url}/${id}`);
   }
 
@@ -37,23 +37,23 @@ export class AccessGroupService {
     return this.http.post<AccessGroup>(this.url, body);
   }
 
-  update(id: number, body: AccessGroupRequest): Observable<AccessGroup> {
+  update(id: string, body: AccessGroupRequest): Observable<AccessGroup> {
     return this.http.put<AccessGroup>(`${this.url}/${id}`, body);
   }
 
-  delete(id: number): Observable<void> {
+  delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
   }
 
-  restore(id: number): Observable<void> {
+  restore(id: string): Observable<void> {
     return this.http.patch<void>(`${this.url}/${id}/restore`, {});
   }
 
-  multipleDelete(ids: number[]): Observable<void> {
+  multipleDelete(ids: string[]): Observable<void> {
     return this.http.delete<void>(`${this.url}/multiple-delete`, { body: { ids } });
   }
 
-  multipleRestore(ids: number[]): Observable<void> {
+  multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids });
   }
 }

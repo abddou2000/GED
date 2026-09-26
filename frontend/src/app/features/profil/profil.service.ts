@@ -15,7 +15,7 @@ export class ProfilService {
    * l'appelant, sauf rôle administrateur. Pour afficher SA propre fiche, il faut
    * donc {@link courant}, pas cette méthode.
    */
-  get(employeId: number): Observable<Profil> {
+  get(employeId: string): Observable<Profil> {
     return this.http.get<Profil>(`${API_BASE}/employes/${employeId}/profil`);
   }
 

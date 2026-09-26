@@ -21,13 +21,25 @@ const TEINTES: ReadonlyArray<readonly [string, string]> = [
   ['#dff0f2', '#0f6875'],
 ];
 
-const paire = (graine: number) => TEINTES[(graine ?? 0) % TEINTES.length];
+/**
+ * Rang dans la palette. Les identifiants sont des UUID opaques : on en tire un
+ * entier stable par un hachage simple (la même personne garde sa teinte), sans
+ * rien supposer de leur forme.
+ */
+const rang = (graine: string | number | null | undefined): number => {
+  if (typeof graine === 'number') return Math.abs(graine);
+  let h = 0;
+  for (const c of graine ?? '') h = (h * 31 + c.charCodeAt(0)) | 0;
+  return Math.abs(h);
+};
+
+const paire = (graine: string | number | null | undefined) => TEINTES[rang(graine) % TEINTES.length];
 
 /** Fond de la pastille, stable pour un même identifiant. */
-export const teinteAvatar = (graine: number): string => paire(graine)[0];
+export const teinteAvatar = (graine: string | number | null | undefined): string => paire(graine)[0];
 
 /** Encre des initiales, assortie au fond. */
-export const encreAvatar = (graine: number): string => paire(graine)[1];
+export const encreAvatar = (graine: string | number | null | undefined): string => paire(graine)[1];
 
 /** Initiales d'un nom complet — « Sara Bennani » donne « SB ». */
 export function initialesDe(nomComplet: string): string {

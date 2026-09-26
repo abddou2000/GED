@@ -7,7 +7,7 @@ export type TypeIndex = 'TEXTE' | 'NOMBRE' | 'DATE' | 'LISTE';
  * recherche » fait apparaître un critère supplémentaire.
  */
 export interface Critere {
-  id: number;
+  id: string;
   code: string;
   libelle: string;
   fieldType: TypeIndex;
@@ -17,7 +17,7 @@ export interface Critere {
 
 /** Une valeur d'index portée par un document. */
 export interface ValeurIndex {
-  indexFieldId: number;
+  indexFieldId: string;
   code: string;
   libelle: string;
   valeur: string;
@@ -25,7 +25,7 @@ export interface ValeurIndex {
 
 /** Une valeur proposée par la lecture du document, avec le verdict du contrôle de type. */
 export interface Proposition {
-  indexFieldId: number;
+  indexFieldId: string;
   code: string;
   libelle: string;
   fieldType: TypeIndex;
@@ -43,7 +43,7 @@ export interface Proposition {
  * Aucune valeur n'est enregistrée tant que l'opérateur n'a pas confirmé.
  */
 export interface Analyse {
-  documentId: number;
+  documentId: string;
   fichier: string;
   planNom: string | null;
   separateur: string;

@@ -1,42 +1,42 @@
 {
- "content": [
-  {
-   "id": 2,
-   "code": "TD-CONTRAT",
-   "typeDeDocument": "Contrat",
-   "description": "Contrats et avenants",
-   "workspace": {
-    "id": 2,
-    "label": "2026"
-   },
-   "planIndexation": null,
-   "typeAutorise": [
-    "pdf"
-   ],
-   "tailleMaxMo": 20
-  },
-  {
-   "id": 1,
-   "code": "TD-FACT",
-   "typeDeDocument": "Facture",
-   "description": "Factures fournisseurs et clients",
-   "workspace": {
-    "id": 1,
-    "label": "Comptabilité"
-   },
-   "planIndexation": {
-    "id": 1,
-    "label": "Fiche Facture"
-   },
-   "typeAutorise": [
-    "pdf",
-    "docx"
-   ],
-   "tailleMaxMo": 10
-  }
- ],
- "total": 2,
- "page": 0,
- "size": 100,
- "totalPages": 1
+  "content": [
+    {
+      "id": "01920000-0000-7000-8000-000000000002",
+      "code": "TD-CONTRAT",
+      "typeDeDocument": "Contrat",
+      "description": "Contrats et avenants",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "label": "2026"
+      },
+      "planIndexation": null,
+      "typeAutorise": [
+        "pdf"
+      ],
+      "tailleMaxMo": 20
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000001",
+      "code": "TD-FACT",
+      "typeDeDocument": "Facture",
+      "description": "Factures fournisseurs et clients",
+      "workspace": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Comptabilité"
+      },
+      "planIndexation": {
+        "id": "01920000-0000-7000-8000-000000000001",
+        "label": "Fiche Facture"
+      },
+      "typeAutorise": [
+        "pdf",
+        "docx"
+      ],
+      "tailleMaxMo": 10
+    }
+  ],
+  "total": 2,
+  "page": 0,
+  "size": 100,
+  "totalPages": 1
 }

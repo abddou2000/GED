@@ -9,15 +9,15 @@ export interface PageResult<T> {
 
 /** Une règle de workflow telle que renvoyée par l'API. */
 export interface Workflow {
-  id: number;
+  id: string;
   name: string;
   steps: WorkflowStep[];
   workspaces: string[];
 }
 
 export interface WorkflowStep {
-  id?: number;
-  employeId: number | null;
+  id?: string;
+  employeId: string | null;
   employeFullName?: string;
   label: string;
   stepOrder: number;
@@ -30,7 +30,7 @@ export interface WorkflowRequest {
 }
 
 export interface WorkflowStepRequest {
-  employeId: number;
+  employeId: string;
   label: string;
   stepOrder: number;
 }

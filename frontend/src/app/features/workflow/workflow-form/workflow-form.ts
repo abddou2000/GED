@@ -55,7 +55,7 @@ export class WorkflowForm implements OnInit {
     }
   }
 
-  private buildStep(employeId: number | null = null, label = ''): FormGroup {
+  private buildStep(employeId: string | null = null, label = ''): FormGroup {
     return this.fb.group({
       employeId: [employeId, Validators.required],
       label: [label, [Validators.required, Validators.maxLength(255)]],
@@ -76,8 +76,8 @@ export class WorkflowForm implements OnInit {
   }
 
   /** Auto-remplit le libellé avec « prénom nom » à chaque changement d'approbateur. */
-  onEmployeChange(i: number, employeId: number): void {
-    const e = this.employes().find(x => x.id === Number(employeId));
+  onEmployeChange(i: number, employeId: string): void {
+    const e = this.employes().find(x => x.id === employeId);
     if (e) this.steps.at(i).get('label')?.setValue(`${e.firstName} ${e.lastName}`);
   }
 
