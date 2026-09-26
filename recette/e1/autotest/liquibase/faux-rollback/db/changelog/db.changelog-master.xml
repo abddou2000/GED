@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Autotest E1-R02/R04 : un rollback qui « réussit » sans rien défaire doit être démasqué
+     par le contrôle des résidus et par l'aller-retour update → rollback → update. -->
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+  <changeSet id="at-1" author="qa">
+    <createTable tableName="qa_table_auto"><column name="id" type="uuid"/></createTable>
+  </changeSet>
+  <changeSet id="at-2" author="qa">
+    <sql>CREATE TABLE qa_table_sql (id uuid)</sql>
+    <rollback><sql>SELECT 1</sql></rollback>
+  </changeSet>
+</databaseChangeLog>

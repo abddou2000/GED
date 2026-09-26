@@ -10,7 +10,9 @@
 # Usage :
 #   PGHOST=localhost PGUSER=postgres PGDATABASE=ged_uat ./verifier-socle.sh [options]
 # Options :
-#   --schema NOM            schéma applicatif (défaut : public)
+#   --schema NOM            schéma applicatif (défaut : ged)
+#   --schema-liquibase NOM  schéma du registre Liquibase (défaut : ged_liquibase s'il existe,
+#                           sinon le schéma applicatif)
 #   --owner/--app/--lecture noms des rôles (défaut : ged_owner, ged_app, ged_readonly)
 #   --table-document NOM    table des documents (défaut : document)
 #   --base-vierge           la base vient d'être créée par Liquibase seul : les
@@ -22,7 +24,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/commun.sh"
 ICI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-SCHEMA=public; R_OWNER=ged_owner; R_APP=ged_app; R_RO=ged_readonly; T_DOC=document
+SCHEMA=ged; SCHEMA_LB=""; R_OWNER=ged_owner; R_APP=ged_app; R_RO=ged_readonly; T_DOC=document
 BASE_VIERGE=0; SONDES=1; EXCEPTIONS="$ICI/exceptions.txt"
 REGEX_AUDIT='^journal_audit'
 # Référentiels métier créés exclusivement depuis l'interface (DAT §4.2.1, principe P1).
@@ -31,6 +33,7 @@ REGEX_REF='^(type_document|index_def|plan_indexation|plan_index|noeud|document|r
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --schema) SCHEMA="$2"; shift 2 ;;
+    --schema-liquibase) SCHEMA_LB="$2"; shift 2 ;;
     --owner) R_OWNER="$2"; shift 2 ;;
     --app) R_APP="$2"; shift 2 ;;
     --lecture) R_RO="$2"; shift 2 ;;
@@ -44,10 +47,17 @@ while [[ $# -gt 0 ]]; do
 done
 
 trouver_psql
-info "Base : ${PGDATABASE:-?} sur ${PGHOST:-local}:${PGPORT:-5432} (utilisateur ${PGUSER:-?}), schéma $SCHEMA"
+if [[ -z "$SCHEMA_LB" ]]; then
+  # Registre dans le schéma applicatif s'il y est, sinon dans ged_liquibase (choix de dev1).
+  SCHEMA_LB="$(pg -At -c "SELECT CASE WHEN to_regclass(quote_ident('$SCHEMA') || '.databasechangelog') IS NOT NULL THEN '$SCHEMA'
+                                      WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'ged_liquibase') THEN 'ged_liquibase'
+                                      ELSE '$SCHEMA' END")"
+  SCHEMA_LB="${SCHEMA_LB//$'\r'/}"
+fi
+info "Base : ${PGDATABASE:-?} sur ${PGHOST:-local}:${PGPORT:-5432} (utilisateur ${PGUSER:-?}), schéma $SCHEMA (registre Liquibase : $SCHEMA_LB)"
 info "Rôles : $R_OWNER / $R_APP / $R_RO — base vierge : $BASE_VIERGE"
 
-VARS=(-v "schema=$SCHEMA" -v "r_owner=$R_OWNER" -v "r_app=$R_APP" -v "r_ro=$R_RO" -v "t_document=$T_DOC"
+VARS=(-v "schema=$SCHEMA" -v "schema_lb=$SCHEMA_LB" -v "r_owner=$R_OWNER" -v "r_app=$R_APP" -v "r_ro=$R_RO" -v "t_document=$T_DOC"
       -v "regex_audit=$REGEX_AUDIT" -v "regex_referentiels=$REGEX_REF" -v "base_vierge=$BASE_VIERGE")
 
 CONSTATS="$(pg -At -F'|' "${VARS[@]}" -f "$ICI/controles-socle.sql")" || fatal "échec d'exécution de controles-socle.sql"

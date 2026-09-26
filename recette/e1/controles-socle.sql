@@ -6,6 +6,7 @@
 --
 -- Variables psql attendues (fournies par verifier-socle.sh) :
 --   schema, r_owner, r_app, r_ro   schéma applicatif et noms des trois rôles
+--   schema_lb                      schéma du registre Liquibase (ged_liquibase chez dev1)
 --   t_document                     nom de la table des documents (défaut : document)
 --   regex_audit                    tables d'audit (défaut : ^journal_audit)
 --   base_vierge                    1 = la base vient d'être créée par Liquibase seul
@@ -15,8 +16,8 @@
 
 \set ON_ERROR_STOP 1
 SET client_min_messages = warning;
--- Les tables Liquibase sont lues sans qualification : elles vivent dans le schéma visé.
-SELECT set_config('search_path', quote_ident(:'schema') || ', public', false) AS qa_sp \gset
+-- Les tables Liquibase sont lues sans qualification : schéma du registre d'abord.
+SELECT set_config('search_path', quote_ident(:'schema_lb') || ', ' || quote_ident(:'schema') || ', public', false) AS qa_sp \gset
 
 CREATE TEMP TABLE qa_constats (controle text, gravite text, objet text, detail text);
 
@@ -49,8 +50,10 @@ SELECT 'E1-C25', 'ERREUR', 'pg_ts_config.' || cfg, 'configuration de recherche a
 FROM (VALUES ('french'), ('arabic')) v(cfg)
 WHERE NOT EXISTS (SELECT 1 FROM pg_ts_config WHERE cfgname = v.cfg);
 INSERT INTO qa_constats
-SELECT 'E1-C25', CASE WHEN ext = 'unaccent' THEN 'ERREUR' ELSE 'AVERT' END, 'extension ' || ext,
-       'extension non installée dans la base ' || current_database()
+-- Extensions : exigées par la recherche plein texte (E6, §4.4) ; avertissement seulement en E1,
+-- où seule la configuration arabic est exigée (matrice 2.2).
+SELECT 'E1-C25', 'AVERT', 'extension ' || ext,
+       'extension non installée dans la base ' || current_database() || ' (requise en E6, §4.4)'
 FROM (VALUES ('unaccent'), ('pg_trgm')) v(ext)
 WHERE NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = v.ext);
 
@@ -197,7 +200,7 @@ INSERT INTO qa_constats
 SELECT 'E1-C19', 'ERREUR', :'schema' || '.flyway_schema_history', 'table Flyway présente : l''outil imposé est Liquibase'
 WHERE to_regclass(quote_ident(:'schema') || '.flyway_schema_history') IS NOT NULL;
 
-SELECT to_regclass(quote_ident(:'schema') || '.databasechangelog') IS NOT NULL AS qa_dcl \gset
+SELECT to_regclass(quote_ident(:'schema_lb') || '.databasechangelog') IS NOT NULL AS qa_dcl \gset
 \if :qa_dcl
   INSERT INTO qa_constats
   SELECT 'E1-C19', 'ERREUR', 'databasechangelog', 'journal Liquibase vide' WHERE NOT EXISTS (SELECT 1 FROM databasechangelog);
@@ -218,7 +221,7 @@ SELECT to_regclass(quote_ident(:'schema') || '.databasechangelog') IS NOT NULL A
   SELECT 'E1-C22', 'ERREUR', 'databasechangelog', 'aucun changeset étiqueté data-initial (contexte ou label)'
   WHERE NOT EXISTS (SELECT 1 FROM databasechangelog WHERE coalesce(contexts, '') || ' ' || coalesce(labels, '') ~* 'data-initial');
 \else
-  INSERT INTO qa_constats VALUES ('E1-C19', 'ERREUR', :'schema' || '.databasechangelog', 'journal Liquibase absent : le schéma n''a pas été créé par Liquibase');
+  INSERT INTO qa_constats VALUES ('E1-C19', 'ERREUR', :'schema_lb' || '.databasechangelog', 'journal Liquibase absent : le schéma n''a pas été créé par Liquibase');
 \endif
 
 -- E1-C23 : sur base vierge, les référentiels métier sont vides (principe P1 : ils se
@@ -261,11 +264,11 @@ FROM pg_roles WHERE rolname IN (:'r_owner', :'r_app', :'r_ro')
 -- E1-C32 : ged_owner possède le schéma et tous ses objets
 INSERT INTO qa_constats
 SELECT 'E1-C32', 'ERREUR', 'schéma ' || nspname, 'propriétaire ' || pg_get_userbyid(nspowner) || ' (' || :'r_owner' || ' attendu)'
-FROM pg_namespace WHERE nspname = :'schema' AND pg_get_userbyid(nspowner) <> :'r_owner';
+FROM pg_namespace WHERE nspname IN (:'schema', :'schema_lb') AND pg_get_userbyid(nspowner) <> :'r_owner';
 INSERT INTO qa_constats
 SELECT 'E1-C32', 'ERREUR', c.relname, 'propriétaire ' || pg_get_userbyid(c.relowner) || ' (' || :'r_owner' || ' attendu)'
 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = :'schema' AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f') AND pg_get_userbyid(c.relowner) <> :'r_owner';
+WHERE n.nspname IN (:'schema', :'schema_lb') AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f') AND pg_get_userbyid(c.relowner) <> :'r_owner';
 INSERT INTO qa_constats
 SELECT 'E1-C32', 'ERREUR', p.proname || '()', 'propriétaire ' || pg_get_userbyid(p.proowner) || ' (' || :'r_owner' || ' attendu)'
 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -276,6 +279,7 @@ WHERE n.nspname = :'schema' AND pg_get_userbyid(p.proowner) <> :'r_owner'
 INSERT INTO qa_constats
 SELECT 'E1-C33', 'ERREUR', :'r_app', x FROM (
   SELECT 'CREATE sur le schéma ' || :'schema' AS x WHERE has_schema_privilege(:'r_app', :'schema', 'CREATE')
+  UNION ALL SELECT 'CREATE sur le schéma ' || :'schema_lb' WHERE :'schema_lb' <> :'schema' AND has_schema_privilege(:'r_app', :'schema_lb', 'CREATE')
   UNION ALL SELECT 'CREATE sur la base ' || current_database() WHERE has_database_privilege(:'r_app', current_database(), 'CREATE')
   UNION ALL SELECT 'membre de ' || :'r_owner' || ' (hérite de la propriété des objets)' WHERE pg_has_role(:'r_app', :'r_owner', 'MEMBER')
 ) s;
@@ -311,7 +315,7 @@ INSERT INTO qa_constats
 SELECT 'E1-C37', 'AVERT', c.relname, :'r_app' || ' détient ' || p.priv
 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 CROSS JOIN (VALUES ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) p(priv)
-WHERE n.nspname = :'schema' AND c.relname IN ('databasechangelog', 'databasechangeloglock')
+WHERE n.nspname IN (:'schema', :'schema_lb') AND c.relname IN ('databasechangelog', 'databasechangeloglock')
   AND has_table_privilege(:'r_app', c.oid, p.priv);
 
 -- E1-C38 : ged_readonly ne détient que SELECT
