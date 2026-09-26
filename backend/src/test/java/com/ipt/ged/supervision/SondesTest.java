@@ -23,8 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Sondes de santé du DAT 6.7. ClamAV et l'annuaire sont absents du poste : la
  * sonde antivirus est éprouvée contre un clamd simulé qui parle le protocole
- * réel ({@code zPING\0} / {@code PONG\0}), la sonde annuaire seulement sur son
- * chemin d'échec (aucun serveur LDAP disponible).
+ * réel ({@code zPING\0} / {@code PONG\0}) ; la sonde annuaire, contre un
+ * annuaire simulé ({@link SondeAnnuaireTest}).
  */
 class SondesTest {
 
@@ -53,7 +53,7 @@ class SondesTest {
         try (ServerSocket serveur = new ServerSocket(0)) {
             StringBuilder commande = new StringBuilder();
             Thread t = clamdSimule(serveur, "PONG", commande);
-            Health h = new SondeAntivirus(true, "127.0.0.1", serveur.getLocalPort(), 2000).health();
+            Health h = new SondeAntivirus(true, "127.0.0.1", serveur.getLocalPort(), 2000, (VerificationAntivirus) null).health();
             t.join(2000);
             assertThat(h.getStatus()).isEqualTo(Status.UP);
             assertThat(commande.toString()).isEqualTo("zPING");
@@ -65,7 +65,7 @@ class SondesTest {
     void antivirusReponseInattendue() throws Exception {
         try (ServerSocket serveur = new ServerSocket(0)) {
             clamdSimule(serveur, "UNKNOWN COMMAND", new StringBuilder());
-            Health h = new SondeAntivirus(true, "127.0.0.1", serveur.getLocalPort(), 2000).health();
+            Health h = new SondeAntivirus(true, "127.0.0.1", serveur.getLocalPort(), 2000, (VerificationAntivirus) null).health();
             assertThat(h.getStatus()).isEqualTo(Status.DOWN);
         }
     }
@@ -77,7 +77,7 @@ class SondesTest {
         try (ServerSocket s = new ServerSocket(0)) {
             portLibre = s.getLocalPort();
         }
-        Health h = new SondeAntivirus(true, "127.0.0.1", portLibre, 1000).health();
+        Health h = new SondeAntivirus(true, "127.0.0.1", portLibre, 1000, (VerificationAntivirus) null).health();
         assertThat(h.getStatus()).isEqualTo(Status.DOWN);
         assertThat(h.getDetails()).containsKey("anomalie");
     }
@@ -85,22 +85,19 @@ class SondesTest {
     @Test
     @DisplayName("Sondes désactivées : UP, avec la mention explicite de la désactivation")
     void sondesDesactivees() {
-        assertThat(new SondeAntivirus(false, "x", 1, 10).health().getDetails()).containsKey("supervision");
-        Health annuaire = new SondeAnnuaire(false, "ldaps://x:636", 10).health();
+        assertThat(new SondeAntivirus(false, "x", 1, 10, (VerificationAntivirus) null).health().getDetails()).containsKey("supervision");
+        Health annuaire = new SondeAnnuaire(false, List.of("ldaps://x:636"), 10).health();
         assertThat(annuaire.getStatus()).isEqualTo(Status.UP);
         assertThat(annuaire.getDetails()).containsKey("supervision");
     }
 
     @Test
-    @DisplayName("Annuaire : serveur injoignable → DOWN")
-    void annuaireInjoignable() throws Exception {
-        int portLibre;
-        try (ServerSocket s = new ServerSocket(0)) {
-            portLibre = s.getLocalPort();
-        }
-        Health h = new SondeAnnuaire(true, "ldap://127.0.0.1:" + portLibre, 1000).health();
-        assertThat(h.getStatus()).isEqualTo(Status.DOWN);
-        assertThat(h.getDetails()).containsEntry("url", "ldap://127.0.0.1:" + portLibre);
+    @DisplayName("Antivirus : le client du dépôt, s'il est déclaré, est interrogé à la place de clamd")
+    void antivirusClientExterne() {
+        assertThat(new SondeAntivirus(true, null, 0, 0, () -> true).health().getStatus()).isEqualTo(Status.UP);
+        assertThat(new SondeAntivirus(true, null, 0, 0, () -> false).health().getStatus()).isEqualTo(Status.DOWN);
+        VerificationAntivirus enPanne = () -> { throw new IllegalStateException("socket"); };
+        assertThat(new SondeAntivirus(true, null, 0, 0, enPanne).health().getStatus()).isEqualTo(Status.DOWN);
     }
 
     @Test

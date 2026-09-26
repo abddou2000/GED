@@ -74,6 +74,8 @@ class SupervisionIntegrationTest {
                 .contains("ged_stockage_total_bytes")
                 .contains("http_server_requests_seconds_bucket")
                 .contains("application=\"ged\"");
+        // Objectif de disponibilité en recherche : 24 h (décision D6), seuil de l'alerte OCR.
+        assertThat(sortie).containsPattern("ged_ocr_objectif_disponibilite_seconds\\{[^}]*} 86400\\.0");
     }
 
     @Test

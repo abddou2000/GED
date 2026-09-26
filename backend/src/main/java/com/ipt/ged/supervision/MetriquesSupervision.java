@@ -9,7 +9,10 @@ import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.boot.actuate.health.Status;
 import org.springframework.stereotype.Component;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.io.IOException;
+import java.time.Duration;
 import java.nio.file.Files;
 import java.util.List;
 
@@ -23,7 +26,13 @@ import java.util.List;
  *   <li>{@code ged_stockage_libre_bytes} et {@code ged_stockage_total_bytes} :
  *       volume du référentiel de fichiers, pour l'alerte à 80 % ;</li>
  *   <li>{@code ged_file_profondeur{file}} et {@code ged_file_age_plus_ancien_seconds{file}}
- *       pour chaque {@link FileDeTraitement} déclarée.</li>
+ *       pour chaque {@link FileDeTraitement} déclarée ;</li>
+ *   <li>{@code ged_annuaire_controleur{controleur}} : 1 si le contrôleur de
+ *       domaine répond, 0 sinon (un par contrôleur, DAT 6.7 et décision D4) ;</li>
+ *   <li>{@code ged_ocr_objectif_disponibilite_seconds} : l'objectif de délai
+ *       entre dépôt et disponibilité en recherche (24 h, décision D6). Publié
+ *       comme métrique pour que le seuil d'alerte se règle dans la
+ *       configuration de l'application, et non en dur dans Prometheus.</li>
  * </ul>
  */
 @Component
@@ -35,13 +44,19 @@ public class MetriquesSupervision implements MeterBinder {
     private final ObjectProvider<HealthEndpoint> sante;
     private final SondeReferentielFichiers referentiel;
     private final List<FileDeTraitement> files;
+    private final SondeAnnuaire annuaire;
+    private final Duration objectifOcr;
 
     public MetriquesSupervision(ObjectProvider<HealthEndpoint> sante,
                                 SondeReferentielFichiers referentiel,
-                                List<FileDeTraitement> files) {
+                                List<FileDeTraitement> files,
+                                SondeAnnuaire annuaire,
+                                @Value("${ged.supervision.ocr.objectif-disponibilite:24h}") Duration objectifOcr) {
         this.sante = sante;
         this.referentiel = referentiel;
         this.files = files;
+        this.annuaire = annuaire;
+        this.objectifOcr = objectifOcr;
     }
 
     @Override
@@ -59,6 +74,18 @@ public class MetriquesSupervision implements MeterBinder {
         Gauge.builder("ged.stockage.total", this, m -> m.espace(false))
                 .description("Taille du volume du referentiel de fichiers")
                 .baseUnit("bytes").tag("referentiel", "fichiers").register(registre);
+
+        if (annuaire.actif()) {
+            for (String url : annuaire.urls()) {
+                Gauge.builder("ged.annuaire.controleur", annuaire, a -> a.etatControleur(url))
+                        .description("Controleur de domaine joignable : 1 = oui, 0 = non")
+                        .tag("controleur", url).register(registre);
+            }
+        }
+
+        Gauge.builder("ged.ocr.objectif.disponibilite", objectifOcr, d -> d.toMillis() / 1000.0)
+                .description("Objectif de delai entre depot et disponibilite en recherche")
+                .baseUnit("seconds").register(registre);
 
         for (FileDeTraitement file : files) {
             Gauge.builder("ged.file.profondeur", file, f -> sure(f::profondeur))

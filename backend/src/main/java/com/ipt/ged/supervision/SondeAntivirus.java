@@ -1,5 +1,7 @@
 package com.ipt.ged.supervision;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
@@ -19,8 +21,14 @@ import java.nio.charset.StandardCharsets;
  * <p>Enjeu : l'antivirus est en échec fermé (DAT 6.1.5), un clamd tombé bloque
  * TOUS les dépôts. La sonde doit donc le signaler avant les utilisateurs.
  *
- * <p>Protocole clamd : commande préfixée par {@code z} et terminée par un octet
- * nul, réponse terminée par un octet nul.
+ * <p>Si un {@link VerificationAntivirus} est déclaré (client du lot stockage),
+ * c'est lui qui répond ; sinon la sonde parle directement à clamd. Protocole :
+ * commande préfixée par {@code z} et terminée par un octet nul, réponse
+ * terminée par un octet nul.
+ *
+ * <p>Côté serveur, {@code clamd.conf} doit porter {@code StreamMaxLength 200M} :
+ * la valeur par défaut (25 Mo) ferait refuser tout dépôt plus gros
+ * (docs/exploitation/EXPLOITATION.md).
  */
 @Component("antivirusHealthIndicator")
 public class SondeAntivirus implements HealthIndicator {
@@ -31,21 +39,40 @@ public class SondeAntivirus implements HealthIndicator {
     private final String hote;
     private final int port;
     private final int delaiMs;
+    private final VerificationAntivirus externe;
 
+    @Autowired
     public SondeAntivirus(@Value("${ged.supervision.antivirus.actif:false}") boolean actif,
                           @Value("${ged.supervision.antivirus.hote:127.0.0.1}") String hote,
                           @Value("${ged.supervision.antivirus.port:3310}") int port,
-                          @Value("${ged.supervision.antivirus.delai-ms:3000}") int delaiMs) {
+                          @Value("${ged.supervision.antivirus.delai-ms:3000}") int delaiMs,
+                          ObjectProvider<VerificationAntivirus> externe) {
+        this(actif, hote, port, delaiMs, externe.getIfUnique());
+    }
+
+    /** @param externe client antivirus à interroger, ou {@code null} pour parler à clamd directement */
+    SondeAntivirus(boolean actif, String hote, int port, int delaiMs, VerificationAntivirus externe) {
         this.actif = actif;
         this.hote = hote;
         this.port = port;
         this.delaiMs = delaiMs;
+        this.externe = externe;
     }
 
     @Override
     public Health health() {
         if (!actif) {
             return Health.up().withDetail("supervision", "désactivée (ged.supervision.antivirus.actif)").build();
+        }
+        if (externe != null) {
+            boolean ok;
+            try {
+                ok = externe.disponible();
+            } catch (RuntimeException e) {
+                ok = false;
+            }
+            return (ok ? Health.up() : Health.down().withDetail("anomalie", "moteur injoignable"))
+                    .withDetail("source", "client antivirus du dépôt").build();
         }
         String cible = hote + ":" + port;
         try (Socket socket = new Socket()) {

@@ -19,6 +19,9 @@ import java.nio.file.Path;
  * laisserait des traces et fausserait le rapprochement des orphelins après
  * restauration (DAT 6.5). Les droits sont donc vérifiés sans écrire.
  *
+ * <p>Racine surveillée : celle du stockage chiffré ({@code ged.fichiers.racine},
+ * lot E5) si elle est définie, sinon l'ancien {@code ged.storage.root}.
+ *
  * <p>DOWN au-delà du seuil critique d'occupation ; l'alerte d'exploitation
  * part bien avant, à 80 %, depuis la métrique {@code ged_stockage_*}.
  */
@@ -28,7 +31,7 @@ public class SondeReferentielFichiers implements HealthIndicator {
     private final Path racine;
     private final double seuilCritique;
 
-    public SondeReferentielFichiers(@Value("${ged.storage.root:./storage/ged}") String racine,
+    public SondeReferentielFichiers(@Value("${ged.supervision.stockage.racine:${ged.fichiers.racine:${ged.storage.root:./storage/ged}}}") String racine,
                                     @Value("${ged.supervision.stockage.seuil-occupation-critique:0.95}") double seuilCritique) {
         this.racine = Path.of(racine).toAbsolutePath().normalize();
         this.seuilCritique = seuilCritique;
