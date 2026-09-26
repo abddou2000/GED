@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "sbom": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && npx --yes @cyclonedx/cyclonedx-npm@6.0.1 --omit dev --output-reproducible --spec-version 1.6 --output-format JSON --output-file dist/bom.json"
   },
   "private": true,
   "packageManager": "npm@11.12.1",

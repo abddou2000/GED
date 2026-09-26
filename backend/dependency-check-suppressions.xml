@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Faux positifs acceptés par OWASP Dependency-Check (DAT 6.2.3, A06).
+
+  Règle d'équipe : une suppression n'est ajoutée qu'avec
+    - la référence CVE exacte (jamais de suppression par motif large),
+    - la raison pour laquelle la vulnérabilité ne s'applique pas à la GED,
+    - une date de réexamen (<suppress until="AAAA-MM-JJ">), au plus 6 mois.
+  Une vulnérabilité réelle ne se supprime pas : elle se corrige (montée de
+  version) sous 30 jours si elle est critique (DAT 6.2.3).
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+</suppressions>
