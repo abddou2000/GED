@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261010_creation_table_workflow_ged.xml">
+
+    <changeSet id="202609261010-1" author="ged">
+        <comment>Circuits de validation (règles de workflow).</comment>
+        <createTable tableName="workflow_ged">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_workflow_ged" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <createIndex indexName="idx_workflow_ged_deleted" tableName="workflow_ged">
+            <column name="deleted"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="workflow_ged"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

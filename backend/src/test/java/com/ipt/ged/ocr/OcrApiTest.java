@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.hamcrest.Matchers.*;
@@ -68,7 +69,7 @@ class OcrApiTest {
     @Autowired private PlanIndexationRepository planRepository;
     @Autowired private IndexRepository indexRepository;
 
-    private long typeId;
+    private UUID typeId;
 
     @BeforeEach
     void setup() {
@@ -81,7 +82,7 @@ class OcrApiTest {
         plan.getIndices().addAll(List.of(date, fourn, prio));
         planRepository.save(plan);
 
-        Employe e = employeRepository.findById(1L).orElseThrow();
+        Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         WorkflowGed wf = new WorkflowGed("WF ocr");
         wf.addStep(new WorkflowStep(e, "Validation", 1));
         workflowRepository.save(wf);
@@ -129,19 +130,19 @@ class OcrApiTest {
         }
     }
 
-    private long depose(String nomFichier, byte[] contenu) throws Exception {
+    private UUID depose(String nomFichier, byte[] contenu) throws Exception {
         String res = mvc.perform(multipart("/api/v1/documents")
                         .file(new MockMultipartFile("file", nomFichier, "application/pdf", contenu))
                         .param("name", "Document").param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(res).get("id").asLong();
+        return UUID.fromString(om.readTree(res).get("id").asText());
     }
 
     @Test
     @DisplayName("1. La couche texte d'un PDF natif est lue, sans OCR")
     void coucheTexteLue() throws Exception {
-        long doc = depose("scan0001.pdf", pdfAvecTexte("Fournisseur : ACME Distribution", "Montant : 1500"));
+        UUID doc = depose("scan0001.pdf", pdfAvecTexte("Fournisseur : ACME Distribution", "Montant : 1500"));
 
         mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte"))
                 .andExpect(status().isOk())
@@ -155,7 +156,7 @@ class OcrApiTest {
     void pdfSansTexte() throws Exception {
         // PDF valide mais vide : c'est le cas d'un scan
         byte[] vide = pdfAvecTexte();
-        long doc = depose("scan-vierge.pdf", vide);
+        UUID doc = depose("scan-vierge.pdf", vide);
 
         mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte"))
                 .andExpect(status().isOk())
@@ -199,7 +200,7 @@ class OcrApiTest {
     @DisplayName("5. Un fichier au nom muet est indexé depuis son contenu")
     void indexeDepuisContenu() throws Exception {
         // « scan0001.pdf » ne suit aucune charte : seul le contenu peut renseigner les index
-        long doc = depose("scan0001.pdf", pdfAvecTexte(
+        UUID doc = depose("scan0001.pdf", pdfAvecTexte(
                 "Fournisseur : ACME Distribution",
                 "Date d'emission : 15/01/2026",
                 "Priorite : Haute"));
@@ -217,7 +218,7 @@ class OcrApiTest {
     @Test
     @DisplayName("6. Le contenu n'est pas sollicité quand le nom de fichier suffit")
     void contenuNonSollicite() throws Exception {
-        long doc = depose("2026-01-15_ACME Distribution_Haute.pdf",
+        UUID doc = depose("2026-01-15_ACME Distribution_Haute.pdf",
                 pdfAvecTexte("Fournisseur : Autre Societe"));
 
         String res = mvc.perform(get("/api/v1/indexation/documents/" + doc + "/analyse"))
@@ -235,7 +236,7 @@ class OcrApiTest {
     @DisplayName("7. Une valeur venue du contenu subit le même contrôle de type")
     void contenuControle() throws Exception {
         // « Extreme » n'appartient pas à la liste : la proposition doit être écartée
-        long doc = depose("scan0002.pdf", pdfAvecTexte("Priorite : Extreme"));
+        UUID doc = depose("scan0002.pdf", pdfAvecTexte("Priorite : Extreme"));
 
         mvc.perform(get("/api/v1/indexation/documents/" + doc + "/analyse"))
                 .andExpect(status().isOk())

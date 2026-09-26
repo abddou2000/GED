@@ -29,7 +29,7 @@ export class TypeDocumentService {
     return p;
   }
 
-  get(id: number): Observable<TypeDocument> {
+  get(id: string): Observable<TypeDocument> {
     return this.http.get<TypeDocument>(`${this.url}/${id}`);
   }
 
@@ -37,23 +37,23 @@ export class TypeDocumentService {
     return this.http.post<TypeDocument>(this.url, body);
   }
 
-  update(id: number, body: TypeDocumentRequest): Observable<TypeDocument> {
+  update(id: string, body: TypeDocumentRequest): Observable<TypeDocument> {
     return this.http.put<TypeDocument>(`${this.url}/${id}`, body);
   }
 
-  delete(id: number): Observable<void> {
+  delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
   }
 
-  restore(id: number): Observable<void> {
+  restore(id: string): Observable<void> {
     return this.http.patch<void>(`${this.url}/${id}/restore`, {});
   }
 
-  multipleDelete(ids: number[]): Observable<void> {
+  multipleDelete(ids: string[]): Observable<void> {
     return this.http.delete<void>(`${this.url}/multiple-delete`, { body: { ids } });
   }
 
-  multipleRestore(ids: number[]): Observable<void> {
+  multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids });
   }
 }

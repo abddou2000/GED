@@ -150,7 +150,7 @@ export class TypeDocumentList implements OnInit {
   }
 
   /** Ouvre la fiche du type. */
-  ouvrir(id: number): void {
+  ouvrir(id: string): void {
     this.router.navigate(['/type-de-document', id]);
   }
 
@@ -195,7 +195,7 @@ export class TypeDocumentList implements OnInit {
 
   /* ---- actions ---- */
   create(): void { this.openDialog(null); }
-  edit(id: number): void {
+  edit(id: string): void {
     this.service.get(id).subscribe(t => this.openDialog(t));
   }
   private openDialog(t: TypeDocument | null): void {
@@ -208,7 +208,7 @@ export class TypeDocumentList implements OnInit {
       this.notify.success(t ? 'Type de document modifié.' : 'Type de document créé.');
     });
   }
-  remove(id: number, name: string): void {
+  remove(id: string, name: string): void {
     this.confirm.ask({
       title: 'Supprimer ce type',
       message: `« ${name} » sera déplacé vers la corbeille.`,
@@ -222,7 +222,7 @@ export class TypeDocumentList implements OnInit {
       });
     });
   }
-  restoreOne(id: number): void {
+  restoreOne(id: string): void {
     this.service.restore(id).subscribe({
       next: () => { this.load(); this.notify.success('Type de document restauré.'); },
       error: () => this.notify.error('Restauration impossible.'),

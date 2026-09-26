@@ -183,10 +183,10 @@ export class PlanIndexationList implements OnInit {
   }
 
   /* ---- actions ---- */
-  edit(id: number): void {
+  edit(id: string): void {
     this.router.navigate(['/plan-indexation', id, 'edit']);
   }
-  remove(id: number, name: string): void {
+  remove(id: string, name: string): void {
     this.confirm.ask({
       title: 'Supprimer ce plan',
       message: `« ${name} » sera déplacé vers la corbeille.`,
@@ -200,7 +200,7 @@ export class PlanIndexationList implements OnInit {
       });
     });
   }
-  restoreOne(id: number): void {
+  restoreOne(id: string): void {
     this.service.restore(id).subscribe({
       next: () => { this.load(); this.notify.success("Plan d'indexation restauré."); },
       error: () => this.notify.error('Restauration impossible.'),

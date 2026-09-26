@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST du dépôt de documents. Base : /api/v1/documents
@@ -35,7 +36,7 @@ public class DocumentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "") String search,
-            @RequestParam(required = false) Long workspaceId,
+            @RequestParam(required = false) UUID workspaceId,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir) {
         return service.list(page, size, search, workspaceId, sortBy, sortDir);
@@ -52,7 +53,7 @@ public class DocumentController {
     }
 
     @GetMapping("/{id}")
-    public DocumentResponse get(@PathVariable Long id) {
+    public DocumentResponse get(@PathVariable UUID id) {
         return service.get(id);
     }
 
@@ -70,31 +71,31 @@ public class DocumentController {
     public ResponseEntity<DocumentResponse> upload(
             @RequestPart("file") MultipartFile file,
             @RequestParam(value = "name", required = false) String name,
-            @RequestParam("typeDocumentId") Long typeDocumentId,
+            @RequestParam("typeDocumentId") UUID typeDocumentId,
             @RequestParam(value = "expirationDate", required = false) String expirationDate,
-            @RequestParam(value = "etiquetteIds", required = false) List<Long> etiquetteIds,
+            @RequestParam(value = "etiquetteIds", required = false) List<UUID> etiquetteIds,
             @AuthenticationPrincipal UtilisateurConnecte principal) {
-        Long createdById = principal != null ? principal.getEmployeId() : null;
+        UUID createdById = principal != null ? principal.getEmployeId() : null;
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.upload(file, name, typeDocumentId, expirationDate, createdById, etiquetteIds));
     }
 
     /** Modifie la fiche (nom, type, date, etiquettes, archivage). */
     @PutMapping("/{id}")
-    public DocumentResponse update(@PathVariable Long id, @RequestBody DocumentRequest req) {
+    public DocumentResponse update(@PathVariable UUID id, @RequestBody DocumentRequest req) {
         return service.update(id, req);
     }
 
     /** Verrouille ou libere le document. */
     @PatchMapping("/{id}/verrou")
-    public DocumentResponse verrou(@PathVariable Long id, @RequestParam boolean verrouille) {
+    public DocumentResponse verrou(@PathVariable UUID id, @RequestParam boolean verrouille) {
         return service.setVerrou(id, verrouille);
     }
 
     /** Depose une nouvelle version du fichier. */
     @PostMapping(value = "/{id}/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public DocumentResponse ajouterVersion(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestPart("file") MultipartFile file,
             @RequestParam(value = "observation", required = false) String observation) {
         return service.ajouterVersion(id, file, observation);
@@ -102,12 +103,12 @@ public class DocumentController {
 
     /** Rend une version anterieure courante. */
     @PatchMapping("/{id}/versions/{versionId}/default")
-    public DocumentResponse restaurerVersion(@PathVariable Long id, @PathVariable Long versionId) {
+    public DocumentResponse restaurerVersion(@PathVariable UUID id, @PathVariable UUID versionId) {
         return service.restaurerVersion(id, versionId);
     }
 
     @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> download(@PathVariable Long id) {
+    public ResponseEntity<Resource> download(@PathVariable UUID id) {
         UploadDocument doc = service.loadForDownload(id);
         Resource resource = service.storage().load(doc.getFilePath());
         String downloadName = doc.getName() + (doc.getExtension() != null && !doc.getExtension().isBlank()
@@ -170,25 +171,25 @@ public class DocumentController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.softDelete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/restore")
-    public ResponseEntity<Void> restore(@PathVariable Long id) {
+    public ResponseEntity<Void> restore(@PathVariable UUID id) {
         service.restore(id);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/multiple-delete")
-    public ResponseEntity<Void> multipleDelete(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<Void> multipleDelete(@RequestBody Map<String, List<UUID>> body) {
         service.multipleDelete(body.getOrDefault("ids", List.of()));
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/multiple-restore")
-    public ResponseEntity<Void> multipleRestore(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<Void> multipleRestore(@RequestBody Map<String, List<UUID>> body) {
         service.multipleRestore(body.getOrDefault("ids", List.of()));
         return ResponseEntity.noContent().build();
     }

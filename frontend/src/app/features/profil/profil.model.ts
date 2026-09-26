@@ -1,5 +1,5 @@
 export interface Ref {
-  id: number;
+  id: string;
   label: string;
 }
 
@@ -11,7 +11,7 @@ export interface Ref {
  * responsabilités réelles d'une personne.
  */
 export interface Profil {
-  id: number;
+  id: string;
   fullName: string;
   firstName: string;
   lastName: string;

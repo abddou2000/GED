@@ -36,7 +36,7 @@ public class StorageService {
     }
 
     /** Enregistre le fichier et renvoie son chemin relatif ({workspaceId}/{uuid.ext}). */
-    public String store(MultipartFile file, Long workspaceId, String ext) {
+    public String store(MultipartFile file, UUID workspaceId, String ext) {
         try {
             Path dir = root.resolve(String.valueOf(workspaceId));
             Files.createDirectories(dir);

@@ -11,17 +11,19 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import com.ipt.ged.support.Comptes;
+import com.ipt.ged.employe.EmployeRepository;
 import org.springframework.security.test.context.support.WithUserDetails;
 
 /**
  * Campagne de tests du module « Regles de Workflow ».
- * Base H2 en memoire ; chaque test est transactionnel (rollback apres execution).
+ * Base PostgreSQL de test ; chaque test est transactionnel (rollback apres execution).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -41,19 +43,32 @@ class WorkflowApiTest {
     private static final String BASE = "/api/v1/workflowgeds";
 
     /* -------- helpers JSON -------- */
-    private String step(long emp, String label, int order) {
-        return "{\"employeId\":" + emp + ",\"label\":\"" + label + "\",\"stepOrder\":" + order + "}";
+    @Autowired
+    private EmployeRepository employeRepository;
+
+    /** Employé n° 1, 2 ou 3 du jeu d'essai (Sara, Karim, Yasmine). */
+    private UUID employe(int numero) {
+        return switch (numero) {
+            case 1 -> Comptes.idAdmin(employeRepository);
+            case 2 -> Comptes.idSecondActeur(employeRepository);
+            case 3 -> Comptes.idTroisiemeEmploye(employeRepository);
+            default -> throw new IllegalArgumentException("Employé d'essai inconnu : " + numero);
+        };
+    }
+
+    private String step(int emp, String label, int order) {
+        return "{\"employeId\":\"" + employe(emp) + "\",\"label\":\"" + label + "\",\"stepOrder\":" + order + "}";
     }
 
     private String wf(String name, String... steps) {
         return "{\"name\":\"" + name + "\",\"steps\":[" + String.join(",", steps) + "]}";
     }
 
-    private long create(String json) throws Exception {
+    private UUID create(String json) throws Exception {
         String body = mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(json))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(body).get("id").asLong();
+        return UUID.fromString(om.readTree(body).get("id").asText());
     }
 
     // ---------------------------------------------------------------- Employes
@@ -126,7 +141,7 @@ class WorkflowApiTest {
     @Test
     @DisplayName("7. Detail d'un id inexistant -> 404")
     void getMissingReturns404() throws Exception {
-        mvc.perform(get(BASE + "/999999"))
+        mvc.perform(get(BASE + "/" + UUID.randomUUID()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
@@ -136,7 +151,7 @@ class WorkflowApiTest {
     @Test
     @DisplayName("8. L'edition REMPLACE les etapes (2 -> 1) et renumerote")
     void updateReplacesSteps() throws Exception {
-        long id = create(wf("Circuit", step(1, "Etape1", 1), step(2, "Etape2", 2)));
+        UUID id = create(wf("Circuit", step(1, "Etape1", 1), step(2, "Etape2", 2)));
         mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON)
                         .content(wf("Circuit modifie", step(3, "Unique", 1))))
                 .andExpect(status().isOk())
@@ -151,40 +166,40 @@ class WorkflowApiTest {
     @Test
     @DisplayName("9. Suppression = corbeille (sort de l'actif, entre dans /trashed)")
     void softDeleteMovesToTrash() throws Exception {
-        long id = create(wf("A supprimer", step(1, "X", 1)));
+        UUID id = create(wf("A supprimer", step(1, "X", 1)));
         mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());
 
         mvc.perform(get(BASE))
-                .andExpect(jsonPath("$.content[*].id", not(hasItem((int) id))));
+                .andExpect(jsonPath("$.content[*].id", not(hasItem(id.toString()))));
         mvc.perform(get(BASE + "/trashed"))
-                .andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+                .andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
     }
 
     @Test
     @DisplayName("10. Restauration : l'element revient dans la liste active")
     void restoreBringsBack() throws Exception {
-        long id = create(wf("A restaurer", step(1, "X", 1)));
+        UUID id = create(wf("A restaurer", step(1, "X", 1)));
         mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());
         mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
         mvc.perform(get(BASE))
-                .andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+                .andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
     }
 
     @Test
     @DisplayName("11. Suppression puis restauration multiples")
     void multipleDeleteAndRestore() throws Exception {
-        long a = create(wf("M1", step(1, "X", 1)));
-        long b = create(wf("M2", step(2, "Y", 1)));
-        String ids = "{\"ids\":[" + a + "," + b + "]}";
+        UUID a = create(wf("M1", step(1, "X", 1)));
+        UUID b = create(wf("M2", step(2, "Y", 1)));
+        String ids = "{\"ids\":[\"" + a + "\",\"" + b + "\"]}";
 
         mvc.perform(delete(BASE + "/multiple-delete").contentType(APPLICATION_JSON).content(ids))
                 .andExpect(status().isNoContent());
         mvc.perform(get(BASE))
-                .andExpect(jsonPath("$.content[*].id", allOf(not(hasItem((int) a)), not(hasItem((int) b)))));
+                .andExpect(jsonPath("$.content[*].id", allOf(not(hasItem(a.toString())), not(hasItem(b.toString())))));
 
         mvc.perform(patch(BASE + "/multiple-restore").contentType(APPLICATION_JSON).content(ids))
                 .andExpect(status().isNoContent());
         mvc.perform(get(BASE))
-                .andExpect(jsonPath("$.content[*].id", allOf(hasItem((int) a), hasItem((int) b))));
+                .andExpect(jsonPath("$.content[*].id", allOf(hasItem(a.toString()), hasItem(b.toString()))));
     }
 }

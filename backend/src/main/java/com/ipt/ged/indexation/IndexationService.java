@@ -68,7 +68,7 @@ public class IndexationService {
     }
 
     /** Champs à renseigner pour un document : ceux du plan d'indexation de son type. */
-    public List<CritereResponse> champsDuDocument(Long documentId) {
+    public List<CritereResponse> champsDuDocument(UUID documentId) {
         UploadDocument doc = document(documentId);
         if (doc.getTypeDocument() == null || doc.getTypeDocument().getPlanIndexation() == null) {
             return List.of();
@@ -89,7 +89,7 @@ public class IndexationService {
 
     /* ===================== Valeurs d'un document ===================== */
 
-    public List<ResultatResponse.ValeurResponse> valeurs(Long documentId) {
+    public List<ResultatResponse.ValeurResponse> valeurs(UUID documentId) {
         document(documentId);
         return valeurRepository.findByDocumentIdOrderByIdAsc(documentId).stream()
                 .map(IndexationService::versValeur)
@@ -117,7 +117,7 @@ public class IndexationService {
      */
     // Seule écriture du module.
     @Transactional
-    public List<ResultatResponse.ValeurResponse> enregistrer(Long documentId, ValeurRequest requete) {
+    public List<ResultatResponse.ValeurResponse> enregistrer(UUID documentId, ValeurRequest requete) {
         UploadDocument doc = document(documentId);
         if (doc.isDeleted()) {
             throw new IllegalArgumentException("Document en corbeille : indexation impossible. Restaurez-le d'abord.");
@@ -129,16 +129,16 @@ public class IndexationService {
         // Le plan du type fait autorité : il dit ce qu'on a le droit d'écrire ET
         // ce qu'on est tenu de renseigner.
         List<IndexField> duPlan = champsDuPlan(doc);
-        Map<Long, IndexField> autorises = duPlan.stream()
+        Map<UUID, IndexField> autorises = duPlan.stream()
                 .collect(Collectors.toMap(IndexField::getId, f -> f, (a, b) -> a));
 
-        Map<Long, DocumentIndex> existantes = valeurRepository.findByDocumentIdOrderByIdAsc(documentId).stream()
+        Map<UUID, DocumentIndex> existantes = valeurRepository.findByDocumentIdOrderByIdAsc(documentId).stream()
                 .collect(Collectors.toMap(v -> v.getIndexField().getId(), v -> v));
 
         // Première passe : on valide TOUT avant d'écrire quoi que ce soit. Une
         // validation entrelacée avec les écritures laissait un enregistrement
         // partiel derrière elle quand la ligne suivante était refusée.
-        Map<Long, String> recues = new LinkedHashMap<>();
+        Map<UUID, String> recues = new LinkedHashMap<>();
         for (ValeurRequest.Ligne ligne : requete.valeurs()) {
             IndexField champ = autorises.get(ligne.indexFieldId());
             if (champ == null) {
@@ -163,7 +163,7 @@ public class IndexationService {
         }
 
         // Seconde passe : écriture, plus rien ne peut être refusé ici.
-        for (Map.Entry<Long, String> ligne : recues.entrySet()) {
+        for (Map.Entry<UUID, String> ligne : recues.entrySet()) {
             IndexField champ = autorises.get(ligne.getKey());
             String valeur = ligne.getValue();
             DocumentIndex cible = existantes.remove(champ.getId());
@@ -199,7 +199,7 @@ public class IndexationService {
     }
 
     /** Désigne un index refusé par son nom quand il existe, par son identifiant sinon. */
-    private String designer(Long indexFieldId) {
+    private String designer(UUID indexFieldId) {
         return indexRepository.findById(indexFieldId)
                 .map(f -> "« " + f.getNomIndex() + " »")
                 .orElse("#" + indexFieldId);
@@ -211,7 +211,7 @@ public class IndexationService {
                 ? doc.getTypeDocument().getPlanIndexation() : null;
         if (plan == null) return;
 
-        Map<Long, String> valeurs = valeurRepository.findByDocumentIdOrderByIdAsc(doc.getId()).stream()
+        Map<UUID, String> valeurs = valeurRepository.findByDocumentIdOrderByIdAsc(doc.getId()).stream()
                 .collect(Collectors.toMap(v -> v.getIndexField().getId(), DocumentIndex::getValeur, (a, b) -> a));
 
         // La charte décide quels jetons composent le nom et dans quel ordre ; à
@@ -236,10 +236,11 @@ public class IndexationService {
     }
 
     /** Identifiant d'index porté par un jeton, ou null si ce n'en est pas un. */
-    private static Long idOuNull(String jeton) {
+    private static UUID idOuNull(String jeton) {
+        if (jeton == null) return null;
         try {
-            return Long.valueOf(jeton);
-        } catch (NumberFormatException e) {
+            return UUID.fromString(jeton);
+        } catch (IllegalArgumentException e) {
             return null;
         }
     }
@@ -298,7 +299,7 @@ public class IndexationService {
      * la lecture du document prend le relais après le dépôt.</p>
      */
     @Transactional(readOnly = true)
-    public ApercuResponse apercu(Long typeDocumentId, String nomFichier, MultipartFile fichier) {
+    public ApercuResponse apercu(UUID typeDocumentId, String nomFichier, MultipartFile fichier) {
         TypeDocument type = typeRepository.findById(typeDocumentId)
                 .orElseThrow(() -> new EntityNotFoundException("Type de document introuvable : " + typeDocumentId));
 
@@ -365,7 +366,7 @@ public class IndexationService {
            trompeur. */
         String nomPropose = null;
         if (!plan.isManuel()) {
-            Map<Long, String> valeursIndex = propositions.stream()
+            Map<UUID, String> valeursIndex = propositions.stream()
                     .filter(pr -> pr.valeurProposee() != null && !pr.valeurProposee().isBlank())
                     .collect(Collectors.toMap(AnalyseResponse.Proposition::indexFieldId,
                                               AnalyseResponse.Proposition::valeurProposee, (a, b) -> a));
@@ -429,7 +430,7 @@ public class IndexationService {
         }
     }
 
-    public AnalyseResponse analyser(Long documentId) {
+    public AnalyseResponse analyser(UUID documentId) {
         UploadDocument doc = document(documentId);
         String fichier = doc.getFileName() != null ? doc.getFileName() : doc.getName();
 
@@ -446,7 +447,7 @@ public class IndexationService {
             return vide(doc, fichier, "Le plan « " + plan.getNomDuPlan() + " » ne contient aucun index.");
         }
 
-        Map<Long, String> actuelles = valeurRepository.findByDocumentIdOrderByIdAsc(documentId).stream()
+        Map<UUID, String> actuelles = valeurRepository.findByDocumentIdOrderByIdAsc(documentId).stream()
                 .collect(Collectors.toMap(v -> v.getIndexField().getId(), DocumentIndex::getValeur, (a, b) -> a));
 
         String sep = plan.getSeparateur() == null || plan.getSeparateur().isEmpty() ? "_" : plan.getSeparateur();
@@ -616,13 +617,13 @@ public class IndexationService {
      *
      * @return la référence, ou {@code null} si aucun jeton n'a de valeur.
      */
-    private String composerDepuisCharte(PlanIndexation plan, List<String> jetons, Map<Long, String> valeurs) {
+    private String composerDepuisCharte(PlanIndexation plan, List<String> jetons, Map<UUID, String> valeurs) {
         java.time.LocalDateTime maintenant = java.time.LocalDateTime.now();
         List<String> ordonnees = jetons.stream()
                 .map(j -> {
                     String systeme = JetonsSysteme.valeur(j, maintenant);
                     if (systeme != null) return systeme;
-                    Long idIndex = idOuNull(j);
+                    UUID idIndex = idOuNull(j);
                     return idIndex == null ? null : valeurs.get(idIndex);
                 })
                 .toList();
@@ -678,7 +679,7 @@ public class IndexationService {
         if (candidats.isEmpty()) return List.of();
 
         // Valeurs de tous les candidats en une seule requête
-        Map<Long, Map<Long, String>> parDocument = new HashMap<>();
+        Map<UUID, Map<UUID, String>> parDocument = new HashMap<>();
         valeurRepository.findByDocumentIds(candidats.stream().map(UploadDocument::getId).toList())
                 .forEach(v -> parDocument
                         .computeIfAbsent(v.getDocument().getId(), k -> new HashMap<>())
@@ -687,7 +688,7 @@ public class IndexationService {
         List<RechercheRequest.FiltreIndex> filtres = requete.criteres() == null ? List.of()
                 : requete.criteres().stream().filter(IndexationService::filtreRenseigne).toList();
 
-        Map<Long, IndexField> champs = indexRepository.findByDeletedFalseOrderByIdAsc().stream()
+        Map<UUID, IndexField> champs = indexRepository.findByDeletedFalseOrderByIdAsc().stream()
                 .collect(Collectors.toMap(IndexField::getId, f -> f));
 
         List<UploadDocument> retenus = candidats.stream()
@@ -736,9 +737,9 @@ public class IndexationService {
     /* ===================== Regroupement ===================== */
 
     private List<GroupeResponse> grouper(List<UploadDocument> documents,
-                                         Map<Long, Map<Long, String>> parDocument,
-                                         Map<Long, IndexField> champs,
-                                         Long grouperPar) {
+                                         Map<UUID, Map<UUID, String>> parDocument,
+                                         Map<UUID, IndexField> champs,
+                                         UUID grouperPar) {
         if (grouperPar == null || !champs.containsKey(grouperPar)) {
             List<ResultatResponse> tous = documents.stream()
                     .map(d -> versResultat(d, parDocument, champs)).toList();
@@ -757,8 +758,8 @@ public class IndexationService {
     }
 
     private static ResultatResponse versResultat(UploadDocument d,
-                                                 Map<Long, Map<Long, String>> parDocument,
-                                                 Map<Long, IndexField> champs) {
+                                                 Map<UUID, Map<UUID, String>> parDocument,
+                                                 Map<UUID, IndexField> champs) {
         List<ResultatResponse.ValeurResponse> valeurs = parDocument.getOrDefault(d.getId(), Map.of())
                 .entrySet().stream()
                 .filter(e -> champs.containsKey(e.getKey()))
@@ -788,7 +789,7 @@ public class IndexationService {
         return ko < 1024 ? ko + " Ko" : String.format("%.1f Mo", ko / 1024.0);
     }
 
-    private UploadDocument document(Long id) {
+    private UploadDocument document(UUID id) {
         return documentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Document introuvable : " + id));
     }

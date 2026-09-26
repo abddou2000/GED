@@ -21,7 +21,10 @@ import java.util.stream.Collectors;
  */
 @Component
 @Order(9)
-@Profile("!test")
+// Jeu de DÉMONSTRATION, profil dev uniquement : ce sont des référentiels
+// métier, qui ne se créent en production que depuis l'interface (dossier
+// technique §4.2.1). Ni changeset ni amorçage automatique en prod.
+@Profile("dev")
 public class IndexationSeeder implements CommandLineRunner {
 
     private final UploadDocumentRepository documents;

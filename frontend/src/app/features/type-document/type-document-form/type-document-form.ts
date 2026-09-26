@@ -46,8 +46,8 @@ export class TypeDocumentForm implements OnInit {
     code: ['', Validators.required],
     typeDeDocument: ['', Validators.required],
     description: ['', Validators.required],
-    workspaceId: [null as number | null, Validators.required],
-    planIndexationId: [null as number | null],
+    workspaceId: [null as string | null, Validators.required],
+    planIndexationId: [null as string | null],
     typeAutorise: [[] as string[], Validators.required],
     tailleMaxMo: [10, [Validators.required, Validators.min(5)]],
   });

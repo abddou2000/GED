@@ -139,13 +139,13 @@ export class WorkspaceList implements OnInit {
 
   // ---- Vue Arbre ----
   tree = signal<TreeNode[]>([]);
-  expanded = signal<Set<number>>(new Set());
+  expanded = signal<Set<string>>(new Set());
   parentOptions = signal<SelectOption[]>([]);
   /** Documents d'un dossier, chargés à la première ouverture du nœud.
    *  L'arbre ne montrait que des dossiers : impossible d'y voir ce qu'ils
    *  contiennent, alors que c'est la question que l'on se pose en l'ouvrant. */
-  docsParDossier = signal<Record<number, DocumentItem[]>>({});
-  docsEnCours = signal<Set<number>>(new Set());
+  docsParDossier = signal<Record<string, DocumentItem[]>>({});
+  docsEnCours = signal<Set<string>>(new Set());
 
   ngOnInit(): void {
     // L'archive vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
@@ -222,7 +222,7 @@ export class WorkspaceList implements OnInit {
   }
 
   /** Ouvre la fiche détaillée d'un dossier. */
-  ouvrir(id: number): void {
+  ouvrir(id: string): void {
     this.router.navigate(['/espaces-de-travail', id]);
   }
 
@@ -253,18 +253,18 @@ export class WorkspaceList implements OnInit {
   }
 
   /* =================== arbre =================== */
-  isExpanded(id: number): boolean { return this.expanded().has(id); }
+  isExpanded(id: string): boolean { return this.expanded().has(id); }
 
-  toggleExpand(id: number): void {
+  toggleExpand(id: string): void {
     const n = new Set(this.expanded());
     if (n.has(id)) { n.delete(id); } else { n.add(id); this.chargerDocs(id); }
     this.expanded.set(n);
   }
 
   /** Documents déjà connus pour ce dossier (tableau vide tant qu'ils chargent). */
-  docsDe(id: number): DocumentItem[] { return this.docsParDossier()[id] ?? []; }
+  docsDe(id: string): DocumentItem[] { return this.docsParDossier()[id] ?? []; }
 
-  private chargerDocs(id: number): void {
+  private chargerDocs(id: string): void {
     if (this.docsParDossier()[id] || this.docsEnCours().has(id)) return;
     this.docsEnCours.update(s => new Set(s).add(id));
     this.documents.list(0, 200, '', id).subscribe({
@@ -278,7 +278,7 @@ export class WorkspaceList implements OnInit {
 
   /** Identifiants en cours de téléchargement : un clic répété sur la même ligne
    *  ne doit pas relancer la requête ni enregistrer deux fois le fichier. */
-  readonly telechargements = signal(new Set<number>());
+  readonly telechargements = signal(new Set<string>());
 
   /**
    * Télécharge par `HttpClient` (et non plus `window.open`) : seule cette voie
@@ -319,11 +319,11 @@ export class WorkspaceList implements OnInit {
   readonly avatarInk = encreAvatar;
 
   /* =================== actions =================== */
-  create(parentId: number | null = null): void { this.openDialog(null, parentId); }
-  edit(id: number): void {
+  create(parentId: string | null = null): void { this.openDialog(null, parentId); }
+  edit(id: string): void {
     this.service.get(id).subscribe(w => this.openDialog(w, null));
   }
-  private openDialog(w: WorkSpace | null, parentId: number | null): void {
+  private openDialog(w: WorkSpace | null, parentId: string | null): void {
     const ref = this.dialog.open(WorkspaceForm, {
       data: { workspace: w, parentId }, width: '760px', maxWidth: '95vw', autoFocus: false,
     });
@@ -334,7 +334,7 @@ export class WorkspaceList implements OnInit {
     });
   }
 
-  remove(id: number, name: string): void {
+  remove(id: string, name: string): void {
     this.confirm.ask({
       title: 'Supprimer ce dossier',
       message: `« ${name} » sera déplacé vers la corbeille.`,
@@ -348,19 +348,19 @@ export class WorkspaceList implements OnInit {
       });
     });
   }
-  restoreOne(id: number): void {
+  restoreOne(id: string): void {
     this.service.restore(id).subscribe({
       next: () => { this.load(); this.notify.success('Dossier restauré.'); },
       error: () => this.notify.error('Restauration impossible.'),
     });
   }
-  archiveOne(id: number): void {
+  archiveOne(id: string): void {
     this.service.archive(id).subscribe({
       next: () => { this.load(); this.notify.success('Dossier archivé.'); },
       error: () => this.notify.error('Archivage impossible.'),
     });
   }
-  moveTo(id: number, parentId: number | null): void {
+  moveTo(id: string, parentId: string | null): void {
     this.service.move(id, parentId).subscribe({
       next: () => { this.load(); this.notify.success('Dossier déplacé.'); },
       error: err => this.notify.error(err?.error?.message ?? 'Déplacement impossible.'),

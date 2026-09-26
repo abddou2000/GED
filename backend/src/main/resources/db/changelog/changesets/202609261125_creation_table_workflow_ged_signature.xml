@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261125_creation_table_workflow_ged_signature.xml">
+
+    <changeSet id="202609261125-1" author="ged">
+        <comment>Demandes de signature du circuit de validation d'un document.</comment>
+        <createTable tableName="workflow_ged_signature">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_workflow_ged_signature" nullable="false"/>
+            </column>
+            <column name="document_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="step_label" type="VARCHAR(255)"/>
+            <column name="step_order" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="signed_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="motif" type="VARCHAR(255)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_workflow_ged_signature_document" baseTableName="workflow_ged_signature" baseColumnNames="document_id"
+                                 referencedTableName="document" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_workflow_ged_signature_employe" baseTableName="workflow_ged_signature" baseColumnNames="employe_id"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <createIndex indexName="idx_workflow_ged_signature_employe_id_status" tableName="workflow_ged_signature">
+            <column name="employe_id"/>
+            <column name="status"/>
+        </createIndex>
+        <createIndex indexName="idx_workflow_ged_signature_document_id" tableName="workflow_ged_signature">
+            <column name="document_id"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.workflow_ged_signature ADD CONSTRAINT ck_workflow_ged_signature_status CHECK (status IN ('PENDING', 'REJECTED', 'SIGNED'))</sql>
+        <rollback>
+            <dropTable tableName="workflow_ged_signature"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

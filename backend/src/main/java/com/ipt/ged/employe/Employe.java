@@ -1,25 +1,28 @@
 package com.ipt.ged.employe;
 
+import com.ipt.ged.common.IdentifiantUuid;
 import com.ipt.ged.common.Auditable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.UUID;
+
 /**
  * Employé — la personne métier (propriétaire de dossier, approbateur de workflow…).
  * Distincte du compte utilisateur (User) : un employé n'a pas forcément de compte de connexion.
  */
 @Entity
-@Table(name = "employes")
+@Table(name = "employe")
 @Getter
 @Setter
 @NoArgsConstructor
 public class Employe extends Auditable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @Column(name = "first_name", nullable = false)
     private String firstName;

@@ -1,6 +1,7 @@
 package com.ipt.ged.document.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Donnees recues pour modifier la fiche d'un document deja depose.
@@ -11,8 +12,8 @@ import java.util.List;
  */
 public record DocumentRequest(
         String name,
-        Long typeDocumentId,
+        UUID typeDocumentId,
         String expirationDate,
         Boolean active,
-        List<Long> etiquetteIds
+        List<UUID> etiquetteIds
 ) {}

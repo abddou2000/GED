@@ -1,5 +1,5 @@
 export interface Ref {
-  id: number;
+  id: string;
   label: string;
 }
 
@@ -7,7 +7,7 @@ export type SignatureStatus = 'PENDING' | 'SIGNED' | 'REJECTED';
 
 /** Une demande de signature telle que renvoyée par l'API. */
 export interface Signature {
-  id: number;
+  id: string;
   document: Ref | null;
   type: string | null;
   workspace: string | null;

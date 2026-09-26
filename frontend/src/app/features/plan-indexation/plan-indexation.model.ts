@@ -1,11 +1,11 @@
 export interface Ref {
-  id: number;
+  id: string;
   label: string;
 }
 
 /** Un plan d'indexation tel que renvoyé par l'API. */
 export interface PlanIndexation {
-  id: number;
+  id: string;
   code: string;
   nomDuPlan: string;
   modeIndexation: boolean;
@@ -36,7 +36,7 @@ export interface PlanIndexationRequest {
   manuel: boolean;
   majuscule: boolean;
   separateur: string;
-  indexIds: number[];
+  indexIds: string[];
   charteIds: string[];
 }
 
@@ -49,6 +49,6 @@ export interface PageResult<T> {
 }
 
 export interface SelectOption {
-  id: number;
+  id: string;
   name: string;
 }

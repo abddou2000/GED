@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * OCRisation — lecture du contenu des documents.
@@ -27,7 +28,7 @@ public class OcrController {
     private final OcrService service;
 
     @GetMapping("/documents/{id}/texte")
-    public TexteExtrait texte(@PathVariable Long id) {
+    public TexteExtrait texte(@PathVariable UUID id) {
         return service.lire(id);
     }
 

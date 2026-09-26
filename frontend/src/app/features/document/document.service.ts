@@ -12,7 +12,7 @@ import { SignatureService } from '../signature/signature.service';
  * (ligne non encore rechargée), et il doit tout de même pouvoir télécharger.
  */
 export interface NomFichierSource {
-  id: number;
+  id: string;
   fileName?: string | null;
   name?: string | null;
   extension?: string | null;
@@ -77,14 +77,14 @@ export class DocumentService {
 
   /** `workspaceId` restreint la liste aux documents d'un dossier — le serveur
    *  sait déjà le faire, inutile de tout charger pour filtrer ensuite. */
-  list(page = 0, size = 10, search = '', workspaceId?: number,
+  list(page = 0, size = 10, search = '', workspaceId?: string,
        sortBy = '', sortDir = 'desc'): Observable<PageResult<DocumentItem>> {
     const params = this.params(page, size, search, sortBy, sortDir);
     if (workspaceId != null) params['workspaceId'] = workspaceId;
     return this.http.get<PageResult<DocumentItem>>(this.url, { params });
   }
 
-  trashed(page = 0, size = 10, search = '', workspaceId?: number,
+  trashed(page = 0, size = 10, search = '', workspaceId?: string,
           sortBy = '', sortDir = 'desc'): Observable<PageResult<DocumentItem>> {
     return this.http.get<PageResult<DocumentItem>>(`${this.url}/trashed`,
       { params: this.params(page, size, search, sortBy, sortDir) });
@@ -99,22 +99,22 @@ export class DocumentService {
   }
 
   /** Fiche complète d'un document (étiquettes et versions comprises). */
-  get(id: number): Observable<DocumentItem> {
+  get(id: string): Observable<DocumentItem> {
     return this.http.get<DocumentItem>(`${this.url}/${id}`);
   }
 
   /** Modifie la fiche : nom, type, date, etiquettes, archivage. */
-  update(id: number, body: DocumentRequest): Observable<DocumentItem> {
+  update(id: string, body: DocumentRequest): Observable<DocumentItem> {
     return this.http.put<DocumentItem>(`${this.url}/${id}`, body);
   }
 
   /** Verrouille ou libere le document. */
-  verrou(id: number, verrouille: boolean): Observable<DocumentItem> {
+  verrou(id: string, verrouille: boolean): Observable<DocumentItem> {
     return this.http.patch<DocumentItem>(`${this.url}/${id}/verrou`, {}, { params: { verrouille } });
   }
 
   /** Depose une nouvelle version : l'ancienne reste consultable. */
-  ajouterVersion(id: number, file: File, observation: string): Observable<DocumentItem> {
+  ajouterVersion(id: string, file: File, observation: string): Observable<DocumentItem> {
     const fd = new FormData();
     fd.append('file', file);
     if (observation) fd.append('observation', observation);
@@ -122,7 +122,7 @@ export class DocumentService {
   }
 
   /** Rend une version anterieure courante. */
-  restaurerVersion(id: number, versionId: number): Observable<DocumentItem> {
+  restaurerVersion(id: string, versionId: string): Observable<DocumentItem> {
     return this.http.patch<DocumentItem>(`${this.url}/${id}/versions/${versionId}/default`, {});
   }
 
@@ -132,8 +132,8 @@ export class DocumentService {
    * décidait, alors qu'il n'a aucune autorité pour désigner l'auteur d'un
    * dépôt.
    */
-  upload(file: File, typeDocumentId: number, name: string, expirationDate: string | null,
-         etiquetteIds: number[] = []): Observable<DocumentItem> {
+  upload(file: File, typeDocumentId: string, name: string, expirationDate: string | null,
+         etiquetteIds: string[] = []): Observable<DocumentItem> {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('typeDocumentId', String(typeDocumentId));
@@ -163,7 +163,7 @@ export class DocumentService {
    * la chaîne d'intercepteurs : le jeton est posé s'il y a un vrai serveur, et
    * la démonstration peut répondre s'il n'y en a pas.
    */
-  telecharger(id: number): Observable<Blob> {
+  telecharger(id: string): Observable<Blob> {
     return this.http.get(`${this.url}/${id}/download`, { responseType: 'blob' });
   }
 
@@ -214,22 +214,22 @@ export class DocumentService {
   /* Supprimer, restaurer : la file des etapes a traiter peut changer.
      On redemande le compte plutot que de le deviner — c'est le serveur
      qui fait foi, y compris quand il ne retire rien. */
-  delete(id: number): Observable<void> {
+  delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`)
       .pipe(tap(() => this.signatures.signalerChangement()));
   }
 
-  restore(id: number): Observable<void> {
+  restore(id: string): Observable<void> {
     return this.http.patch<void>(`${this.url}/${id}/restore`, {})
       .pipe(tap(() => this.signatures.signalerChangement()));
   }
 
-  multipleDelete(ids: number[]): Observable<void> {
+  multipleDelete(ids: string[]): Observable<void> {
     return this.http.delete<void>(`${this.url}/multiple-delete`, { body: { ids } })
       .pipe(tap(() => this.signatures.signalerChangement()));
   }
 
-  multipleRestore(ids: number[]): Observable<void> {
+  multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids })
       .pipe(tap(() => this.signatures.signalerChangement()));
   }

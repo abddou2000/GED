@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261055_creation_table_plan_index.xml">
+
+    <changeSet id="202609261055-1" author="ged">
+        <comment>Index d'un plan, dans l'ordre (position).</comment>
+        <createTable tableName="plan_index">
+            <column name="plan_indexation_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="index_def_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="position" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey constraintName="pk_plan_index" tableName="plan_index" columnNames="plan_indexation_id, position"/>
+        <addForeignKeyConstraint constraintName="fk_plan_index_plan_indexation" baseTableName="plan_index" baseColumnNames="plan_indexation_id"
+                                 referencedTableName="plan_indexation" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_plan_index_index_def" baseTableName="plan_index" baseColumnNames="index_def_id"
+                                 referencedTableName="index_def" referencedColumnNames="id"/>
+        <createIndex indexName="idx_plan_index_index_def_id" tableName="plan_index">
+            <column name="index_def_id"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.plan_index ADD CONSTRAINT ck_plan_index_position CHECK (position &gt;= 0)</sql>
+        <rollback>
+            <dropTable tableName="plan_index"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

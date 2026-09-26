@@ -1,5 +1,7 @@
 package com.ipt.ged.common;
 
+import com.ipt.ged.fichier.CodesErreurFichier;
+import com.ipt.ged.fichier.ErreurFichierException;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -10,6 +12,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -34,6 +38,24 @@ public class GlobalExceptionHandler {
         body.put("status", 400);
         body.put("message", "Données invalides");
         body.put("errors", errors);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    /**
+     * Paramètre d'URL de mauvais type → 400, au format commun.
+     *
+     * <p>Cas principal : un identifiant qui n'est pas un UUID
+     * ({@code /documents/abc}). Spring répondait bien 400, mais avec un corps
+     * vide que le frontend ne sait pas afficher.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeParametre(MethodArgumentTypeMismatchException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now());
+        body.put("status", 400);
+        body.put("message", java.util.UUID.class.equals(ex.getRequiredType())
+                ? "Identifiant invalide : « " + ex.getName() + " » attend un UUID."
+                : "Paramètre invalide : « " + ex.getName() + " ».");
         return ResponseEntity.badRequest().body(body);
     }
 
@@ -118,6 +140,41 @@ public class GlobalExceptionHandler {
         body.put("status", 409);
         body.put("message", "Le document est en cours de modification par une autre requête. Réessayez.");
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    /**
+     * Refus et pannes liés aux fichiers (§6.1.5) : 413, 415, 422
+     * {@code FICHIER_INFECTE}, 503 antivirus indisponible…
+     *
+     * <p>Même format que les autres erreurs, augmenté du champ {@code code} :
+     * stable, il laisse le client distinguer deux refus de même statut sans
+     * analyser un libellé destiné à l'utilisateur.
+     */
+    @ExceptionHandler(ErreurFichierException.class)
+    public ResponseEntity<Map<String, Object>> handleFichier(ErreurFichierException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now());
+        body.put("status", ex.statut().value());
+        body.put("message", ex.getMessage());
+        body.put("code", ex.code());
+        return ResponseEntity.status(ex.statut()).body(body);
+    }
+
+    /**
+     * Requête multipart au-delà du plafond de plateforme → 413.
+     *
+     * <p>Le refus est levé par la couche multipart avant tout contrôleur ; sans
+     * ce gestionnaire il sortait en 500, alors que c'est une faute de
+     * l'appelant, et qu'il n'apprenait pas la limite.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleTailleMultipart(MaxUploadSizeExceededException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now());
+        body.put("status", 413);
+        body.put("message", "Fichier trop volumineux : plafond de la plateforme dépassé.");
+        body.put("code", CodesErreurFichier.FICHIER_TROP_VOLUMINEUX);
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(body);
     }
 
     /**

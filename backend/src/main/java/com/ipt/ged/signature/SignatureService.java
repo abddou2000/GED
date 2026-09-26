@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Circuit de signature (machine à états). Les demandes sont créées à l'upload,
@@ -65,7 +66,7 @@ public class SignatureService {
      * dans l'état où il l'avait laissé.
      */
     @Transactional(readOnly = true)
-    public List<SignatureResponse> pending(Long employeId) {
+    public List<SignatureResponse> pending(UUID employeId) {
         return repo.findByEmployeIdAndStatusOrderByStepOrderAsc(employeId, SignatureStatus.PENDING).stream()
                 .filter(s -> s.getDocument() != null && !s.getDocument().isDeleted())
                 .filter(this::isActionable)
@@ -75,13 +76,13 @@ public class SignatureService {
 
     /** Nombre de signatures que cet employé peut réellement traiter — voir {@link #pending}. */
     @Transactional(readOnly = true)
-    public long nombreEnAttente(Long employeId) {
+    public long nombreEnAttente(UUID employeId) {
         return pending(employeId).size();
     }
 
     /** Mon historique (signé / rejeté). */
     @Transactional(readOnly = true)
-    public List<SignatureResponse> history(Long employeId) {
+    public List<SignatureResponse> history(UUID employeId) {
         return repo.findByEmployeIdAndStatusInOrderByIdDesc(
                         employeId, List.of(SignatureStatus.SIGNED, SignatureStatus.REJECTED)).stream()
                 .map(SignatureResponse::from)
@@ -90,7 +91,7 @@ public class SignatureService {
 
     /** Circuit complet d'un document (toutes les étapes, dans l'ordre). */
     @Transactional(readOnly = true)
-    public List<SignatureResponse> documentCircuit(Long documentId) {
+    public List<SignatureResponse> documentCircuit(UUID documentId) {
         return repo.findByDocumentIdOrderByStepOrderAsc(documentId).stream()
                 .map(SignatureResponse::from)
                 .toList();
@@ -102,7 +103,7 @@ public class SignatureService {
      * @param actingEmployeId identité issue du jeton, résolue par le contrôleur.
      */
     @Transactional
-    public SignatureResponse approve(Long id, Long actingEmployeId, String motif) {
+    public SignatureResponse approve(UUID id, UUID actingEmployeId, String motif) {
         WorkflowSignature sig = load(id);
         checkAssignee(sig, actingEmployeId);
         checkDocumentVivant(sig);
@@ -127,7 +128,7 @@ public class SignatureService {
 
     /** Rejeter une étape (motif obligatoire) : rouvre l'étape précédente. */
     @Transactional
-    public SignatureResponse reject(Long id, Long actingEmployeId, String motif) {
+    public SignatureResponse reject(UUID id, UUID actingEmployeId, String motif) {
         if (motif == null || motif.isBlank()) {
             throw new IllegalArgumentException("Le motif est obligatoire pour un rejet");
         }
@@ -174,7 +175,7 @@ public class SignatureService {
      * la pièce lui revient.</p>
      */
     @Transactional
-    public List<SignatureResponse> relancer(Long documentId) {
+    public List<SignatureResponse> relancer(UUID documentId) {
         List<WorkflowSignature> circuit = repo.findByDocumentIdOrderByStepOrderAsc(documentId);
         if (circuit.isEmpty()) {
             throw new EntityNotFoundException("Aucun circuit de validation pour le document : " + documentId);
@@ -201,7 +202,7 @@ public class SignatureService {
 
     /* ---------- privé ---------- */
 
-    private WorkflowSignature load(Long id) {
+    private WorkflowSignature load(UUID id) {
         return repo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Signature introuvable : " + id));
     }
@@ -214,7 +215,7 @@ public class SignatureService {
      * choisie par l'appelant revient à lui demander s'il est autorisé, ce qui
      * permettait de signer au nom d'un collègue.
      */
-    private void checkAssignee(WorkflowSignature sig, Long actingEmployeId) {
+    private void checkAssignee(WorkflowSignature sig, UUID actingEmployeId) {
         if (actingEmployeId == null || sig.getEmploye() == null
                 || !sig.getEmploye().getId().equals(actingEmployeId)) {
             throw new IllegalArgumentException("Cette signature ne vous est pas assignée");

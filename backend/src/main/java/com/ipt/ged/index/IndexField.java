@@ -1,10 +1,13 @@
 package com.ipt.ged.index;
 
-import com.ipt.ged.common.Auditable;
+import com.ipt.ged.common.IdentifiantUuid;
+import com.ipt.ged.common.Supprimable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.UUID;
 
 /**
  * Index : un champ de métadonnée configurable, attaché aux documents pour les
@@ -12,15 +15,15 @@ import lombok.Setter;
  * (Classe nommée {@code IndexField} pour éviter la confusion avec le mot-clé SQL.)
  */
 @Entity
-@Table(name = "indices")
+@Table(name = "index_def")
 @Getter
 @Setter
 @NoArgsConstructor
-public class IndexField extends Auditable {
+public class IndexField extends Supprimable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @Column(nullable = false, unique = true)
     private String code;
@@ -48,9 +51,6 @@ public class IndexField extends Auditable {
     @Column(name = "index_de_groupage", nullable = false)
     private boolean indexDeGroupage = false;
 
-    /** Corbeille : true = supprimé de façon réversible. */
-    @Column(nullable = false)
-    private boolean deleted = false;
 
     public IndexField(String code, String nomIndex) {
         this.code = code;

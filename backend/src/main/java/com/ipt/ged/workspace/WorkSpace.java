@@ -1,7 +1,8 @@
 package com.ipt.ged.workspace;
 
+import com.ipt.ged.common.IdentifiantUuid;
 import com.ipt.ged.accessgroup.AccessGroup;
-import com.ipt.ged.common.Auditable;
+import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.workflow.WorkflowGed;
 import jakarta.persistence.*;
@@ -13,21 +14,22 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Espace de travail (dossier) — organisé en arborescence auto-référencée.
  * Porte un propriétaire, un statut et un circuit de validation (workflow).
  */
 @Entity
-@Table(name = "work_spaces")
+@Table(name = "workspace")
 @Getter
 @Setter
 @NoArgsConstructor
-public class WorkSpace extends Auditable {
+public class WorkSpace extends Supprimable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @Column(nullable = false)
     private String name;
@@ -49,7 +51,7 @@ public class WorkSpace extends Auditable {
 
     /** Dossier parent (null = racine) — auto-référence pour l'arborescence. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_workspace_id")
+    @JoinColumn(name = "parent_id")
     private WorkSpace parent;
 
     /** Circuit de validation appliqué aux documents du dossier. */
@@ -69,9 +71,6 @@ public class WorkSpace extends Auditable {
     @ManyToMany(mappedBy = "workspaces", fetch = FetchType.LAZY)
     private Set<AccessGroup> accessGroups = new LinkedHashSet<>();
 
-    /** Corbeille : true = supprimé de façon réversible. */
-    @Column(nullable = false)
-    private boolean deleted = false;
 
     public WorkSpace(String name, String code) {
         this.name = name;
@@ -79,8 +78,8 @@ public class WorkSpace extends Auditable {
     }
 
     /** Tous les identifiants de la descendance (récursif), pour l'anti-cycle du déplacement. */
-    public List<Long> getAllChildrenIds() {
-        List<Long> ids = new ArrayList<>();
+    public List<UUID> getAllChildrenIds() {
+        List<UUID> ids = new ArrayList<>();
         for (WorkSpace child : children) {
             ids.add(child.getId());
             ids.addAll(child.getAllChildrenIds());

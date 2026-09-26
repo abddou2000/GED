@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données reçues pour créer / modifier un circuit de workflow.
@@ -23,7 +24,7 @@ public record WorkflowRequest(
 ) {
     public record StepRequest(
             @NotNull(message = "L'approbateur est obligatoire")
-            Long employeId,
+            UUID employeId,
 
             @NotBlank(message = "Le libellé de l'étape est obligatoire")
             @Size(max = 255)

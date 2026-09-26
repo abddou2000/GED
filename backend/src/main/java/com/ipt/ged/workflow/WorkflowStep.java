@@ -1,5 +1,6 @@
 package com.ipt.ged.workflow;
 
+import com.ipt.ged.common.IdentifiantUuid;
 import com.ipt.ged.common.Auditable;
 import com.ipt.ged.employe.Employe;
 import jakarta.persistence.*;
@@ -7,19 +8,21 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.UUID;
+
 /**
  * Une étape d'un circuit : un approbateur (employé) + un libellé + un rang d'ordre.
  */
 @Entity
-@Table(name = "workflow_ged_steps")
+@Table(name = "workflow_ged_etape")
 @Getter
 @Setter
 @NoArgsConstructor
 public class WorkflowStep extends Auditable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workflow_ged_id", nullable = false)

@@ -57,8 +57,8 @@ export class ProfilPage implements OnInit {
   /* Teinte de la pastille : elle vient de la palette partagée, indexée sur
      l'identifiant de la personne. La même tête garde donc sa couleur ici et
      dans les tableaux où elle apparaît. */
-  readonly teinte = computed(() => teinteAvatar(this.profil()?.id ?? 0));
-  readonly encre = computed(() => encreAvatar(this.profil()?.id ?? 0));
+  readonly teinte = computed(() => teinteAvatar(this.profil()?.id));
+  readonly encre = computed(() => encreAvatar(this.profil()?.id));
 
   readonly email = computed(() => this.session.user()?.email ?? null);
 

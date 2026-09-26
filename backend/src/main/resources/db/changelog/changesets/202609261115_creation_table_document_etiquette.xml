@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261115_creation_table_document_etiquette.xml">
+
+    <changeSet id="202609261115-1" author="ged">
+        <comment>Association document / étiquette.</comment>
+        <createTable tableName="document_etiquette">
+            <column name="document_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="etiquette_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey constraintName="pk_document_etiquette" tableName="document_etiquette" columnNames="document_id, etiquette_id"/>
+        <addForeignKeyConstraint constraintName="fk_document_etiquette_document" baseTableName="document_etiquette" baseColumnNames="document_id"
+                                 referencedTableName="document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_document_etiquette_etiquette" baseTableName="document_etiquette" baseColumnNames="etiquette_id"
+                                 referencedTableName="etiquette" referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex indexName="idx_document_etiquette_etiquette_id" tableName="document_etiquette">
+            <column name="etiquette_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="document_etiquette"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

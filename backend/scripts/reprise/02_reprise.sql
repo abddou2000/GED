@@ -1,0 +1,271 @@
+-- =====================================================================
+--  Reprise des données — étape 2 : transfert vers le schéma cible (UUID)
+-- =====================================================================
+--  Lit `reprise_source` (ancien modèle, identifiants numériques) et remplit le
+--  schéma cible créé par Liquibase (nouveau modèle, clés UUID v7).
+--
+--  Conditions d'exécution (voir LISEZ-MOI de la reprise dans DEPLOIEMENT.md) :
+--    - le schéma cible existe, créé par Liquibase, et il est VIDE (vérifié) ;
+--    - le chemin de recherche désigne le schéma cible : les tables cibles ne
+--      sont pas qualifiées (PGOPTIONS='-c search_path=ged' avec psql) ;
+--    - exécution en UNE transaction (`psql -1`) : tout passe ou rien ;
+--    - compte ged_owner (création des fonctions de transit).
+--
+--  Choix de conversion :
+--    - chaque ancienne ligne reçoit un UUID v7 dont l'horodatage est son
+--      created_at (UTC) ; à horodatage égal, l'ancien identifiant départage.
+--      L'ordre « par id » de l'application reste donc l'ordre chronologique ;
+--    - la table reprise_source.correspondance conserve le lien ancien id ->
+--      nouvel UUID : à exporter et archiver avant de supprimer le transit
+--      (références externes, journaux, dossiers de fichiers numérotés) ;
+--    - les horodatages MySQL, écrits en UTC, deviennent des timestamptz ;
+--    - les jetons d'index de la charte de nommage (identifiants numériques
+--      dans le JSON) sont traduits en UUID ;
+--    - les chemins de fichiers (file_path) sont repris tels quels : les
+--      fichiers restent là où ils sont sur le disque ;
+--    - supprime_par et supprime_le restent vides : l'ancien modèle ne savait
+--      ni qui ni quand ;
+--    - document.metadonnees prend sa valeur par défaut ({}).
+-- =====================================================================
+
+-- ---------- 0. Garde-fou : la cible doit être vide ----------
+DO $$
+DECLARE
+    t text;
+    n bigint;
+BEGIN
+    FOREACH t IN ARRAY ARRAY['employe', 'compte_utilisateur', 'workflow_ged', 'workflow_ged_etape',
+        'workspace', 'access_group', 'access_group_workspace', 'access_group_employe', 'etiquette',
+        'index_def', 'plan_indexation', 'plan_index', 'type_document', 'document', 'version_document',
+        'document_etiquette', 'document_index_valeur', 'workflow_ged_signature']
+    LOOP
+        EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
+        IF n > 0 THEN
+            RAISE EXCEPTION 'Reprise refusée : la table cible % contient déjà % ligne(s) (schéma %).',
+                t, n, current_schema();
+        END IF;
+    END LOOP;
+END
+$$;
+
+-- ---------- 1. Outillage de transit ----------
+
+-- UUID v7 (RFC 9562) : 48 bits d'horodatage en ms, version 7, 12 bits de rang
+-- (ordre à horodatage égal), 62 bits aléatoires avec la variante RFC.
+CREATE OR REPLACE FUNCTION reprise_source.uuid_v7(horodatage timestamptz, rang bigint)
+RETURNS uuid LANGUAGE sql VOLATILE AS $$
+    SELECT (lpad(to_hex(floor(extract(epoch FROM horodatage) * 1000)::bigint + rang / 4096), 12, '0')
+            || '7' || lpad(to_hex((rang % 4096)::int), 3, '0')
+            || substr(replace(gen_random_uuid()::text, '-', ''), 17, 16))::uuid
+$$;
+
+CREATE TABLE reprise_source.correspondance (
+    table_source text   NOT NULL,
+    ancien_id    bigint NOT NULL,
+    id           uuid   NOT NULL UNIQUE,
+    PRIMARY KEY (table_source, ancien_id)
+);
+
+-- Attribue un UUID à chaque ligne d'une table source, dans l'ordre
+-- (horodatage, ancien id). Une ligne sans horodatage prend une date fixe
+-- antérieure à toute donnée réelle : elle reste avant les autres.
+CREATE OR REPLACE FUNCTION reprise_source.correspondre(table_source text, colonne_horodatage text)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+    EXECUTE format($f$
+        INSERT INTO reprise_source.correspondance (table_source, ancien_id, id)
+        SELECT %L, id,
+               reprise_source.uuid_v7(h AT TIME ZONE 'UTC',
+                                      row_number() OVER (PARTITION BY date_trunc('milliseconds', h) ORDER BY id) - 1)
+          FROM (SELECT id, coalesce(%s, TIMESTAMP '2000-01-01 00:00:00') AS h
+                  FROM reprise_source.%I) s
+    $f$, table_source, colonne_horodatage, table_source);
+END
+$$;
+
+-- Nouvel identifiant d'une ancienne ligne ; NULL si l'ancien id est NULL.
+CREATE OR REPLACE FUNCTION reprise_source.nouvel_id(table_source text, ancien bigint)
+RETURNS uuid LANGUAGE sql STABLE AS $$
+    SELECT c.id FROM reprise_source.correspondance c
+     WHERE c.table_source = $1 AND c.ancien_id = $2
+$$;
+
+-- Horodatage UTC de l'ancien modèle -> timestamptz.
+CREATE OR REPLACE FUNCTION reprise_source.utc(t timestamp)
+RETURNS timestamptz LANGUAGE sql IMMUTABLE AS $$
+    SELECT t AT TIME ZONE 'UTC'
+$$;
+
+DO $$
+BEGIN
+    PERFORM reprise_source.correspondre('employes', 'created_at');
+    PERFORM reprise_source.correspondre('comptes_utilisateurs', 'NULL::timestamp');
+    PERFORM reprise_source.correspondre('workflow_ged', 'created_at');
+    PERFORM reprise_source.correspondre('workflow_ged_steps', 'created_at');
+    PERFORM reprise_source.correspondre('work_spaces', 'created_at');
+    PERFORM reprise_source.correspondre('access_groups', 'created_at');
+    PERFORM reprise_source.correspondre('etiquettes', 'created_at');
+    PERFORM reprise_source.correspondre('indices', 'created_at');
+    PERFORM reprise_source.correspondre('plan_d_indexations', 'created_at');
+    PERFORM reprise_source.correspondre('type_de_documents', 'created_at');
+    PERFORM reprise_source.correspondre('documents_file', 'created_at');
+    PERFORM reprise_source.correspondre('document_versions', 'created_at');
+    PERFORM reprise_source.correspondre('document_index_values', 'created_at');
+    PERFORM reprise_source.correspondre('workflow_ged_signatures', 'created_at');
+END
+$$;
+
+-- ---------- 2. Transfert, dans l'ordre des clés étrangères ----------
+-- Une clé étrangère obligatoire sans correspondance (ligne orpheline dans
+-- l'ancienne base) produit un NULL, refusé par la contrainte NOT NULL : la
+-- transaction entière est annulée et l'erreur désigne la table.
+
+INSERT INTO employe (id, first_name, last_name, has_user, created_at, updated_at)
+SELECT reprise_source.nouvel_id('employes', s.id), s.first_name, s.last_name, coalesce(s.has_user, false),
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.employes s;
+
+INSERT INTO compte_utilisateur (id, email, mot_de_passe, actif, employe_id, derniere_connexion)
+SELECT reprise_source.nouvel_id('comptes_utilisateurs', s.id), lower(trim(s.email)), s.mot_de_passe,
+       coalesce(s.actif, true), reprise_source.nouvel_id('employes', s.employe_id),
+       reprise_source.utc(s.derniere_connexion)
+  FROM reprise_source.comptes_utilisateurs s;
+
+INSERT INTO workflow_ged (id, name, deleted, created_at, updated_at)
+SELECT reprise_source.nouvel_id('workflow_ged', s.id), s.name, coalesce(s.deleted, false),
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.workflow_ged s;
+
+INSERT INTO workflow_ged_etape (id, workflow_ged_id, employe_id, label, step_order, created_at, updated_at)
+SELECT reprise_source.nouvel_id('workflow_ged_steps', s.id),
+       reprise_source.nouvel_id('workflow_ged', s.workflow_ged_id),
+       reprise_source.nouvel_id('employes', s.employe_id), s.label, s.step_order,
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.workflow_ged_steps s;
+
+-- Auto-référence (parent) : une seule instruction, les contrôles de clé
+-- étrangère sont évalués en fin d'instruction, quel que soit l'ordre des lignes.
+INSERT INTO workspace (id, name, code, description, status, employe_id, parent_id, workflow_ged_id,
+                       deleted, created_at, updated_at)
+SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.description, s.status,
+       reprise_source.nouvel_id('employes', s.employe_id),
+       reprise_source.nouvel_id('work_spaces', s.parent_workspace_id),
+       reprise_source.nouvel_id('workflow_ged', s.workflow_ged_id), coalesce(s.deleted, false),
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.work_spaces s;
+
+INSERT INTO access_group (id, code, name, droit_access, droit_lecture, droit_modifier, droit_uploader,
+                          droit_supprimer, droit_deplacer, droit_ajouter_version,
+                          droit_verrouiller_deverrouiller, deleted, created_at, updated_at)
+SELECT reprise_source.nouvel_id('access_groups', s.id), s.code, s.name,
+       coalesce(s.droit_access, false), coalesce(s.droit_lecture, false), coalesce(s.droit_modifier, false),
+       coalesce(s.droit_uploader, false), coalesce(s.droit_supprimer, false),
+       coalesce(s.droit_deplacer, false), coalesce(s.droit_ajouter_version, false),
+       coalesce(s.droit_verrouiller_deverrouiller, false), coalesce(s.deleted, false),
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.access_groups s;
+
+INSERT INTO access_group_workspace (access_group_id, workspace_id)
+SELECT reprise_source.nouvel_id('access_groups', s.access_group_id),
+       reprise_source.nouvel_id('work_spaces', s.workspace_id)
+  FROM reprise_source.pivot_workspace_groups s;
+
+INSERT INTO access_group_employe (access_group_id, employe_id)
+SELECT reprise_source.nouvel_id('access_groups', s.access_group_id),
+       reprise_source.nouvel_id('employes', s.employe_id)
+  FROM reprise_source.pivot_employe_groups s;
+
+INSERT INTO etiquette (id, code, tag, couleur, deleted, created_at, updated_at)
+SELECT reprise_source.nouvel_id('etiquettes', s.id), s.code, s.tag, s.couleur, coalesce(s.deleted, false),
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.etiquettes s;
+
+INSERT INTO index_def (id, code, nom_index, type_champs, valeurs, valeur_par_defaut, obligatoire,
+                       indexe_pour_recherche, index_de_groupage, deleted, created_at, updated_at)
+SELECT reprise_source.nouvel_id('indices', s.id), s.code, s.nom_index, s.type_champs, s.valeurs,
+       s.valeur_par_defaut, coalesce(s.obligatoire, false), coalesce(s.indexe_pour_recherche, false),
+       coalesce(s.index_de_groupage, false), coalesce(s.deleted, false),
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.indices s;
+
+-- Charte de nommage : {"indexs":["3","DATE",...], ...}. Un jeton entièrement
+-- numérique désignait un index par son ancien identifiant ; il devient l'UUID
+-- correspondant. Les jetons système (DATE, YEAR…) et un jeton numérique sans
+-- index correspondant sont conservés tels quels. Une charte illisible n'est
+-- pas touchée : l'application la traite déjà comme vide.
+INSERT INTO plan_indexation (id, code, nom_du_plan, mode_indexation, manuel, majuscule, separateur,
+                             charte_nommage, deleted, created_at, updated_at)
+SELECT reprise_source.nouvel_id('plan_d_indexations', s.id), s.code, s.nom_du_plan,
+       coalesce(s.mode_indexation, false), coalesce(s.manuel, false), coalesce(s.majuscule, false),
+       coalesce(s.separateur, '_'),
+       CASE
+           WHEN s.charte_nommage IS JSON OBJECT
+                AND jsonb_typeof(s.charte_nommage::jsonb -> 'indexs') = 'array'
+           THEN jsonb_set(s.charte_nommage::jsonb, '{indexs}', coalesce((
+                    SELECT jsonb_agg(coalesce(to_jsonb(m.id::text), to_jsonb(j.jeton)) ORDER BY j.rang)
+                      FROM jsonb_array_elements_text(s.charte_nommage::jsonb -> 'indexs')
+                           WITH ORDINALITY AS j(jeton, rang)
+                      LEFT JOIN reprise_source.correspondance m
+                             ON m.table_source = 'indices'
+                            AND j.jeton ~ '^[0-9]{1,18}$'
+                            AND m.ancien_id = CASE WHEN j.jeton ~ '^[0-9]{1,18}$' THEN j.jeton::bigint END),
+                    '[]'::jsonb))::text
+           ELSE s.charte_nommage
+       END,
+       coalesce(s.deleted, false), reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.plan_d_indexations s;
+
+INSERT INTO plan_index (plan_indexation_id, index_def_id, position)
+SELECT reprise_source.nouvel_id('plan_d_indexations', s.plan_d_indexation_id),
+       reprise_source.nouvel_id('indices', s.index_id), s.position
+  FROM reprise_source.pivot_plan_d_indexation_indices s;
+
+INSERT INTO type_document (id, code, type_de_document, description, workspace_id, plan_indexation_id,
+                           type_autorise, taille_max_mo, deleted, created_at, updated_at)
+SELECT reprise_source.nouvel_id('type_de_documents', s.id), s.code, s.type_de_document, s.description,
+       reprise_source.nouvel_id('work_spaces', s.workspace_id),
+       reprise_source.nouvel_id('plan_d_indexations', s.plan_d_indexation_id),
+       s.type_autorise, coalesce(s.taille_max_mo, 0), coalesce(s.deleted, false),
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.type_de_documents s;
+
+INSERT INTO document (id, name, workspace_id, type_document_id, file_name, file_path, extension, size_ko,
+                      expiration_date, reference, active, is_locked, created_by_employe_id, deleted,
+                      created_at, updated_at)
+SELECT reprise_source.nouvel_id('documents_file', s.id), s.name,
+       reprise_source.nouvel_id('work_spaces', s.workspace_id),
+       reprise_source.nouvel_id('type_de_documents', s.type_document_id),
+       s.file_name, s.file_path, s.extension, coalesce(s.size_ko, 0), s.expiration_date, s.reference,
+       coalesce(s.active, true), coalesce(s.is_locked, false),
+       reprise_source.nouvel_id('employes', s.created_by_employe_id), coalesce(s.deleted, false),
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.documents_file s;
+
+INSERT INTO version_document (id, document_id, file_name, file_path, extension, size_ko, observation,
+                              is_default, created_at, updated_at)
+SELECT reprise_source.nouvel_id('document_versions', s.id),
+       reprise_source.nouvel_id('documents_file', s.document_id),
+       s.file_name, s.file_path, s.extension, coalesce(s.size_ko, 0), s.observation,
+       coalesce(s.is_default, false), reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.document_versions s;
+
+INSERT INTO document_etiquette (document_id, etiquette_id)
+SELECT reprise_source.nouvel_id('documents_file', s.document_id),
+       reprise_source.nouvel_id('etiquettes', s.etiquette_id)
+  FROM reprise_source.pivot_document_etiquettes s;
+
+INSERT INTO document_index_valeur (id, document_id, index_def_id, valeur, created_at, updated_at)
+SELECT reprise_source.nouvel_id('document_index_values', s.id),
+       reprise_source.nouvel_id('documents_file', s.document_id),
+       reprise_source.nouvel_id('indices', s.index_field_id), s.valeur,
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.document_index_values s;
+
+INSERT INTO workflow_ged_signature (id, document_id, employe_id, step_label, step_order, status, signed_at,
+                                    motif, created_at, updated_at)
+SELECT reprise_source.nouvel_id('workflow_ged_signatures', s.id),
+       reprise_source.nouvel_id('documents_file', s.document_id),
+       reprise_source.nouvel_id('employes', s.employe_id), s.step_label, s.step_order, s.status,
+       reprise_source.utc(s.signed_at), s.motif,
+       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+  FROM reprise_source.workflow_ged_signatures s;

@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -61,8 +62,8 @@ class IndexationApiTest {
 
     private static final String BASE = "/api/v1/indexation";
 
-    private long typeId, docA, docB;
-    private long idFournisseur, idDate, idMontant, idPriorite;
+    private UUID typeId, docA, docB;
+    private UUID idFournisseur, idDate, idMontant, idPriorite;
 
     @BeforeEach
     void setup() throws Exception {
@@ -80,7 +81,7 @@ class IndexationApiTest {
         plan.setIndices(List.of(fournisseur, date, montant, priorite));
         planRepository.save(plan);
 
-        Employe e = employeRepository.findById(1L).orElseThrow();
+        Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         WorkflowGed wf = new WorkflowGed("WF idx");
         wf.addStep(new WorkflowStep(e, "Validation", 1));
         workflowRepository.save(wf);
@@ -115,23 +116,23 @@ class IndexationApiTest {
         return indexRepository.save(f);
     }
 
-    private long depose(String fichier, String nom) throws Exception {
+    private UUID depose(String fichier, String nom) throws Exception {
         String res = mvc.perform(multipart("/api/v1/documents")
                         .file(new MockMultipartFile("file", fichier, "application/pdf", "contenu".getBytes()))
                         .param("name", nom)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(res).get("id").asLong();
+        return UUID.fromString(om.readTree(res).get("id").asText());
     }
 
-    private void indexer(long doc, String fourn, String date, String montant, String prio) throws Exception {
+    private void indexer(UUID doc, String fourn, String date, String montant, String prio) throws Exception {
         String corps = """
             {"valeurs":[
-              {"indexFieldId":%d,"valeur":"%s"},
-              {"indexFieldId":%d,"valeur":"%s"},
-              {"indexFieldId":%d,"valeur":"%s"},
-              {"indexFieldId":%d,"valeur":"%s"}]}
+              {"indexFieldId":"%s","valeur":"%s"},
+              {"indexFieldId":"%s","valeur":"%s"},
+              {"indexFieldId":"%s","valeur":"%s"},
+              {"indexFieldId":"%s","valeur":"%s"}]}
             """.formatted(idFournisseur, fourn, idDate, date, idMontant, montant, idPriorite, prio);
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON).content(corps))
                 .andExpect(status().isOk());
@@ -156,11 +157,11 @@ class IndexationApiTest {
      * une décision de nommage sans rapport avec la recherche. On compare
      * désormais les identifiants, qui, eux, désignent le document.
      */
-    private java.util.List<Long> idsTrouves(String reponseJson) throws Exception {
-        java.util.List<Long> ids = new java.util.ArrayList<>();
+    private java.util.List<UUID> idsTrouves(String reponseJson) throws Exception {
+        java.util.List<UUID> ids = new java.util.ArrayList<>();
         for (com.fasterxml.jackson.databind.JsonNode groupe : om.readTree(reponseJson)) {
             for (com.fasterxml.jackson.databind.JsonNode doc : groupe.get("documents")) {
-                ids.add(doc.get("id").asLong());
+                ids.add(UUID.fromString(doc.get("id").asText()));
             }
         }
         return ids;
@@ -200,23 +201,23 @@ class IndexationApiTest {
     @DisplayName("4. Recherche TEXTE (contient) et LISTE (égal)")
     void rechercheTexteEtListe() throws Exception {
         String parFournisseur = recherche(
-                "{\"criteres\":[{\"indexFieldId\":" + idFournisseur + ",\"valeur\":\"acme\"}]}");
+                "{\"criteres\":[{\"indexFieldId\":\"" + idFournisseur + "\",\"valeur\":\"acme\"}]}");
         org.junit.jupiter.api.Assertions.assertEquals(List.of(docA), idsTrouves(parFournisseur));
 
         String parPriorite = recherche(
-                "{\"criteres\":[{\"indexFieldId\":" + idPriorite + ",\"valeur\":\"Basse\"}]}");
+                "{\"criteres\":[{\"indexFieldId\":\"" + idPriorite + "\",\"valeur\":\"Basse\"}]}");
         org.junit.jupiter.api.Assertions.assertEquals(List.of(docB), idsTrouves(parPriorite));
     }
 
     @Test
     @DisplayName("5. Recherche par plage de DATE et intervalle de NOMBRE")
     void recherchePlages() throws Exception {
-        String parDate = recherche("{\"criteres\":[{\"indexFieldId\":" + idDate
-                + ",\"de\":\"2026-01-01\",\"a\":\"2026-02-01\"}]}");
+        String parDate = recherche("{\"criteres\":[{\"indexFieldId\":\"" + idDate
+                + "\",\"de\":\"2026-01-01\",\"a\":\"2026-02-01\"}]}");
         org.junit.jupiter.api.Assertions.assertEquals(List.of(docA), idsTrouves(parDate));
 
         // 300 < 1000 : seule la facture B doit sortir
-        String parMontant = recherche("{\"criteres\":[{\"indexFieldId\":" + idMontant + ",\"a\":\"1000\"}]}");
+        String parMontant = recherche("{\"criteres\":[{\"indexFieldId\":\"" + idMontant + "\",\"a\":\"1000\"}]}");
         org.junit.jupiter.api.Assertions.assertEquals(List.of(docB), idsTrouves(parMontant));
     }
 
@@ -225,8 +226,8 @@ class IndexationApiTest {
     void criteresCombines() throws Exception {
         // Fournisseur ACME ET priorité Basse → aucun document ne satisfait les deux
         String vide = recherche("{\"criteres\":["
-                + "{\"indexFieldId\":" + idFournisseur + ",\"valeur\":\"acme\"},"
-                + "{\"indexFieldId\":" + idPriorite + ",\"valeur\":\"Basse\"}]}");
+                + "{\"indexFieldId\":\"" + idFournisseur + "\",\"valeur\":\"acme\"},"
+                + "{\"indexFieldId\":\"" + idPriorite + "\",\"valeur\":\"Basse\"}]}");
         org.junit.jupiter.api.Assertions.assertTrue(idsTrouves(vide).isEmpty());
     }
 
@@ -234,7 +235,7 @@ class IndexationApiTest {
     @DisplayName("7. Regroupement des résultats par index de groupage")
     void regroupement() throws Exception {
         mvc.perform(post(BASE + "/recherche").contentType(APPLICATION_JSON)
-                        .content("{\"grouperPar\":" + idFournisseur + "}"))
+                        .content("{\"grouperPar\":\"" + idFournisseur + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[*].libelle", hasItems("ACME Distribution", "Atlas Fournitures")))
@@ -245,11 +246,11 @@ class IndexationApiTest {
     @DisplayName("8. Une valeur incompatible avec le type est refusée (400)")
     void valeurInvalide() throws Exception {
         mvc.perform(put(BASE + "/documents/" + docA).contentType(APPLICATION_JSON)
-                        .content("{\"valeurs\":[{\"indexFieldId\":" + idMontant + ",\"valeur\":\"abc\"}]}"))
+                        .content("{\"valeurs\":[{\"indexFieldId\":\"" + idMontant + "\",\"valeur\":\"abc\"}]}"))
                 .andExpect(status().isBadRequest());
 
         mvc.perform(put(BASE + "/documents/" + docA).contentType(APPLICATION_JSON)
-                        .content("{\"valeurs\":[{\"indexFieldId\":" + idPriorite + ",\"valeur\":\"Extrême\"}]}"))
+                        .content("{\"valeurs\":[{\"indexFieldId\":\"" + idPriorite + "\",\"valeur\":\"Extrême\"}]}"))
                 .andExpect(status().isBadRequest());
     }
 }

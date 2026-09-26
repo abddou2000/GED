@@ -26,6 +26,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -58,11 +59,11 @@ class CorbeilleApiTest {
     @Autowired private TypeDocumentRepository typeRepository;
 
     private static final String BASE = "/api/v1/documents";
-    private long typeId, workspaceId;
+    private UUID typeId, workspaceId;
 
     @BeforeEach
     void setup() {
-        Employe e = employeRepository.findById(Comptes.ID_ADMIN).orElseThrow();
+        Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         WorkflowGed wf = new WorkflowGed("WF corbeille");
         wf.addStep(new WorkflowStep(e, "Validation", 1));
         workflowRepository.save(wf);
@@ -81,20 +82,20 @@ class CorbeilleApiTest {
         typeId = typeRepository.save(type).getId();
     }
 
-    private long deposer(String nom) throws Exception {
+    private UUID deposer(String nom) throws Exception {
         String reponse = mvc.perform(multipart(BASE)
                         .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", "x".getBytes()))
                         .param("name", nom)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(reponse).get("id").asLong();
+        return UUID.fromString(om.readTree(reponse).get("id").asText());
     }
 
-    private long etapeDe(long documentId) throws Exception {
+    private UUID etapeDe(UUID documentId) throws Exception {
         String reponse = mvc.perform(get("/api/v1/signatures/document/" + documentId))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(reponse).get(0).get("id").asLong();
+        return UUID.fromString(om.readTree(reponse).get(0).get("id").asText());
     }
 
     private long compteurTableauDeBord() throws Exception {
@@ -115,8 +116,8 @@ class CorbeilleApiTest {
     @Test
     @DisplayName("5a. Document en corbeille : la fiche reste lisible, mais aucune écriture n'est acceptée")
     void ecrituresRefuseesSurDocumentSupprime() throws Exception {
-        long id = deposer("Pièce supprimée");
-        long etape = etapeDe(id);
+        UUID id = deposer("Pièce supprimée");
+        UUID etape = etapeDe(id);
 
         mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());
 
@@ -182,7 +183,7 @@ class CorbeilleApiTest {
         long reference = compteurTableauDeBord();
         assertEquals(tailleListeAttente(), reference, "compteur et liste divergeaient déjà");
 
-        long id = deposer("Pièce à signer");
+        UUID id = deposer("Pièce à signer");
         assertEquals(reference + 1, compteurTableauDeBord());
         assertEquals(tailleListeAttente(), compteurTableauDeBord());
 

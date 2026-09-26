@@ -35,6 +35,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.util.UUID;
+
 /**
  * Campagne de tests du circuit de signature : création à l'upload, approbation
  * séquentielle, rejet (retour en arrière), et contrôle de l'assigné.
@@ -70,7 +72,7 @@ class SignatureApiTest {
     @Autowired private CompteUtilisateurRepository compteRepository;
     @Autowired private PasswordEncoder encodeur;
 
-    private long typeId;
+    private UUID typeId;
 
     /**
      * Incarne un autre compte le temps d'une requête.
@@ -87,13 +89,13 @@ class SignatureApiTest {
 
     @BeforeEach
     void setup() {
-        Employe e1 = employeRepository.findById(Comptes.ID_ADMIN).orElseThrow();
-        Employe e2 = employeRepository.findById(Comptes.ID_SECOND_ACTEUR).orElseThrow();
+        Employe e1 = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
+        Employe e2 = employeRepository.findById(Comptes.idSecondActeur(employeRepository)).orElseThrow();
 
         // L'amorçage n'ouvre qu'un compte (utilisateur unique) : l'assigné de
         // l'étape 2 doit pouvoir s'authentifier pour que le circuit se déroule.
         Comptes.ouvrirCompte(compteRepository, employeRepository, encodeur,
-                Comptes.ID_SECOND_ACTEUR, Comptes.SECOND_ACTEUR, "test-only-password");
+                Comptes.idSecondActeur(employeRepository), Comptes.SECOND_ACTEUR, "test-only-password");
 
         WorkflowGed wf = new WorkflowGed("Circuit 2 étapes");
         wf.addStep(new WorkflowStep(e1, "Contrôle", 1));
@@ -114,26 +116,26 @@ class SignatureApiTest {
         typeId = typeRepository.save(type).getId();
     }
 
-    private long upload(String name) throws Exception {
+    private UUID upload(String name) throws Exception {
         String res = mvc.perform(multipart("/api/v1/documents")
                         .file(new MockMultipartFile("file", name + ".pdf", "application/pdf", "x".getBytes()))
                         .param("name", name)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        return om.readTree(res).get("id").asLong();
+        return UUID.fromString(om.readTree(res).get("id").asText());
     }
 
-    private long sigIdForStep(long docId, int stepOrder) throws Exception {
+    private UUID sigIdForStep(UUID docId, int stepOrder) throws Exception {
         String res = mvc.perform(get("/api/v1/signatures/document/" + docId))
                 .andReturn().getResponse().getContentAsString();
         for (JsonNode n : om.readTree(res)) {
-            if (n.get("stepOrder").asInt() == stepOrder) return n.get("id").asLong();
+            if (n.get("stepOrder").asInt() == stepOrder) return UUID.fromString(n.get("id").asText());
         }
         throw new IllegalStateException("Étape " + stepOrder + " introuvable");
     }
 
-    private boolean docActive(long docId) throws Exception {
+    private boolean docActive(UUID docId) throws Exception {
         String res = mvc.perform(get("/api/v1/documents/" + docId))
                 .andReturn().getResponse().getContentAsString();
         return om.readTree(res).get("active").asBoolean();
@@ -142,7 +144,7 @@ class SignatureApiTest {
     @Test
     @DisplayName("1. L'upload crée le circuit : document en attente, étape 1 actionnable")
     void uploadCreatesCircuit() throws Exception {
-        long doc = upload("Doc A");
+        UUID doc = upload("Doc A");
         // document en attente (non actif)
         org.junit.jupiter.api.Assertions.assertFalse(docActive(doc));
         // /pending ne prend plus aucun paramètre : c'est le porteur du jeton qui
@@ -158,8 +160,8 @@ class SignatureApiTest {
     @Test
     @DisplayName("2. Approbation séquentielle : la dernière étape active le document")
     void sequentialApproval() throws Exception {
-        long doc = upload("Doc B");
-        long s1 = sigIdForStep(doc, 1);
+        UUID doc = upload("Doc B");
+        UUID s1 = sigIdForStep(doc, 1);
         // Employé 1 signe la sienne — aucun employeId dans le corps.
         mvc.perform(patch("/api/v1/signatures/" + s1 + "/approve").contentType(APPLICATION_JSON)
                         .content("{}"))
@@ -171,7 +173,7 @@ class SignatureApiTest {
         mvc.perform(get("/api/v1/signatures/pending").with(enTantQue(Comptes.SECOND_ACTEUR)))
                 .andExpect(jsonPath("$.length()").value(1));
 
-        long s2 = sigIdForStep(doc, 2);
+        UUID s2 = sigIdForStep(doc, 2);
         mvc.perform(patch("/api/v1/signatures/" + s2 + "/approve")
                         .with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON).content("{}"))
@@ -183,12 +185,12 @@ class SignatureApiTest {
     @Test
     @DisplayName("3. Rejet à l'étape 2 : rouvre l'étape 1, document non actif")
     void rejectReopensPrevious() throws Exception {
-        long doc = upload("Doc C");
-        long s1 = sigIdForStep(doc, 1);
+        UUID doc = upload("Doc C");
+        UUID s1 = sigIdForStep(doc, 1);
         mvc.perform(patch("/api/v1/signatures/" + s1 + "/approve").contentType(APPLICATION_JSON)
                 .content("{}")).andExpect(status().isOk());
 
-        long s2 = sigIdForStep(doc, 2);
+        UUID s2 = sigIdForStep(doc, 2);
         mvc.perform(patch("/api/v1/signatures/" + s2 + "/reject")
                         .with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON).content("{\"motif\":\"Montant erroné\"}"))
@@ -204,12 +206,12 @@ class SignatureApiTest {
     @Test
     @DisplayName("3b. Un circuit rejeté se relance : l'étape refusée redevient à traiter")
     void rejetRelancable() throws Exception {
-        long doc = upload("Doc C2");
-        long s1 = sigIdForStep(doc, 1);
+        UUID doc = upload("Doc C2");
+        UUID s1 = sigIdForStep(doc, 1);
         mvc.perform(patch("/api/v1/signatures/" + s1 + "/approve").contentType(APPLICATION_JSON)
                 .content("{}")).andExpect(status().isOk());
 
-        long s2 = sigIdForStep(doc, 2);
+        UUID s2 = sigIdForStep(doc, 2);
         mvc.perform(patch("/api/v1/signatures/" + s2 + "/reject")
                         .with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON).content("{\"motif\":\"Montant erroné\"}"))
@@ -246,7 +248,7 @@ class SignatureApiTest {
     @Test
     @DisplayName("3c. Relancer un circuit sans rejet est refusé (400)")
     void relanceSansRejetRefusee() throws Exception {
-        long doc = upload("Doc C3");
+        UUID doc = upload("Doc C3");
         mvc.perform(patch("/api/v1/signatures/document/" + doc + "/relancer"))
                 .andExpect(status().isBadRequest());
     }
@@ -254,8 +256,8 @@ class SignatureApiTest {
     @Test
     @DisplayName("4. Seul l'assigné peut signer : un autre employé authentifié est refusé (400)")
     void wrongAssignee() throws Exception {
-        long doc = upload("Doc D");
-        long s1 = sigIdForStep(doc, 1); // assignée à l'employé 1
+        UUID doc = upload("Doc D");
+        UUID s1 = sigIdForStep(doc, 1); // assignée à l'employé 1
         // L'employé 2 tente de signer avec SON PROPRE jeton. Rien dans la requête
         // ne lui permet plus de se déclarer employé 1.
         mvc.perform(patch("/api/v1/signatures/" + s1 + "/approve")
@@ -268,8 +270,8 @@ class SignatureApiTest {
     @Test
     @DisplayName("5. Rejet sans motif refusé (400)")
     void rejectWithoutMotif() throws Exception {
-        long doc = upload("Doc E");
-        long s1 = sigIdForStep(doc, 1);
+        UUID doc = upload("Doc E");
+        UUID s1 = sigIdForStep(doc, 1);
         mvc.perform(patch("/api/v1/signatures/" + s1 + "/reject").contentType(APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -279,8 +281,8 @@ class SignatureApiTest {
     @Test
     @DisplayName("6. Impossible d'approuver l'étape 2 avant l'étape 1 (400)")
     void cannotSkipStep() throws Exception {
-        long doc = upload("Doc F");
-        long s2 = sigIdForStep(doc, 2);
+        UUID doc = upload("Doc F");
+        UUID s2 = sigIdForStep(doc, 2);
         mvc.perform(patch("/api/v1/signatures/" + s2 + "/approve")
                         .with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON).content("{}"))

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261105_creation_table_document.xml">
+
+    <changeSet id="202609261105-1" author="ged">
+        <comment>Documents déposés (fiche et version courante).</comment>
+        <createTable tableName="document">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_document" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="workspace_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type_document_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_name" type="VARCHAR(255)"/>
+            <column name="file_path" type="VARCHAR(255)"/>
+            <column name="extension" type="VARCHAR(255)"/>
+            <column name="size_ko" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expiration_date" type="DATE"/>
+            <column name="reference" type="VARCHAR(255)"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_locked" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by_employe_id" type="UUID"/>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_document_workspace" baseTableName="document" baseColumnNames="workspace_id"
+                                 referencedTableName="workspace" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_document_type_document" baseTableName="document" baseColumnNames="type_document_id"
+                                 referencedTableName="type_document" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_document_created_by_employe" baseTableName="document" baseColumnNames="created_by_employe_id"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <createIndex indexName="idx_document_deleted" tableName="document">
+            <column name="deleted"/>
+        </createIndex>
+        <createIndex indexName="idx_document_created_at" tableName="document">
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex indexName="idx_document_name" tableName="document">
+            <column name="name"/>
+        </createIndex>
+        <createIndex indexName="idx_document_workspace_id" tableName="document">
+            <column name="workspace_id"/>
+        </createIndex>
+        <createIndex indexName="idx_document_type_document_id" tableName="document">
+            <column name="type_document_id"/>
+        </createIndex>
+        <createIndex indexName="idx_document_created_by_employe_id" tableName="document">
+            <column name="created_by_employe_id"/>
+        </createIndex>
+        <createIndex indexName="idx_document_expiration_date" tableName="document">
+            <column name="expiration_date"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_size_ko CHECK (size_ko &gt;= 0)</sql>
+        <rollback>
+            <dropTable tableName="document"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

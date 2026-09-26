@@ -1,6 +1,7 @@
 package com.ipt.ged.workflow;
 
-import com.ipt.ged.common.Auditable;
+import com.ipt.ged.common.IdentifiantUuid;
+import com.ipt.ged.common.Supprimable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -8,6 +9,7 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Circuit de validation (« Règle de Workflow ») : un nom + une liste d'étapes ordonnées.
@@ -17,18 +19,15 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-public class WorkflowGed extends Auditable {
+public class WorkflowGed extends Supprimable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @Column(nullable = false)
     private String name;
 
-    /** Corbeille : true = archivé/supprimé de façon réversible. */
-    @Column(nullable = false)
-    private boolean deleted = false;
 
     @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("stepOrder ASC")

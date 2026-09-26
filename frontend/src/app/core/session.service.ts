@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { AuthService } from './auth.service';
 
 export interface SessionUser {
-  id: number | null;
+  id: string | null;
   fullName: string;
   email: string;
 }
@@ -39,7 +39,7 @@ export class SessionService {
   });
 
   /** Enregistre l'identité renvoyée par la connexion. */
-  adopter(id: number, fullName: string, email: string): void {
+  adopter(id: string, fullName: string, email: string): void {
     this.user.set({ id, fullName, email });
   }
 

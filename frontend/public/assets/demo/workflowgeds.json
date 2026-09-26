@@ -1,36 +1,36 @@
 {
- "content": [
-  {
-   "id": 33,
-   "name": "validation medium",
-   "steps": [
+  "content": [
     {
-     "id": 33,
-     "employeId": 2,
-     "employeFullName": "Karim El Fassi",
-     "label": "Karim El Fassi",
-     "stepOrder": 1
-    }
-   ],
-   "workspaces": []
-  },
-  {
-   "id": 1,
-   "name": "Validation standard",
-   "steps": [
+      "id": "01920000-0000-7000-8000-000000000021",
+      "name": "validation medium",
+      "steps": [
+        {
+          "id": "01920000-0000-7000-8000-000000000021",
+          "employeId": "01920000-0000-7000-8000-000000000002",
+          "employeFullName": "Karim El Fassi",
+          "label": "Karim El Fassi",
+          "stepOrder": 1
+        }
+      ],
+      "workspaces": []
+    },
     {
-     "id": 1,
-     "employeId": 1,
-     "employeFullName": "Sara Bennani",
-     "label": "Validation",
-     "stepOrder": 1
+      "id": "01920000-0000-7000-8000-000000000001",
+      "name": "Validation standard",
+      "steps": [
+        {
+          "id": "01920000-0000-7000-8000-000000000001",
+          "employeId": "01920000-0000-7000-8000-000000000001",
+          "employeFullName": "Sara Bennani",
+          "label": "Validation",
+          "stepOrder": 1
+        }
+      ],
+      "workspaces": []
     }
-   ],
-   "workspaces": []
-  }
- ],
- "total": 2,
- "page": 0,
- "size": 100,
- "totalPages": 1
+  ],
+  "total": 2,
+  "page": 0,
+  "size": 100,
+  "totalPages": 1
 }

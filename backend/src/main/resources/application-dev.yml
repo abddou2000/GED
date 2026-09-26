@@ -1,31 +1,14 @@
 # ============================================================
-#  Profil DEV — base H2 sur fichier (zéro installation)
-#  Console H2 :  http://localhost:8080/h2-console
-#  JDBC URL   :  jdbc:h2:file:./data/ged   (user: sa / pas de mot de passe)
+#  Profil DEV — PostgreSQL local, base ged_dev1 (surchargeable par DB_NAME)
+#  Prérequis : backend/scripts/db/creer-roles.sql puis preparer-base.sql
+#  Le schéma est créé par Liquibase au démarrage.
 # ============================================================
 spring:
-  # Flyway est desactive ici : le schema de developpement est cree par
-  # `ddl-auto: update`, et les migrations sont ecrites en dialecte MySQL —
-  # les appliquer a H2 echouerait. Elles ne concernent que la production.
-  flyway:
-    enabled: false
-  datasource:
-    url: jdbc:h2:file:./data/ged;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
-    hibernate:
-      ddl-auto: update      # crée / met à jour le schéma automatiquement en dev
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
 
 logging:
   level:
@@ -35,9 +18,12 @@ logging:
 #  Amorçage local
 # ============================================================
 ged:
+  base:
+    nom: ${DB_NAME:ged_dev1}
+
   securite:
     # Mot de passe du compte administrateur créé au premier démarrage sur la
-    # base H2 locale.
+    # base locale de développement.
     # Ce n'est PAS un secret : valeur volontairement inutilisable ailleurs, sur
     # une base jetable, et jamais chargée en prod (le profil prod n'a pas de
     # valeur par défaut : sans GED_MDP_INITIAL, aucun compte n'est amorcé).
@@ -47,3 +33,15 @@ ged:
     # Compte unique en local : rattaché au premier employé de démonstration,
     # dont l'adresse dérivée est précisément celle-ci.
     email-admin: ${GED_EMAIL_ADMIN:sara.bennani@marchica.ma}
+
+  # Stockage sécurisé : keystore local jetable (data/ n'est pas versionné).
+  # La phrase secrète par défaut n'est PAS un secret : elle ne protège que des
+  # fichiers de démonstration sur ce poste. Sans ClamAV installé, l'antivirus
+  # est neutralisé (interdit en prod, qui refuse alors de démarrer).
+  fichiers:
+    cles:
+      keystore: ${GED_KEYSTORE_CHEMIN:./data/cles/ged-kek.p12}
+      mot-de-passe: ${GED_KEYSTORE_MDP:dev-local-only}
+      creer-si-absent: true
+    antivirus:
+      actif: ${GED_ANTIVIRUS_ACTIF:false}

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261025_creation_table_access_group.xml">
+
+    <changeSet id="202609261025-1" author="ged">
+        <comment>Groupes d'accès (organisation ; les colonnes droit_* sont héritées et inertes).</comment>
+        <createTable tableName="access_group">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_access_group" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="droit_access" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="droit_lecture" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="droit_modifier" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="droit_uploader" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="droit_supprimer" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="droit_deplacer" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="droit_ajouter_version" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="droit_verrouiller_deverrouiller" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="deleted" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_access_group_code" tableName="access_group" columnNames="code"/>
+        <addUniqueConstraint constraintName="uk_access_group_name" tableName="access_group" columnNames="name"/>
+        <createIndex indexName="idx_access_group_deleted" tableName="access_group">
+            <column name="deleted"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="access_group"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

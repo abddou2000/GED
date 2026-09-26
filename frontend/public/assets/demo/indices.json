@@ -1,52 +1,52 @@
 {
- "content": [
-  {
-   "id": 4,
-   "code": "IDX-PRIO",
-   "nomIndex": "Priorité",
-   "fieldType": "LISTE",
-   "valeurs": "Basse,Normale,Haute,Urgente",
-   "valeurParDefaut": "Normale",
-   "obligatoire": false,
-   "indexePourRecherche": true,
-   "indexDeGroupage": true
-  },
-  {
-   "id": 3,
-   "code": "IDX-FOURN",
-   "nomIndex": "Fournisseur",
-   "fieldType": "TEXTE",
-   "valeurs": null,
-   "valeurParDefaut": null,
-   "obligatoire": false,
-   "indexePourRecherche": true,
-   "indexDeGroupage": true
-  },
-  {
-   "id": 2,
-   "code": "IDX-DATEEMI",
-   "nomIndex": "Date d'émission",
-   "fieldType": "DATE",
-   "valeurs": null,
-   "valeurParDefaut": null,
-   "obligatoire": true,
-   "indexePourRecherche": true,
-   "indexDeGroupage": false
-  },
-  {
-   "id": 1,
-   "code": "IDX-NUMFACT",
-   "nomIndex": "Numéro de facture",
-   "fieldType": "NOMBRE",
-   "valeurs": null,
-   "valeurParDefaut": null,
-   "obligatoire": true,
-   "indexePourRecherche": true,
-   "indexDeGroupage": false
-  }
- ],
- "total": 4,
- "page": 0,
- "size": 100,
- "totalPages": 1
+  "content": [
+    {
+      "id": "01920000-0000-7000-8000-000000000004",
+      "code": "IDX-PRIO",
+      "nomIndex": "Priorité",
+      "fieldType": "LISTE",
+      "valeurs": "Basse,Normale,Haute,Urgente",
+      "valeurParDefaut": "Normale",
+      "obligatoire": false,
+      "indexePourRecherche": true,
+      "indexDeGroupage": true
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000003",
+      "code": "IDX-FOURN",
+      "nomIndex": "Fournisseur",
+      "fieldType": "TEXTE",
+      "valeurs": null,
+      "valeurParDefaut": null,
+      "obligatoire": false,
+      "indexePourRecherche": true,
+      "indexDeGroupage": true
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000002",
+      "code": "IDX-DATEEMI",
+      "nomIndex": "Date d'émission",
+      "fieldType": "DATE",
+      "valeurs": null,
+      "valeurParDefaut": null,
+      "obligatoire": true,
+      "indexePourRecherche": true,
+      "indexDeGroupage": false
+    },
+    {
+      "id": "01920000-0000-7000-8000-000000000001",
+      "code": "IDX-NUMFACT",
+      "nomIndex": "Numéro de facture",
+      "fieldType": "NOMBRE",
+      "valeurs": null,
+      "valeurParDefaut": null,
+      "obligatoire": true,
+      "indexePourRecherche": true,
+      "indexDeGroupage": false
+    }
+  ],
+  "total": 4,
+  "page": 0,
+  "size": 100,
+  "totalPages": 1
 }

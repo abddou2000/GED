@@ -1,47 +1,47 @@
 [
- {
-  "id": 1,
-  "name": "Comptabilité",
-  "status": "ACTIF",
-  "parentId": null,
-  "children": [
-   {
-    "id": 2,
-    "name": "2026",
+  {
+    "id": "01920000-0000-7000-8000-000000000001",
+    "name": "Comptabilité",
     "status": "ACTIF",
-    "parentId": 1,
+    "parentId": null,
     "children": [
-     {
-      "id": 3,
-      "name": "Factures",
-      "status": "ACTIF",
-      "parentId": 2,
-      "children": []
-     }
+      {
+        "id": "01920000-0000-7000-8000-000000000002",
+        "name": "2026",
+        "status": "ACTIF",
+        "parentId": "01920000-0000-7000-8000-000000000001",
+        "children": [
+          {
+            "id": "01920000-0000-7000-8000-000000000003",
+            "name": "Factures",
+            "status": "ACTIF",
+            "parentId": "01920000-0000-7000-8000-000000000002",
+            "children": []
+          }
+        ]
+      }
     ]
-   }
-  ]
- },
- {
-  "id": 4,
-  "name": "Ressources Humaines",
-  "status": "ACTIF",
-  "parentId": null,
-  "children": [
-   {
-    "id": 5,
-    "name": "Contrats",
+  },
+  {
+    "id": "01920000-0000-7000-8000-000000000004",
+    "name": "Ressources Humaines",
     "status": "ACTIF",
-    "parentId": 4,
+    "parentId": null,
+    "children": [
+      {
+        "id": "01920000-0000-7000-8000-000000000005",
+        "name": "Contrats",
+        "status": "ACTIF",
+        "parentId": "01920000-0000-7000-8000-000000000004",
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "01920000-0000-7000-8000-000000000006",
+    "name": "Projets",
+    "status": "ACTIF",
+    "parentId": null,
     "children": []
-   }
-  ]
- },
- {
-  "id": 6,
-  "name": "Projets",
-  "status": "ACTIF",
-  "parentId": null,
-  "children": []
- }
+  }
 ]

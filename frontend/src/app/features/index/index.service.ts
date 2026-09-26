@@ -29,7 +29,7 @@ export class IndexService {
     return p;
   }
 
-  get(id: number): Observable<IndexField> {
+  get(id: string): Observable<IndexField> {
     return this.http.get<IndexField>(`${this.url}/${id}`);
   }
 
@@ -37,23 +37,23 @@ export class IndexService {
     return this.http.post<IndexField>(this.url, body);
   }
 
-  update(id: number, body: IndexRequest): Observable<IndexField> {
+  update(id: string, body: IndexRequest): Observable<IndexField> {
     return this.http.put<IndexField>(`${this.url}/${id}`, body);
   }
 
-  delete(id: number): Observable<void> {
+  delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
   }
 
-  restore(id: number): Observable<void> {
+  restore(id: string): Observable<void> {
     return this.http.patch<void>(`${this.url}/${id}/restore`, {});
   }
 
-  multipleDelete(ids: number[]): Observable<void> {
+  multipleDelete(ids: string[]): Observable<void> {
     return this.http.delete<void>(`${this.url}/multiple-delete`, { body: { ids } });
   }
 
-  multipleRestore(ids: number[]): Observable<void> {
+  multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids });
   }
 }
