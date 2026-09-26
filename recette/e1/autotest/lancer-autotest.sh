@@ -73,6 +73,25 @@ SORTIE_SU2="$(bash "$E1/verifier-socle.sh" --schema recette_ok --owner postgres 
   && resultat AT-06 OK "Rôle superutilisateur détecté (E1-C31)" \
   || resultat AT-06 ECHEC "Rôle superutilisateur détecté (E1-C31)" "$(statut_de "$SORTIE_SU2" E1-C31)"
 
+# 4. Analyse statique des changelogs (sans base) : conforme puis non conforme.
+trouver_python
+SORTIE_A_OK="$("$PYTHON" "$E1/analyser-changelogs.py" --backend "$ICI/changelogs/conforme" 2>&1)"; CODE_A_OK=$?
+SORTIE_A_KO="$("$PYTHON" "$E1/analyser-changelogs.py" --backend "$ICI/changelogs/non-conforme" 2>&1)"; CODE_A_KO=$?
+SORTIE_A_OK="${SORTIE_A_OK//$'\r'/}"; SORTIE_A_KO="${SORTIE_A_KO//$'\r'/}"
+[[ $CODE_A_OK -eq 0 ]] && ! grep -q '|ECHEC|' <<< "$SORTIE_A_OK" \
+  && resultat AT-07 OK "Changelogs conformes : aucun écart signalé" \
+  || resultat AT-07 ECHEC "Changelogs conformes : aucun écart signalé" "$(grep '|ECHEC|' <<< "$SORTIE_A_OK" | cut -d'|' -f2,5 | head -3)"
+ATTENDUS_A="E1-A02:ECHEC E1-A03:ECHEC E1-A05:ECHEC E1-A06:AVERT E1-A07:ECHEC E1-A08:ECHEC E1-A09:ECHEC E1-A10:ECHEC
+E1-A11:ECHEC E1-A12:AVERT E1-A20:ECHEC E1-A21:ECHEC E1-A22:ECHEC E1-A23:AVERT E1-A24:ECHEC E1-A25:ECHEC"
+manques=()
+for paire in $ATTENDUS_A; do
+  id="${paire%%:*}"; attendu="${paire##*:}"; obtenu="$(statut_de "$SORTIE_A_KO" "$id")"
+  [[ "$obtenu" == "$attendu" ]] || manques+=("$id attendu $attendu obtenu ${obtenu:-absent}")
+done
+[[ $CODE_A_KO -eq 1 && ${#manques[@]} -eq 0 ]] \
+  && resultat AT-08 OK "Changelogs non conformes : les $(wc -w <<< "$ATTENDUS_A") écarts volontaires sont détectés" \
+  || resultat AT-08 ECHEC "Changelogs non conformes : écarts détectés" "code $CODE_A_KO ; $(printf '%s ; ' "${manques[@]}")"
+
 if [[ "${VERBEUX:-0}" == 1 ]]; then
   printf '\n----- schéma conforme -----\n%s\n----- schéma non conforme -----\n%s\n' "$SORTIE_OK" "$SORTIE_KO"
 fi

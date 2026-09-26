@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog">
+  <changeSet id="202610011210-1" author="qa" context="data-initial" labels="data-initial">
+    <insert tableName="niveau_confidentialite"><column name="code" value="PUBLIC"/></insert>
+    <rollback><delete tableName="niveau_confidentialite"><where>code = 'PUBLIC'</where></delete></rollback>
+  </changeSet>
+</databaseChangeLog>
