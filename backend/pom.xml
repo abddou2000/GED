@@ -145,6 +145,20 @@
             <version>2.7.0</version>
         </dependency>
 
+        <!-- ===== DEBUT lot E5 (dev3) — stockage sécurisé des fichiers ===== -->
+        <!-- Détection du type réel par signature (§6.1.5). Seul le noyau est
+             retenu : il reconnaît PDF, images, texte, ODF et conteneurs OOXML
+             sans tirer les analyseurs complets (POI en double, BouncyCastle…) ;
+             la distinction docx/xlsx/pptx est faite par FormatsOoxml.
+             Le chiffrement (AES-256-GCM), le keystore PKCS#12 et le client
+             clamd n'utilisent que le JDK : aucune autre dépendance. -->
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>3.2.3</version>
+        </dependency>
+        <!-- ===== FIN lot E5 (dev3) ===== -->
+
         <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
