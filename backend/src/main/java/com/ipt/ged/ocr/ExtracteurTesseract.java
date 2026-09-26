@@ -8,11 +8,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import com.ipt.ged.ocr.moteur.MoteurTesseract;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayOutputStream;
+import java.time.Duration;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -31,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  * l'ignore sans erreur.
  *
  * <p>Un PDF scanné ne contient qu'une image : ses pages sont d'abord rendues en
- * PNG dans {@code ged.storage.temp}, puis soumises au moteur.
+ * PNG en mémoire, puis transmises au moteur par son entrée standard.
  *
  * <p>Le moteur est interrogé en mode {@code tsv} : il rend alors un mot par
  * ligne avec sa boîte englobante et sa confiance. Le texte à plat est
@@ -49,7 +50,15 @@ public class ExtracteurTesseract implements ExtracteurTexte {
     private final String langue;
     private final int dpi;
     private final int pagesMax;
-    private final Path tempDir;
+    /**
+     * Mode {@code tsv} : un mot par ligne avec sa boîte englobante, dont
+     * {@link ExtracteurValeurs} a besoin pour lire un tableau. Variable plutôt
+     * que le fichier de configuration « tsv » : ce dernier est cherché dans
+     * --tessdata-dir, où nos modèles seuls sont déposés — Tesseract rendrait
+     * alors du texte brut sans le moindre message.
+     */
+    private final MoteurTesseract moteur;
+    private static final Duration DELAI_PAGE = Duration.ofSeconds(120);
     private final String tessdata;
     private final String psm;
     private final String oem;
@@ -74,10 +83,11 @@ public class ExtracteurTesseract implements ExtracteurTexte {
         this.langue = langue;
         this.dpi = dpi;
         this.pagesMax = pagesMax;
-        this.tempDir = Path.of(temp).toAbsolutePath().normalize();
         this.tessdata = tessdata == null ? "" : tessdata.trim();
         this.psm = psm;
         this.oem = oem;
+        this.moteur = new MoteurTesseract(commande, this.tessdata, oem, psm,
+                List.of("-c", "tessedit_create_tsv=1"));
         this.cacheNanos = TimeUnit.SECONDS.toNanos(Math.max(0, cacheSecondes));
     }
 
@@ -149,17 +159,15 @@ public class ExtracteurTesseract implements ExtracteurTexte {
         }
         String ext = extension(fichier);
         try {
-            Files.createDirectories(tempDir);
-            List<Path> images = "pdf".equalsIgnoreCase(ext) ? rasteriser(fichier) : List.of(fichier);
+            // Pages rendues en mémoire et transmises à Tesseract par son entrée
+            // standard : aucune image en clair n'est plus écrite dans
+            // ged.storage.temp (§4.3.4, lot E6).
+            List<byte[]> images = "pdf".equalsIgnoreCase(ext) ? rasteriser(fichier) : List.of(Files.readAllBytes(fichier));
             if (images.isEmpty()) return TexteExtrait.aucune("Aucune page à reconnaître.");
 
             List<MotOcr> mots = new ArrayList<>();
-            try {
-                for (int page = 0; page < images.size(); page++) {
-                    mots.addAll(LectureTsv.mots(lancerTesseract(images.get(page)), page));
-                }
-            } finally {
-                if ("pdf".equalsIgnoreCase(ext)) images.forEach(this::supprimerTemporaire);
+            for (int page = 0; page < images.size(); page++) {
+                mots.addAll(LectureTsv.mots(moteur.reconnaitre(images.get(page), langue, DELAI_PAGE), page));
             }
 
             String resultat = LectureTsv.texte(mots);
@@ -177,9 +185,14 @@ public class ExtracteurTesseract implements ExtracteurTexte {
         }
     }
 
-    /** Rend les premières pages du PDF en PNG dans le dossier temporaire. */
-    private List<Path> rasteriser(Path pdf) throws Exception {
-        List<Path> sorties = new ArrayList<>();
+    /**
+     * Rend les premières pages du PDF en PNG, en mémoire. Le plafond
+     * {@code pages-max} ne vaut que pour cette lecture synchrone (aperçu
+     * d'indexation, appelée en direct depuis l'écran) ; la chaîne asynchrone
+     * du lot E6 n'en a aucun.
+     */
+    private List<byte[]> rasteriser(Path pdf) throws Exception {
+        List<byte[]> sorties = new ArrayList<>();
         try (PDDocument doc = Loader.loadPDF(pdf.toFile())) {
             PDFRenderer renderer = new PDFRenderer(doc);
             int pages = Math.min(doc.getNumberOfPages(), pagesMax);
@@ -188,41 +201,12 @@ public class ExtracteurTesseract implements ExtracteurTexte {
                 // Tesseract part d'une image plus propre, et le PNG produit pèse
                 // trois fois moins qu'en couleur.
                 BufferedImage image = renderer.renderImageWithDPI(i, dpi, ImageType.GRAY);
-                Path sortie = tempDir.resolve("ocr-" + System.nanoTime() + "-p" + i + ".png");
-                ImageIO.write(image, "png", sortie.toFile());
-                sorties.add(sortie);
+                ByteArrayOutputStream png = new ByteArrayOutputStream();
+                ImageIO.write(image, "png", png);
+                sorties.add(png.toByteArray());
             }
         }
         return sorties;
-    }
-
-    /**
-     * « stdout » écrit sur la sortie standard, « tsv » demande un mot par ligne
-     * avec ses coordonnées. {@code --oem 1} force le moteur LSTM, plus précis
-     * que l'ancien moteur à motifs sur les scans imparfaits.
-     */
-    private String lancerTesseract(Path image) throws Exception {
-        List<String> args = new ArrayList<>(List.of(commande, image.toString(), "stdout"));
-        if (!tessdata.isEmpty()) { args.add("--tessdata-dir"); args.add(tessdata); }
-        args.add("-l"); args.add(langue);
-        args.add("--oem"); args.add(oem);
-        args.add("--psm"); args.add(psm);
-        // Variable plutôt que le fichier de configuration « tsv » : ce dernier
-        // est cherché dans --tessdata-dir, où nos modèles seuls sont déposés.
-        // Tesseract ne s'en plaint pas, il rend simplement du texte brut — et
-        // les positions disparaissent sans le moindre message.
-        args.add("-c"); args.add("tessedit_create_tsv=1");
-        Process p = new ProcessBuilder(args).redirectErrorStream(false).start();
-        String sortie = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        if (!p.waitFor(120, TimeUnit.SECONDS)) {
-            p.destroyForcibly();
-            throw new IllegalStateException("Tesseract n'a pas répondu dans le délai imparti.");
-        }
-        return sortie;
-    }
-
-    private void supprimerTemporaire(Path p) {
-        try { Files.deleteIfExists(p); } catch (Exception e) { log.debug("Temporaire non supprimé : {}", p); }
     }
 
     private static String extension(Path fichier) {

@@ -49,13 +49,7 @@ public class ExtracteurBureautique implements ExtracteurTexte {
     public TexteExtrait extraire(Path fichier) {
         String ext = extension(fichier).toLowerCase(Locale.ROOT);
         try (InputStream in = Files.newInputStream(fichier)) {
-            String texte = switch (ext) {
-                case "docx" -> lireDocx(in);
-                case "doc"  -> lireDoc(in);
-                case "xlsx" -> lireClasseur(new XSSFWorkbook(in));
-                case "xls"  -> lireClasseur(new HSSFWorkbook(in));
-                default -> "";
-            };
+            String texte = lireFlux(in, ext);
             return texte.isBlank()
                     ? TexteExtrait.aucune("Le fichier ne contient aucun texte lisible.")
                     : new TexteExtrait(texte.strip(), TexteExtrait.Provenance.COUCHE_TEXTE, 1,
@@ -64,6 +58,23 @@ public class ExtracteurBureautique implements ExtracteurTexte {
             log.warn("Lecture bureautique impossible : {}", fichier, e);
             return TexteExtrait.aucune("Lecture impossible : " + e.getMessage());
         }
+    }
+
+    /**
+     * Texte natif lu depuis un flux : la chaîne OCR asynchrone (lot E6) lit
+     * les fichiers déchiffrés en mémoire, sans jamais les poser en clair sur
+     * un disque.
+     *
+     * @return texte brut, vide pour une extension non gérée.
+     */
+    public String lireFlux(InputStream in, String extension) throws Exception {
+        return switch (extension.toLowerCase(Locale.ROOT)) {
+            case "docx" -> lireDocx(in);
+            case "doc"  -> lireDoc(in);
+            case "xlsx" -> lireClasseur(new XSSFWorkbook(in));
+            case "xls"  -> lireClasseur(new HSSFWorkbook(in));
+            default -> "";
+        };
     }
 
     private String lireDocx(InputStream in) throws Exception {

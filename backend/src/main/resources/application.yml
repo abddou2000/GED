@@ -127,6 +127,24 @@ ged:
     dpi: 300                   # rendu des pages PDF avant reconnaissance
     pages-max: 5               # bride le coût sur les documents volumineux
 
+    # --- Chaîne OCR asynchrone et recherche plein texte (lot E6, §4.3.4, §4.4) ---
+    # Les réglages ci-dessus (langue, pages-max) ne valent que pour la lecture
+    # synchrone de l'aperçu d'indexation, appelée à retirer (cloisonnement §4.3.3).
+    chaine:
+      actif: false                     # workers + jauges + API : après intégration des tables
+      workers: 2                       # workers OCR de cette instance
+      scrutation: 5s
+      bail: 10m                        # prolongé à chaque page
+      delai-par-page: 60s
+      delais-reprise: 1m,5m,30m        # 3 reprises, puis OCR_ECHEC
+      dpi: 300
+      seuil-caracteres-par-page: 25    # sous ce seuil, la page PDF passe à l'OCR
+      objectif-disponibilite: 24h      # décision D6 (dossier V3 : 5 min)
+      langue-defaut: fra+ara
+      langues-par-type: {}             # ex. TD-FACT: fra
+      reindexation-lot: 500
+      reindexation-pause: 200ms
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
