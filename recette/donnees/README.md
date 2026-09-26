@@ -24,21 +24,28 @@ que Tika doit détecter et la réponse attendue au dépôt.
 
 | Fichier | Commande | Pourquoi pas versionné |
 |---|---|---|
-| EICAR | `python generer_eicar.py <sortie>` | Windows Defender mettrait la copie de travail en quarantaine ; les scripts E5 le créent dans un dossier temporaire puis le suppriment |
-| Scans de 20 pages (critère de sortie E6) | `python generer_donnees.py --pages-scan 20 --sortie genere/` | 10 Mo (FR) et 8 Mo (AR) ; dossier `genere/` ignoré par git |
+| EICAR | `ecrire_eicar <sortie>` (fonction bash de `recette/e5/commun-e5.sh`) | Windows Defender mettrait la copie de travail en quarantaine ; les scripts E5 le créent dans un dossier temporaire puis le suppriment |
+| Scans de 20 pages (critère de sortie E6) | `bash generer-donnees.sh --pages-scan 20 --sortie genere/` | 8 Mo (FR) et 6,5 Mo (AR) ; dossier `genere/` ignoré par git |
 | Fichier de 201 Mo (413) | créé par `recette/e5/verifier-taille.sh` (fichier creux) | Taille |
 
 ## Régénérer
 
 ```
-pip install pymupdf reportlab pillow numpy python-docx
-python generer_donnees.py [--police-arabe /chemin/police.ttf]
+bash generer-donnees.sh [--police-arabe /chemin/police.ttf]
 ```
 
-Sous Windows la police arabe est trouvée seule (Arial, Traditional Arabic) ; sous Linux,
-installer `fonts-noto-core` (Noto Naskh Arabic) ou passer `--police-arabe`. Les PDF
-reportlab sont reproductibles à l'octet près ; le DOCX ne l'est pas (horodatage interne
-du ZIP) : le manifeste est réécrit à chaque génération.
+`GenerateurDonnees.java` est lancé en mode fichier source avec le classpath du backend
+(PDFBox, résolu hors ligne par Maven) : **aucun Python** (décision D5 de la revue
+technique). Java2D met l'arabe en forme nativement pour les scans ; la couche texte du
+PDF arabe est écrite en formes de présentation Unicode et en ordre visuel, comme le font
+beaucoup d'outils bureautiques (cas réel qui exige une normalisation NFKC côté recherche).
+Sous Windows, la police arabe est trouvée seule (Arial, Traditional Arabic) ; sous Linux,
+installer `fonts-noto-core` (Noto Naskh Arabic) ou passer `--police-arabe`. La génération
+est **reproductible à l'octet près** (identifiant PDF et dates ZIP fixés, dégradations
+tirées d'une graine fixe) : `MANIFESTE.csv` ne change que si le contenu change.
+
+Vérifié le 2026-09-26 : les scans n'ont aucune couche texte ; Tesseract `fra` restitue
+le mot-témoin du scan français ; le DOCX s'ouvre (1 tableau, témoin présent).
 
 ## Produire un vrai scan (si l'échantillon MMED n'est pas encore disponible)
 

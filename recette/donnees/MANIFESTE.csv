@@ -1,12 +1,12 @@
 fichier;octets;sha256;type_reel_attendu;reponse_depot_attendue;remarque
-document_fr.docx;35811;42907040f89bc4b95e1b0b6e5f7a99d96d340b49bca0892ab771e4fec2d28fb0;application/vnd.openxmlformats-officedocument.wordprocessingml.document;201;"Témoin « zarkolinet-docx » ; prévisualisation via LibreOffice"
+pdf_texte_fr_convention.pdf;2564;93641c8f51f948bc6e60ff40d48e2e49fad439f7bde5f40e7bd59b37aa00fbbf;application/pdf;201 (ou 202 si OCR en attente);Couche texte native ; témoin « zarkolinet »
+pdf_texte_fr_facture.pdf;1668;d95600a3056e8d2a77bd207008e2794619b3e5ba1d4cf570b3aad5cdaab1f25e;application/pdf;201 (ou 202);Couche texte native, montants et dates
+pdf_texte_ar_courrier.pdf;19408;dd8a939d13fd989a30a16478996b2ccb530c00a8e6e204fc028d9ad5a0a6eecc;application/pdf;201 (ou 202);Couche texte arabe (formes de présentation Unicode, ordre visuel) ; témoin « زركولين »
+scan_fr_courrier.pdf;817000;5909fddba04f3d562ba89999eddce16c2f9f92392356ffd7767e5ceafc260a93;application/pdf;202 EN_ATTENTE_OCR;Images seules 300 dpi, aucune couche texte ; témoin « zarkolinet » après OCR fra
+scan_ar_courrier.pdf;657536;1355223df2193c5f98e60a70085115c337c10561a3d88602039a50f32cbe88ad;application/pdf;202 EN_ATTENTE_OCR;Images seules 300 dpi, arabe ; témoin « زركولين » après OCR ara
+image_scan_fr.png;197352;f9fabecefb0c767d2c7a28ab08cf2e60372c55168d1426040bdae4cbadf1e365;image/png;201 (ou 202);Image 200 dpi, OCR fra
+document_fr.docx;1767;14d02b76dab4293a69d6bc35b504cdd6bb58518976e11cbaad6aad2c6c5b7e77;application/vnd.openxmlformats-officedocument.wordprocessingml.document;201;Témoin « zarkolinet-docx » ; prévisualisation via LibreOffice
+note_texte_brut.txt;91;0413ffc5d4fe856eeb562f3674ed847ed0ea5fde52a3506768d74421017a3a4e;text/plain;201 si le type l'autorise;Format autorisé par défaut
+tableau_decomptes.csv;124;27778d143cec6f5be2159ce76e53e01d476fbbc41fa80491544cbee843da1980;text/csv;201 si le type l'autorise;Format autorisé par défaut
+faux_pdf_texte.pdf;149;bf579e3373f9902411faab2c45ef20ca91f79fc4000d2184ea570a6d55639717;text/plain;415;Extension .pdf, contenu texte : refus par type réel
 faux_pdf_executable.pdf;512;75bc9be4136444f9f039815f72d935e8b49127bf9c4a7bfb7fffbab5e23ab604;application/x-msdownload;415;Extension .pdf, en-tête MZ/PE : refus par type réel
-faux_pdf_texte.pdf;151;c1e4b7c7dbc10044efb17166f08434fbff20d8408876b1e7db93200895392f40;text/plain;415;Extension .pdf, contenu texte : refus par type réel
-image_scan_fr.png;171437;c1e0dd79317b16d3de4f0343cbbbbf2d9ca9a7d7d958444a01c36242f75e4ce7;image/png;201 (ou 202);Image 200 dpi, OCR fra
-note_texte_brut.txt;93;5d399660691551e2eaeccfff86d1519a265600dad796669a8c309bf376cb47da;text/plain;201 si le type l'autorise;Format autorisé par défaut
-pdf_texte_ar_courrier.pdf;47041;96ade52fb79f67a9f1ac85bdcf76db4c12c06a3e1118f5ade49b17403d693d8f;application/pdf;201 (ou 202);"Couche texte arabe (formes de présentation Unicode) ; témoin « زركولين »"
-pdf_texte_fr_convention.pdf;3538;5058cc116526cfb422d9ea050776d92f71f245fca5ee65b8b6bf6424568ba629;application/pdf;201 (ou 202 si OCR en attente);"Couche texte native ; témoin « zarkolinet »"
-pdf_texte_fr_facture.pdf;2628;fd26c0cb280697436210466e20d052d33b6d76fdb2b71b882169112a87c070d4;application/pdf;201 (ou 202);Couche texte native, montants et dates
-scan_ar_courrier.pdf;840914;37bdb30dac4f6ed58d4e8ab7f110c172f75056dc49f9b6d235d958d5d2b97db2;application/pdf;202 EN_ATTENTE_OCR;"Images seules 300 dpi, arabe ; témoin « زركولين » après OCR ara"
-scan_fr_courrier.pdf;1038723;af6876e5ff3375df46fa27e4c452ff15ccc9d1cb593d0c05a72b8bfe1450638a;application/pdf;202 EN_ATTENTE_OCR;"Images seules 300 dpi, aucune couche texte ; témoin « zarkolinet » après OCR fra"
-tableau_decomptes.csv;128;fb11a4b854364e292804e5208a75249b6233817bc1d4b5a1f03dfccd5a29658f;text/csv;201 si le type l'autorise;Format autorisé par défaut

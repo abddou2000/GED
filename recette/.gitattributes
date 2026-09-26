@@ -2,7 +2,8 @@
 # des fins de ligne CRLF y casseraient bash (« $'\r': command not found »).
 *.sh   text eol=lf
 *.sql  text eol=lf
-*.py   text eol=lf
+*.java text eol=lf
+*.xml  text eol=lf
 *.md   text eol=lf
 *.csv  text eol=lf
 *.txt  text eol=lf
