@@ -1,5 +1,6 @@
 package com.ipt.ged.security;
 
+import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -31,7 +32,7 @@ public class UtilisateurConnecte implements UserDetails {
         return compte;
     }
 
-    public Long getEmployeId() {
+    public UUID getEmployeId() {
         return compte.getEmploye().getId();
     }
 

@@ -1,5 +1,6 @@
 package com.ipt.ged.ocr;
 
+import java.util.UUID;
 import com.ipt.ged.document.StorageService;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
@@ -50,7 +51,7 @@ public class OcrService {
     public boolean estActif() { return actif; }
 
     /** Texte d'un document déjà déposé. */
-    public TexteExtrait lire(Long documentId) {
+    public TexteExtrait lire(UUID documentId) {
         UploadDocument doc = documents.findById(documentId)
                 .orElseThrow(() -> new EntityNotFoundException("Document introuvable : " + documentId));
         if (doc.getFilePath() == null) return TexteExtrait.aucune("Aucun fichier associé à ce document.");

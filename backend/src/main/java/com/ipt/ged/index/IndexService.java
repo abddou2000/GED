@@ -1,5 +1,7 @@
 package com.ipt.ged.index;
 
+import com.ipt.ged.common.ActeurCourant;
+import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.index.dto.IndexRequest;
@@ -27,6 +29,10 @@ public class IndexService {
             "id", "code", "nomIndex", "fieldType",
             "obligatoire", "indexePourRecherche", "indexDeGroupage");
 
+    /** Colonnes booléennes : triées telles quelles (PostgreSQL refuse lower(boolean)). */
+    private static final Set<String> TRIS_NON_TEXTE = Set.of(
+            "obligatoire", "indexePourRecherche", "indexDeGroupage");
+
     private final IndexRepository repo;
 
     public IndexService(IndexRepository repo) {
@@ -36,7 +42,7 @@ public class IndexService {
     @Transactional(readOnly = true)
     public PageResponse<IndexResponse> list(int page, int size, String search,
                                             String sortBy, String sortDir) {
-        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NON_TEXTE);
         Page<IndexField> result = repo.findByDeletedFalseAndNomIndexContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, IndexResponse::from);
     }
@@ -44,13 +50,13 @@ public class IndexService {
     @Transactional(readOnly = true)
     public PageResponse<IndexResponse> trashed(int page, int size, String search,
                                                String sortBy, String sortDir) {
-        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NON_TEXTE);
         Page<IndexField> result = repo.findByDeletedTrueAndNomIndexContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, IndexResponse::from);
     }
 
     @Transactional(readOnly = true)
-    public IndexResponse get(Long id) {
+    public IndexResponse get(UUID id) {
         return IndexResponse.from(load(id));
     }
 
@@ -65,7 +71,7 @@ public class IndexService {
     }
 
     @Transactional
-    public IndexResponse update(Long id, IndexRequest req) {
+    public IndexResponse update(UUID id, IndexRequest req) {
         IndexField x = load(id);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
@@ -76,24 +82,24 @@ public class IndexService {
     }
 
     @Transactional
-    public void softDelete(Long id) {
-        load(id).setDeleted(true);
+    public void softDelete(UUID id) {
+        load(id).mettreEnCorbeille(ActeurCourant.employeId());
     }
 
     // Restauration = inverse de la mise en corbeille.
     @Transactional
-    public void restore(Long id) {
-        load(id).setDeleted(false);
+    public void restore(UUID id) {
+        load(id).restaurer();
     }
 
     @Transactional
-    public void multipleDelete(List<Long> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(x -> x.setDeleted(true));
+    public void multipleDelete(List<UUID> ids) {
+        repo.findByIdInAndDeletedFalse(ids).forEach(x -> x.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
-    public void multipleRestore(List<Long> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(x -> x.setDeleted(false));
+    public void multipleRestore(List<UUID> ids) {
+        repo.findByIdInAndDeletedTrue(ids).forEach(x -> x.restaurer());
     }
 
     /** Liste allégée {id, name} pour les sélecteurs (plans d'indexation). */
@@ -111,7 +117,7 @@ public class IndexService {
 
     /* ---------- privé ---------- */
 
-    private IndexField load(Long id) {
+    private IndexField load(UUID id) {
         return repo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Index introuvable : " + id));
     }

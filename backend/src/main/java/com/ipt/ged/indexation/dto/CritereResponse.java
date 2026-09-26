@@ -1,5 +1,6 @@
 package com.ipt.ged.indexation.dto;
 
+import java.util.UUID;
 import java.util.List;
 
 /**
@@ -13,7 +14,7 @@ import java.util.List;
  * @param groupage  vrai si l'index sert aussi à regrouper les résultats
  */
 public record CritereResponse(
-    Long id,
+    UUID id,
     String code,
     String libelle,
     String fieldType,

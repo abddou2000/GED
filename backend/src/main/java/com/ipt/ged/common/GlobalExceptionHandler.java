@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -34,6 +35,24 @@ public class GlobalExceptionHandler {
         body.put("status", 400);
         body.put("message", "Données invalides");
         body.put("errors", errors);
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    /**
+     * Paramètre d'URL de mauvais type → 400, au format commun.
+     *
+     * <p>Cas principal : un identifiant qui n'est pas un UUID
+     * ({@code /documents/abc}). Spring répondait bien 400, mais avec un corps
+     * vide que le frontend ne sait pas afficher.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeParametre(MethodArgumentTypeMismatchException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", Instant.now());
+        body.put("status", 400);
+        body.put("message", java.util.UUID.class.equals(ex.getRequiredType())
+                ? "Identifiant invalide : « " + ex.getName() + " » attend un UUID."
+                : "Paramètre invalide : « " + ex.getName() + " ».");
         return ResponseEntity.badRequest().body(body);
     }
 

@@ -1,5 +1,6 @@
 package com.ipt.ged.workflow.dto;
 
+import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -23,7 +24,7 @@ public record WorkflowRequest(
 ) {
     public record StepRequest(
             @NotNull(message = "L'approbateur est obligatoire")
-            Long employeId,
+            UUID employeId,
 
             @NotBlank(message = "Le libellé de l'étape est obligatoire")
             @Size(max = 255)

@@ -1,5 +1,6 @@
 package com.ipt.ged.planindexation;
 
+import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.planindexation.dto.PlanIndexationRequest;
 import com.ipt.ged.planindexation.dto.PlanIndexationResponse;
@@ -58,7 +59,7 @@ public class PlanIndexationController {
     }
 
     @GetMapping("/{id}")
-    public PlanIndexationResponse get(@PathVariable Long id) {
+    public PlanIndexationResponse get(@PathVariable UUID id) {
         return service.get(id);
     }
 
@@ -68,30 +69,30 @@ public class PlanIndexationController {
     }
 
     @PutMapping("/{id}")
-    public PlanIndexationResponse update(@PathVariable Long id, @Valid @RequestBody PlanIndexationRequest req) {
+    public PlanIndexationResponse update(@PathVariable UUID id, @Valid @RequestBody PlanIndexationRequest req) {
         return service.update(id, req);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.softDelete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/restore")
-    public ResponseEntity<Void> restore(@PathVariable Long id) {
+    public ResponseEntity<Void> restore(@PathVariable UUID id) {
         service.restore(id);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/multiple-delete")
-    public ResponseEntity<Void> multipleDelete(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<Void> multipleDelete(@RequestBody Map<String, List<UUID>> body) {
         service.multipleDelete(body.getOrDefault("ids", List.of()));
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/multiple-restore")
-    public ResponseEntity<Void> multipleRestore(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<Void> multipleRestore(@RequestBody Map<String, List<UUID>> body) {
         service.multipleRestore(body.getOrDefault("ids", List.of()));
         return ResponseEntity.noContent().build();
     }

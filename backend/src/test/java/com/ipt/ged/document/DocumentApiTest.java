@@ -1,5 +1,6 @@
 package com.ipt.ged.document;
 
+import java.util.UUID;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
@@ -49,11 +50,11 @@ class DocumentApiTest {
     @Autowired private TypeDocumentRepository typeRepository;
 
     private static final String BASE = "/api/v1/documents";
-    private long typeId;
+    private UUID typeId;
 
     @BeforeEach
     void setup() {
-        Employe e = employeRepository.findById(1L).orElseThrow();
+        Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         WorkflowGed wf = new WorkflowGed("WF test");
         wf.addStep(new WorkflowStep(e, "Validation", 1));
         workflowRepository.save(wf);
@@ -146,9 +147,9 @@ class DocumentApiTest {
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        long id = om.readTree(res).get("id").asLong();
+        UUID id = UUID.fromString(om.readTree(res).get("id").asText());
 
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
         mvc.perform(get(BASE + "/" + id + "/download"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", containsString("doc.pdf")))
@@ -163,12 +164,12 @@ class DocumentApiTest {
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        long id = om.readTree(res).get("id").asLong();
+        UUID id = UUID.fromString(om.readTree(res).get("id").asText());
 
         mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem((int) id))));
-        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem(id.toString()))));
+        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
         mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
     }
 }

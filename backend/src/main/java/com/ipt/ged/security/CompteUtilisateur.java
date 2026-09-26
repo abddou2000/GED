@@ -1,5 +1,7 @@
 package com.ipt.ged.security;
 
+import com.ipt.ged.common.IdentifiantUuid;
+import java.util.UUID;
 import com.ipt.ged.employe.Employe;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -21,16 +23,16 @@ import java.time.Instant;
  * aucun DTO ni aucun contrôleur.
  */
 @Entity
-@Table(name = "comptes_utilisateurs",
-        indexes = @Index(name = "idx_compte_email", columnList = "email", unique = true))
+@Table(name = "compte_utilisateur",
+        uniqueConstraints = @UniqueConstraint(name = "uk_compte_utilisateur_email", columnNames = "email"))
 @Getter
 @Setter
 @NoArgsConstructor
 public class CompteUtilisateur {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     /** Identifiant de connexion. Toujours rangé en minuscules — sans quoi
      *  « Sara@… » et « sara@… » désigneraient deux comptes différents. */

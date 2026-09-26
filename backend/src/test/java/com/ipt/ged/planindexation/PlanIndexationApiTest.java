@@ -1,5 +1,6 @@
 package com.ipt.ged.planindexation;
 
+import java.util.UUID;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.index.IndexField;
 import com.ipt.ged.index.IndexFieldType;
@@ -41,8 +42,8 @@ class PlanIndexationApiTest {
     @Autowired private IndexRepository indexRepo;
 
     private static final String BASE = "/api/v1/plan-indexations";
-    private long idxAlpha;
-    private long idxBeta;
+    private UUID idxAlpha;
+    private UUID idxBeta;
 
     @BeforeEach
     void setup() {
@@ -62,18 +63,18 @@ class PlanIndexationApiTest {
                 + "\"indexIds\":" + indexIds + "}";
     }
 
-    private long create(String code, String nom, boolean majuscule, String sep, String indexIds) throws Exception {
+    private UUID create(String code, String nom, boolean majuscule, String sep, String indexIds) throws Exception {
         String res = mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(body(code, nom, majuscule, sep, indexIds)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(res).get("id").asLong();
+        return UUID.fromString(om.readTree(res).get("id").asText());
     }
 
     @Test
     @DisplayName("1. Création avec index ordonnés + aperçu du nommage (201)")
     void createWithIndices() throws Exception {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
-                        .content(body("PL-1", "Fiche A", false, "-", "[" + idxAlpha + "," + idxBeta + "]")))
+                        .content(body("PL-1", "Fiche A", false, "-", "[\"" + idxAlpha + "\",\"" + idxBeta + "\"]")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nomDuPlan").value("Fiche A"))
                 .andExpect(jsonPath("$.indexCount").value(2))
@@ -85,7 +86,7 @@ class PlanIndexationApiTest {
     @Test
     @DisplayName("2. L'ordre des index est préservé + majuscule appliquée")
     void orderPreservedAndUppercase() throws Exception {
-        long id = create("PL-ORD", "Ordre", true, "_", "[" + idxBeta + "," + idxAlpha + "]");
+        UUID id = create("PL-ORD", "Ordre", true, "_", "[\"" + idxBeta + "\",\"" + idxAlpha + "\"]");
         mvc.perform(get(BASE + "/" + id))
                 .andExpect(jsonPath("$.indices[0].label").value("Beta"))
                 .andExpect(jsonPath("$.indices[1].label").value("Alpha"))
@@ -113,9 +114,9 @@ class PlanIndexationApiTest {
     @Test
     @DisplayName("5. Mise à jour : remplace les index")
     void updateReplacesIndices() throws Exception {
-        long id = create("PL-UP", "Avant", false, "-", "[" + idxAlpha + "]");
+        UUID id = create("PL-UP", "Avant", false, "-", "[\"" + idxAlpha + "\"]");
         mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON)
-                        .content(body("PL-UP", "Apres", false, "-", "[" + idxBeta + "]")))
+                        .content(body("PL-UP", "Apres", false, "-", "[\"" + idxBeta + "\"]")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.indexCount").value(1))
                 .andExpect(jsonPath("$.indices[0].label").value("Beta"));
@@ -124,11 +125,11 @@ class PlanIndexationApiTest {
     @Test
     @DisplayName("6. Corbeille : suppression puis restauration")
     void softDeleteRestore() throws Exception {
-        long id = create("PL-DEL", "ASupprimer", false, "-", "[]");
+        UUID id = create("PL-DEL", "ASupprimer", false, "-", "[]");
         mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem((int) id))));
-        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem(id.toString()))));
+        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
         mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
     }
 }

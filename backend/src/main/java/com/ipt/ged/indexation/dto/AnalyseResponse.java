@@ -1,5 +1,6 @@
 package com.ipt.ged.indexation.dto;
 
+import java.util.UUID;
 import java.util.List;
 
 /**
@@ -11,7 +12,7 @@ import java.util.List;
  * humaine reste obligatoire avant tout enregistrement.
  */
 public record AnalyseResponse(
-        Long documentId,
+        UUID documentId,
         String fichier,
         String planNom,
         String separateur,
@@ -31,7 +32,7 @@ public record AnalyseResponse(
 ) {
     /** Une valeur proposée pour un index, avec le verdict du contrôle de type. */
     public record Proposition(
-            Long indexFieldId,
+            UUID indexFieldId,
             String code,
             String libelle,
             String fieldType,

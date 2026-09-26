@@ -1,5 +1,7 @@
 package com.ipt.ged.etiquette;
 
+import com.ipt.ged.common.ActeurCourant;
+import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.etiquette.dto.EtiquetteRequest;
@@ -49,7 +51,7 @@ public class EtiquetteService {
     }
 
     @Transactional(readOnly = true)
-    public EtiquetteResponse get(Long id) {
+    public EtiquetteResponse get(UUID id) {
         return EtiquetteResponse.from(load(id));
     }
 
@@ -63,7 +65,7 @@ public class EtiquetteService {
     }
 
     @Transactional
-    public EtiquetteResponse update(Long id, EtiquetteRequest req) {
+    public EtiquetteResponse update(UUID id, EtiquetteRequest req) {
         Etiquette e = load(id);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
@@ -75,23 +77,23 @@ public class EtiquetteService {
     }
 
     @Transactional
-    public void softDelete(Long id) {
-        load(id).setDeleted(true);
+    public void softDelete(UUID id) {
+        load(id).mettreEnCorbeille(ActeurCourant.employeId());
     }
 
     @Transactional
-    public void restore(Long id) {
-        load(id).setDeleted(false);
+    public void restore(UUID id) {
+        load(id).restaurer();
     }
 
     @Transactional
-    public void multipleDelete(List<Long> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(e -> e.setDeleted(true));
+    public void multipleDelete(List<UUID> ids) {
+        repo.findByIdInAndDeletedFalse(ids).forEach(e -> e.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
-    public void multipleRestore(List<Long> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(e -> e.setDeleted(false));
+    public void multipleRestore(List<UUID> ids) {
+        repo.findByIdInAndDeletedTrue(ids).forEach(e -> e.restaurer());
     }
 
     /** Liste allégée {id, name} pour les sélecteurs (upload). */
@@ -109,7 +111,7 @@ public class EtiquetteService {
 
     /* ---------- privé ---------- */
 
-    private Etiquette load(Long id) {
+    private Etiquette load(UUID id) {
         return repo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Étiquette introuvable : " + id));
     }

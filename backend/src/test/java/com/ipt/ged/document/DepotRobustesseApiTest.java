@@ -1,5 +1,6 @@
 package com.ipt.ged.document;
 
+import java.util.UUID;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.employe.Employe;
@@ -60,11 +61,11 @@ class DepotRobustesseApiTest {
     @Value("${ged.storage.root}") private String racineStockage;
 
     private static final String BASE = "/api/v1/documents";
-    private long typeId, workspaceId;
+    private UUID typeId, workspaceId;
 
     @BeforeEach
     void setup() {
-        Employe e = employeRepository.findById(1L).orElseThrow();
+        Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         WorkflowGed wf = workflowRepository.save(new WorkflowGed("WF robustesse"));
 
         WorkSpace w = new WorkSpace("Robustesse", "WS-ROB");
@@ -126,7 +127,7 @@ class DepotRobustesseApiTest {
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        long id = om.readTree(reponse).get("id").asLong();
+        UUID id = UUID.fromString(om.readTree(reponse).get("id").asText());
 
         String chemin = documentRepository.findById(id).orElseThrow().getFilePath();
         assertNotNull(chemin);
@@ -148,7 +149,7 @@ class DepotRobustesseApiTest {
 
         // Au dépôt
         mvc.perform(multipart(BASE)
-                        .file(fichier("long.pdf"))
+                        .file(fichier("UUID.pdf"))
                         .param("name", trop)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isBadRequest())
@@ -162,14 +163,14 @@ class DepotRobustesseApiTest {
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        long id = om.readTree(reponse).get("id").asLong();
+        UUID id = UUID.fromString(om.readTree(reponse).get("id").asText());
 
         mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON)
                         .content(om.writeValueAsString(java.util.Map.of("name", trop))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("255")));
 
-        // Un nom de groupe trop long est refusé de la même façon (champ nommé
+        // Un nom de groupe trop UUID est refusé de la même façon (champ nommé
         // dans « errors »), au lieu du 500 nu que remontait la base.
         mvc.perform(post("/api/v1/access-groups").contentType(APPLICATION_JSON)
                         .content(om.writeValueAsString(java.util.Map.of("code", "G-LONG", "name", trop))))
@@ -181,7 +182,7 @@ class DepotRobustesseApiTest {
     @DisplayName("10. Déposer dans un type de document en corbeille est refusé (400)")
     void typeEnCorbeille() throws Exception {
         TypeDocument type = typeRepository.findById(typeId).orElseThrow();
-        type.setDeleted(true);
+        type.mettreEnCorbeille(null);
         typeRepository.save(type);
 
         mvc.perform(multipart(BASE)
@@ -201,7 +202,7 @@ class DepotRobustesseApiTest {
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        long id = om.readTree(reponse).get("id").asLong();
+        UUID id = UUID.fromString(om.readTree(reponse).get("id").asText());
 
         /* Avant correction : « attachment; filename="Rapport "été" 2026.pdf" ».
            Le guillemet refermait la valeur, et le « é » — hors ISO-8859-1 en

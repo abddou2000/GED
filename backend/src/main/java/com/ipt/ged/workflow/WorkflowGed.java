@@ -1,6 +1,8 @@
 package com.ipt.ged.workflow;
 
-import com.ipt.ged.common.Auditable;
+import com.ipt.ged.common.IdentifiantUuid;
+import java.util.UUID;
+import com.ipt.ged.common.Supprimable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,18 +19,15 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-public class WorkflowGed extends Auditable {
+public class WorkflowGed extends Supprimable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @Column(nullable = false)
     private String name;
 
-    /** Corbeille : true = archivé/supprimé de façon réversible. */
-    @Column(nullable = false)
-    private boolean deleted = false;
 
     @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("stepOrder ASC")

@@ -1,5 +1,6 @@
 package com.ipt.ged.index;
 
+import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.index.dto.IndexRequest;
 import com.ipt.ged.index.dto.IndexResponse;
@@ -50,7 +51,7 @@ public class IndexController {
     }
 
     @GetMapping("/{id}")
-    public IndexResponse get(@PathVariable Long id) {
+    public IndexResponse get(@PathVariable UUID id) {
         return service.get(id);
     }
 
@@ -60,30 +61,30 @@ public class IndexController {
     }
 
     @PutMapping("/{id}")
-    public IndexResponse update(@PathVariable Long id, @Valid @RequestBody IndexRequest req) {
+    public IndexResponse update(@PathVariable UUID id, @Valid @RequestBody IndexRequest req) {
         return service.update(id, req);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.softDelete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/restore")
-    public ResponseEntity<Void> restore(@PathVariable Long id) {
+    public ResponseEntity<Void> restore(@PathVariable UUID id) {
         service.restore(id);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/multiple-delete")
-    public ResponseEntity<Void> multipleDelete(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<Void> multipleDelete(@RequestBody Map<String, List<UUID>> body) {
         service.multipleDelete(body.getOrDefault("ids", List.of()));
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/multiple-restore")
-    public ResponseEntity<Void> multipleRestore(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<Void> multipleRestore(@RequestBody Map<String, List<UUID>> body) {
         service.multipleRestore(body.getOrDefault("ids", List.of()));
         return ResponseEntity.noContent().build();
     }

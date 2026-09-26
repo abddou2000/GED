@@ -1,5 +1,6 @@
 package com.ipt.ged.document;
 
+import java.util.UUID;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,7 +13,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-public interface UploadDocumentRepository extends JpaRepository<UploadDocument, Long> {
+public interface UploadDocumentRepository extends JpaRepository<UploadDocument, UUID> {
 
     /**
      * Charge un document en prenant un verrou d'écriture sur sa ligne.
@@ -28,7 +29,7 @@ public interface UploadDocumentRepository extends JpaRepository<UploadDocument, 
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select d from UploadDocument d where d.id = :id")
-    Optional<UploadDocument> findByIdPourEcriture(@Param("id") Long id);
+    Optional<UploadDocument> findByIdPourEcriture(@Param("id") UUID id);
 
     /* Le tri n'est plus fige dans le nom des methodes : un « OrderByIdDesc »
        l'emporte sur le Sort du Pageable, ce qui rendait les en-tetes de colonne
@@ -39,14 +40,14 @@ public interface UploadDocumentRepository extends JpaRepository<UploadDocument, 
     Page<UploadDocument> findByDeletedTrueAndNameContainingIgnoreCase(String search, Pageable pageable);
 
     Page<UploadDocument> findByDeletedFalseAndWorkspaceIdAndNameContainingIgnoreCase(
-            Long workspaceId, String search, Pageable pageable);
+            UUID workspaceId, String search, Pageable pageable);
 
-    List<UploadDocument> findByIdInAndDeletedFalse(List<Long> ids);
+    List<UploadDocument> findByIdInAndDeletedFalse(List<UUID> ids);
 
     /** Tous les documents actifs — base de départ de la recherche par index. */
     List<UploadDocument> findByDeletedFalseOrderByIdDesc();
 
-    List<UploadDocument> findByIdInAndDeletedTrue(List<Long> ids);
+    List<UploadDocument> findByIdInAndDeletedTrue(List<UUID> ids);
 
     long countByDeletedFalse();
 

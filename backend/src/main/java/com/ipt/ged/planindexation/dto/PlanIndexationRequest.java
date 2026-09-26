@@ -1,5 +1,6 @@
 package com.ipt.ged.planindexation.dto;
 
+import java.util.UUID;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
@@ -23,7 +24,7 @@ public record PlanIndexationRequest(
 
         String separateur,
 
-        List<Long> indexIds,
+        List<UUID> indexIds,
 
         /**
          * Jetons composant le nom du fichier, dans l'ordre : identifiants d'index

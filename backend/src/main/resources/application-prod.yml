@@ -8,7 +8,8 @@
 #    DB_OWNER_USER / DB_OWNER_PASSWORD  compte propriétaire ged_owner, utilisé
 #                                       UNIQUEMENT par Liquibase au démarrage
 #    DB_SCHEMA, DB_SCHEMA_LIQUIBASE     schémas (défauts : ged, ged_liquibase)
-#  Rôles et schémas : backend/scripts/db/creer-roles.sql, à exécuter une fois.
+#  Rôles : backend/scripts/db/creer-roles.sql (une fois par serveur) ;
+#  base, schémas et droits : backend/scripts/db/preparer-base.sql (par base).
 #
 #  SÉCURITÉ — obligatoires en prod, aucune valeur par défaut nulle part :
 #    GED_JWT_CLE     clé de signature JWT (openssl rand -base64 48).

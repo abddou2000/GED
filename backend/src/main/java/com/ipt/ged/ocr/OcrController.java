@@ -1,5 +1,6 @@
 package com.ipt.ged.ocr;
 
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,7 +28,7 @@ public class OcrController {
     private final OcrService service;
 
     @GetMapping("/documents/{id}/texte")
-    public TexteExtrait texte(@PathVariable Long id) {
+    public TexteExtrait texte(@PathVariable UUID id) {
         return service.lire(id);
     }
 

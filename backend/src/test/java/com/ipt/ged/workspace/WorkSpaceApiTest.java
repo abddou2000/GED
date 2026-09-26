@@ -1,5 +1,6 @@
 package com.ipt.ged.workspace;
 
+import java.util.UUID;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
@@ -43,26 +44,27 @@ class WorkSpaceApiTest {
     @Autowired private EmployeRepository employeRepository;
 
     private static final String BASE = "/api/v1/workspaces";
-    private Long workflowId;
+    private UUID workflowId;
 
     @BeforeEach
     void setup() {
-        Employe e = employeRepository.findById(1L).orElseThrow();
+        Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         WorkflowGed wf = new WorkflowGed("WF test");
         wf.addStep(new WorkflowStep(e, "Validation", 1));
         workflowId = workflowRepository.save(wf).getId();
     }
 
-    private String ws(String name, String code, Long parentId) {
-        return "{\"name\":\"" + name + "\",\"code\":\"" + code + "\",\"employeId\":1,\"workflowId\":" + workflowId
-                + (parentId != null ? ",\"parentId\":" + parentId : "") + "}";
+    private String ws(String name, String code, UUID parentId) {
+        return "{\"name\":\"" + name + "\",\"code\":\"" + code + "\",\"employeId\":\"" + Comptes.idAdmin(employeRepository)
+                + "\",\"workflowId\":\"" + workflowId + "\""
+                + (parentId != null ? ",\"parentId\":\"" + parentId + "\"" : "") + "}";
     }
 
-    private long create(String name, String code, Long parentId) throws Exception {
+    private UUID create(String name, String code, UUID parentId) throws Exception {
         String body = mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(ws(name, code, parentId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(body).get("id").asLong();
+        return UUID.fromString(om.readTree(body).get("id").asText());
     }
 
     @Test
@@ -74,7 +76,7 @@ class WorkSpaceApiTest {
                 .andExpect(jsonPath("$.code").value("WS-A"))
                 .andExpect(jsonPath("$.status").value("ACTIF"))
                 .andExpect(jsonPath("$.owner.label").value("Sara Bennani"))
-                .andExpect(jsonPath("$.workflow.id").value(workflowId));
+                .andExpect(jsonPath("$.workflow.id").value(workflowId.toString()));
     }
 
     @Test
@@ -90,7 +92,8 @@ class WorkSpaceApiTest {
     @DisplayName("3. Nom manquant refusé (400)")
     void missingName() throws Exception {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
-                        .content("{\"code\":\"WS-X\",\"employeId\":1,\"workflowId\":" + workflowId + "}"))
+                        .content("{\"code\":\"WS-X\",\"employeId\":\"" + Comptes.idAdmin(employeRepository)
+                                + "\",\"workflowId\":\"" + workflowId + "\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.name").exists());
     }
@@ -98,37 +101,37 @@ class WorkSpaceApiTest {
     @Test
     @DisplayName("4. Déplacement : un dossier ne peut pas être son propre parent (400)")
     void moveSelfParent() throws Exception {
-        long id = create("Racine", "WS-R", null);
+        UUID id = create("Racine", "WS-R", null);
         mvc.perform(patch(BASE + "/" + id + "/parent").contentType(APPLICATION_JSON)
-                        .content("{\"parentId\":" + id + "}"))
+                        .content("{\"parentId\":\"" + id + "\"}"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     @DisplayName("5. Déplacement : interdit dans sa propre descendance (400)")
     void moveIntoDescendant() throws Exception {
-        long parent = create("Parent", "WS-P", null);
-        long child = create("Enfant", "WS-C", parent);
+        UUID parent = create("Parent", "WS-P", null);
+        UUID child = create("Enfant", "WS-C", parent);
         mvc.perform(patch(BASE + "/" + parent + "/parent").contentType(APPLICATION_JSON)
-                        .content("{\"parentId\":" + child + "}"))
+                        .content("{\"parentId\":\"" + child + "\"}"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     @DisplayName("6. Déplacement valide (200)")
     void moveValid() throws Exception {
-        long a = create("A", "WS-MA", null);
-        long b = create("B", "WS-MB", null);
+        UUID a = create("A", "WS-MA", null);
+        UUID b = create("B", "WS-MB", null);
         mvc.perform(patch(BASE + "/" + b + "/parent").contentType(APPLICATION_JSON)
-                        .content("{\"parentId\":" + a + "}"))
+                        .content("{\"parentId\":\"" + a + "\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.parent.id").value((int) a));
+                .andExpect(jsonPath("$.parent.id").value(a.toString()));
     }
 
     @Test
     @DisplayName("7. Archivage : ACTIF <-> ARCHIVE")
     void archiveToggle() throws Exception {
-        long id = create("Arch", "WS-ARCH", null);
+        UUID id = create("Arch", "WS-ARCH", null);
         mvc.perform(patch(BASE + "/" + id + "/archive"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ARCHIVE"));
@@ -139,18 +142,18 @@ class WorkSpaceApiTest {
     @Test
     @DisplayName("8. Corbeille : suppression puis restauration")
     void softDeleteRestore() throws Exception {
-        long id = create("Del", "WS-DEL", null);
+        UUID id = create("Del", "WS-DEL", null);
         mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem((int) id))));
-        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem(id.toString()))));
+        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
         mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
     }
 
     @Test
     @DisplayName("9. Arbre : racines + enfants imbriqués")
     void tree() throws Exception {
-        long root = create("Root", "WS-ROOT", null);
+        UUID root = create("Root", "WS-ROOT", null);
         create("Sub", "WS-SUB", root);
         mvc.perform(get(BASE + "/tree"))
                 .andExpect(status().isOk())

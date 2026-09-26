@@ -1,5 +1,6 @@
 package com.ipt.ged.employe.dto;
 
+import java.util.UUID;
 import java.time.Instant;
 import java.util.List;
 
@@ -13,7 +14,7 @@ import java.util.List;
  * responsabilités réelles d'une personne.
  */
 public record ProfilResponse(
-        Long id,
+        UUID id,
         String fullName,
         String firstName,
         String lastName,
@@ -31,5 +32,5 @@ public record ProfilResponse(
         int signaturesEnAttente,
         int signaturesTraitees
 ) {
-    public record Ref(Long id, String label) {}
+    public record Ref(UUID id, String label) {}
 }

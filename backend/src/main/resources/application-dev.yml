@@ -1,6 +1,6 @@
 # ============================================================
 #  Profil DEV — PostgreSQL local, base ged_dev1 (surchargeable par DB_NAME)
-#  Prérequis : rôles et schémas créés par backend/scripts/db/creer-roles.sql
+#  Prérequis : backend/scripts/db/creer-roles.sql puis preparer-base.sql
 #  Le schéma est créé par Liquibase au démarrage.
 # ============================================================
 spring:

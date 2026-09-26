@@ -1,5 +1,6 @@
 package com.ipt.ged.typedocument;
 
+import java.util.UUID;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
@@ -51,12 +52,12 @@ class TypeDocumentApiTest {
     @Autowired private PlanIndexationRepository planRepository;
 
     private static final String BASE = "/api/v1/type-documents";
-    private long workspaceId;
-    private long planId;
+    private UUID workspaceId;
+    private UUID planId;
 
     @BeforeEach
     void setup() {
-        Employe e = employeRepository.findById(1L).orElseThrow();
+        Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         WorkflowGed wf = new WorkflowGed("WF test");
         wf.addStep(new WorkflowStep(e, "Validation", 1));
         workflowRepository.save(wf);
@@ -70,18 +71,18 @@ class TypeDocumentApiTest {
         planId = planRepository.save(new PlanIndexation("PL-TD", "Fiche")).getId();
     }
 
-    private String body(String code, String type, Long wsId, Long planId, String typesJson, int taille) {
+    private String body(String code, String type, UUID wsId, UUID planId, String typesJson, int taille) {
         return "{\"code\":\"" + code + "\",\"typeDeDocument\":\"" + type + "\",\"description\":\"desc\","
-                + "\"workspaceId\":" + wsId + (planId != null ? ",\"planIndexationId\":" + planId : "")
+                + "\"workspaceId\":\"" + wsId + "\"" + (planId != null ? ",\"planIndexationId\":\"" + planId + "\"" : "")
                 + ",\"typeAutorise\":" + typesJson + ",\"tailleMaxMo\":" + taille + "}";
     }
 
-    private long create(String code, String type, String typesJson, int taille) throws Exception {
+    private UUID create(String code, String type, String typesJson, int taille) throws Exception {
         String res = mvc.perform(post(BASE).contentType(APPLICATION_JSON)
                         .content(body(code, type, workspaceId, planId, typesJson, taille)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(res).get("id").asLong();
+        return UUID.fromString(om.readTree(res).get("id").asText());
     }
 
     @Test
@@ -91,7 +92,7 @@ class TypeDocumentApiTest {
                         .content(body("TD-1", "Facture", workspaceId, planId, "[\"pdf\",\"docx\"]", 10)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.typeDeDocument").value("Facture"))
-                .andExpect(jsonPath("$.workspace.id").value((int) workspaceId))
+                .andExpect(jsonPath("$.workspace.id").value(workspaceId.toString()))
                 .andExpect(jsonPath("$.planIndexation.label").value("Fiche"))
                 .andExpect(jsonPath("$.typeAutorise[0]").value("pdf"))
                 .andExpect(jsonPath("$.typeAutorise[1]").value("docx"))
@@ -147,11 +148,11 @@ class TypeDocumentApiTest {
     @Test
     @DisplayName("7. Corbeille : suppression puis restauration")
     void softDeleteRestore() throws Exception {
-        long id = create("TD-DEL", "ASupprimer", "[\"pdf\"]", 10);
+        UUID id = create("TD-DEL", "ASupprimer", "[\"pdf\"]", 10);
         mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem((int) id))));
-        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", not(hasItem(id.toString()))));
+        mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
         mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
-        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem((int) id)));
+        mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
     }
 }

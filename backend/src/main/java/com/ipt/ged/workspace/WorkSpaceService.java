@@ -1,5 +1,7 @@
 package com.ipt.ged.workspace;
 
+import com.ipt.ged.common.ActeurCourant;
+import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.employe.Employe;
@@ -58,7 +60,7 @@ public class WorkSpaceService {
     }
 
     @Transactional(readOnly = true)
-    public WorkSpaceResponse get(Long id) {
+    public WorkSpaceResponse get(UUID id) {
         return toResponse(load(id));
     }
 
@@ -73,7 +75,7 @@ public class WorkSpaceService {
     }
 
     @Transactional
-    public WorkSpaceResponse update(Long id, WorkSpaceRequest req) {
+    public WorkSpaceResponse update(UUID id, WorkSpaceRequest req) {
         WorkSpace w = loadPourEcriture(id);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
@@ -85,29 +87,29 @@ public class WorkSpaceService {
     }
 
     @Transactional
-    public void softDelete(Long id) {
-        load(id).setDeleted(true);
+    public void softDelete(UUID id) {
+        load(id).mettreEnCorbeille(ActeurCourant.employeId());
     }
 
     // Restauration = inverse de la mise en corbeille.
     @Transactional
-    public void restore(Long id) {
-        load(id).setDeleted(false);
+    public void restore(UUID id) {
+        load(id).restaurer();
     }
 
     @Transactional
-    public void multipleDelete(List<Long> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(w -> w.setDeleted(true));
+    public void multipleDelete(List<UUID> ids) {
+        repo.findByIdInAndDeletedFalse(ids).forEach(w -> w.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
-    public void multipleRestore(List<Long> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(w -> w.setDeleted(false));
+    public void multipleRestore(List<UUID> ids) {
+        repo.findByIdInAndDeletedTrue(ids).forEach(w -> w.restaurer());
     }
 
     /** Déplace un dossier sous un nouveau parent (null = racine), en interdisant les cycles. */
     @Transactional
-    public WorkSpaceResponse move(Long id, Long newParentId) {
+    public WorkSpaceResponse move(UUID id, UUID newParentId) {
         WorkSpace w = loadPourEcriture(id);
         if (newParentId != null) {
             if (newParentId.equals(id)) {
@@ -127,7 +129,7 @@ public class WorkSpaceService {
 
     /** Bascule ACTIF <-> ARCHIVE. */
     @Transactional
-    public WorkSpaceResponse archiveToggle(Long id) {
+    public WorkSpaceResponse archiveToggle(UUID id) {
         WorkSpace w = loadPourEcriture(id);
         w.setStatus(w.getStatus() == WorkspaceStatus.ARCHIVE ? WorkspaceStatus.ACTIF : WorkspaceStatus.ARCHIVE);
         return toResponse(repo.save(w));
@@ -140,9 +142,9 @@ public class WorkSpaceService {
                 .filter(w -> w.getStatus() == WorkspaceStatus.ACTIF)
                 .toList();
 
-        Map<Long, TreeNodeBuilder> byId = new LinkedHashMap<>();
+        Map<UUID, TreeNodeBuilder> byId = new LinkedHashMap<>();
         for (WorkSpace w : all) {
-            Long parentId = w.getParent() != null ? w.getParent().getId() : null;
+            UUID parentId = w.getParent() != null ? w.getParent().getId() : null;
             byId.put(w.getId(), new TreeNodeBuilder(w.getId(), w.getName(), w.getStatus().name(), parentId));
         }
         List<TreeNodeBuilder> roots = new ArrayList<>();
@@ -172,7 +174,7 @@ public class WorkSpaceService {
 
     /* ---------- privé ---------- */
 
-    private WorkSpace load(Long id) {
+    private WorkSpace load(UUID id) {
         return repo.findWithRefsById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Espace de travail introuvable : " + id));
     }
@@ -184,7 +186,7 @@ public class WorkSpaceService {
      * déplacer ou archiver un dossier que l'utilisateur croit supprimé revient à
      * travailler sur une organisation qui n'apparaît nulle part.
      */
-    private WorkSpace loadPourEcriture(Long id) {
+    private WorkSpace loadPourEcriture(UUID id) {
         WorkSpace w = load(id);
         if (w.isDeleted()) {
             throw new IllegalArgumentException(
@@ -194,12 +196,12 @@ public class WorkSpaceService {
     }
 
     /** Ids de toute la descendance d'un dossier (parcours en largeur via la base). */
-    private java.util.Set<Long> descendantIds(Long id) {
-        java.util.Set<Long> result = new java.util.HashSet<>();
-        java.util.Deque<Long> queue = new java.util.ArrayDeque<>();
+    private java.util.Set<UUID> descendantIds(UUID id) {
+        java.util.Set<UUID> result = new java.util.HashSet<>();
+        java.util.Deque<UUID> queue = new java.util.ArrayDeque<>();
         queue.add(id);
         while (!queue.isEmpty()) {
-            Long current = queue.poll();
+            UUID current = queue.poll();
             for (WorkSpace child : repo.findByParentIdAndDeletedFalse(current)) {
                 if (result.add(child.getId())) {
                     queue.add(child.getId());
@@ -236,13 +238,13 @@ public class WorkSpaceService {
 
     /** Petit builder mutable pour assembler l'arbre avant de figer les records. */
     private static final class TreeNodeBuilder {
-        final Long id;
+        final UUID id;
         final String name;
         final String status;
-        final Long parentId;
+        final UUID parentId;
         final List<TreeNodeBuilder> children = new ArrayList<>();
 
-        TreeNodeBuilder(Long id, String name, String status, Long parentId) {
+        TreeNodeBuilder(UUID id, String name, String status, UUID parentId) {
             this.id = id;
             this.name = name;
             this.status = status;

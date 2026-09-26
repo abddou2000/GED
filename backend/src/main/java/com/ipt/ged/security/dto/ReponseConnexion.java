@@ -1,5 +1,7 @@
 package com.ipt.ged.security.dto;
 
+import java.util.UUID;
+
 /**
  * Ce que l'API renvoie après une connexion réussie.
  *
@@ -14,7 +16,7 @@ public record ReponseConnexion(
         String token,
         String tokenType,
         long expiresIn,
-        Long employeId,
+        UUID employeId,
         String email,
         String fullName) {
 }

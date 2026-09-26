@@ -1,5 +1,6 @@
 package com.ipt.ged.employe;
 
+import java.util.UUID;
 import com.ipt.ged.employe.dto.ProfilResponse;
 import com.ipt.ged.security.UtilisateurConnecte;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -43,7 +44,7 @@ public class EmployeController {
      * utilisateur, il n'y a plus de « fiche d'autrui » à protéger d'un pair.
      */
     @GetMapping("/{id}/profil")
-    public ProfilResponse profil(@PathVariable Long id) {
+    public ProfilResponse profil(@PathVariable UUID id) {
         return profils.profil(id);
     }
 
@@ -59,7 +60,7 @@ public class EmployeController {
     }
 
     /** DTO de sortie : ce que le frontend affiche dans les sélecteurs. */
-    public record EmployeResponse(Long id, String firstName, String lastName, String fullName) {
+    public record EmployeResponse(UUID id, String firstName, String lastName, String fullName) {
         static EmployeResponse from(Employe e) {
             return new EmployeResponse(e.getId(), e.getFirstName(), e.getLastName(), e.getFullName());
         }

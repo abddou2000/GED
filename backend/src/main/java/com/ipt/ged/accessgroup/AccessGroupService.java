@@ -1,5 +1,7 @@
 package com.ipt.ged.accessgroup;
 
+import com.ipt.ged.common.ActeurCourant;
+import java.util.UUID;
 import com.ipt.ged.accessgroup.dto.AccessGroupRequest;
 import com.ipt.ged.accessgroup.dto.AccessGroupResponse;
 import com.ipt.ged.common.PageResponse;
@@ -73,7 +75,7 @@ public class AccessGroupService {
     }
 
     @Transactional(readOnly = true)
-    public AccessGroupResponse get(Long id) {
+    public AccessGroupResponse get(UUID id) {
         return AccessGroupResponse.from(load(id));
     }
 
@@ -91,7 +93,7 @@ public class AccessGroupService {
     }
 
     @Transactional
-    public AccessGroupResponse update(Long id, AccessGroupRequest req) {
+    public AccessGroupResponse update(UUID id, AccessGroupRequest req) {
         AccessGroup g = load(id);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
@@ -106,24 +108,24 @@ public class AccessGroupService {
     }
 
     @Transactional
-    public void softDelete(Long id) {
-        load(id).setDeleted(true);
+    public void softDelete(UUID id) {
+        load(id).mettreEnCorbeille(ActeurCourant.employeId());
     }
 
     // Restauration = inverse de la mise en corbeille.
     @Transactional
-    public void restore(Long id) {
-        load(id).setDeleted(false);
+    public void restore(UUID id) {
+        load(id).restaurer();
     }
 
     @Transactional
-    public void multipleDelete(List<Long> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(g -> g.setDeleted(true));
+    public void multipleDelete(List<UUID> ids) {
+        repo.findByIdInAndDeletedFalse(ids).forEach(g -> g.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
-    public void multipleRestore(List<Long> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(g -> g.setDeleted(false));
+    public void multipleRestore(List<UUID> ids) {
+        repo.findByIdInAndDeletedTrue(ids).forEach(g -> g.restaurer());
     }
 
     /** Liste allégée {id, name} pour les sélecteurs. */
@@ -141,20 +143,20 @@ public class AccessGroupService {
 
     /* ---------- privé ---------- */
 
-    private AccessGroup load(Long id) {
+    private AccessGroup load(UUID id) {
         return repo.findWithRefsById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Groupe d'accès introuvable : " + id));
     }
 
     private void apply(AccessGroup g, AccessGroupRequest req) {
         // Espaces de travail
-        List<Long> wsIds = req.workspaceIds() != null ? req.workspaceIds() : List.of();
+        List<UUID> wsIds = req.workspaceIds() != null ? req.workspaceIds() : List.of();
         List<WorkSpace> ws = wsIds.isEmpty() ? List.of() : workspaceRepo.findAllById(wsIds);
         g.getWorkspaces().clear();
         g.getWorkspaces().addAll(ws);
 
         // Membres (utilisateurs)
-        List<Long> userIds = req.userIds() != null ? req.userIds() : List.of();
+        List<UUID> userIds = req.userIds() != null ? req.userIds() : List.of();
         List<Employe> users = userIds.isEmpty() ? List.of() : employeRepo.findAllById(userIds);
         g.getUsers().clear();
         g.getUsers().addAll(users);

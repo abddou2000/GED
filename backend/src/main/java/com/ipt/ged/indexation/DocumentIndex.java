@@ -1,5 +1,7 @@
 package com.ipt.ged.indexation;
 
+import com.ipt.ged.common.IdentifiantUuid;
+import java.util.UUID;
 import com.ipt.ged.common.Auditable;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.index.IndexField;
@@ -22,8 +24,8 @@ import lombok.Setter;
  */
 @Entity
 @Table(
-    name = "document_index_values",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"document_id", "index_field_id"})
+    name = "document_index_valeur",
+    uniqueConstraints = @UniqueConstraint(name = "uk_document_index_valeur_document_id_index_def_id", columnNames = {"document_id", "index_def_id"})
 )
 @Getter
 @Setter
@@ -31,15 +33,15 @@ import lombok.Setter;
 public class DocumentIndex extends Auditable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "document_id", nullable = false)
     private UploadDocument document;
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
-    @JoinColumn(name = "index_field_id", nullable = false)
+    @JoinColumn(name = "index_def_id", nullable = false)
     private IndexField indexField;
 
     @Column(columnDefinition = "text")

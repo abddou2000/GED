@@ -1,6 +1,8 @@
 package com.ipt.ged.planindexation;
 
-import com.ipt.ged.common.Auditable;
+import com.ipt.ged.common.IdentifiantUuid;
+import java.util.UUID;
+import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.index.IndexField;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -17,15 +19,15 @@ import java.util.List;
  * {@code Plan_d_indexation} de CCISTTA.
  */
 @Entity
-@Table(name = "plan_d_indexations")
+@Table(name = "plan_indexation")
 @Getter
 @Setter
 @NoArgsConstructor
-public class PlanIndexation extends Auditable {
+public class PlanIndexation extends Supprimable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @Column(nullable = false, unique = true)
     private String code;
@@ -49,9 +51,9 @@ public class PlanIndexation extends Auditable {
 
     /** Index regroupés par le plan, dans l'ordre (sert au nommage). */
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "pivot_plan_d_indexation_indices",
-            joinColumns = @JoinColumn(name = "plan_d_indexation_id"),
-            inverseJoinColumns = @JoinColumn(name = "index_id"))
+    @JoinTable(name = "plan_index",
+            joinColumns = @JoinColumn(name = "plan_indexation_id"),
+            inverseJoinColumns = @JoinColumn(name = "index_def_id"))
     @OrderColumn(name = "position")
     private List<IndexField> indices = new ArrayList<>();
 
@@ -67,9 +69,6 @@ public class PlanIndexation extends Auditable {
     @Column(name = "charte_nommage", length = 2000)
     private String charteNommage;
 
-    /** Corbeille : true = supprimé de façon réversible. */
-    @Column(nullable = false)
-    private boolean deleted = false;
 
     public PlanIndexation(String code, String nomDuPlan) {
         this.code = code;

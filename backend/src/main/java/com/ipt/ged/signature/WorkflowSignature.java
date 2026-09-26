@@ -1,5 +1,7 @@
 package com.ipt.ged.signature;
 
+import com.ipt.ged.common.IdentifiantUuid;
+import java.util.UUID;
 import com.ipt.ged.common.Auditable;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.employe.Employe;
@@ -16,15 +18,15 @@ import java.time.Instant;
  * de l'étape sont copiés (instantané) pour rester stables si la règle évolue.
  */
 @Entity
-@Table(name = "workflow_ged_signatures")
+@Table(name = "workflow_ged_signature")
 @Getter
 @Setter
 @NoArgsConstructor
 public class WorkflowSignature extends Auditable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "document_id", nullable = false)

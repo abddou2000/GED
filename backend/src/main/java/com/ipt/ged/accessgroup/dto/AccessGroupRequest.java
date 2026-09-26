@@ -1,5 +1,6 @@
 package com.ipt.ged.accessgroup.dto;
 
+import java.util.UUID;
 import com.ipt.ged.common.Limites;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -24,7 +25,7 @@ public record AccessGroupRequest(
         @Size(max = Limites.TEXTE, message = "Le nom ne peut pas dépasser " + Limites.TEXTE + " caractères")
         String name,
 
-        List<Long> workspaceIds,
+        List<UUID> workspaceIds,
 
-        List<Long> userIds
+        List<UUID> userIds
 ) {}

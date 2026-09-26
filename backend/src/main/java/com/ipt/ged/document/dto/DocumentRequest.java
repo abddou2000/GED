@@ -1,5 +1,6 @@
 package com.ipt.ged.document.dto;
 
+import java.util.UUID;
 import java.util.List;
 
 /**
@@ -11,8 +12,8 @@ import java.util.List;
  */
 public record DocumentRequest(
         String name,
-        Long typeDocumentId,
+        UUID typeDocumentId,
         String expirationDate,
         Boolean active,
-        List<Long> etiquetteIds
+        List<UUID> etiquetteIds
 ) {}

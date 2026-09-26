@@ -1,6 +1,8 @@
 package com.ipt.ged.typedocument;
 
-import com.ipt.ged.common.Auditable;
+import com.ipt.ged.common.IdentifiantUuid;
+import java.util.UUID;
+import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.planindexation.PlanIndexation;
 import com.ipt.ged.workspace.WorkSpace;
 import jakarta.persistence.*;
@@ -14,15 +16,15 @@ import lombok.Setter;
  * d'indexation à appliquer. Reproduit {@code TypeDeDocument} de CCISTTA.
  */
 @Entity
-@Table(name = "type_de_documents")
+@Table(name = "type_document")
 @Getter
 @Setter
 @NoArgsConstructor
-public class TypeDocument extends Auditable {
+public class TypeDocument extends Supprimable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @Column(nullable = false, unique = true)
     private String code;
@@ -41,7 +43,7 @@ public class TypeDocument extends Auditable {
 
     /** Plan d'indexation appliqué (facultatif). */
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "plan_d_indexation_id")
+    @JoinColumn(name = "plan_indexation_id")
     private PlanIndexation planIndexation;
 
     /** Formats de fichier autorisés (séparés par des virgules : pdf,docx…). */
@@ -50,16 +52,6 @@ public class TypeDocument extends Auditable {
 
     @Column(name = "taille_max_mo", nullable = false)
     private int tailleMaxMo;
-
-    /**
-     * Ce type déclenche-t-il la lecture du contenu (OCR) à l'indexation ?
-     * Vrai par défaut : un type nouvellement créé profite de l'automatisme sans
-     * réglage préalable. À couper pour les types dont le contenu n'apporte rien
-     * — le rendu d'un scan coûte cher pour un résultat prévisible.
-     */
-    /** Corbeille : true = supprimé de façon réversible. */
-    @Column(nullable = false)
-    private boolean deleted = false;
 
     public TypeDocument(String code, String typeDeDocument) {
         this.code = code;

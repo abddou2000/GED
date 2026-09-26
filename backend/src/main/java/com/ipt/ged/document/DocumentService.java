@@ -1,5 +1,7 @@
 package com.ipt.ged.document;
 
+import com.ipt.ged.common.ActeurCourant;
+import java.util.UUID;
 import com.ipt.ged.common.Limites;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
@@ -64,7 +66,7 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<DocumentResponse> list(int page, int size, String search, Long workspaceId,
+    public PageResponse<DocumentResponse> list(int page, int size, String search, UUID workspaceId,
                                                String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
         Page<UploadDocument> result = (workspaceId != null)
@@ -82,14 +84,14 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public DocumentResponse get(Long id) {
+    public DocumentResponse get(UUID id) {
         return DocumentResponse.from(load(id));
     }
 
     /** Dépose un document : valide le fichier contre le type, le stocke, crée la fiche. */
     @Transactional
-    public DocumentResponse upload(MultipartFile file, String name, Long typeDocumentId,
-                                   String expirationDate, Long createdById, List<Long> etiquetteIds) {
+    public DocumentResponse upload(MultipartFile file, String name, UUID typeDocumentId,
+                                   String expirationDate, UUID createdById, List<UUID> etiquetteIds) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Le fichier est obligatoire");
         }
@@ -150,7 +152,7 @@ public class DocumentService {
      * Le fichier n'est pas touche ici — le remplacer passe par une version.
      */
     @Transactional
-    public DocumentResponse update(Long id, DocumentRequest req) {
+    public DocumentResponse update(UUID id, DocumentRequest req) {
         UploadDocument d = loadPourEcriture(id);
         if (d.isVerrouille()) {
             throw new IllegalArgumentException("Document verrouille : modification impossible");
@@ -178,7 +180,7 @@ public class DocumentService {
 
     /** Verrouille ou libere le document. */
     @Transactional
-    public DocumentResponse setVerrou(Long id, boolean verrouille) {
+    public DocumentResponse setVerrou(UUID id, boolean verrouille) {
         UploadDocument d = loadPourEcriture(id);
         d.setVerrouille(verrouille);
         return DocumentResponse.from(repo.save(d));
@@ -196,7 +198,7 @@ public class DocumentService {
      * requêtes : la seconde reprend l'état laissé par la première.
      */
     @Transactional
-    public DocumentResponse ajouterVersion(Long id, MultipartFile file, String observation) {
+    public DocumentResponse ajouterVersion(UUID id, MultipartFile file, String observation) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Le fichier est obligatoire");
         }
@@ -228,7 +230,7 @@ public class DocumentService {
 
     /** Rend une version anterieure courante. */
     @Transactional
-    public DocumentResponse restaurerVersion(Long documentId, Long versionId) {
+    public DocumentResponse restaurerVersion(UUID documentId, UUID versionId) {
         UploadDocument d = loadPourEcriture(documentId);
         refuserSiEnCorbeille(d, "restauration de version");
         DocumentVersion cible = versionRepo.findById(versionId)
@@ -253,12 +255,12 @@ public class DocumentService {
      * Traiter la liste entière rend l'état réparable : une nouvelle version, ou
      * la restauration d'une ancienne, suffit à revenir à une seule principale.
      */
-    private void demoterPrincipales(Long documentId) {
+    private void demoterPrincipales(UUID documentId) {
         versionRepo.findByDocumentIdAndPrincipaleTrueOrderByIdDesc(documentId)
                 .forEach(v -> v.setPrincipale(false));
     }
 
-    private void appliquerEtiquettes(UploadDocument d, List<Long> ids) {
+    private void appliquerEtiquettes(UploadDocument d, List<UUID> ids) {
         if (ids == null) return;
         List<Etiquette> tags = ids.isEmpty() ? List.of() : etiquetteRepo.findAllById(ids);
         d.getEtiquettes().clear();
@@ -267,7 +269,7 @@ public class DocumentService {
 
     /** Entité + ressource fichier pour le téléchargement. */
     @Transactional(readOnly = true)
-    public UploadDocument loadForDownload(Long id) {
+    public UploadDocument loadForDownload(UUID id) {
         return load(id);
     }
 
@@ -276,34 +278,34 @@ public class DocumentService {
     }
 
     @Transactional
-    public void softDelete(Long id) {
-        load(id).setDeleted(true);
+    public void softDelete(UUID id) {
+        load(id).mettreEnCorbeille(ActeurCourant.employeId());
     }
 
     @Transactional
-    public void restore(Long id) {
-        load(id).setDeleted(false);
+    public void restore(UUID id) {
+        load(id).restaurer();
     }
 
     @Transactional
-    public void multipleDelete(List<Long> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(d -> d.setDeleted(true));
+    public void multipleDelete(List<UUID> ids) {
+        repo.findByIdInAndDeletedFalse(ids).forEach(d -> d.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
-    public void multipleRestore(List<Long> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(d -> d.setDeleted(false));
+    public void multipleRestore(List<UUID> ids) {
+        repo.findByIdInAndDeletedTrue(ids).forEach(d -> d.restaurer());
     }
 
     /* ---------- privé ---------- */
 
-    private UploadDocument load(Long id) {
+    private UploadDocument load(UUID id) {
         return repo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Document introuvable : " + id));
     }
 
     /** Chargement verrouillé, pour toute opération qui écrit sur le document. */
-    private UploadDocument loadPourEcriture(Long id) {
+    private UploadDocument loadPourEcriture(UUID id) {
         UploadDocument d = repo.findByIdPourEcriture(id)
                 .orElseThrow(() -> new EntityNotFoundException("Document introuvable : " + id));
         refuserSiEnCorbeille(d, "modification");

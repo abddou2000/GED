@@ -1,5 +1,6 @@
 package com.ipt.ged.workflow.dto;
 
+import java.util.UUID;
 import com.ipt.ged.workflow.WorkflowGed;
 
 import java.util.List;
@@ -8,14 +9,14 @@ import java.util.List;
  * Données renvoyées au frontend pour une règle de workflow.
  */
 public record WorkflowResponse(
-        Long id,
+        UUID id,
         String name,
         List<StepResponse> steps,
         List<String> workspaces
 ) {
     public record StepResponse(
-            Long id,
-            Long employeId,
+            UUID id,
+            UUID employeId,
             String employeFullName,
             String label,
             int stepOrder

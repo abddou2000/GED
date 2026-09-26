@@ -1,5 +1,6 @@
 package com.ipt.ged.typedocument.dto;
 
+import java.util.UUID;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -21,9 +22,9 @@ public record TypeDocumentRequest(
         String description,
 
         @NotNull(message = "L'espace de travail est obligatoire")
-        Long workspaceId,
+        UUID workspaceId,
 
-        Long planIndexationId,
+        UUID planIndexationId,
 
         @NotEmpty(message = "Au moins un format de fichier est requis")
         List<String> typeAutorise,

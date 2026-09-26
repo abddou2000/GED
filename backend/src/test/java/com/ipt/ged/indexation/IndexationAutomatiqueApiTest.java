@@ -1,5 +1,6 @@
 package com.ipt.ged.indexation;
 
+import java.util.UUID;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
@@ -62,8 +63,8 @@ class IndexationAutomatiqueApiTest {
 
     private static final String BASE = "/api/v1/indexation";
 
-    private long typeId;
-    private long idDate, idFourn, idPrio;
+    private UUID typeId;
+    private UUID idDate, idFourn, idPrio;
 
     @BeforeEach
     void setup() {
@@ -81,7 +82,7 @@ class IndexationAutomatiqueApiTest {
         plan.getIndices().addAll(List.of(date, fourn, prio));
         planRepository.save(plan);
 
-        Employe e = employeRepository.findById(1L).orElseThrow();
+        Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         WorkflowGed wf = new WorkflowGed("WF auto");
         wf.addStep(new WorkflowStep(e, "Validation", 1));
         workflowRepository.save(wf);
@@ -110,20 +111,20 @@ class IndexationAutomatiqueApiTest {
     }
 
     /** Dépose un fichier et renvoie l'id du document créé. */
-    private long depose(String fichier) throws Exception {
+    private UUID depose(String fichier) throws Exception {
         String res = mvc.perform(multipart("/api/v1/documents")
                         .file(new MockMultipartFile("file", fichier, "application/pdf", "x".getBytes()))
                         .param("name", "Facture")
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        return om.readTree(res).get("id").asLong();
+        return UUID.fromString(om.readTree(res).get("id").asText());
     }
 
     @Test
     @DisplayName("1. Un fichier nommé selon la charte remplit tous les index")
     void nomConforme() throws Exception {
-        long doc = depose("2026-01-15_ACME Distribution_Haute.pdf");
+        UUID doc = depose("2026-01-15_ACME Distribution_Haute.pdf");
 
         mvc.perform(get(BASE + "/documents/" + doc + "/analyse"))
                 .andExpect(status().isOk())
@@ -139,7 +140,7 @@ class IndexationAutomatiqueApiTest {
     @Test
     @DisplayName("2. L'analyse n'écrit rien : sans confirmation, le document reste vierge")
     void analyseNEcritRien() throws Exception {
-        long doc = depose("2026-01-15_ACME Distribution_Haute.pdf");
+        UUID doc = depose("2026-01-15_ACME Distribution_Haute.pdf");
 
         mvc.perform(get(BASE + "/documents/" + doc + "/analyse")).andExpect(status().isOk());
 
@@ -152,13 +153,13 @@ class IndexationAutomatiqueApiTest {
     @Test
     @DisplayName("3. Après confirmation, les valeurs sont posées et la référence composée")
     void confirmationEcrit() throws Exception {
-        long doc = depose("2026-01-15_ACME Distribution_Haute.pdf");
+        UUID doc = depose("2026-01-15_ACME Distribution_Haute.pdf");
 
         String corps = """
             {"valeurs":[
-              {"indexFieldId":%d,"valeur":"2026-01-15"},
-              {"indexFieldId":%d,"valeur":"ACME Distribution"},
-              {"indexFieldId":%d,"valeur":"Haute"}]}
+              {"indexFieldId":"%s","valeur":"2026-01-15"},
+              {"indexFieldId":"%s","valeur":"ACME Distribution"},
+              {"indexFieldId":"%s","valeur":"Haute"}]}
             """.formatted(idDate, idFourn, idPrio);
 
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON).content(corps))
@@ -167,7 +168,7 @@ class IndexationAutomatiqueApiTest {
 
         // La référence est visible sur le résultat de recherche
         mvc.perform(post(BASE + "/recherche").contentType(APPLICATION_JSON)
-                        .content("{\"criteres\":[{\"indexFieldId\":" + idFourn + ",\"valeur\":\"acme\"}]}"))
+                        .content("{\"criteres\":[{\"indexFieldId\":\"" + idFourn + "\",\"valeur\":\"acme\"}]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].documents[0].reference", is("2026-01-15_ACME Distribution_Haute")));
     }
@@ -176,7 +177,7 @@ class IndexationAutomatiqueApiTest {
     @DisplayName("4. Un segment incompatible est signalé, pas deviné")
     void segmentInvalide() throws Exception {
         // « pas-une-date » ne passe pas le contrôle DATE, « Extrême » n'est pas dans la liste
-        long doc = depose("pas-une-date_ACME Distribution_Extreme.pdf");
+        UUID doc = depose("pas-une-date_ACME Distribution_Extreme.pdf");
 
         mvc.perform(get(BASE + "/documents/" + doc + "/analyse"))
                 .andExpect(status().isOk())
@@ -192,7 +193,7 @@ class IndexationAutomatiqueApiTest {
     @Test
     @DisplayName("5. Un fichier trop court laisse les champs manquants à la saisie")
     void nomIncomplet() throws Exception {
-        long doc = depose("2026-01-15_ACME Distribution.pdf");
+        UUID doc = depose("2026-01-15_ACME Distribution.pdf");
 
         mvc.perform(get(BASE + "/documents/" + doc + "/analyse"))
                 .andExpect(status().isOk())
@@ -209,7 +210,7 @@ class IndexationAutomatiqueApiTest {
         plan.setMajuscule(true);
         planRepository.save(plan);
 
-        long doc = depose("2026-01-15_ACME Distribution_Haute.pdf");
+        UUID doc = depose("2026-01-15_ACME Distribution_Haute.pdf");
         mvc.perform(get(BASE + "/documents/" + doc + "/analyse"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.majuscule", is(true)))
@@ -224,14 +225,14 @@ class IndexationAutomatiqueApiTest {
         sansPlan.setWorkspace(workspaceRepository.findAll().get(0));
         sansPlan.setTypeAutorise("pdf");
         sansPlan.setTailleMaxMo(5);
-        long id = typeRepository.save(sansPlan).getId();
+        UUID id = typeRepository.save(sansPlan).getId();
 
         String res = mvc.perform(multipart("/api/v1/documents")
                         .file(new MockMultipartFile("file", "note.pdf", "application/pdf", "x".getBytes()))
                         .param("name", "Note").param("typeDocumentId", String.valueOf(id)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        long doc = om.readTree(res).get("id").asLong();
+        UUID doc = UUID.fromString(om.readTree(res).get("id").asText());
 
         mvc.perform(get(BASE + "/documents/" + doc + "/analyse"))
                 .andExpect(status().isOk())
@@ -242,25 +243,25 @@ class IndexationAutomatiqueApiTest {
     @Test
     @DisplayName("8. Effacer toutes les valeurs retire la référence")
     void referenceRetiree() throws Exception {
-        long doc = depose("2026-01-15_ACME Distribution_Haute.pdf");
+        UUID doc = depose("2026-01-15_ACME Distribution_Haute.pdf");
 
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON).content("""
             {"valeurs":[
-              {"indexFieldId":%d,"valeur":"2026-01-15"},
-              {"indexFieldId":%d,"valeur":"ACME Distribution"},
-              {"indexFieldId":%d,"valeur":"Haute"}]}
+              {"indexFieldId":"%s","valeur":"2026-01-15"},
+              {"indexFieldId":"%s","valeur":"ACME Distribution"},
+              {"indexFieldId":"%s","valeur":"Haute"}]}
             """.formatted(idDate, idFourn, idPrio))).andExpect(status().isOk());
 
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON).content("""
             {"valeurs":[
-              {"indexFieldId":%d,"valeur":null},
-              {"indexFieldId":%d,"valeur":null},
-              {"indexFieldId":%d,"valeur":null}]}
+              {"indexFieldId":"%s","valeur":null},
+              {"indexFieldId":"%s","valeur":null},
+              {"indexFieldId":"%s","valeur":null}]}
             """.formatted(idDate, idFourn, idPrio))).andExpect(status().isOk());
 
         mvc.perform(post(BASE + "/recherche").contentType(APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].documents[?(@.id==" + doc + ")].reference",
+                .andExpect(jsonPath("$[0].documents[?(@.id=='" + doc + "')].reference",
                         everyItem(nullValue())));
     }
 }

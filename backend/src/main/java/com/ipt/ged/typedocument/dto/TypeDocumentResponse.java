@@ -1,5 +1,6 @@
 package com.ipt.ged.typedocument.dto;
 
+import java.util.UUID;
 import com.ipt.ged.typedocument.TypeDocument;
 
 import java.util.Arrays;
@@ -9,7 +10,7 @@ import java.util.List;
  * Données renvoyées au frontend pour un type de document.
  */
 public record TypeDocumentResponse(
-        Long id,
+        UUID id,
         String code,
         String typeDeDocument,
         String description,
@@ -18,7 +19,7 @@ public record TypeDocumentResponse(
         List<String> typeAutorise,
         int tailleMaxMo
 ) {
-    public record Ref(Long id, String label) {}
+    public record Ref(UUID id, String label) {}
 
     public static TypeDocumentResponse from(TypeDocument t) {
         List<String> types = (t.getTypeAutorise() == null || t.getTypeAutorise().isBlank())

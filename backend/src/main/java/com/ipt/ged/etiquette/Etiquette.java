@@ -1,6 +1,8 @@
 package com.ipt.ged.etiquette;
 
-import com.ipt.ged.common.Auditable;
+import com.ipt.ged.common.IdentifiantUuid;
+import java.util.UUID;
+import com.ipt.ged.common.Supprimable;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,15 +13,15 @@ import lombok.Setter;
  * Reproduit {@code Etiquette} de CCISTTA.
  */
 @Entity
-@Table(name = "etiquettes")
+@Table(name = "etiquette")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Etiquette extends Auditable {
+public class Etiquette extends Supprimable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @IdentifiantUuid
+    private UUID id;
 
     @Column(nullable = false, unique = true)
     private String code;
@@ -32,9 +34,6 @@ public class Etiquette extends Auditable {
     @Column(nullable = false)
     private String couleur;
 
-    /** Corbeille : true = supprimé de façon réversible. */
-    @Column(nullable = false)
-    private boolean deleted = false;
 
     public Etiquette(String code, String tag, String couleur) {
         this.code = code;

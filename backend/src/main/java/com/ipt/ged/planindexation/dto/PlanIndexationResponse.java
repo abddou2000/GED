@@ -1,5 +1,6 @@
 package com.ipt.ged.planindexation.dto;
 
+import java.util.UUID;
 import com.ipt.ged.index.IndexField;
 import com.ipt.ged.planindexation.CharteNommage;
 import com.ipt.ged.planindexation.PlanIndexation;
@@ -11,7 +12,7 @@ import java.util.List;
  * du nommage composé à partir des index (dans l'ordre).
  */
 public record PlanIndexationResponse(
-        Long id,
+        UUID id,
         String code,
         String nomDuPlan,
         boolean modeIndexation,
@@ -30,7 +31,7 @@ public record PlanIndexationResponse(
         String charteNommage,
         String preview
 ) {
-    public record Ref(Long id, String label) {}
+    public record Ref(UUID id, String label) {}
 
     public static PlanIndexationResponse from(PlanIndexation p) {
         List<Ref> refs = p.getIndices().stream()

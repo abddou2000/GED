@@ -6,7 +6,8 @@
 # développement empêche qu'une variable DB_NAME exportée pour le dev fasse
 # effacer la base de dev par un `mvn test`.
 #
-# Prérequis (une fois) : backend/scripts/db/creer-roles.sql avec -v tests=oui.
+# Prérequis (une fois) : backend/scripts/db/creer-roles.sql, puis
+# backend/scripts/db/preparer-base.sql avec -v tests=oui.
 ged:
   base:
     nom: ${DB_NAME_TEST:${DB_NAME:ged_dev1}_test}

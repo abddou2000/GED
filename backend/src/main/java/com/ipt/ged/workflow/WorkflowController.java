@@ -1,5 +1,6 @@
 package com.ipt.ged.workflow;
 
+import java.util.UUID;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.workflow.dto.WorkflowRequest;
 import com.ipt.ged.workflow.dto.WorkflowResponse;
@@ -48,7 +49,7 @@ public class WorkflowController {
     }
 
     @GetMapping("/{id}")
-    public WorkflowResponse get(@PathVariable Long id) {
+    public WorkflowResponse get(@PathVariable UUID id) {
         return service.get(id);
     }
 
@@ -58,34 +59,34 @@ public class WorkflowController {
     }
 
     @PutMapping("/{id}")
-    public WorkflowResponse update(@PathVariable Long id, @Valid @RequestBody WorkflowRequest request) {
+    public WorkflowResponse update(@PathVariable UUID id, @Valid @RequestBody WorkflowRequest request) {
         return service.update(id, request);
     }
 
     /** Suppression réversible (corbeille). */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.softDelete(id);
         return ResponseEntity.noContent().build();
     }
 
     /** Restauration depuis la corbeille. */
     @PatchMapping("/{id}/restore")
-    public ResponseEntity<Void> restore(@PathVariable Long id) {
+    public ResponseEntity<Void> restore(@PathVariable UUID id) {
         service.restore(id);
         return ResponseEntity.noContent().build();
     }
 
     /** Suppression multiple (corbeille). */
     @DeleteMapping("/multiple-delete")
-    public ResponseEntity<Void> multipleDelete(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<Void> multipleDelete(@RequestBody Map<String, List<UUID>> body) {
         service.multipleDelete(body.getOrDefault("ids", List.of()));
         return ResponseEntity.noContent().build();
     }
 
     /** Restauration multiple. */
     @PatchMapping("/multiple-restore")
-    public ResponseEntity<Void> multipleRestore(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<Void> multipleRestore(@RequestBody Map<String, List<UUID>> body) {
         service.multipleRestore(body.getOrDefault("ids", List.of()));
         return ResponseEntity.noContent().build();
     }
