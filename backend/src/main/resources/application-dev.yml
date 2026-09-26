@@ -47,3 +47,15 @@ ged:
     # Compte unique en local : rattaché au premier employé de démonstration,
     # dont l'adresse dérivée est précisément celle-ci.
     email-admin: ${GED_EMAIL_ADMIN:sara.bennani@marchica.ma}
+
+  # Stockage sécurisé : keystore local jetable (data/ n'est pas versionné).
+  # La phrase secrète par défaut n'est PAS un secret : elle ne protège que des
+  # fichiers de démonstration sur ce poste. Sans ClamAV installé, l'antivirus
+  # est neutralisé (interdit en prod, qui refuse alors de démarrer).
+  fichiers:
+    cles:
+      keystore: ${GED_KEYSTORE_CHEMIN:./data/cles/ged-kek.p12}
+      mot-de-passe: ${GED_KEYSTORE_MDP:dev-local-only}
+      creer-si-absent: true
+    antivirus:
+      actif: ${GED_ANTIVIRUS_ACTIF:false}

@@ -24,6 +24,23 @@ ged:
     root: ./target/test-storage
     temp: ./target/test-temp
 
+  # Stockage sécurisé : keystore jetable recréé sous target/. La phrase
+  # secrète n'est pas un secret (même statut que la clé JWT de test ci-dessous).
+  # L'antivirus pointe sur un port où rien n'écoute : les tests qui l'exercent
+  # démarrent leur propre faux clamd et construisent leur client.
+  fichiers:
+    racine: ./target/test-coffre
+    racine-cache-apercu: ./target/test-cache-apercu
+    cles:
+      keystore: ./target/test-cles/ged-kek.p12
+      mot-de-passe: test-only-keystore-password
+      creer-si-absent: true
+    antivirus:
+      port: 1
+      delai-connexion-ms: 500
+    previsualisation:
+      repertoire-travail: ./target/test-apercu-travail
+
   securite:
     # Mot de passe d'amorçage des comptes de test.
     #
