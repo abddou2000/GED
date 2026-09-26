@@ -1,0 +1,252 @@
+diff --git a/backend/src/main/java/com/ipt/ged/indexation/IndexationService.java b/backend/src/main/java/com/ipt/ged/indexation/IndexationService.java
+index 1c7cc81..afdbc18 100644
+--- a/backend/src/main/java/com/ipt/ged/indexation/IndexationService.java
++++ b/backend/src/main/java/com/ipt/ged/indexation/IndexationService.java
+@@ -8,8 +8,6 @@ import com.ipt.ged.index.IndexField;
+ import com.ipt.ged.index.IndexFieldType;
+ import com.ipt.ged.index.IndexRepository;
+ import com.ipt.ged.indexation.dto.*;
+-import com.ipt.ged.ocr.ExtracteurValeurs;
+-import com.ipt.ged.ocr.OcrService;
+ import com.ipt.ged.ocr.TexteExtrait;
+ import com.ipt.ged.planindexation.CharteNommage;
+ import com.ipt.ged.typedocument.TypeDocument;
+@@ -44,8 +42,6 @@ public class IndexationService {
+     private final IndexRepository indexRepository;
+     private final UploadDocumentRepository documentRepository;
+     private final DocumentIndexRepository valeurRepository;
+-    private final OcrService ocr;
+-    private final ExtracteurValeurs valeurs;
+     /** Le type porte le plan : l'apercu part du type, pas d'un document. */
+     private final TypeDocumentRepository typeRepository;
+ 
+@@ -324,13 +320,10 @@ public class IndexationService {
+         String sep = plan.getSeparateur() == null || plan.getSeparateur().isEmpty() ? "_" : plan.getSeparateur();
+         List<String> segments = decouper(nomFichier, sep);
+ 
+-        /* Le contenu n'est lu que si le nom de fichier ne suffit pas : ouvrir un
+-           PDF — a fortiori l'OCRiser — coûte cher, et l'opérateur attend devant
+-           son formulaire. */
+-        TexteExtrait texte = (fichier != null && !fichier.isEmpty() && manqueUnChamp(champs, segments))
+-                ? lireSansDeposer(fichier)
+-                : TexteExtrait.aucune("Contenu non sollicité.");
+-
++        /* Cloisonnement du §4.3.3 : « les champs d'indexation du formulaire de
++           dépôt ne sont en aucun cas alimentés par le contenu extrait de
++           l'OCR ». Seul le nom de fichier, saisi par l'opérateur, propose des
++           valeurs ; le contenu ne sert qu'à la recherche plein texte (lot E6). */
+         List<AnalyseResponse.Proposition> propositions = new ArrayList<>();
+         for (int i = 0; i < champs.size(); i++) {
+             IndexField champ = champs.get(i);
+@@ -339,18 +332,6 @@ public class IndexationService {
+             String valeur = motif == null ? segment : null;
+             String source = valeur != null ? "NOM_FICHIER" : null;
+ 
+-            // Le nom n'a rien donné : on tente le contenu, contrôlé comme le
+-            // reste — la lecture automatique n'a aucun passe-droit.
+-            if (valeur == null && texte.exploitable()) {
+-                String duContenu = valeurs.deduire(champ, texte.texte(),
+-                        versCritere(champ).options(), texte.mots());
+-                if (duContenu != null && motifDeRejet(champ, duContenu, 1, 0) == null) {
+-                    valeur = duContenu;
+-                    source = "CONTENU";
+-                    motif = null;
+-                }
+-            }
+-
+             propositions.add(new AnalyseResponse.Proposition(
+                     champ.getId(), champ.getCode(), champ.getNomIndex(), champ.getFieldType().name(),
+                     versCritere(champ).options(),
+@@ -379,7 +360,7 @@ public class IndexationService {
+         String avertissement = avertissementDeLecture(reconnus, champs, sep);
+ 
+         return new ApercuResponse(plan.getNomDuPlan(), sep, propositions, reconnus, champs.size(),
+-                nomPropose, avertissement, texte.provenance().name());
++                nomPropose, avertissement, TexteExtrait.Provenance.AUCUNE.name());
+     }
+ 
+     /**
+@@ -400,36 +381,6 @@ public class IndexationService {
+                 + " champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.";
+     }
+ 
+-    /**
+-     * Lit le contenu d'un fichier qui n'est pas encore déposé.
+-     *
+-     * <p>Il est recopié dans un fichier temporaire : les extracteurs travaillent
+-     * sur un chemin, et un flux de requête ne se relit pas — plusieurs
+-     * extracteurs peuvent être essayés à la suite. Le temporaire est supprimé
+-     * quoi qu'il arrive : ce fichier n'a pas été confié à la GED, il ne doit
+-     * rien laisser derrière lui.</p>
+-     */
+-    private TexteExtrait lireSansDeposer(MultipartFile fichier) {
+-        String nom = fichier.getOriginalFilename() != null ? fichier.getOriginalFilename() : "document";
+-        int point = nom.lastIndexOf('.');
+-        String extension = point >= 0 && point < nom.length() - 1 ? nom.substring(point + 1) : "";
+-
+-        java.nio.file.Path temporaire = null;
+-        try {
+-            temporaire = java.nio.file.Files.createTempFile("ged-apercu-", "." + extension);
+-            fichier.transferTo(temporaire.toFile());
+-            return ocr.lire(temporaire, extension);
+-        } catch (Exception e) {
+-            // Un aperçu qui échoue ne doit pas empêcher le dépôt : les champs
+-            // seront proposés après, quand le document sera sur le serveur.
+-            return TexteExtrait.aucune("Lecture du contenu impossible avant dépôt.");
+-        } finally {
+-            if (temporaire != null) {
+-                try { java.nio.file.Files.deleteIfExists(temporaire); } catch (Exception ignore) { /* rien à faire */ }
+-            }
+-        }
+-    }
+-
+     public AnalyseResponse analyser(UUID documentId) {
+         UploadDocument doc = document(documentId);
+         String fichier = doc.getFileName() != null ? doc.getFileName() : doc.getName();
+@@ -453,13 +404,7 @@ public class IndexationService {
+         String sep = plan.getSeparateur() == null || plan.getSeparateur().isEmpty() ? "_" : plan.getSeparateur();
+         List<String> segments = decouper(fichier, sep);
+ 
+-        // Second recours : le contenu du document, lu par la chaîne d'OCRisation.
+-        // Il n'est sollicité que si le nom de fichier ne suffit pas — la lecture
+-        // d'un scan coûte cher, on ne la déclenche pas pour rien.
+-        TexteExtrait texte = manqueUnChamp(champs, segments)
+-                ? ocr.lire(doc.getId())
+-                : TexteExtrait.aucune("Nom de fichier suffisant : contenu non sollicité.");
+-
++        // Cloisonnement du §4.3.3 : aucune valeur d'index n'est déduite du contenu.
+         List<AnalyseResponse.Proposition> propositions = new ArrayList<>();
+         for (int i = 0; i < champs.size(); i++) {
+             IndexField champ = champs.get(i);
+@@ -469,18 +414,6 @@ public class IndexationService {
+             String valeur = motif == null ? segment : null;
+             String source = valeur != null ? "NOM_FICHIER" : null;
+ 
+-            // Le nom n'a rien donné : on tente le contenu, puis on le contrôle
+-            // comme n'importe quelle saisie — l'OCR n'a aucun passe-droit.
+-            if (valeur == null && texte.exploitable()) {
+-                String duContenu = valeurs.deduire(champ, texte.texte(),
+-                        versCritere(champ).options(), texte.mots());
+-                if (duContenu != null && motifDeRejet(champ, duContenu, 1, 0) == null) {
+-                    valeur = duContenu;
+-                    source = "CONTENU";
+-                    motif = null;
+-                }
+-            }
+-
+             propositions.add(new AnalyseResponse.Proposition(
+                     champ.getId(), champ.getCode(), champ.getNomIndex(), champ.getFieldType().name(),
+                     versCritere(champ).options(),
+@@ -499,16 +432,8 @@ public class IndexationService {
+         return new AnalyseResponse(doc.getId(), fichier, plan.getNomDuPlan(), sep, plan.isMajuscule(),
+                 plan.isModeIndexation(), segments, propositions, reference,
+                 reconnus, champs.size(), avertissement,
+-                texte.provenance().name(), texte.detail());
+-    }
+-
+-    /** Le nom de fichier laisse-t-il au moins un champ sans valeur exploitable ? */
+-    private boolean manqueUnChamp(List<IndexField> champs, List<String> segments) {
+-        for (int i = 0; i < champs.size(); i++) {
+-            if (motifDeRejet(champs.get(i), segmentPour(champs.get(i), segments, i),
+-                             segments.size(), i) != null) return true;
+-        }
+-        return false;
++                TexteExtrait.Provenance.AUCUNE.name(),
++                "Le contenu du document n'alimente aucun champ d'index (dossier technique §4.3.3).");
+     }
+ 
+     /**
+diff --git a/backend/src/test/java/com/ipt/ged/ocr/OcrApiTest.java b/backend/src/test/java/com/ipt/ged/ocr/OcrApiTest.java
+index 8e1744d..918a8eb 100644
+--- a/backend/src/test/java/com/ipt/ged/ocr/OcrApiTest.java
++++ b/backend/src/test/java/com/ipt/ged/ocr/OcrApiTest.java
+@@ -197,27 +197,29 @@ class OcrApiTest {
+     }
+ 
+     @Test
+-    @DisplayName("5. Un fichier au nom muet est indexé depuis son contenu")
+-    void indexeDepuisContenu() throws Exception {
+-        // « scan0001.pdf » ne suit aucune charte : seul le contenu peut renseigner les index
++    @DisplayName("5. Cloisonnement §4.3.3 : un fichier au nom muet n'est PAS indexé depuis son contenu")
++    void contenuNAlimenteAucunIndex() throws Exception {
++        // Le contenu porte des valeurs lisibles ; aucune ne doit remonter dans
++        // les propositions d'index : l'OCR ne sert qu'à la recherche plein texte.
+         UUID doc = depose("scan0001.pdf", pdfAvecTexte(
+                 "Fournisseur : ACME Distribution",
+                 "Date d'emission : 15/01/2026",
+                 "Priorite : Haute"));
+ 
+-        mvc.perform(get("/api/v1/indexation/documents/" + doc + "/analyse"))
++        String res = mvc.perform(get("/api/v1/indexation/documents/" + doc + "/analyse"))
+                 .andExpect(status().isOk())
+-                .andExpect(jsonPath("$.provenanceTexte", is("COUCHE_TEXTE")))
+-                // la date et la priorité viennent du contenu, pas du nom de fichier
+-                .andExpect(jsonPath("$.propositions[?(@.code=='O-DATE')].source", contains("CONTENU")))
+-                .andExpect(jsonPath("$.propositions[?(@.code=='O-DATE')].valeurProposee", contains("2026-01-15")))
+-                .andExpect(jsonPath("$.propositions[?(@.code=='O-PRIO')].source", contains("CONTENU")))
+-                .andExpect(jsonPath("$.propositions[?(@.code=='O-PRIO')].valeurProposee", contains("Haute")));
++                .andExpect(jsonPath("$.provenanceTexte", is("AUCUNE")))
++                .andExpect(jsonPath("$.propositions[*].source", everyItem(not(is("CONTENU")))))
++                .andExpect(jsonPath("$.propositions[?(@.code=='O-DATE')].valeurProposee", everyItem(nullValue())))
++                .andExpect(jsonPath("$.propositions[?(@.code=='O-PRIO')].valeurProposee", everyItem(nullValue())))
++                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
++        assertFalse(res.contains("ACME Distribution"));
++        assertFalse(res.contains("2026-01-15"));
+     }
+ 
+     @Test
+-    @DisplayName("6. Le contenu n'est pas sollicité quand le nom de fichier suffit")
+-    void contenuNonSollicite() throws Exception {
++    @DisplayName("6. Le nom de fichier reste la seule source des propositions")
++    void nomDeFichierSeulesPropositions() throws Exception {
+         UUID doc = depose("2026-01-15_ACME Distribution_Haute.pdf",
+                 pdfAvecTexte("Fournisseur : Autre Societe"));
+ 
+@@ -227,8 +229,7 @@ class OcrApiTest {
+                 .andExpect(jsonPath("$.propositions[*].source", everyItem(is("NOM_FICHIER"))))
+                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+ 
+-        // le contenu aurait donné « Autre Societe » : il n'a pas été lu
+-        assertTrue(res.contains("non sollicité"), "le contenu ne doit pas être lu inutilement");
++        assertTrue(res.contains("§4.3.3"), "le motif du cloisonnement est donné à l'opérateur");
+         assertFalse(res.contains("Autre Societe"));
+     }
+ 
+diff --git a/frontend/src/app/features/document/document-upload/document-upload.html b/frontend/src/app/features/document/document-upload/document-upload.html
+index 7747c02..666ddde 100644
+--- a/frontend/src/app/features/document/document-upload/document-upload.html
++++ b/frontend/src/app/features/document/document-upload/document-upload.html
+@@ -85,20 +85,6 @@
+               <strong>{{ a.nbReconnus }}/{{ a.nbAttendus }}</strong> champ(s) déduits automatiquement
+             </p>
+ 
+-            <!-- D'où vient ce qui a été déduit. Le nom du fichier n'a pas
+-                 toujours suffi : le serveur ouvre alors le document, et peut
+-                 aller jusqu'à la reconnaissance optique. Une valeur lue par OCR
+-                 n'a pas la même fiabilité qu'une valeur lue dans le nom — le
+-                 taire revenait à la présenter comme sûre. -->
+-            @if (a.provenanceTexte !== 'AUCUNE') {
+-              <p class="lecture" [class.ocr]="a.provenanceTexte === 'OCR'">
+-                <mat-icon [svgIcon]="a.provenanceTexte === 'OCR' ? 'alert' : 'nav-type'"></mat-icon>
+-                Contenu lu —
+-                <strong>{{ a.provenanceTexte === 'OCR' ? 'reconnaissance optique (scan)' : 'couche texte du PDF' }}</strong>
+-                @if (a.provenanceTexte === 'OCR') { · relisez ces valeurs, la reconnaissance peut se tromper }
+-              </p>
+-            }
+-
+             @if (a.avertissement) {
+               <p class="avert"><mat-icon svgIcon="alert"></mat-icon> {{ a.avertissement }}</p>
+             }
+@@ -115,9 +101,9 @@
+                   </span>
+                   @if (indexationAuto()) {
+                     @if (c.reconnue) {
+-                      <span class="p-src" [class.contenu]="c.source === 'CONTENU'">
+-                        {{ c.source === 'CONTENU' ? 'lu dans le document' : 'nom du fichier' }}
+-                      </span>
++                      <!-- Seul le nom du fichier propose des valeurs : le contenu
++                           n'alimente aucun index (dossier technique §4.3.3). -->
++                      <span class="p-src">nom du fichier</span>
+                     } @else {
+                       <span class="p-src ko" [matTooltip]="c.motif || ''">à saisir</span>
+                     }
