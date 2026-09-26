@@ -1,0 +1,7 @@
+# Fichiers exécutés ou lus sur les serveurs Linux de MMED : fins de ligne LF
+# dans la copie de travail aussi, sinon un script extrait sous Windows
+# échoue (« bad interpreter: /bin/bash^M »).
+*.sh        text eol=lf
+*.service   text eol=lf
+*.timer     text eol=lf
+deploiement/**           text eol=lf
