@@ -43,7 +43,7 @@ foi), `FEUILLE-DE-ROUTE.md` (critères de sortie), `MATRICE-TECHNIQUE.md` (colon
 | Ligne de base | `docs/conformite/recette/LIGNE-DE-BASE.md` | 143 tests, 0 échec (H2) |
 | Jeux de données | `recette/donnees/` + `generer-donnees.sh` (Java) | Versionnés, reproductibles |
 | Socle E1 | `recette/e1/` : `verifier-base-vierge.sh`, `verifier-rollback.sh`, `verifier-socle.sh`, `AnalyseurChangelogs.java` | Prêts, autotestés, pré-exécutés sur `ct/dev1` |
-| Stockage E5 | `recette/e5/` : `verifier-aucun-clair.sh`, `verifier-alteration.sh`, `verifier-antivirus.sh`, `verifier-type-reel.sh`, `verifier-taille.sh` | Prêts, autotestés, exécutés contre l'application actuelle |
+| Stockage E5 | `recette/e5/` : `verifier-aucun-clair.sh`, `verifier-alteration.sh`, `verifier-antivirus.sh`, `verifier-type-reel.sh`, `verifier-taille.sh`, `verifier-composants.sh` | Prêts, autotestés ; banc des composants intégrés 19/19 ; scripts HTTP exécutés contre l'application d'origine, à rejouer en vague 2 |
 | Fumée | `recette/fumee/fumee.sh` | Prête, exécutée 7/7 contre l'application actuelle |
 | Scripts E2 à E11 | à écrire vague par vague, sur le même modèle | — |
 
@@ -266,6 +266,11 @@ Critère de sortie : matrice à 100 % « Identique », validée par MMED.
 | D14 — habilitations validées | CR-E3-03 | Confirme le cas |
 
 ## 4. Pré-recette E1 sur `ct/dev1` (non intégrée, 2026-09-26)
+
+> Mise à jour : la recette réelle après intégration (`fbb951c`) confirme ces constats ; ils sont
+> inscrits au registre (ANO-E1-001 à 003, ANO-E5-001). Résultats complets :
+> `RESULTATS-VAGUE-1.md`.
+
 
 Exécutée sur un export en lecture seule de `ct/dev1@f0b3314`, base jetable `ged_qa_recette_e1`.
 Ce ne sont **pas** des anomalies au registre (lot non livré) ; remarques transmises pour

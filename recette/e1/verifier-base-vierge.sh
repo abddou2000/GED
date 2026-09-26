@@ -84,10 +84,15 @@ if [[ "$DEMARRER" -eq 1 ]]; then
     JAR="$(ls "$BACKEND"/target/*.jar | grep -v -- '-plain' | head -1)"
   fi
   info "démarrage de $JAR sur le port $PORT (compte ged_app, Liquibase désactivé)"
+  # Démarrage depuis le dossier de travail : les chemins relatifs du profil dev (keystore
+  # ./data/cles, stockage) ne doivent rien créer dans la copie de travail (voir ANO-E5-001).
+  JAR="$(cd "$(dirname "$JAR")" && pwd)/$(basename "$JAR")"
+  pushd "$TRAVAIL" >/dev/null
   DB_NAME="$BASE" DB_HOST="$PGHOST" DB_PORT="$PGPORT" DB_USER=ged_app DB_PASSWORD="${GED_APP_PASSWORD:-}" \
     java -jar "$JAR" --server.port="$PORT" --spring.liquibase.enabled=false --ged.base.nom="$BASE" \
     > "$TRAVAIL/application.log" 2>&1 &
   PID=$!
+  popd >/dev/null
   etat=""
   for _ in $(seq 1 90); do
     sleep 2

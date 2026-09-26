@@ -13,6 +13,7 @@ et contrat d'API : `recette/lib/api.sh` ; options communes `--url`, `--racine`,
 | `verifier-antivirus.sh [--antivirus-arrete]` | « Un fichier infecté est refusé » — 6.1.5 | Témoin sain accepté, EICAR → 422 `FICHIER_INFECTE` sans rien écrire, EICAR déguisé en `.pdf` refusé ; ClamAV arrêté → 503 `ANTIVIRUS_INDISPONIBLE` (échec fermé) |
 | `verifier-type-reel.sh` | Type réel par le contenu (Tika), 415 — 6.1.5, 5.3.2 | Texte, exécutable, DOCX, PNG sous `.pdf` → 415 `FORMAT_NON_AUTORISE` sans rien écrire ; vrai PDF sous `.txt` accepté |
 | `verifier-taille.sh` | 413, 100 Mo par type, 200 Mo plateforme — 6.1.5 | 200 Mio + 1 → 413 ; limite du type + 1 → 413 `FICHIER_TROP_VOLUMINEUX` ; limite exacte acceptée |
+| `verifier-composants.sh [--clamd hote:port]` (lance `BancComposantsE5.java`) | E5 **au niveau des composants** tant que le dépôt HTTP n'est pas branché (vague 1) | Classes de production de dev3 exercées sur le jeu de recette : dépôt chiffré, empreintes = manifeste, relecture, stockage passé à `verifier-aucun-clair.sh`, altérations (octet, troncature, substitution, fin de grand fichier), type réel, tailles, EICAR et clamd arrêté (faux clamd des tests de dev3), rotation de KEK, destruction cryptographique — 19 contrôles |
 | `autotest/lancer-autotest.sh` | Le scanner lui-même | 7 stockages simulés (conforme, clair déguisé, faux en-tête, arborescence, temporaire ancien, racine vide, cache en clair) |
 
 Codes attendus alignés sur la livraison de dev3 (`ct/dev3`, classe `Refus`) et sur le DAT
@@ -29,6 +30,11 @@ Codes attendus alignés sur la livraison de dev3 (`ct/dev3`, classe `Refus`) et 
 | `GED_TYPE_DOCUMENT_200_ID` | type paramétré à 200 Mo |
 | `GED_API_VERIF_INTEGRITE`, `GED_API_AUDIT` | vérification à la demande (gabarit `{id}`), consultation de l'audit (E4) |
 | `GED_TEMOINS_SUPPLEMENTAIRES` | chaînes en clair supplémentaires à rechercher, séparées par des virgules |
+
+## Résultats
+
+Vague 1 (composants intégrés, `fbb951c`) : `verifier-composants.sh` 19/19 — voir
+`docs/conformite/recette/RESULTATS-VAGUE-1.md`.
 
 ## État constaté avant intégration de E5 (application de `ct/qa`, 2026-09-26)
 
