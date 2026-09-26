@@ -73,3 +73,9 @@ refuser_production() {
     fatal "Refus : ce script modifie la base « $cible » et ne doit jamais viser la production."
   fi
 }
+
+# UUID v4 aléatoire sans dépendance (ni /proc, absent sous Windows, ni uuidgen, ni Python).
+uuid_aleatoire() {
+  local h; h="$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
+  printf '%s-%s-4%s-%x%s-%s\n' "${h:0:8}" "${h:8:4}" "${h:13:3}" $(( (0x${h:16:1} & 3) | 8 )) "${h:17:3}" "${h:20:12}"
+}

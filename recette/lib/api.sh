@@ -100,7 +100,7 @@ api_depot() {
   local fichier="$1" nom="${2:-$(basename "$1")}" type="${3:-${_TYPE_ID:-}}"
   if [[ -z "$type" ]]; then _TYPE_ID="$(type_document_par_defaut)"; type="$_TYPE_ID"; fi
   local extra=()
-  [[ -n "${GED_IDEMPOTENCE:-}" ]] && extra+=(-H "Idempotency-Key: $(cat /proc/sys/kernel/random/uuid 2>/dev/null || python -c 'import uuid;print(uuid.uuid4())')")
+  [[ -n "${GED_IDEMPOTENCE:-}" ]] && extra+=(-H "Idempotency-Key: $(uuid_aleatoire)")
   api_appel POST "$GED_API_DEPOT" -F "file=@$(chemin_natif "$fichier");filename=${nom}" -F "name=${nom%.*}" -F "typeDocumentId=${type}" "${extra[@]}"
   DEPOT_ID=""
   [[ "$HTTP_CODE" =~ ^20[12]$ ]] && DEPOT_ID="$(json_champ id)"
