@@ -1,5 +1,6 @@
 package com.ipt.ged.workflow;
 
+import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.employe.Employe;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Logique métier des circuits de workflow — reproduit l'application d'origine :
@@ -55,7 +57,7 @@ public class WorkflowService {
     }
 
     @Transactional(readOnly = true)
-    public WorkflowResponse get(Long id) {
+    public WorkflowResponse get(UUID id) {
         return WorkflowResponse.from(load(id));
     }
 
@@ -67,7 +69,7 @@ public class WorkflowService {
     }
 
     @Transactional
-    public WorkflowResponse update(Long id, WorkflowRequest request) {
+    public WorkflowResponse update(UUID id, WorkflowRequest request) {
         WorkflowGed workflow = load(id);
         workflow.setName(request.name());
         workflow.clearSteps();      // remplacement total (comme l'application d'origine)
@@ -77,29 +79,29 @@ public class WorkflowService {
 
     /** Suppression réversible (mise en corbeille). */
     @Transactional
-    public void softDelete(Long id) {
+    public void softDelete(UUID id) {
         WorkflowGed workflow = load(id);
-        workflow.setDeleted(true);
+        workflow.mettreEnCorbeille(ActeurCourant.employeId());
     }
 
     /** Restauration depuis la corbeille. */
     @Transactional
-    public void restore(Long id) {
+    public void restore(UUID id) {
         WorkflowGed workflow = load(id);
-        workflow.setDeleted(false);
+        workflow.restaurer();
     }
 
     @Transactional
-    public void multipleDelete(List<Long> ids) {
-        workflowRepository.findByIdInAndDeletedFalse(ids).forEach(w -> w.setDeleted(true));
+    public void multipleDelete(List<UUID> ids) {
+        workflowRepository.findByIdInAndDeletedFalse(ids).forEach(w -> w.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
-    public void multipleRestore(List<Long> ids) {
-        workflowRepository.findByIdInAndDeletedTrue(ids).forEach(w -> w.setDeleted(false));
+    public void multipleRestore(List<UUID> ids) {
+        workflowRepository.findByIdInAndDeletedTrue(ids).forEach(w -> w.restaurer());
     }
 
-    private WorkflowGed load(Long id) {
+    private WorkflowGed load(UUID id) {
         return workflowRepository.findWithStepsById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Circuit introuvable : " + id));
     }

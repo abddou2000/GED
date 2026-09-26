@@ -1,11 +1,11 @@
 export interface Ref {
-  id: number;
+  id: string;
   label: string;
 }
 
 /** Un type de document tel que renvoyé par l'API. */
 export interface TypeDocument {
-  id: number;
+  id: string;
   code: string;
   typeDeDocument: string;
   description: string;
@@ -20,8 +20,8 @@ export interface TypeDocumentRequest {
   code: string;
   typeDeDocument: string;
   description: string;
-  workspaceId: number;
-  planIndexationId?: number | null;
+  workspaceId: string;
+  planIndexationId?: string | null;
   typeAutorise: string[];
   tailleMaxMo: number;
 }
@@ -35,7 +35,7 @@ export interface PageResult<T> {
 }
 
 export interface SelectOption {
-  id: number;
+  id: string;
   name: string;
   /** Nom du plan d'indexation, ou null : un type sans plan ne porte aucun index. */
   plan?: string | null;

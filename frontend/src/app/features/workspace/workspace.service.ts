@@ -29,7 +29,7 @@ export class WorkspaceService {
     return this.http.get<SelectOption[]>(`${this.url}/for-select`);
   }
 
-  get(id: number): Observable<WorkSpace> {
+  get(id: string): Observable<WorkSpace> {
     return this.http.get<WorkSpace>(`${this.url}/${id}`);
   }
 
@@ -37,31 +37,31 @@ export class WorkspaceService {
     return this.http.post<WorkSpace>(this.url, body);
   }
 
-  update(id: number, body: WorkSpaceRequest): Observable<WorkSpace> {
+  update(id: string, body: WorkSpaceRequest): Observable<WorkSpace> {
     return this.http.put<WorkSpace>(`${this.url}/${id}`, body);
   }
 
-  delete(id: number): Observable<void> {
+  delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
   }
 
-  restore(id: number): Observable<void> {
+  restore(id: string): Observable<void> {
     return this.http.patch<void>(`${this.url}/${id}/restore`, {});
   }
 
-  move(id: number, parentId: number | null): Observable<WorkSpace> {
+  move(id: string, parentId: string | null): Observable<WorkSpace> {
     return this.http.patch<WorkSpace>(`${this.url}/${id}/parent`, { parentId });
   }
 
-  archive(id: number): Observable<WorkSpace> {
+  archive(id: string): Observable<WorkSpace> {
     return this.http.patch<WorkSpace>(`${this.url}/${id}/archive`, {});
   }
 
-  multipleDelete(ids: number[]): Observable<void> {
+  multipleDelete(ids: string[]): Observable<void> {
     return this.http.delete<void>(`${this.url}/multiple-delete`, { body: { ids } });
   }
 
-  multipleRestore(ids: number[]): Observable<void> {
+  multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids });
   }
 }

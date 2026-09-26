@@ -1,10 +1,11 @@
 package com.ipt.ged.indexation.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 /** Un document trouvé, accompagné des valeurs d'index qui le décrivent. */
 public record ResultatResponse(
-    Long id,
+    UUID id,
     String name,
     String extension,
     String sizeLabel,
@@ -16,5 +17,5 @@ public record ResultatResponse(
     List<ValeurResponse> valeurs
 ) {
     /** Une valeur d'index affichée sur le résultat. */
-    public record ValeurResponse(Long indexFieldId, String code, String libelle, String valeur) {}
+    public record ValeurResponse(UUID indexFieldId, String code, String libelle, String valeur) {}
 }

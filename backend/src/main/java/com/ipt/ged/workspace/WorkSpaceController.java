@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST des espaces de travail (dossiers). Base : /api/v1/workspaces
@@ -56,7 +57,7 @@ public class WorkSpaceController {
     }
 
     @GetMapping("/{id}")
-    public WorkSpaceResponse get(@PathVariable Long id) {
+    public WorkSpaceResponse get(@PathVariable UUID id) {
         return service.get(id);
     }
 
@@ -66,41 +67,41 @@ public class WorkSpaceController {
     }
 
     @PutMapping("/{id}")
-    public WorkSpaceResponse update(@PathVariable Long id, @Valid @RequestBody WorkSpaceRequest req) {
+    public WorkSpaceResponse update(@PathVariable UUID id, @Valid @RequestBody WorkSpaceRequest req) {
         return service.update(id, req);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.softDelete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/restore")
-    public ResponseEntity<Void> restore(@PathVariable Long id) {
+    public ResponseEntity<Void> restore(@PathVariable UUID id) {
         service.restore(id);
         return ResponseEntity.noContent().build();
     }
 
     /** Déplacement : body { "parentId": <id ou null> }. */
     @PatchMapping("/{id}/parent")
-    public WorkSpaceResponse move(@PathVariable Long id, @RequestBody Map<String, Long> body) {
+    public WorkSpaceResponse move(@PathVariable UUID id, @RequestBody Map<String, UUID> body) {
         return service.move(id, body.get("parentId"));
     }
 
     @PatchMapping("/{id}/archive")
-    public WorkSpaceResponse archive(@PathVariable Long id) {
+    public WorkSpaceResponse archive(@PathVariable UUID id) {
         return service.archiveToggle(id);
     }
 
     @DeleteMapping("/multiple-delete")
-    public ResponseEntity<Void> multipleDelete(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<Void> multipleDelete(@RequestBody Map<String, List<UUID>> body) {
         service.multipleDelete(body.getOrDefault("ids", List.of()));
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/multiple-restore")
-    public ResponseEntity<Void> multipleRestore(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<Void> multipleRestore(@RequestBody Map<String, List<UUID>> body) {
         service.multipleRestore(body.getOrDefault("ids", List.of()));
         return ResponseEntity.noContent().build();
     }

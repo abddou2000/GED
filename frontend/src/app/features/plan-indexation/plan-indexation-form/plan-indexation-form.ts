@@ -78,7 +78,7 @@ export class PlanIndexationForm implements OnInit {
   form: FormGroup = this.fb.group({
     code: ['', Validators.required],
     nomDuPlan: ['', Validators.required],
-    indexIds: [[] as number[]],
+    indexIds: [[] as string[]],
     manuel: [false],
     separateur: ['_'],
     majuscule: [false],
@@ -96,7 +96,7 @@ export class PlanIndexationForm implements OnInit {
 
   /** Tous les jetons possibles : les index du plan, plus les jetons système. */
   private readonly tous = computed<Jeton[]>(() => {
-    const ids: number[] = this.valeurs()?.indexIds ?? [];
+    const ids: string[] = this.valeurs()?.indexIds ?? [];
     const duPlan = ids
       .map(id => this.indexOptions().find(o => o.id === id))
       .filter((o): o is SelectOption => !!o)
@@ -129,8 +129,8 @@ export class PlanIndexationForm implements OnInit {
       if (this.data.plan) this.remplir(this.data.plan);
     } else {
       this.modePage.set(true);
-      const id = Number(this.route?.snapshot.paramMap.get('id'));
-      if (Number.isFinite(id) && id > 0) {
+      const id = this.route?.snapshot.paramMap.get('id');
+      if (id) {
         this.service.get(id).subscribe({
           next: p => { this.planCharge.set(p); this.remplir(p); },
           error: () => this.router.navigate(['/plan-indexation']),
@@ -140,7 +140,7 @@ export class PlanIndexationForm implements OnInit {
 
     // Retirer un index du plan doit le retirer du nom : le laisser produirait
     // un aperçu qui promet un champ que le plan ne porte plus.
-    this.form.get('indexIds')!.valueChanges.subscribe((ids: number[]) => {
+    this.form.get('indexIds')!.valueChanges.subscribe((ids: string[]) => {
       const gardes = new Set((ids ?? []).map(String));
       this.charteIds.update(l => l.filter(id => gardes.has(id) || this.estSysteme(id)));
     });

@@ -1,5 +1,6 @@
 package com.ipt.ged.typedocument;
 
+import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.planindexation.PlanIndexation;
@@ -18,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Logique métier des types de document : CRUD, corbeille, rattachement à un
@@ -61,7 +63,7 @@ public class TypeDocumentService {
     }
 
     @Transactional(readOnly = true)
-    public TypeDocumentResponse get(Long id) {
+    public TypeDocumentResponse get(UUID id) {
         return TypeDocumentResponse.from(load(id));
     }
 
@@ -78,7 +80,7 @@ public class TypeDocumentService {
     }
 
     @Transactional
-    public TypeDocumentResponse update(Long id, TypeDocumentRequest req) {
+    public TypeDocumentResponse update(UUID id, TypeDocumentRequest req) {
         TypeDocument t = load(id);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
@@ -90,24 +92,24 @@ public class TypeDocumentService {
     }
 
     @Transactional
-    public void softDelete(Long id) {
-        load(id).setDeleted(true);
+    public void softDelete(UUID id) {
+        load(id).mettreEnCorbeille(ActeurCourant.employeId());
     }
 
     // Restauration = inverse de la mise en corbeille.
     @Transactional
-    public void restore(Long id) {
-        load(id).setDeleted(false);
+    public void restore(UUID id) {
+        load(id).restaurer();
     }
 
     @Transactional
-    public void multipleDelete(List<Long> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(t -> t.setDeleted(true));
+    public void multipleDelete(List<UUID> ids) {
+        repo.findByIdInAndDeletedFalse(ids).forEach(t -> t.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
-    public void multipleRestore(List<Long> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(t -> t.setDeleted(false));
+    public void multipleRestore(List<UUID> ids) {
+        repo.findByIdInAndDeletedTrue(ids).forEach(t -> t.restaurer());
     }
 
     /** Liste allégée {id, name} pour les sélecteurs (upload). */
@@ -141,7 +143,7 @@ public class TypeDocumentService {
 
     /* ---------- privé ---------- */
 
-    private TypeDocument load(Long id) {
+    private TypeDocument load(UUID id) {
         return repo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Type de document introuvable : " + id));
     }

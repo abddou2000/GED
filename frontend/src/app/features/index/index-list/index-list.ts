@@ -201,7 +201,7 @@ export class IndexList implements OnInit {
 
   /* ---- actions ---- */
   create(): void { this.openDialog(null); }
-  edit(id: number): void {
+  edit(id: string): void {
     this.service.get(id).subscribe(x => this.openDialog(x));
   }
   private openDialog(x: IndexField | null): void {
@@ -214,7 +214,7 @@ export class IndexList implements OnInit {
       this.notify.success(x ? 'Index modifié.' : 'Index créé.');
     });
   }
-  remove(id: number, name: string): void {
+  remove(id: string, name: string): void {
     this.confirm.ask({
       title: 'Supprimer cet index',
       message: `« ${name} » sera déplacé vers la corbeille.`,
@@ -228,7 +228,7 @@ export class IndexList implements OnInit {
       });
     });
   }
-  restoreOne(id: number): void {
+  restoreOne(id: string): void {
     this.service.restore(id).subscribe({
       next: () => { this.load(); this.notify.success('Index restauré.'); },
       error: () => this.notify.error('Restauration impossible.'),

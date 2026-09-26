@@ -1,5 +1,6 @@
 package com.ipt.ged.planindexation;
 
+import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.index.IndexField;
@@ -17,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -55,7 +57,7 @@ public class PlanIndexationService {
     }
 
     @Transactional(readOnly = true)
-    public PlanIndexationResponse get(Long id) {
+    public PlanIndexationResponse get(UUID id) {
         return PlanIndexationResponse.from(load(id));
     }
 
@@ -73,7 +75,7 @@ public class PlanIndexationService {
     }
 
     @Transactional
-    public PlanIndexationResponse update(Long id, PlanIndexationRequest req) {
+    public PlanIndexationResponse update(UUID id, PlanIndexationRequest req) {
         PlanIndexation p = load(id);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
@@ -84,24 +86,24 @@ public class PlanIndexationService {
     }
 
     @Transactional
-    public void softDelete(Long id) {
-        load(id).setDeleted(true);
+    public void softDelete(UUID id) {
+        load(id).mettreEnCorbeille(ActeurCourant.employeId());
     }
 
     // Restauration = inverse de la mise en corbeille.
     @Transactional
-    public void restore(Long id) {
-        load(id).setDeleted(false);
+    public void restore(UUID id) {
+        load(id).restaurer();
     }
 
     @Transactional
-    public void multipleDelete(List<Long> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(p -> p.setDeleted(true));
+    public void multipleDelete(List<UUID> ids) {
+        repo.findByIdInAndDeletedFalse(ids).forEach(p -> p.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
-    public void multipleRestore(List<Long> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(p -> p.setDeleted(false));
+    public void multipleRestore(List<UUID> ids) {
+        repo.findByIdInAndDeletedTrue(ids).forEach(p -> p.restaurer());
     }
 
     /** Liste allégée {id, name} pour les sélecteurs (types de document). */
@@ -119,7 +121,7 @@ public class PlanIndexationService {
 
     /* ---------- privé ---------- */
 
-    private PlanIndexation load(Long id) {
+    private PlanIndexation load(UUID id) {
         return repo.findWithIndicesById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Plan d'indexation introuvable : " + id));
     }
@@ -132,11 +134,11 @@ public class PlanIndexationService {
         p.setSeparateur(req.separateur() != null && !req.separateur().isBlank() ? req.separateur() : "_");
 
         // Index dans l'ordre reçu
-        List<Long> ids = req.indexIds() != null ? req.indexIds() : List.of();
-        Map<Long, IndexField> byId = indexRepo.findAllById(ids).stream()
+        List<UUID> ids = req.indexIds() != null ? req.indexIds() : List.of();
+        Map<UUID, IndexField> byId = indexRepo.findAllById(ids).stream()
                 .collect(Collectors.toMap(IndexField::getId, Function.identity()));
         List<IndexField> ordered = new ArrayList<>();
-        for (Long id : ids) {
+        for (UUID id : ids) {
             IndexField x = byId.get(id);
             if (x != null) ordered.add(x);
         }

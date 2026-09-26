@@ -1,13 +1,13 @@
 export type WorkspaceStatus = 'ACTIF' | 'INACTIF' | 'ARCHIVE';
 
 export interface Ref {
-  id: number;
+  id: string;
   label: string;
 }
 
 /** Un espace de travail (dossier) tel que renvoyé par l'API. */
 export interface WorkSpace {
-  id: number;
+  id: string;
   name: string;
   code: string;
   description: string | null;
@@ -26,17 +26,17 @@ export interface WorkSpaceRequest {
   code: string;
   description?: string | null;
   status: WorkspaceStatus;
-  employeId: number;
-  parentId?: number | null;
-  workflowId: number;
+  employeId: string;
+  parentId?: string | null;
+  workflowId: string;
 }
 
 /** Nœud de l'arborescence (vue Arbre). */
 export interface TreeNode {
-  id: number;
+  id: string;
   name: string;
   status: string;
-  parentId: number | null;
+  parentId: string | null;
   children: TreeNode[];
 }
 
@@ -49,6 +49,6 @@ export interface PageResult<T> {
 }
 
 export interface SelectOption {
-  id: number;
+  id: string;
   name: string;
 }

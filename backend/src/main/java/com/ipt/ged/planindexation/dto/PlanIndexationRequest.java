@@ -3,6 +3,7 @@ package com.ipt.ged.planindexation.dto;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données reçues pour créer / modifier un plan d'indexation.
@@ -23,7 +24,7 @@ public record PlanIndexationRequest(
 
         String separateur,
 
-        List<Long> indexIds,
+        List<UUID> indexIds,
 
         /**
          * Jetons composant le nom du fichier, dans l'ordre : identifiants d'index

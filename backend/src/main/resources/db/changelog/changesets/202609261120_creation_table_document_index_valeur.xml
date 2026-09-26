@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609261120_creation_table_document_index_valeur.xml">
+
+    <changeSet id="202609261120-1" author="ged">
+        <comment>Valeurs d'index saisies pour un document.</comment>
+        <createTable tableName="document_index_valeur">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_document_index_valeur" nullable="false"/>
+            </column>
+            <column name="document_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="index_def_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="valeur" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_document_index_valeur_document_id_index_def_id" tableName="document_index_valeur" columnNames="document_id, index_def_id"/>
+        <addForeignKeyConstraint constraintName="fk_document_index_valeur_document" baseTableName="document_index_valeur" baseColumnNames="document_id"
+                                 referencedTableName="document" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_document_index_valeur_index_def" baseTableName="document_index_valeur" baseColumnNames="index_def_id"
+                                 referencedTableName="index_def" referencedColumnNames="id"/>
+        <createIndex indexName="idx_document_index_valeur_index_def_id" tableName="document_index_valeur">
+            <column name="index_def_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="document_index_valeur"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

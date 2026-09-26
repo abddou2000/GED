@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { API_BASE } from './api';
 
 export interface Employe {
-  id: number;
+  id: string;
   firstName: string;
   lastName: string;
   fullName: string;

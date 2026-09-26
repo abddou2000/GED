@@ -8,7 +8,7 @@ export interface ReponseConnexion {
   token: string | null;
   tokenType: string | null;
   expiresIn: number;
-  employeId: number;
+  employeId: string;
   email: string;
   fullName: string;
 }

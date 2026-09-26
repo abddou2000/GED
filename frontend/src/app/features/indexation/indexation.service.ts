@@ -10,7 +10,7 @@ export class IndexationService {
   private url = `${API_BASE}/indexation`;
 
   /** Champs à renseigner pour un document (issus du plan d'indexation de son type). */
-  champs(documentId: number): Observable<Critere[]> {
+  champs(documentId: string): Observable<Critere[]> {
     return this.http.get<Critere[]>(`${this.url}/documents/${documentId}/champs`);
   }
 
@@ -20,17 +20,17 @@ export class IndexationService {
    * Lecture seule : appeler cette méthode n'enregistre rien, c'est
    * `enregistrer()` qui valide, après confirmation humaine.
    */
-  analyser(documentId: number): Observable<Analyse> {
+  analyser(documentId: string): Observable<Analyse> {
     return this.http.get<Analyse>(`${this.url}/documents/${documentId}/analyse`);
   }
 
   /** Valeurs d'index actuellement portées par un document. */
-  valeurs(documentId: number): Observable<ValeurIndex[]> {
+  valeurs(documentId: string): Observable<ValeurIndex[]> {
     return this.http.get<ValeurIndex[]>(`${this.url}/documents/${documentId}`);
   }
 
   /** Enregistre les valeurs d'index d'un document. */
-  enregistrer(documentId: number, valeurs: { indexFieldId: number; valeur: string | null }[]): Observable<ValeurIndex[]> {
+  enregistrer(documentId: string, valeurs: { indexFieldId: string; valeur: string | null }[]): Observable<ValeurIndex[]> {
     return this.http.put<ValeurIndex[]>(`${this.url}/documents/${documentId}`, { valeurs });
   }
 
@@ -42,7 +42,7 @@ export class IndexationService {
    * des index, contrôle de type et lecture des dates y vivent déjà. Les
    * réécrire en TypeScript les ferait diverger au premier changement de règle.
    */
-  apercu(typeDocumentId: number, fichier: File): Observable<Apercu> {
+  apercu(typeDocumentId: string, fichier: File): Observable<Apercu> {
     /* Le fichier accompagne la demande : le serveur lit son contenu quand le
        nom ne suffit pas. Il n'est PAS conservé — il est recopié dans un
        temporaire, lu, puis supprimé. Le dépôt reste un geste distinct. */

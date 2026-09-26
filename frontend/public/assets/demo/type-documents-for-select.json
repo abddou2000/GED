@@ -1,12 +1,12 @@
 [
- {
-  "id": 1,
-  "name": "Facture",
-  "plan": "Fiche Facture"
- },
- {
-  "id": 2,
-  "name": "Contrat",
-  "plan": null
- }
+  {
+    "id": "01920000-0000-7000-8000-000000000001",
+    "name": "Facture",
+    "plan": "Fiche Facture"
+  },
+  {
+    "id": "01920000-0000-7000-8000-000000000002",
+    "name": "Contrat",
+    "plan": null
+  }
 ]

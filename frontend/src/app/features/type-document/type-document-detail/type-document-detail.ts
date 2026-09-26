@@ -27,15 +27,15 @@ export class TypeDocumentDetail implements OnInit {
   private dialog = inject(MatDialog);
   private notify = inject(NotifyService);
 
-  id = signal<number | null>(null);
+  id = signal<string | null>(null);
   type = signal<TypeDocument | null>(null);
   chargement = signal(true);
   introuvable = signal(false);
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(p => {
-      const id = Number(p.get('id'));
-      if (!Number.isFinite(id) || id <= 0) {
+      const id = p.get('id');
+      if (!id) {
         this.introuvable.set(true);
         this.chargement.set(false);
         return;

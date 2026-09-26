@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données reçues pour créer / modifier un type de document.
@@ -21,9 +22,9 @@ public record TypeDocumentRequest(
         String description,
 
         @NotNull(message = "L'espace de travail est obligatoire")
-        Long workspaceId,
+        UUID workspaceId,
 
-        Long planIndexationId,
+        UUID planIndexationId,
 
         @NotEmpty(message = "Au moins un format de fichier est requis")
         List<String> typeAutorise,

@@ -1,115 +1,115 @@
 {
- "content": [
-  {
-   "id": 4,
-   "code": "4848",
-   "name": "borba",
-   "rights": {
-    "access": true,
-    "lecture": true,
-    "modifier": false,
-    "uploader": true,
-    "supprimer": false,
-    "deplacer": false,
-    "ajouterVersion": false,
-    "verrouillerDeverrouiller": false
-   },
-   "workspaces": [
+  "content": [
     {
-     "id": 4,
-     "label": "Ressources Humaines"
-    }
-   ],
-   "users": [
-    {
-     "id": 2,
-     "label": "Karim El Fassi"
-    }
-   ],
-   "workspacesCount": 1,
-   "usersCount": 1
-  },
-  {
-   "id": 2,
-   "code": "AG-LECT",
-   "name": "Lecteurs Comptabilité",
-   "rights": {
-    "access": true,
-    "lecture": true,
-    "modifier": false,
-    "uploader": false,
-    "supprimer": false,
-    "deplacer": false,
-    "ajouterVersion": false,
-    "verrouillerDeverrouiller": false
-   },
-   "workspaces": [
-    {
-     "id": 1,
-     "label": "Comptabilité"
-    }
-   ],
-   "users": [
-    {
-     "id": 2,
-     "label": "Karim El Fassi"
-    }
-   ],
-   "workspacesCount": 1,
-   "usersCount": 1
-  },
-  {
-   "id": 1,
-   "code": "AG-ADMIN",
-   "name": "Administrateurs GED",
-   "rights": {
-    "access": true,
-    "lecture": true,
-    "modifier": true,
-    "uploader": true,
-    "supprimer": true,
-    "deplacer": true,
-    "ajouterVersion": true,
-    "verrouillerDeverrouiller": true
-   },
-   "workspaces": [
-    {
-     "id": 2,
-     "label": "2026"
+      "id": "01920000-0000-7000-8000-000000000004",
+      "code": "4848",
+      "name": "borba",
+      "rights": {
+        "access": true,
+        "lecture": true,
+        "modifier": false,
+        "uploader": true,
+        "supprimer": false,
+        "deplacer": false,
+        "ajouterVersion": false,
+        "verrouillerDeverrouiller": false
+      },
+      "workspaces": [
+        {
+          "id": "01920000-0000-7000-8000-000000000004",
+          "label": "Ressources Humaines"
+        }
+      ],
+      "users": [
+        {
+          "id": "01920000-0000-7000-8000-000000000002",
+          "label": "Karim El Fassi"
+        }
+      ],
+      "workspacesCount": 1,
+      "usersCount": 1
     },
     {
-     "id": 6,
-     "label": "Projets"
+      "id": "01920000-0000-7000-8000-000000000002",
+      "code": "AG-LECT",
+      "name": "Lecteurs Comptabilité",
+      "rights": {
+        "access": true,
+        "lecture": true,
+        "modifier": false,
+        "uploader": false,
+        "supprimer": false,
+        "deplacer": false,
+        "ajouterVersion": false,
+        "verrouillerDeverrouiller": false
+      },
+      "workspaces": [
+        {
+          "id": "01920000-0000-7000-8000-000000000001",
+          "label": "Comptabilité"
+        }
+      ],
+      "users": [
+        {
+          "id": "01920000-0000-7000-8000-000000000002",
+          "label": "Karim El Fassi"
+        }
+      ],
+      "workspacesCount": 1,
+      "usersCount": 1
     },
     {
-     "id": 5,
-     "label": "Contrats"
-    },
-    {
-     "id": 4,
-     "label": "Ressources Humaines"
-    },
-    {
-     "id": 1,
-     "label": "Comptabilité"
-    },
-    {
-     "id": 3,
-     "label": "Factures"
+      "id": "01920000-0000-7000-8000-000000000001",
+      "code": "AG-ADMIN",
+      "name": "Administrateurs GED",
+      "rights": {
+        "access": true,
+        "lecture": true,
+        "modifier": true,
+        "uploader": true,
+        "supprimer": true,
+        "deplacer": true,
+        "ajouterVersion": true,
+        "verrouillerDeverrouiller": true
+      },
+      "workspaces": [
+        {
+          "id": "01920000-0000-7000-8000-000000000002",
+          "label": "2026"
+        },
+        {
+          "id": "01920000-0000-7000-8000-000000000006",
+          "label": "Projets"
+        },
+        {
+          "id": "01920000-0000-7000-8000-000000000005",
+          "label": "Contrats"
+        },
+        {
+          "id": "01920000-0000-7000-8000-000000000004",
+          "label": "Ressources Humaines"
+        },
+        {
+          "id": "01920000-0000-7000-8000-000000000001",
+          "label": "Comptabilité"
+        },
+        {
+          "id": "01920000-0000-7000-8000-000000000003",
+          "label": "Factures"
+        }
+      ],
+      "users": [
+        {
+          "id": "01920000-0000-7000-8000-000000000001",
+          "label": "Sara Bennani"
+        }
+      ],
+      "workspacesCount": 6,
+      "usersCount": 1
     }
-   ],
-   "users": [
-    {
-     "id": 1,
-     "label": "Sara Bennani"
-    }
-   ],
-   "workspacesCount": 6,
-   "usersCount": 1
-  }
- ],
- "total": 3,
- "page": 0,
- "size": 100,
- "totalPages": 1
+  ],
+  "total": 3,
+  "page": 0,
+  "size": 100,
+  "totalPages": 1
 }

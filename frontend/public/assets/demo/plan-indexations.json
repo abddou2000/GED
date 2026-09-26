@@ -1,62 +1,62 @@
 {
- "content": [
-  {
-   "id": 2,
-   "code": "485485",
-   "nomDuPlan": "45plan",
-   "modeIndexation": true,
-   "manuel": false,
-   "majuscule": true,
-   "separateur": "_",
-   "indices": [
+  "content": [
     {
-     "id": 2,
-     "label": "Date d'émission"
+      "id": "01920000-0000-7000-8000-000000000002",
+      "code": "485485",
+      "nomDuPlan": "45plan",
+      "modeIndexation": true,
+      "manuel": false,
+      "majuscule": true,
+      "separateur": "_",
+      "indices": [
+        {
+          "id": "01920000-0000-7000-8000-000000000002",
+          "label": "Date d'émission"
+        },
+        {
+          "id": "01920000-0000-7000-8000-000000000003",
+          "label": "Fournisseur"
+        },
+        {
+          "id": "01920000-0000-7000-8000-000000000004",
+          "label": "Priorité"
+        }
+      ],
+      "indexCount": 3,
+      "preview": "DATE D'ÉMISSION_FOURNISSEUR_PRIORITÉ"
     },
     {
-     "id": 3,
-     "label": "Fournisseur"
-    },
-    {
-     "id": 4,
-     "label": "Priorité"
+      "id": "01920000-0000-7000-8000-000000000001",
+      "code": "PLAN-FACT",
+      "nomDuPlan": "Fiche Facture",
+      "modeIndexation": true,
+      "manuel": false,
+      "majuscule": false,
+      "separateur": "_",
+      "indices": [
+        {
+          "id": "01920000-0000-7000-8000-000000000001",
+          "label": "Numéro de facture"
+        },
+        {
+          "id": "01920000-0000-7000-8000-000000000002",
+          "label": "Date d'émission"
+        },
+        {
+          "id": "01920000-0000-7000-8000-000000000003",
+          "label": "Fournisseur"
+        },
+        {
+          "id": "01920000-0000-7000-8000-000000000004",
+          "label": "Priorité"
+        }
+      ],
+      "indexCount": 4,
+      "preview": "numéro de facture_date d'émission_fournisseur_priorité"
     }
-   ],
-   "indexCount": 3,
-   "preview": "DATE D'ÉMISSION_FOURNISSEUR_PRIORITÉ"
-  },
-  {
-   "id": 1,
-   "code": "PLAN-FACT",
-   "nomDuPlan": "Fiche Facture",
-   "modeIndexation": true,
-   "manuel": false,
-   "majuscule": false,
-   "separateur": "_",
-   "indices": [
-    {
-     "id": 1,
-     "label": "Numéro de facture"
-    },
-    {
-     "id": 2,
-     "label": "Date d'émission"
-    },
-    {
-     "id": 3,
-     "label": "Fournisseur"
-    },
-    {
-     "id": 4,
-     "label": "Priorité"
-    }
-   ],
-   "indexCount": 4,
-   "preview": "numéro de facture_date d'émission_fournisseur_priorité"
-  }
- ],
- "total": 2,
- "page": 0,
- "size": 100,
- "totalPages": 1
+  ],
+  "total": 2,
+  "page": 0,
+  "size": 100,
+  "totalPages": 1
 }

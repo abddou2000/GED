@@ -32,6 +32,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.util.UUID;
+
 /**
  * Tests de non-régression des correctifs de sécurité qui subsistent.
  *
@@ -71,7 +73,7 @@ class SecuriteApiTest {
     @Autowired private CompteUtilisateurRepository compteRepository;
     @Autowired private PasswordEncoder encodeur;
 
-    private long typeId;
+    private UUID typeId;
 
     /** Incarne un compte réel : principal de type {@code UtilisateurConnecte}. */
     private RequestPostProcessor enTantQue(String email) {
@@ -80,13 +82,13 @@ class SecuriteApiTest {
 
     @BeforeEach
     void setup() {
-        Employe sara = employeRepository.findById(Comptes.ID_ADMIN).orElseThrow();
+        Employe sara = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
 
         /* Second acteur : l'amorçage n'ouvre qu'un compte (utilisateur unique).
            Le test d'usurpation a besoin de deux principaux distincts pour être
            autre chose qu'une tautologie. */
         Comptes.ouvrirCompte(compteRepository, employeRepository, encodeur,
-                Comptes.ID_SECOND_ACTEUR, Comptes.SECOND_ACTEUR, "test-only-password");
+                Comptes.idSecondActeur(employeRepository), Comptes.SECOND_ACTEUR, "test-only-password");
 
         WorkflowGed wf = new WorkflowGed("Circuit sécurité");
         wf.addStep(new WorkflowStep(sara, "Contrôle", 1));
@@ -124,7 +126,7 @@ class SecuriteApiTest {
         // Le profil courant, qui divulguait auparavant la fiche du premier compte
         mvc.perform(get("/api/v1/employes/profil")).andExpect(status().isUnauthorized());
         // La fiche d'un employé désigné par son identifiant
-        mvc.perform(get("/api/v1/employes/" + Comptes.ID_ADMIN + "/profil"))
+        mvc.perform(get("/api/v1/employes/" + Comptes.idAdmin(employeRepository) + "/profil"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -151,12 +153,12 @@ class SecuriteApiTest {
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        long docId = om.readTree(res).get("id").asLong();
+        UUID docId = UUID.fromString(om.readTree(res).get("id").asText());
 
         String circuit = mvc.perform(get("/api/v1/signatures/document/" + docId).with(enTantQue(Comptes.ADMIN)))
                 .andReturn().getResponse().getContentAsString();
         JsonNode etape = om.readTree(circuit).get(0);
-        long sigId = etape.get("id").asLong();
+        UUID sigId = UUID.fromString(etape.get("id").asText());
 
         // Karim tente d'approuver. Les trois formes qui marchaient avant le
         // correctif sont rejouées : corps vide, employeId de la victime dans le
@@ -169,12 +171,12 @@ class SecuriteApiTest {
 
         mvc.perform(patch("/api/v1/signatures/" + sigId + "/approve").with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON)
-                        .content("{\"employeId\":" + Comptes.ID_ADMIN + "}"))
+                        .content("{\"employeId\":\"" + Comptes.idAdmin(employeRepository) + "\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("assignée")));
 
         mvc.perform(patch("/api/v1/signatures/" + sigId + "/approve").with(enTantQue(Comptes.SECOND_ACTEUR))
-                        .param("employeId", String.valueOf(Comptes.ID_ADMIN))
+                        .param("employeId", String.valueOf(Comptes.idAdmin(employeRepository)))
                         .contentType(APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("assignée")));
@@ -182,7 +184,7 @@ class SecuriteApiTest {
         // Le rejet suit la même règle.
         mvc.perform(patch("/api/v1/signatures/" + sigId + "/reject").with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON)
-                        .content("{\"employeId\":" + Comptes.ID_ADMIN + ",\"motif\":\"tentative\"}"))
+                        .content("{\"employeId\":\"" + Comptes.idAdmin(employeRepository) + "\",\"motif\":\"tentative\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("assignée")));
 
@@ -198,12 +200,12 @@ class SecuriteApiTest {
     void profilEstCeluiDuJeton() throws Exception {
         mvc.perform(get("/api/v1/employes/profil").with(enTantQue(Comptes.SECOND_ACTEUR)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value((int) Comptes.ID_SECOND_ACTEUR))
+                .andExpect(jsonPath("$.id").value(Comptes.idSecondActeur(employeRepository).toString()))
                 .andExpect(jsonPath("$.fullName").value("Karim El Fassi"));
 
         mvc.perform(get("/api/v1/employes/profil").with(enTantQue(Comptes.ADMIN)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value((int) Comptes.ID_ADMIN))
+                .andExpect(jsonPath("$.id").value(Comptes.idAdmin(employeRepository).toString()))
                 .andExpect(jsonPath("$.fullName").value("Sara Bennani"));
     }
 }

@@ -66,7 +66,9 @@ public final class Tri {
         Sort.Order ordre = new Sort.Order(sens, champ);
         // Insensible à la casse pour le texte : sinon « Validation » précède
         // « validation », ce qui ne ressemble pas à un ordre alphabétique.
-        if (!champsNumeriques.contains(champ)) {
+        // L'identifiant (UUID) n'est jamais du texte : PostgreSQL refuse
+        // lower(uuid), là où MySQL et H2 convertissaient en silence.
+        if (!champsNumeriques.contains(champ) && !DEFAUT.equals(champ)) {
             ordre = ordre.ignoreCase();
         }
         return PageRequest.of(numero, taille, Sort.by(ordre));

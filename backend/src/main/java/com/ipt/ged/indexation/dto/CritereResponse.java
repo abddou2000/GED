@@ -1,6 +1,7 @@
 package com.ipt.ged.indexation.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Descripteur d'un critère de recherche, <b>généré depuis un index</b> et non codé
@@ -13,7 +14,7 @@ import java.util.List;
  * @param groupage  vrai si l'index sert aussi à regrouper les résultats
  */
 public record CritereResponse(
-    Long id,
+    UUID id,
     String code,
     String libelle,
     String fieldType,

@@ -4,12 +4,13 @@ import com.ipt.ged.document.UploadDocument;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données renvoyées au frontend pour un document déposé.
  */
 public record DocumentResponse(
-        Long id,
+        UUID id,
         String name,
         Ref workspace,
         Ref typeDocument,
@@ -33,12 +34,12 @@ public record DocumentResponse(
         List<Version> versions,
         Instant createdAt
 ) {
-    public record Ref(Long id, String label) {}
+    public record Ref(UUID id, String label) {}
 
     /** Étiquette avec sa couleur : la liste l'affiche en pastille. */
-    public record Tag(Long id, String tag, String couleur) {}
+    public record Tag(UUID id, String tag, String couleur) {}
 
-    public record Version(Long id, String fileName, String observation,
+    public record Version(UUID id, String fileName, String observation,
                           boolean principale, String sizeLabel, Instant createdAt) {}
 
     public static DocumentResponse from(UploadDocument d) {

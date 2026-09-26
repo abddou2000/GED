@@ -41,7 +41,7 @@ interface ChampApercu extends Proposition {}
  * sur un refus laisserait la requête précédente arriver et repeupler des champs
  * qui ne correspondent plus à rien.</p>
  */
-type DemandeApercu = { typeId: number; fichier: File } | null;
+type DemandeApercu = { typeId: string; fichier: File } | null;
 
 /**
  * Dépôt d'un document — **une seule fenêtre, un seul bouton**.
@@ -102,7 +102,7 @@ export class DocumentUpload implements OnInit {
    * S'y fier revenait à effacer une correction manuelle en croyant retirer une
    * suggestion de la machine.</p>
    */
-  private readonly saisisALaMain = new Set<number>();
+  private readonly saisisALaMain = new Set<string>();
 
   /**
    * L'indexation automatique est un choix, pas un passage obligé : cet
@@ -119,7 +119,7 @@ export class DocumentUpload implements OnInit {
    * échoué juste après. Il existe alors côté serveur : on ne peut plus proposer
    * « Annuler » comme si de rien n'était.
    */
-  private documentDepose = signal<number | null>(null);
+  private documentDepose = signal<string | null>(null);
 
   /** Étiquettes proposées au dépôt. Vide si le référentiel est vide ou
       inaccessible : le champ disparaît alors plutôt que d'afficher une liste
@@ -131,7 +131,7 @@ export class DocumentUpload implements OnInit {
   protected readonly versIso = versIso;
 
   form: FormGroup = this.fb.group({
-    typeDocumentId: [null as number | null, Validators.required],
+    typeDocumentId: [null as string | null, Validators.required],
     name: [''],
     expirationDate: [null as Date | null],
     /* Les étiquettes sont FACULTATIVES : aucun validateur. Elles classent un
@@ -139,7 +139,7 @@ export class DocumentUpload implements OnInit {
        transversal au moment du dépôt bloquerait un opérateur qui veut
        seulement déposer un fichier. On peut toujours les poser après coup
        depuis la fiche du document. */
-    etiquetteIds: [[] as number[]],
+    etiquetteIds: [[] as string[]],
   });
 
   ngOnInit(): void {
@@ -284,7 +284,7 @@ export class DocumentUpload implements OnInit {
      Ces valeurs sont MODIFIABLES : ce sont des propositions, et l'opérateur a
      le dernier mot. C'est ce qui permet de tout confirmer d'un seul geste. */
   protected readonly champsIndex = signal<ChampApercu[]>([]);
-  protected readonly valeursIndex = signal<Record<number, string>>({});
+  protected readonly valeursIndex = signal<Record<string, string>>({});
   /** Ce que le serveur a répondu au dernier aperçu — sert aux compteurs. */
   protected readonly apercu = signal<Apercu | null>(null);
 
@@ -399,7 +399,7 @@ export class DocumentUpload implements OnInit {
     let rang = 0;
     const morceaux = this.gabaritNom.map(fixe => {
       if (fixe !== null) return fixe;
-      const id = Number(restants[rang++]);
+      const id = restants[rang++];
       const v = (this.valeursIndex()[id] ?? '').trim() || '?';
       return this.nomEnMajuscules ? v.toUpperCase() : v;
     });
@@ -463,7 +463,7 @@ export class DocumentUpload implements OnInit {
   /* Un signal, pas une simple carte : le compte des index obligatoires est un
      `computed` qui la lit. Avec une carte nue, il ne se recalculerait pas à
      l'arrivée du référentiel et le bouton resterait bloqué — ou pire, ouvert. */
-  private natures = signal(new Map<number, IndexField>());
+  private natures = signal(new Map<string, IndexField>());
 
   /** Cet index doit-il être renseigné ? Lu au référentiel, pas deviné. */
   protected estObligatoire(champ: ChampApercu): boolean {
@@ -483,7 +483,7 @@ export class DocumentUpload implements OnInit {
       this.estObligatoire(c) && !(this.valeursIndex()[c.indexFieldId] ?? '').trim()));
 
   /** Un champ sans proposition — la forme attendue par le gabarit. */
-  private champVide(id: number, libelle: string): ChampApercu {
+  private champVide(id: string, libelle: string): ChampApercu {
     const nature = this.natures().get(id);
     return {
       indexFieldId: id,
@@ -561,9 +561,9 @@ export class DocumentUpload implements OnInit {
    * même du réglage — une proposition affichée alors qu'on a demandé la saisie
    * manuelle serait un contresens.</p>
    */
-  private valeursDepuis(a: Apercu): Record<number, string> {
+  private valeursDepuis(a: Apercu): Record<string, string> {
     const precedentes = this.valeursIndex();
-    const valeurs: Record<number, string> = {};
+    const valeurs: Record<string, string> = {};
     const aujourdhui = versIso(new Date()) ?? '';
     for (const c of a.champs) {
       /* Une saisie de l'opérateur n'est JAMAIS écrasée par une proposition :
@@ -705,7 +705,7 @@ export class DocumentUpload implements OnInit {
    * depuis la charte du plan. Sans champ à poser — un type sans plan — il n'y a
    * rien à écrire et le dépôt est déjà complet.</p>
    */
-  private enregistrerIndex(documentId: number): void {
+  private enregistrerIndex(documentId: string): void {
     const champs = this.champsIndex();
     if (!champs.length) { this.terminer('sans-plan'); return; }
 

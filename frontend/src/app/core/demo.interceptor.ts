@@ -91,7 +91,7 @@ export function demoInterceptor(
       const analyses = Object.entries(idx?.analyse ?? {}) as [string, any][];
       const meilleure = analyses.sort(
         (a, b) => (b[1]?.nbReconnus ?? 0) - (a[1]?.nbReconnus ?? 0))[0];
-      const id = Number(meilleure?.[0] ?? 1);
+      const id = String(meilleure?.[0] ?? '');
       return ok({
         id,
         name: nomFichier.replace(/\.[^.]+$/, ''),
@@ -110,8 +110,8 @@ export function demoInterceptor(
    * format attendu par l'écran. Rien n'est conservé — au rechargement, le jeu de
    * démonstration est intact.
    */
-  if (req.method === 'PUT' && /\/indexation\/documents\/\d+/.test(req.url)) {
-    const corps = req.body as { valeurs?: { indexFieldId: number; valeur: string | null }[] } | null;
+  if (req.method === 'PUT' && /\/indexation\/documents\/[0-9a-f-]+/i.test(req.url)) {
+    const corps = req.body as { valeurs?: { indexFieldId: string; valeur: string | null }[] } | null;
     return ok((corps?.valeurs ?? []).map(v => ({
       indexFieldId: v.indexFieldId, code: '', libelle: '', valeur: v.valeur ?? '',
     })));
@@ -125,13 +125,14 @@ export function demoInterceptor(
   // Signatures : le jeu dépend de l'employé demandé.
   if (req.url.includes('/signatures/')) {
     const volet = req.url.includes('/history') ? 'history' : 'pending';
-    const id = req.params.get('employeId') ?? '1';
+    const id = req.params.get('employeId');
     return lire('signatures').pipe(
-      switchMap((d: any) => ok(d?.[volet]?.[id] ?? [])));
+      // Sans employé précisé, le premier du jeu capturé (identifiants UUID).
+      switchMap((d: any) => ok(d?.[volet]?.[id ?? Object.keys(d?.[volet] ?? {})[0]] ?? [])));
   }
 
   // Indexation d'un document : analyse proposée, ou valeurs déjà enregistrées.
-  const m = req.url.match(/\/indexation\/documents\/(\d+)(\/analyse|\/champs)?/);
+  const m = req.url.match(/\/indexation\/documents\/([0-9a-f-]+)(\/analyse|\/champs)?/i);
   if (m) {
     const [, id, suffixe] = m;
     const cle = suffixe === '/analyse' ? 'analyse' : 'valeurs';

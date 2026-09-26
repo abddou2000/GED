@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * API REST du circuit de signature (« Mes workflow »). Base : /api/v1/signatures
@@ -45,7 +46,7 @@ public class SignatureController {
     }
 
     @GetMapping("/document/{documentId}")
-    public List<SignatureResponse> documentCircuit(@PathVariable Long documentId) {
+    public List<SignatureResponse> documentCircuit(@PathVariable UUID documentId) {
         return service.documentCircuit(documentId);
     }
 
@@ -58,7 +59,7 @@ public class SignatureController {
      * relancer une validation après correction n'est pas un acte privilégié.</p>
      */
     @PatchMapping("/document/{documentId}/relancer")
-    public List<SignatureResponse> relancer(@PathVariable Long documentId) {
+    public List<SignatureResponse> relancer(@PathVariable UUID documentId) {
         return service.relancer(documentId);
     }
 
@@ -71,7 +72,7 @@ public class SignatureController {
      * ({@code anyRequest().authenticated()}).
      */
     @PatchMapping("/{id}/approve")
-    public SignatureResponse approve(@PathVariable Long id,
+    public SignatureResponse approve(@PathVariable UUID id,
                                      @RequestBody(required = false) Map<String, Object> body,
                                      @AuthenticationPrincipal UtilisateurConnecte principal) {
         String motif = body != null && body.get("motif") != null ? body.get("motif").toString() : null;
@@ -80,7 +81,7 @@ public class SignatureController {
 
     /** Rejeter une étape — même raisonnement que {@link #approve}. */
     @PatchMapping("/{id}/reject")
-    public SignatureResponse reject(@PathVariable Long id,
+    public SignatureResponse reject(@PathVariable UUID id,
                                     @RequestBody(required = false) Map<String, Object> body,
                                     @AuthenticationPrincipal UtilisateurConnecte principal) {
         String motif = body != null && body.get("motif") != null ? body.get("motif").toString() : null;

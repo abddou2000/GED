@@ -2,11 +2,13 @@ package com.ipt.ged.index.dto;
 
 import com.ipt.ged.index.IndexField;
 
+import java.util.UUID;
+
 /**
  * Données renvoyées au frontend pour un index.
  */
 public record IndexResponse(
-        Long id,
+        UUID id,
         String code,
         String nomIndex,
         String fieldType,

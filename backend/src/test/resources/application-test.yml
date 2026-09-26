@@ -1,25 +1,18 @@
-# Profil de TEST — base H2 en mémoire, isolée (recréée à chaque exécution).
-spring:
-  # Flyway est desactive ici : le schema de developpement est cree par
-  # `ddl-auto: update`, et les migrations sont ecrites en dialecte MySQL —
-  # les appliquer a H2 echouerait. Elles ne concernent que la production.
-  flyway:
-    enabled: false
-  datasource:
-    url: jdbc:h2:mem:gedtest;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ""
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: false
-  h2:
-    console:
-      enabled: false
-
-# Stockage des fichiers en test : dossier build jetable
+# Profil de TEST — PostgreSQL local, base dédiée aux tests.
+#
+# Base : ${DB_NAME}_test (ged_dev1_test par défaut), ou DB_NAME_TEST si défini.
+# Le suffixe est voulu : la suite de tests VIDE son schéma au démarrage
+# (drop-first ci-dessous) ; dériver son nom de celui de la base de
+# développement empêche qu'une variable DB_NAME exportée pour le dev fasse
+# effacer la base de dev par un `mvn test`.
+#
+# Prérequis (une fois) : backend/scripts/db/creer-roles.sql, puis
+# backend/scripts/db/preparer-base.sql avec -v tests=oui.
 ged:
+  base:
+    nom: ${DB_NAME_TEST:${DB_NAME:ged_dev1}_test}
+
+  # Stockage des fichiers en test : dossier build jetable
   storage:
     root: ./target/test-storage
     temp: ./target/test-temp
@@ -27,11 +20,10 @@ ged:
   securite:
     # Mot de passe d'amorçage des comptes de test.
     #
-    # Ce n'est PAS un secret exposé : la base visée est H2 *en mémoire*
-    # (jdbc:h2:mem:gedtest, ddl-auto: create-drop, cf. plus haut). Elle naît et
-    # meurt avec la JVM de test, n'est jointe par aucun port, et aucun compte
-    # produit ici ne survit à l'exécution. La valeur est volontairement
-    # inutilisable ailleurs.
+    # Ce n'est PAS un secret exposé : la base visée est une base de test locale,
+    # vidée et recréée par Liquibase à chaque exécution de la suite
+    # (drop-first). Aucun compte produit ici ne survit à l'exécution suivante.
+    # La valeur est volontairement inutilisable ailleurs.
     #
     # Sans cette ligne, `mot-de-passe-initial` reste vide (application.yml,
     # fail-closed volontaire) : CompteSeeder ne crée AUCUN compte et les tests
@@ -40,9 +32,9 @@ ged:
     # comme un vrai client, pas contourner la sécurité.
     mot-de-passe-initial: test-only-password
 
-    # Compte unique des tests. L'adresse correspond à l'employé 1 du jeu de
-    # démonstration (Sara Bennani) : le seeder rattache donc le compte à cet
-    # employé existant au lieu d'en créer un.
+    # Compte unique des tests. L'adresse correspond à l'employé Sara Bennani du
+    # jeu d'essai : le seeder rattache donc le compte à cet employé existant au
+    # lieu d'en créer un.
     email-admin: sara.bennani@marchica.ma
 
     # Clé JWT fixe pour les tests, afin que la clé aléatoire tirée au démarrage
@@ -51,3 +43,12 @@ ged:
     # valeur par défaut et refuse de démarrer sans GED_JWT_CLE).
     jwt:
       cle: cle-de-test-uniquement-jamais-en-production-0123456789
+
+spring:
+  liquibase:
+    # Schéma vidé puis entièrement recréé par Liquibase au démarrage de la
+    # suite : chaque exécution part d'une base vierge, comme une installation
+    # neuve, et prouve au passage que le changelog complet s'applique.
+    drop-first: true
+  jpa:
+    show-sql: false

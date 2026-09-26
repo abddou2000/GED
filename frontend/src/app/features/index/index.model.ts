@@ -2,7 +2,7 @@ export type IndexFieldType = 'TEXTE' | 'NOMBRE' | 'DATE' | 'LISTE';
 
 /** Un index (champ de métadonnée) tel que renvoyé par l'API. */
 export interface IndexField {
-  id: number;
+  id: string;
   code: string;
   nomIndex: string;
   fieldType: IndexFieldType;
@@ -34,7 +34,7 @@ export interface PageResult<T> {
 }
 
 export interface SelectOption {
-  id: number;
+  id: string;
   name: string;
 }
 

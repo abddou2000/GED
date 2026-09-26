@@ -6,6 +6,8 @@ import com.ipt.ged.security.CompteUtilisateur;
 import com.ipt.ged.security.CompteUtilisateurRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.UUID;
+
 /**
  * Comptes utilisés par les tests, désignés par l'e-mail que
  * {@code @WithUserDetails} passe au {@code UserDetailsService}.
@@ -28,7 +30,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
  * <p>{@code EmployeSeeder} sème quatre employés ; {@code CompteSeeder} n'amorce
  * qu'un <b>seul</b> compte de connexion — l'administrateur — dont l'adresse est
  * fixée par {@code ged.securite.email-admin} dans {@code application-test.yml},
- * soit celle de l'employé 1.
+ * soit celle de Sara Bennani.
+ *
+ * <p>Les identifiants sont des UUID tirés à l'insertion : ils changent à chaque
+ * exécution. Les employés du jeu d'essai se désignent donc par leur nom, via
+ * {@link #idAdmin} et {@link #idSecondActeur}, jamais par une valeur figée.
  *
  * <p>Les tests qui ont besoin d'un <b>second acteur authentifié</b> (le circuit
  * de signature oppose l'assigné d'une étape à quelqu'un d'autre) le créent
@@ -47,8 +53,29 @@ public final class Comptes {
     /** Second acteur, ouvert à la demande par {@link #ouvrirCompte}. */
     public static final String SECOND_ACTEUR = "karim.elfassi@marchica.ma";
 
-    public static final long ID_ADMIN = 1L;
-    public static final long ID_SECOND_ACTEUR = 2L;
+    /** Employé titulaire du compte administrateur (Sara Bennani). */
+    public static UUID idAdmin(EmployeRepository employes) {
+        return idEmploye(employes, "Sara", "Bennani");
+    }
+
+    /** Employé du second acteur (Karim El Fassi). */
+    public static UUID idSecondActeur(EmployeRepository employes) {
+        return idEmploye(employes, "Karim", "El Fassi");
+    }
+
+    /** Troisième employé du jeu d'essai (Yasmine Alaoui), approbateur d'étape. */
+    public static UUID idTroisiemeEmploye(EmployeRepository employes) {
+        return idEmploye(employes, "Yasmine", "Alaoui");
+    }
+
+    private static UUID idEmploye(EmployeRepository employes, String prenom, String nom) {
+        return employes.findAll().stream()
+                .filter(e -> prenom.equals(e.getFirstName()) && nom.equals(e.getLastName()))
+                .map(Employe::getId)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Employé du jeu d'essai introuvable : " + prenom + " " + nom));
+    }
 
     /**
      * Ouvre un compte de connexion pour un employé donné, s'il n'en a pas déjà
@@ -57,7 +84,7 @@ public final class Comptes {
     public static CompteUtilisateur ouvrirCompte(CompteUtilisateurRepository comptes,
                                                  EmployeRepository employes,
                                                  PasswordEncoder encodeur,
-                                                 long employeId,
+                                                 UUID employeId,
                                                  String email,
                                                  String motDePasse) {
         return comptes.findByEmailIgnoreCase(email).orElseGet(() -> {

@@ -100,7 +100,7 @@ export class DashboardPrefs {
     }
   }
 
-  private charger(id: number | null): void {
+  private charger(id: string | null): void {
     const brut = localStorage.getItem(this.cle(id));
     if (!brut) { this.etat.set([...DISPOSITION_PAR_DEFAUT]); return; }
     try {
@@ -126,7 +126,7 @@ export class DashboardPrefs {
   }
 
   /** Clé de stockage : une disposition par utilisateur, pas par navigateur. */
-  private cle(id: number | null): string {
+  private cle(id: string | null): string {
     return `ged-tableau-de-bord-${id ?? 'anonyme'}`;
   }
 }
