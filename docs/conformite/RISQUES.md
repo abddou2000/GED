@@ -1,6 +1,8 @@
 # Registre des risques et questions pour Marchica Med
 
 Tenu par **pm**. Revu à chaque fin de vague. Probabilité et impact : Faible, Moyen, Élevé.
+Intègre la revue technique client (`DECISIONS-REVUE-TECHNIQUE.md`) : risques R26 et R27,
+questions QR1 à QR8, réponses reportées sur Q02, Q10 et Q20.
 
 ## 1. Constat préalable sur le dossier V3
 
@@ -49,6 +51,8 @@ Autre incohérence du PDF à signaler : le §1.1 cite le « CPS-07/AO/MM/25 » d
 | R23 | **Échantillon OCR et volumétrie** dépendent de MMED : T-028 et P-14 ne peuvent pas passer à « Identique » sans lui. | Élevé | Moyen | Outillage prêt dès la vague 3 ; relance de MMED à chaque fin de vague. | pm |
 | R24 | **Charge de dev1** : 47 lignes sur le chemin critique (E1, E2, E3, E7, E8). Tout retard décale la fin. | Moyen | Élevé | Aucune tâche transverse à dev1 ; dev2 absorbe les finitions ; point d'avancement hebdomadaire. | pm |
 | R25 | **Coût des tests sur PostgreSQL** : plus de 120 tests, bientôt plusieurs centaines, sur base réelle ; temps de build en hausse. | Moyen | Faible | Nettoyage par transaction annulée, base recréée une fois par exécution. | dev2 |
+| R26 | **Revue client, R1 de la synthèse (D1)** : sans relecture de l'état du compte AD, un utilisateur désactivé dans l'annuaire **garde l'accès jusqu'à l'expiration de son jeton de renouvellement** (durée absolue de 8 h au V3), car le renouvellement ne repasse pas par l'annuaire. L'exposition réelle est bornée par l'inactivité de 30 minutes : seule une session active en continu atteint 8 h. | Moyen | Élevé | À présenter au client : durée absolue de session réduite et paramétrable (proposition 4 h) ; révocation manuelle de toutes les sessions d'un utilisateur par l'Administrateur (table `session`) ; procédure de départ qui inclut cette révocation. | dev1, pm |
+| R27 | **Validateurs partis (D1)** : la GED ne détecte plus un compte désactivé ; le signalement automatique des validations en attente d'un validateur désactivé (V3 §3.4.2 et §12.8) n'a plus de déclencheur, et un circuit parallèle peut rester bloqué. | Élevé | Moyen | Réaffectation explicite d'un validateur en attente par l'Administrateur, auditée (T-111) ; tableau de bord des circuits en attente depuis plus de N jours ; confirmation client (QR1). | dev1 |
 
 ## 3. Informations à obtenir de Marchica Med
 
@@ -57,7 +61,7 @@ Valeur par défaut = valeur écrite dans le PDF, appliquée tant que MMED n'a pa
 | N° | Question | Réf. PDF | Valeur par défaut | Nécessaire pour | Bloquant ? |
 |---|---|---|---|---|---|
 | Q01 | Domaine et base de recherche de l'annuaire | 3.3 | `DC=marchicamed,DC=ma` | E2 (UAT) | Non en dev, oui en UAT |
-| Q02 | Noms des contrôleurs de domaine (au moins deux), compte de service LDAP en lecture seule, chaîne de certificats, politique de rotation du mot de passe ; compte AD de test pour l'UAT | 3.3, 3.4 | `svc-ged-ldap`, LDAPS 636 | E2 | Oui en UAT |
+| Q02 | Nom du contrôleur de domaine (**revue client D4 : un seul aujourd'hui, un second prévu**), compte de service LDAP en lecture seule, chaîne de certificats, politique de rotation du mot de passe ; compte AD de test pour l'UAT | 3.3, 3.4 | `svc-ged-ldap`, LDAPS 636, liste de contrôleurs | E2 | Oui en UAT |
 | Q03 | Politique PKI : autorité interne ou publique, certificat TLS du serveur, renouvellement automatisé | 6.2.1 | TLS 1.2 minimum | E10 | Oui en UAT |
 | Q04 | KMS ou HSM existant, sinon validation du keystore PKCS#12 et du coffre de secrets | 6.1.2, 10.1 | Keystore PKCS#12, rotation annuelle | E5 | Non |
 | Q05 | Serveurs Linux (distribution), stockage des fichiers (volume ou S3), conteneurs imposés ou non | 6.1.1, 10.2 | JAR + systemd, volume monté | E10 | Oui en UAT |
@@ -65,7 +69,7 @@ Valeur par défaut = valeur écrite dans le PDF, appliquée tant que MMED n'a pa
 | Q07 | Outil de supervision existant, destinataires des alertes, seuils (sonde 2 min, 5xx 2 % sur 5 min, disque 80 %) | 6.7 | Prometheus + Alertmanager | E10 | Non |
 | Q08 | Seuils d'acceptation OCR : CER ≤ 5 % français imprimé, ≤ 10 % arabe, ≥ 6 pages par minute et par cœur | 4.3.2 | Valeurs du PDF | E6 | Non |
 | Q09 | Échantillon de 300 pages stratifié et vérité terrain de 100 pages transcrites par le bureau d'ordre ; échantillon de 20 000 pages de la Phase 7 | 4.3.2, 6.6 | — | E6, E11 | Oui pour T-028 et P-14 |
-| Q10 | Délai maximal entre dépôt et recherche : 5 min (20 pages, file vide), 60 min au 95e centile en pointe | 4.3.4 | Valeurs du PDF | E6 | Non |
+| Q10 | Délai maximal entre dépôt et recherche | 4.3.4 | **Répondu (revue client D6) : 24 heures maximum**, au lieu de 5 min et 60 min au 95e centile | E6 | Clos |
 | Q11 | Hypothèses de volumétrie : 150 000 documents repris, 60 000 par an, 1,5 Mo en moyenne, 5 millions d'événements d'audit par an | 6.6 | Valeurs du PDF | E10, E11 | Non |
 | Q12 | Rétention des journaux techniques (90 jours) et du journal d'audit (10 ans) ; qui décide de l'archivage hors ligne des partitions | 7.3.1, 7.4.3 | 90 jours, 10 ans | E4 | Non |
 | Q13 | Cible de l'export du scellement : support en écriture seule, journal centralisé, syslog ; source NTP ; autorisation de l'extension `pgaudit` | 7.4.1, 7.4.2 | Fichier dédié | E4, E10 | Non en dev |
@@ -75,14 +79,33 @@ Valeur par défaut = valeur écrite dans le PDF, appliquée tant que MMED n'a pa
 | Q17 | Existe-t-il une base MySQL de production avec des données réelles à reprendre, et où se trouvent les fichiers associés ? | 4.2.1 (Art. 24) | Reprise scriptée | E1 | Oui pour la reprise |
 | Q18 | Applications clientes à ouvrir (bureau d'ordre, future application des marchés), plages d'adresses, quotas (600 par minute, 100 000 par jour), besoin de délégation ; contrat d'interface du bureau d'ordre | 5.2, 5.4, 5.5 | Valeurs du PDF | E9 | Non |
 | Q19 | Forge Git (GitLab ou Gitea), relecteurs désignés en lecture seule, calendrier des revues de code | 9.4 | — | E0 | Non pour le code, oui pour T-089 |
-| Q20 | Arbitrages : workflow sans ordre (le séquentiel actuel disparaît), suppression du pré-remplissage des index par l'OCR | 4.3.3, 12.8 | Conformément au PDF | E6, E8 | Non (le PDF tranche) |
+| Q20 | Arbitrages : workflow sans ordre, suppression du pré-remplissage des index par l'OCR | 4.3.3, 12.8 | **Workflow parallèle confirmé (revue client D7)** ; pré-remplissage : le PDF tranche (suppression), confirmation écrite toujours souhaitée | E6, E8 | Non |
 | Q21 | Version complète du dossier V3 avec les chapitres 13, 14 et 15, ou confirmation que la présente liste les remplace | 1.2 | Présente liste | Toutes | Non |
 | Q22 | Version d'Angular attendue (« LTS courante ») et de PostgreSQL au démarrage de la Phase 4 | 2.2.1 | Angular actuel, PostgreSQL 16 | E11 | Non |
 | Q23 | Équipe projet minimale (Art. 29) : noms des titulaires des profils UI/UX et opérateurs de numérisation | 11.1 | — | P-18 | Hors code |
 
+### Questions issues de la revue technique client
+
+Numérotées QR1 à QR5 comme Q1 à Q5 de `DECISIONS-REVUE-TECHNIQUE.md`, plus trois questions
+relevées par pm à la relecture du compte rendu brut. Tant qu'elles restent ouvertes, le
+mécanisme du dossier V3 s'applique.
+
+| N° | Question | Source | Position retenue en attendant | Lot | Bloquant ? |
+|---|---|---|---|---|---|
+| QR1 | **Circuit figé ou non.** Le compte rendu indique qu'un nouveau validateur « remplace l'ancien pour les étapes restantes » d'un circuit en cours ; le V3 (§12.8) fige le circuit au dépôt. La page 17 citée à la réunion est celle du **dossier fonctionnel** (§4.5), pas du dossier technique. La modification d'une règle qui ne s'applique qu'aux nouveaux dépôts est, elle, conforme au V3. | Revue §3, suivi | Circuit figé ; réaffectation explicite d'un validateur en attente par l'Administrateur, tracée (déjà prévue au V3 §3.4.2 comme « réattribution manuelle »). | E8 | Non |
+| QR2 | **Stockage des jetons.** Le compte rendu cite « par exemple » un jeton dans le stockage local ; le V3 met le jeton d'accès en mémoire et le renouvellement en cookie httpOnly haché en base. | Revue §6 | Mécanisme du V3, plus sûr, qui satisfait « jeton + refresh token haché ». | E2 | Non |
+| QR3 | **Attributs AD à retirer.** Le compte rendu parle de deux attributs « liés à Object sure ID » (transcription probable d'`objectGUID` ou `objectSID`), sans les nommer. L'identifiant unique AD reste explicitement nécessaire. Hypothèse de pm : `userAccountControl` et `userPrincipalName`, déjà rendus inutiles par D1 et D2. | Revue §10 | Lecture du strict minimum, liste configurable ; `objectGUID` conservé. | E2 | Non |
+| QR4 | **Verrou.** Le compte rendu décrit l'immuabilité du fichier source et la modification limitée aux métadonnées ou à une nouvelle version : c'est le principe d'écriture unique du V3 (§6.1.1), pas une redéfinition de la fonction de verrouillage, sur laquelle aucune décision n'a été prise. | Revue §4 | Verrou du V3 : gel complet (fiche, versions, déplacement, réindexation, archivage). À confirmer. | E7 | Non |
+| QR5 | **Mention de Python.** La phrase « trois lignes de code en Python » est dans le dossier fonctionnel (p. 11) ; le dossier technique exclut déjà Python (§4.3.1). « TC RAC » dans le compte rendu est vraisemblablement une transcription de « Tesseract ». | Revue §2, §10 | Correction du dossier fonctionnel par son auteur (action « Speaker 3 »). | Doc. | Non |
+| QR6 | **Version courante désignable.** D9 archive automatiquement l'ancienne version au versement ; le V3 (§12.8) et le dossier fonctionnel (§4.6.4) permettent de redésigner une version antérieure comme courante. Cette possibilité est-elle maintenue ? | Revue §4 | Maintenue (V3) ; la bascule automatique au versement s'applique. | E7 | Non |
+| QR7 | **Archivage de dossier (D10).** Un nouveau dépôt dans un dossier archivé est-il refusé ou crée-t-il un document actif ? La copie PDF « essentiellement une image » évoquée en réunion convient-elle, ou faut-il conserver une couche texte (PDF/A-2 depuis LibreOffice pour la bureautique, image pour les scans) ? | Revue §4, §5 | Dépôt refusé dans un dossier archivé (lecture seule) ; PDF/A-2 avec couche texte quand la source en a une. | E7 | Non |
+| QR8 | **Protocole OCR sans Python (D5).** Le protocole du §4.3.2 compare Tesseract à PaddleOCR et EasyOCR, qui exigent Python : la comparaison est-elle abandonnée au profit d'une simple mesure de Tesseract contre les seuils ? | Revue §2, §10 | Mesure de Tesseract seul contre les seuils, outillage Java. | E6 | Non |
+
 ## 4. Suivi
 
 - Les questions Q02, Q03, Q05, Q15 bloquent l'UAT, pas le développement : à envoyer dès cette
-  semaine.
+  semaine, avec QR1 à QR8 et la présentation du risque R26.
+- R-04 (validateur restreint à un type) : obtenir la confirmation écrite du hors périmètre, le
+  compte rendu disant « probablement trop détaillé ».
 - Les réponses sont reportées ici avec leur date et leur source, puis dans la configuration de
   l'environnement concerné (jamais dans le dépôt pour les secrets).

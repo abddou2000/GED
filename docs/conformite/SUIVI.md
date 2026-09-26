@@ -1,12 +1,17 @@
 # Tableau de suivi — conformité au dossier technique et d'intégration V3
 
 Tenu par **pm** sur la branche `conformite-technique`. Mis à jour à chaque fusion et à chaque
-recette de qa. Source : `MATRICE-TECHNIQUE.md` (115 lignes, reprises dans l'ordre de la
-matrice, numéros T-001 à T-115) et contrôle de cohérence de pm contre le PDF (22 lignes
-ajoutées, numéros P-01 à P-22). Le PDF fait foi en cas de doute.
+recette de qa. Sources : `MATRICE-TECHNIQUE.md` (115 lignes, reprises dans l'ordre de la
+matrice, numéros T-001 à T-115), contrôle de cohérence de pm contre le PDF (22 lignes
+ajoutées, numéros P-01 à P-22) et revue technique client (`DECISIONS-REVUE-TECHNIQUE.md`,
+4 lignes ajoutées, numéros R-01 à R-04).
 
-Dernière mise à jour : 26/09/2026 — vague 1 en cours (aucun commit encore sur les branches
-`ct/dev1`, `ct/dev2`, `ct/dev3`, `ct/qa` au moment de la mise à jour).
+**Ordre de priorité** : une décision **actée** de la revue client prime sur le dossier V3 ; une
+décision tentative ou une question ouverte ne change rien (le V3 s'applique). Pour le reste, le
+PDF fait foi. Les lignes modifiées par la revue portent la mention « Source : revue client (Dx) ».
+
+Dernière mise à jour : 26/09/2026 — intégration de la revue technique client ; vague 1 en cours
+(aucun commit encore sur les branches `ct/dev1`, `ct/dev2`, `ct/dev3`, `ct/qa`).
 
 ## Statuts courants
 
@@ -17,6 +22,7 @@ Dernière mise à jour : 26/09/2026 — vague 1 en cours (aucun commit encore su
 | Livré | Fusionné dans `conformite-technique`, tests automatisés verts après fusion. | pm |
 | Vérifié | Recette de qa passée sur `conformite-technique` (script de recette et preuve archivés). | qa, reporté par pm |
 | Identique | pm a relu la ligne contre le PDF : elle peut passer à « Identique » dans la matrice. | pm |
+| Hors périmètre | Exclu du marché par une décision client ; non implémenté, non compté dans le taux. | pm |
 
 Une ligne dont le statut initial est « Identique » mais que pm conteste après relecture du PDF
 est marquée **« Identique contesté »** dans la colonne Init. et suivie comme un écart
@@ -24,29 +30,37 @@ est marquée **« Identique contesté »** dans la colonne Init. et suivie comme
 
 ## 1. Tableau de bord
 
-### Compteurs par statut courant (137 lignes)
+### Compteurs par statut courant (141 lignes)
 
 | Statut courant | Lignes | Part |
 |---|---|---|
-| À faire | 78 | 57 % |
+| À faire | 81 | 57 % |
 | En cours | 36 | 26 % |
 | Livré | 0 | 0 % |
 | Vérifié | 0 | 0 % |
-| Identique | 23 | 17 % |
-| **Total** | **137** | 100 % |
+| Identique | 23 | 16 % |
+| Hors périmètre | 1 | 1 % |
+| **Total** | **141** | 100 % |
 
-Taux de conformité (lignes « Identique ») : **23 / 137 = 17 %**. La matrice annonçait 29 / 115
-(25 %) : 6 lignes « Identique » sont contestées par pm (T-042, T-050, T-053, T-062, T-069,
-T-074) et 22 exigences du PDF absentes de la matrice ont été ajoutées.
+Taux de conformité (lignes « Identique » sur les lignes dans le périmètre) : **23 / 140 = 16 %**.
+La matrice annonçait 29 / 115 (25 %) : 6 lignes « Identique » sont contestées par pm (T-042,
+T-050, T-053, T-062, T-069, T-074), 22 exigences du PDF absentes de la matrice ont été ajoutées,
+et la revue client en ajoute 3 (R-01 à R-03) et en exclut 1 (R-04).
+
+Revue client : 14 lignes existantes voient leur libellé attendu modifié (T-011, T-015, T-018,
+T-028, T-035, T-060, T-075, T-079, T-101, T-106, T-111, P-01, P-02, P-04), 7 sont confirmées sans
+changement (T-008, T-012, T-026, T-080, T-095, T-099, T-110), 2 renvoient à une question ouverte
+(T-107, T-108).
 
 ### Compteurs par statut initial
 
-| Statut initial | Matrice | Ajoutées par pm | Total |
-|---|---|---|---|
-| Identique | 23 (+ 6 contestées) | 0 | 29 |
-| Proche | 31 | 0 | 31 |
-| Non | 55 | 22 | 77 |
-| **Total** | 115 | 22 | 137 |
+| Statut initial | Matrice | Ajoutées par pm | Revue client | Total |
+|---|---|---|---|---|
+| Identique | 23 (+ 6 contestées) | 0 | 0 | 29 |
+| Proche | 31 | 0 | 0 | 31 |
+| Non | 55 | 22 | 3 | 80 |
+| Hors périmètre | 0 | 0 | 1 | 1 |
+| **Total** | 115 | 22 | 4 | 141 |
 
 ### Avancement par étape
 
@@ -59,21 +73,23 @@ T-074) et 22 exigences du PDF absentes de la matrice ont été ajoutées.
 | E4 | Journalisation et audit | 1 (logs) + 2 | 6 | 4 | 2 | 0 | 0 | 0 |
 | E5 | Stockage sécurisé des fichiers | 1 + 2 | 9 | 2 | 7 | 0 | 0 | 0 |
 | E6 | OCR asynchrone et plein texte (+ dépôt en deux temps) | 3 | 15 | 15 | 0 | 0 | 0 | 0 |
-| E7 | Modèle documentaire et cycle de vie | 4 | 11 | 11 | 0 | 0 | 0 | 0 |
+| E7 | Modèle documentaire et cycle de vie (+ espace de partage R-03) | 4 | 12 | 12 | 0 | 0 | 0 | 0 |
 | E8 | Workflow, conservation, notifications | 5 | 5 | 5 | 0 | 0 | 0 | 0 |
+| E8-API | Pilotage du workflow par API (revue client D8) | 5 | 2 | 2 | 0 | 0 | 0 | 0 |
 | E9 | API d'intégration | 2 à 5 | 14 | 14 | 0 | 0 | 0 | 0 |
 | E10 | Exploitation et infrastructure | 1 + 5 | 13 | 4 | 9 | 0 | 0 | 0 |
 | E11 | Recette de conformité (lignes déjà Identique, points hors code) | 6 | 26 | 3 | 0 | 0 | 0 | 23 |
-| **Total** | | | **137** | **78** | **36** | **0** | **0** | **23** |
+| — | Hors périmètre (R-04) | — | 1 | — | — | — | — | — |
+| **Total** | | | **141** | **81** | **36** | **0** | **0** | **23** |
 
 ### Répartition par responsable
 
 | Responsable | Lignes | En cours (vague 1) |
 |---|---|---|
-| dev1 | 47 | 12 (E1) |
-| dev2 | 53 | 17 (E0, E10, logs E4) |
+| dev1 | 48 | 12 (E1) |
+| dev2 | 55 | 17 (E0, E10, logs E4) |
 | dev3 | 36 | 7 (E5 composants) |
-| pm | 1 | 0 (P-18, engagement contractuel) |
+| pm | 2 | 0 (P-18 engagement contractuel ; R-04 hors périmètre, confirmation écrite) |
 
 qa vérifie toutes les lignes (passage à « Vérifié ») ; il n'est responsable d'aucune ligne
 de développement.
@@ -96,7 +112,7 @@ de développement.
 
 ## 2. Tableau détaillé
 
-Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté par pm.
+Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté par pm, — = hors périmètre.
 
 ### Architecture et stack imposée (§2)
 
@@ -109,7 +125,7 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | T-005 | 2.2 | Outil de migration Liquibase 4 | N | E1 | dev1 | En cours | Flyway retiré du `pom.xml` ; changelog maître Liquibase ; base vierge créée uniquement par Liquibase. |
 | T-006 | 2.2 | Hébergement du front sur un serveur NGINX | P | E10 | dev2 | En cours | Configuration NGINX livrée dans le dépôt, servant le paquet Angular et `config.json`. Vérifiable seulement par relecture sur ce poste (NGINX absent). |
 | T-007 | 2.3 | Une API REST unique pour le front et les applications tierces | I | E11 | dev2 | Identique | Recette E9 : une application de test utilise les mêmes points d'entrée que le front. |
-| T-008 | 2.3.2 | Briques Tesseract 5 et Apache PDFBox | I | E11 | dev3 | Identique | À revérifier après E6 (modèle `ara` ajouté). |
+| T-008 | 2.3.2 | Briques Tesseract 5 et Apache PDFBox | I | E11 | dev3 | Identique | À revérifier après E6 (modèle `ara` ajouté). Confirmé par la revue client D5 : appel du binaire Tesseract depuis Java, aucun Python. |
 | T-009 | 2.3.2 | Briques Apache Tika, ClamAV, LibreOffice, veraPDF, keystore ou KMS, Prometheus | N | E5 (clôture E10) | dev3 | En cours | Chaque brique intégrée derrière une interface, testée avec un simulateur si absente du poste ; Prometheus livré par dev2 en E10 ; veraPDF en E7. |
 
 ### Authentification et identités (§3)
@@ -117,14 +133,14 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | N° | Réf. | Exigence | Init. | Étape | Resp. | Statut | Preuve attendue |
 |---|---|---|---|---|---|---|---|
 | T-010 | 3.2 | Aucun référentiel local de mots de passe | N | E2 | dev1 | À faire | Table des comptes et `CompteSeeder` supprimés ; aucune colonne de mot de passe dans le schéma (requête sur `information_schema`). |
-| T-011 | 3.3 | Authentification LDAPS search-then-bind avec compte de service, Spring Security LDAP | N | E2 | dev1 | À faire | Tests avec serveur LDAP embarqué UnboundID (simulateur) : recherche par `sAMAccountName` ou `userPrincipalName`, puis bind avec le DN trouvé ; mot de passe jamais stocké ni journalisé. |
-| T-012 | 3.3 | Provisionnement automatique sans rôle, clé objectGUID | N | E2 | dev1 | À faire | Test : première connexion crée `utilisateur` sans rôle, clé `objectGUID` ; changement de login sans doublon. |
+| T-011 | 3.3 | Authentification LDAPS search-then-bind avec compte de service, Spring Security LDAP. **Revue client D2** : connexion par l'UID AD (`sAMAccountName`) uniquement, jamais par l'adresse e-mail (`userPrincipalName` et `mail` refusés comme identifiant) | N | E2 | dev1 | À faire | Tests avec serveur LDAP embarqué UnboundID (simulateur) : recherche par `sAMAccountName`, bind avec le DN trouvé ; une saisie au format e-mail est refusée ; mot de passe jamais stocké ni journalisé. Source : revue client (D2). |
+| T-012 | 3.3 | Provisionnement automatique sans rôle, clé objectGUID (**confirmé par la revue client D2** : l'identifiant unique AD reste nécessaire) | N | E2 | dev1 | À faire | Test : première connexion crée `utilisateur` sans rôle, clé `objectGUID` ; changement de login sans doublon. Source : revue client (D2). |
 | T-013 | 3.3 | Jeton d'accès court, sans permissions embarquées | P | E2 | dev1 | À faire | Test : jeton de 15 minutes, porte l'identifiant GED et l'identifiant d'annuaire, aucune permission. |
 | T-014 | 3.4.1 | JWT signé RS256 avec clé privée en coffre, conservé en mémoire côté Angular | N | E2 | dev1 | À faire | Test de signature RS256, clé privée lue hors dépôt ; Angular : aucune écriture en `localStorage` ni `sessionStorage` (recherche dans le code et test). |
-| T-015 | 3.4.1 | Jeton de renouvellement en cookie httpOnly, 8 h max, table de sessions, révocation | N | E2 | dev1 | À faire | Tests : cookie `HttpOnly; Secure; SameSite=Strict`, durée absolue 8 h, inactivité 30 min, rotation à chaque usage, réutilisation d'un jeton consommé qui révoque la famille, table `session`. |
+| T-015 | 3.4.1 | Jeton de renouvellement en cookie httpOnly, 8 h max, table de sessions, révocation (mécanisme V3 conservé, question QR2 ; **revue client D1** : plus de révocation automatique sur désactivation AD, révocation manuelle par l'Administrateur) | N | E2 | dev1 | À faire | Tests : cookie `HttpOnly; Secure; SameSite=Strict`, durée absolue paramétrable (8 h, réduction proposée à MMED, risque R26), inactivité 30 min, rotation, réutilisation qui révoque la famille, table `session`, révocation de toutes les sessions d'un utilisateur par l'Administrateur. Source : revue client (D1). |
 | T-016 | 3.4.1 | Protection CSRF : jeton uniquement dans l'en-tête Authorization | I | E11 | dev1 | Identique | À revérifier après E2 avec P-03 (point de renouvellement fondé sur cookie). |
 | T-017 | 3.4.1 | Anti-force brute : 5 essais par minute par IP et identifiant, échecs journalisés | P | E2 | dev1 | À faire | Tests : 6e essai en une minute refusé en 429, par IP et par identifiant ; chaque échec produit un événement d'audit (écouteur de dev2, E4). |
-| T-018 | 3.4.2 | Cache annuaire de 15 minutes, désactivation AD prise en compte en 5 minutes | N | E2 | dev1 | À faire | Tests : table `cache_annuaire` expirant à 15 min ; `userAccountControl` relu à chaque renouvellement et au plus toutes les 5 min (paramétrable). |
+| T-018 | 3.4.2 | **Revue client D1** : cache annuaire de 15 minutes ; la relecture de `userAccountControl` (au renouvellement et toutes les 5 minutes) est **supprimée** — un compte désactivé est bloqué par l'échec de l'authentification AD. Cache conservé (décision tentative T2 : choix de l'équipe) | N | E2 | dev1 | À faire | Tests : table `cache_annuaire` expirant à 15 min ; aucune lecture de `userAccountControl` ni tâche périodique ; compte désactivé dans le simulateur = connexion refusée. Source : revue client (D1, T2). |
 
 ### Données et migrations (§4.1, §4.2, §12.1)
 
@@ -142,16 +158,16 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 
 | N° | Réf. | Exigence | Init. | Étape | Resp. | Statut | Preuve attendue |
 |---|---|---|---|---|---|---|---|
-| T-026 | 4.3.1 | Tesseract 5, moteur LSTM, open source | I | E11 | dev3 | Identique | À revérifier après E6. |
+| T-026 | 4.3.1 | Tesseract 5, moteur LSTM, open source | I | E11 | dev3 | Identique | À revérifier après E6. Confirmé par la revue client D5 : appel du binaire Tesseract depuis Java, aucun Python. |
 | T-027 | 4.3.2 | Interface de moteur permettant de changer d'OCR sans impact | I | E11 | dev3 | Identique | Interface `OcrEngine` (nom du PDF) utilisée par le worker. |
-| T-028 | 4.3.2 | Protocole comparatif sur 300 pages (CER, WER, débit) | N | E6 | dev3 | À faire | Outillage de mesure CER/WER/débit prêt et testé sur un jeu interne ; exécution et rapport dès réception de l'échantillon MMED. |
+| T-028 | 4.3.2 | Protocole de mesure sur 300 pages (CER, WER, débit). **Revue client D5** : tests en Java uniquement, sans Python ni service supplémentaire — la comparaison avec PaddleOCR et EasyOCR (Python) n'est plus exécutable, question QR8 | N | E6 | dev3 | À faire | Outillage Java de mesure CER/WER/débit de Tesseract contre les seuils du 4.3.2, testé sur un jeu interne ; exécution et rapport dès réception de l'échantillon MMED. Source : revue client (D5). |
 | T-029 | 4.3.3 | Cloisonnement : l'OCR n'alimente aucun champ d'index | N | E6 | dev3 | À faire | Pré-remplissage des index retiré (back et Angular) ; test : aucun champ d'index écrit par la chaîne OCR. |
 | T-030 | 4.3.4 | Traitement asynchrone : table ocr_job, worker SKIP LOCKED, réponse HTTP 202 | N | E6 | dev3 | À faire | Tests : dépôt qui répond 202 avec `EN_ATTENTE_OCR` ; deux workers concurrents sans double traitement ; interface `OcrJobQueue`. |
 | T-031 | 4.3.4 | Langues fra et ara, langue fixable par type de document | P | E6 | dev3 | À faire | Modèles `fra` et `ara` dans `tessdata`, défaut `fra+ara`, langue par type ; test sur un scan arabe. |
 | T-032 | 4.3.4 | Aucun plafond de pages, texte multi-pages agrégé | P | E6 | dev3 | À faire | Paramètre de plafond supprimé ; test sur un PDF de plus de 5 pages ; traitement page par page. |
 | T-033 | 4.3.4 | Aucune copie en clair sur disque persistant (tmpfs) | N | E6 | dev3 | À faire | Déchiffrement et rendu en mémoire ou dans un répertoire tmpfs configurable ; test qui vérifie l'absence de fichier en clair après traitement. |
 | T-034 | 4.3.4 | Délai de 60 s par page, 3 tentatives, statut OCR_ECHEC, document « non interrogeable » | P | E6 | dev3 | À faire | Tests : 60 s par page, reprises à 1, 5 et 30 min, `OCR_ECHEC` avec motif, marquage « contenu non interrogeable » visible dans les résultats. |
-| T-035 | 4.3.4 | Texte stocké dans document_texte, délai de disponibilité mesuré | N | E6 | dev3 | À faire | Table `document_texte(document_id, version_id, langue, texte, tsv)` ; métrique `ocr_delai_disponibilite` exposée. |
+| T-035 | 4.3.4 | Texte stocké dans document_texte, délai de disponibilité mesuré. **Revue client D6** : délai maximal dépôt → disponibilité en recherche de **24 heures** (au lieu de 5 min et de 60 min au 95e centile) | N | E6 | dev3 | À faire | Table `document_texte(document_id, version_id, langue, texte, tsv)` ; métrique `ocr_delai_disponibilite` ; test de disponibilité d'un document de 800 pages largement sous 24 h. Source : revue client (D6). |
 | T-036 | 4.3.4 | Couche texte PDFBox d'abord, sinon rendu à 300 dpi et Tesseract | I | E11 | dev3 | Identique | À revérifier après E6 (chaîne déplacée dans le worker). |
 | T-037 | 4.4 | Recherche PostgreSQL tsvector et index GIN, configurations french et arabic | N | E6 | dev3 | À faire | `tsv = to_tsvector('french', texte) \|\| to_tsvector('arabic', texte)`, `unaccent`, index GIN ; interface `SearchIndexer`. |
 | T-038 | 4.4 | websearch_to_tsquery, extraits ts_headline, tri ts_rank_cd, dédoublonnage | N | E6 | dev3 | À faire | Tests : guillemets et exclusion, extraits calculés sur la seule page affichée après filtre de droits, tri par pertinence, une ligne par document (`EXISTS` sur les emplacements). |
@@ -186,7 +202,7 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | T-057 | 6.1.1 | Identifiant opaque, arborescence aa/bb, écriture unique et atomique | P | E5 | dev3 | En cours | `/<racine>/aa/bb/<uuid>.enc` ; écriture fichier temporaire, `fsync`, renommage ; test d'interruption. |
 | T-058 | 6.1.2 | Chiffrement AES-256-GCM, clé par version, clé maîtresse en keystore, rotation | N | E5 | dev3 | En cours | IV de 96 bits unique, DEK par version enveloppée par la KEK (table `cle_fichier`), keystore PKCS#12 via `KeyProvider`, rotation par réenveloppement ; test d'altération détectée. |
 | T-059 | 6.1.4 | Empreinte SHA-256 par version, vérification périodique | N | E5 | dev3 | En cours | `version_document.empreinte` du contenu en clair ; tâche mensuelle et commande à la demande ; divergence = alerte et événement d'audit. |
-| T-060 | 6.1.4 | Copie de conservation PDF/A-2 validée par veraPDF | N | E7 | dev3 | À faire | Copie PDF/A-2 à l'archivage (LibreOffice ou PDFBox), validée par veraPDF, chiffrée ; original conservé ; échec non bloquant et signalé. Simulateur pour LibreOffice sur ce poste. |
+| T-060 | 6.1.4 | Copie de conservation PDF/A-2 validée par veraPDF (**revue client D10** : conversion en PDF obligatoire à l'archivage, fichiers Word archivables) | N | E7 | dev3 | À faire | Copie PDF/A-2 à l'archivage (LibreOffice ou PDFBox), validée par veraPDF, chiffrée ; original conservé ; échec non bloquant et signalé ; Word accepté. Nature de la conversion (image ou texte) : question QR7. Simulateur pour LibreOffice sur ce poste. Source : revue client (D10). |
 | T-061 | 6.1.5 | Type réel détecté par le contenu (Apache Tika) | N | E5 | dev3 | En cours | Test : fichier renommé refusé en 415 ; liste blanche par type (PDF, TIFF, JPEG, PNG, texte, CSV, Office, OpenDocument). |
 | T-062 | 6.1.5 | Taille maximale par type, plafond de plateforme | IC | E5 | dev3 | À faire | Contesté : plafond de plateforme de 200 Mo aligné sur NGINX et sur les limites multipart de Spring (100 Mo aujourd'hui). Test 413. |
 | T-063 | 6.1.5 | Antivirus ClamAV, refus si indisponible | N | E5 | dev3 | En cours | Protocole clamd `INSTREAM` ; tests avec serveur clamd factice : infecté = 422 `FICHIER_INFECTE` et audit ; indisponible = refus. Vérifié seulement par simulateur sur ce poste. |
@@ -201,7 +217,7 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | T-072 | 6.4 | Contrôle d'accès côté back par un point d'application unique | N | E3 | dev1 | À faire | Service `AccessPredicate` unique, utilisé par recherche, arbre, compteurs, extraits, prévisualisation, téléchargement, export ZIP et API ; test d'architecture qui interdit tout autre chemin. |
 | T-073 | 6.5 | Sauvegarde base, fichiers et clés, RPO et RTO, restauration testée | P | E10 | dev2 | En cours | Procédure et scripts (base + WAL, fichiers après la base, clés séparées) ; RPO 15 min / 24 h, RTO 8 h documentés ; compte rendu de restauration à blanc. |
 | T-074 | 6.7 | Sonde de santé Actuator | IC | E10 | dev2 | En cours | Contesté : le PDF exige des sondes PostgreSQL, LDAP, référentiel de fichiers, ClamAV et file OCR. Chaque propriétaire livre sa sonde (dev1 LDAP, dev3 fichiers, ClamAV, OCR). |
-| T-075 | 6.7 | Métriques Micrometer et Prometheus, alertes | N | E10 | dev2 | En cours | `/actuator/prometheus` ; indicateurs du 6.7 (temps de réponse, taux 5xx, appels par clé, file OCR, délai de disponibilité, disque, échéance du compte de service et des certificats) ; règles d'alerte aux seuils initiaux. |
+| T-075 | 6.7 | Métriques Micrometer et Prometheus, alertes | N | E10 | dev2 | En cours | `/actuator/prometheus` ; indicateurs du 6.7 (temps de réponse, taux 5xx, appels par clé, file OCR, délai de disponibilité, disque, échéance du compte de service et des certificats) ; règles d'alerte aux seuils initiaux, **seuil du délai OCR à 24 h** (revue client D6). |
 
 ### Journalisation et audit (§7)
 
@@ -210,8 +226,8 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | T-076 | 7.1 | Pattern de log imposé avec username, ip, traceId, spanId (MDC) | N | E4 | dev2 | En cours | Pattern exact de l'Article 50 dans `logback-spring.xml` ; filtre MDC ; propagation aux threads asynchrones et aux appels OCR et LDAP ; test sur une ligne de log. |
 | T-077 | 7.3.1 | Niveaux de log, rotation quotidienne et par taille, rétention 90 jours | N | E4 | dev2 | En cours | INFO en production, DEBUG activable sans redéploiement ; rotation quotidienne et à 100 Mo, compression, 90 jours. |
 | T-078 | 7.4.1 | Table journal_audit : acteur, application, IP, action, objet, avant et après, trace_id | N | E4 | dev2 | À faire | Table partitionnée par mois avec les colonnes exactes du 7.4.1 ; horodatage UTC. |
-| T-079 | 7.4.2 | INSERT seul, déclencheurs de refus, scellement SHA-256 chaîné et exporté | N | E4 | dev2 | À faire | `ged_app` limité à INSERT et SELECT ; déclencheur `BEFORE UPDATE OR DELETE OR TRUNCATE` ; `journal_audit_scellement` horaire exporté hors base ; test : une modification manuelle fait échouer la vérification. |
-| T-080 | 7.4.3 | Écran de consultation, export CSV et JSON, rétention 10 ans | N | E4 | dev2 | À faire | Écran filtrable réservé Administrateur et Direction Générale (garde branchée en E3) ; consultation auditée ; export avec empreintes de scellement ; partitions jamais supprimées automatiquement. |
+| T-079 | 7.4.2 | INSERT seul, déclencheurs de refus, scellement SHA-256 chaîné et exporté (**revue client D11** : minimum exigé = aucune modification ni suppression, y compris par l'Administrateur via l'interface ; l'accès direct à la base n'est pas couvert ; le scellement du V3 est conservé) | N | E4 | dev2 | À faire | `ged_app` limité à INSERT et SELECT ; déclencheur `BEFORE UPDATE OR DELETE OR TRUNCATE` ; aucune fonction applicative de modification ou de suppression du journal ; `journal_audit_scellement` horaire exporté hors base ; test : une modification manuelle fait échouer la vérification. Source : revue client (D11). |
+| T-080 | 7.4.3 | Écran de consultation, export CSV et JSON, rétention 10 ans (**revue client D11** : liste des actions auditées du §4.9.4 validée) | N | E4 | dev2 | À faire | Écran filtrable réservé Administrateur et Direction Générale (garde branchée en E3), sans action de modification ni de suppression ; consultation auditée ; export avec empreintes de scellement ; partitions jamais supprimées automatiquement. Source : revue client (D11). |
 
 ### Qualité logicielle, tests et déploiement (§8 à §10)
 
@@ -236,23 +252,23 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 
 | N° | Réf. | Exigence | Init. | Étape | Resp. | Statut | Preuve attendue |
 |---|---|---|---|---|---|---|---|
-| T-095 | 12.2 | Permissions, rôles, habilitations sur nœud ou document, héritage et rupture | N | E3 | dev1 | À faire | Tables `role`, `permission`, `role_permission`, `groupe_ged`, `groupe_membre`, `habilitation` ; 9 permissions élémentaires + permissions d'administration + `VOIR_PRIVE`, `VOIR_CONFIDENTIEL` ; 4 rôles système ; tests de résolution (plus spécifique, cumul, rupture, document isolé, `acces_global`). |
+| T-095 | 12.2 | Permissions, rôles, habilitations sur nœud ou document, héritage et rupture (**confirmé par la revue client D14** : héritage, rupture, document isolé et liste des permissions validés) | N | E3 | dev1 | À faire | Tables `role`, `permission`, `role_permission`, `groupe_ged`, `groupe_membre`, `habilitation` ; 9 permissions élémentaires + permissions d'administration + `VOIR_PRIVE`, `VOIR_CONFIDENTIEL` ; 4 rôles système ; tests de résolution (plus spécifique, cumul, rupture, document isolé, `acces_global`). Source : revue client (D14). |
 | T-096 | 12.3 | Confidentialité PUBLIC, PRIVE, CONFIDENTIEL et personnes désignées | N | E3 | dev1 | À faire | Colonne obligatoire, `document_confidentiel_designe` ; prédicat SQL appliqué à la source ; niveau par défaut par type ; déposant désigné par défaut ; tests de chaque niveau. |
 | T-097 | 12.4 | Rattachement d'un document à plusieurs espaces | N | E3 (table et droits) + E7 (API) | dev1 | À faire | `document.noeud_principal_id`, `document_rattachement` unique ; droits en union ; suppression, déplacement et export conformes au 12.4 ; audit `RATTACHEMENT_AJOUTE` et `RATTACHEMENT_RETIRE`. |
 | T-098 | 12.5 | Déplacement transactionnel avec sous-arborescence et anti-cycle | P | E7 | dev1 | À faire | Mise à jour du chemin matérialisé en une requête ; déplacement de document ; 409 si verrouillé ; audit origine et destination. |
-| T-099 | 12.5 | Suppression douce avec auteur et date | P | E1 | dev1 | En cours | Colonnes `supprime`, `supprime_par`, `supprime_le` ; cascade sur la sous-arborescence (E3/E7). |
+| T-099 | 12.5 | Suppression douce avec auteur et date (**confirmé par la revue client D14** : corbeille pour toute suppression) | P | E1 | dev1 | En cours | Colonnes `supprime`, `supprime_par`, `supprime_le` ; cascade sur la sous-arborescence (E3/E7). Source : revue client (D14). |
 | T-100 | 12.5 | Purge définitive avec destruction cryptographique | N | E7 | dev3 | À faire | Purge depuis la corbeille seulement, permission Purger ; suppression des lignes, du fichier et de la DEK ; audit conservé ; test : fichier indéchiffrable après purge. |
-| T-101 | 12.6 | Archivage : statut du document, lecture seule, empreinte, PDF/A, job par lot | N | E7 | dev3 | À faire | `document.statut_conservation` ; lecture seule en service et contrainte en base ; `job_archivage` par tranches de 100 avec reprise et annulation ; désarchivage réservé ; un événement par document. |
+| T-101 | 12.6 | **Revue client D10** : archivage par **action manuelle** d'un utilisateur, jamais automatique ; applicable à **un dossier entier** en une fois ; **drapeau d'archivage sur les documents et sur les nœuds (dossiers)** ; lecture seule, empreinte, PDF/A ; job par lot | N | E7 | dev3 | À faire | `document.statut_conservation` et drapeau sur `noeud` ; archivage d'un dossier = `job_archivage` sur ses documents (tranches de 100, reprise, annulation) ; aucune tâche d'archivage automatique ; lecture seule en service et contrainte en base ; désarchivage réservé ; un événement par document. Dépôt dans un dossier archivé : question QR7. Source : revue client (D10). |
 | T-102 | 12.7 | Méta-modèle d'index : nature dont booléen, obligatoire, défaut, liste, recherche | P | E7 | dev1 | À faire | Nature booléenne ajoutée (back et Angular) ; test. |
 | T-103 | 12.7 | Plan d'indexation et charte de nommage automatique | I | E11 | dev1 | Identique | À revérifier après E7 (plan versionné). |
 | T-104 | 12.7 | Métadonnées en JSONB avec index GIN | N | E1 (colonne) + E7 (validation) | dev1 | En cours | `document.metadonnees` JSONB, index GIN, index d'expression dates et nombres ; validation contre le plan en E7. |
 | T-105 | 12.7 | Type : durée de conservation, confidentialité par défaut, plan versionné, re-typologisation | N | E7 | dev1 | À faire | Durée en mois et point de départ ; plan versionné ; `RESTRICT` sur un type utilisé ; `job_retypage` avec table de correspondance, rapport et audit par document. |
-| T-106 | 12.8 | Versions : numéro, empreinte, auteur, une seule version courante | P | E7 | dev1 | À faire | `version_document(id, document_id, numero, empreinte, auteur_id, cree_le, courante)` ; index unique partiel ; désignation d'une version antérieure. |
-| T-107 | 12.8 | Verrou avec auteur, date et motif | P | E7 | dev1 | À faire | Verrou posé et levé par l'Administrateur, audité ; 409 sur toute écriture (fiche, versement, déplacement, réindexation, archivage). |
-| T-108 | 12.8 | Règle de workflow rattachable à un espace, un dossier ou un type ; validateur nommé ou par rôle | P | E8 | dev1 | À faire | `regle_workflow` et `regle_validateur` ; validateur par rôle résolu au moment de la décision. |
+| T-106 | 12.8 | Versions : numéro, empreinte, auteur, une seule version courante. **Revue client D9** : l'utilisateur rattache explicitement le nouveau fichier au document existant ; la nouvelle version devient courante et **l'ancienne est automatiquement conservée en lecture seule dans l'historique** (ce n'est pas l'archivage de D10) | P | E7 | dev1 | À faire | `version_document(id, document_id, numero, empreinte, auteur_id, cree_le, courante)` ; index unique partiel ; versement = bascule automatique de la version courante ; versions antérieures immuables. Désignation d'une version antérieure comme courante conservée (V3) en attendant QR6. Source : revue client (D9). |
+| T-107 | 12.8 | Verrou avec auteur, date et motif (gel complet du V3 conservé, question QR4) | P | E7 | dev1 | À faire | Verrou posé et levé par l'Administrateur, audité ; 409 sur toute écriture (fiche, versement, déplacement, réindexation, archivage). |
+| T-108 | 12.8 | Règle de workflow rattachable à un espace, un dossier ou un type ; validateur nommé ou par rôle (le rattachement d'une **règle** à un type reste dû ; ne pas confondre avec R-04, hors périmètre) | P | E8 | dev1 | À faire | `regle_workflow` et `regle_validateur` ; validateur par rôle résolu au moment de la décision. |
 | T-109 | 12.8 | Circuit figé au dépôt | I | E11 | dev1 | Identique | À revérifier après E8 (tables `circuit`, `circuit_validateur`). |
-| T-110 | 12.8 | Décisions VALIDE, REFUSE, ANNULEE sans ordre, statut recalculé sur la version courante | N | E8 | dev1 | À faire | Table `decision` ; tests : deux validateurs dans les deux ordres ; nouveau versement qui rend caduques les décisions. Reprise des circuits existants. |
-| T-111 | 12.8 | Annulation de circuit et diffusion | N | E8 | dev1 | À faire | Annulation avec motif (statut `ANNULE`, décisions conservées, notification) ; diffusion par habilitation de lecture ; validateur désactivé signalé à l'Administrateur. |
+| T-110 | 12.8 | Décisions VALIDE, REFUSE, ANNULEE sans ordre, statut recalculé sur la version courante (**confirmé par la revue client D7** : parallèle, tous les validateurs sollicités en même temps, aucun validateur optionnel, logique entièrement côté back) | N | E8 | dev1 | À faire | Table `decision` ; tests : deux validateurs dans les deux ordres ; nouveau versement qui rend caduques les décisions ; aucun validateur facultatif. Reprise des circuits existants. Source : revue client (D7). |
+| T-111 | 12.8 | Annulation de circuit et diffusion ; validateur empêché : **réaffectation explicite par l'Administrateur** d'un validateur en attente, tracée (revue client D1 : la GED ne détecte plus les comptes désactivés ; figement du circuit : question QR1) | N | E8 | dev1 | À faire | Annulation avec motif (statut `ANNULE`, décisions conservées, notification) ; diffusion par habilitation de lecture ; réaffectation d'un validateur en attente par l'Administrateur, auditée. Source : revue client (D1, QR1). |
 | T-112 | 12.9 | Échéance de conservation et tâche planifiée d'alerte | N | E8 | dev3 | À faire | `document.echeance_conservation` recalculée ; tâche quotidienne avec verrou de tâche ; filtre « échéance dépassée » ; aucune suppression automatique. |
 | T-113 | 12.9 | Notifications : boîte d'envoi, e-mail SMTP et pastille in-app | N | E8 | dev3 | À faire | Table `notification` écrite dans la transaction de l'événement ; envoi asynchrone, 3 reprises ; 3 cas exclusivement ; préférence e-mail ; tests avec serveur SMTP simulé. |
 | T-114 | 12.10 | Export de dossier en ZIP en flux avec manifeste CSV | N | E7 | dev3 | À faire | `ZipOutputStream` sans fichier temporaire ; `manifeste.csv` UTF-8 avec les colonnes du 12.10 ; omission silencieuse des documents non autorisés ; traitement de fond au-delà de 500 documents ou 2 Go ; `DOCUMENT_EXPORTE` par document. |
@@ -262,10 +278,10 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 
 | N° | Réf. | Exigence | Init. | Étape | Resp. | Statut | Preuve attendue |
 |---|---|---|---|---|---|---|---|
-| P-01 | 3.2, 3.3 | Ajoutée par pm — Attributs AD jamais lus à des fins d'autorisation : `memberOf`, unité d'organisation et groupes exclus explicitement de la liste des attributs demandés (principe P2) | N | E2 | dev1 | À faire | Test : la requête LDAP ne demande que les attributs du 3.3 ; aucun droit dérivé d'un groupe AD. |
-| P-02 | 3.3 | Ajoutée par pm — Liaison à l'annuaire : LDAPS 636, TLS 1.2, truststore MMED, au moins deux contrôleurs avec bascule, délais 3 s (connexion) et 5 s (lecture), pool du compte de service, secret rechargé à chaud, expiration du secret surveillée ; annuaire indisponible : aucune connexion possible, aucun mode dégradé, sessions conservées jusqu'à expiration, signalement à la supervision | N | E2 | dev1 | À faire | Configuration externalisée ; tests avec le simulateur (bascule, délai dépassé, annuaire arrêté) ; sonde LDAP. |
+| P-01 | 3.2, 3.3 | Ajoutée par pm — Attributs AD jamais lus à des fins d'autorisation : `memberOf`, unité d'organisation et groupes exclus (principe P2). **Revue client D3** : lire le strict minimum (`sAMAccountName`, `objectGUID`, nom, prénom, courriel pour les notifications) ; tout autre attribut n'est ajouté que sur besoin | N | E2 | dev1 | À faire | Test : la requête LDAP ne demande que la liste minimale, configurable ; aucun droit dérivé d'un groupe AD. Attributs exacts à retirer : question QR3. Source : revue client (D3). |
+| P-02 | 3.3 | Ajoutée par pm — Liaison à l'annuaire : LDAPS 636, TLS 1.2, truststore MMED, délais 3 s (connexion) et 5 s (lecture), pool du compte de service, secret rechargé à chaud, expiration du secret surveillée ; annuaire indisponible : aucune connexion possible, aucun mode dégradé, sessions conservées jusqu'à expiration. **Revue client D4** : liste de N contrôleurs avec bascule, fonctionnement nominal avec **un seul** contrôleur (MMED n'en a qu'un aujourd'hui) | N | E2 | dev1 | À faire | Configuration externalisée d'une liste de contrôleurs ; tests avec le simulateur (un contrôleur, deux avec bascule, délai dépassé, annuaire arrêté) ; sonde LDAP. Source : revue client (D4). |
 | P-03 | 3.4.1 | Ajoutée par pm — Protection CSRF du point de renouvellement fondé sur cookie : en-tête personnalisé exigé en plus de `SameSite=Strict` | N | E2 | dev1 | À faire | Test : renouvellement sans l'en-tête refusé. |
-| P-04 | 3.4.2 | Ajoutée par pm — Cycle de vie de l'identité : page d'accueil vide pour un compte sans rôle ; compte désactivé : sessions révoquées, rôles sans effet sans suppression des lignes, validations nominatives en cours signalées sur le tableau de bord de l'Administrateur ; réactivation qui retrouve les rôles ; compte supprimé traité comme désactivé | N | E2 (signalement des validations en E8) | dev1 | À faire | Tests avec le simulateur ; écran Angular pour le compte sans rôle. |
+| P-04 | 3.4.2 | Ajoutée par pm — Cycle de vie de l'identité : page d'accueil vide pour un compte sans rôle ; compte réactivé qui retrouve ses rôles. **Revue client D1** : la GED ne lit plus l'état du compte AD — désactivation, départ ou mutation sont gérés par l'AD (échec d'authentification) ; la GED ne gère que ses habilitations | N | E2 | dev1 | À faire | Tests avec le simulateur : compte sans rôle ; compte désactivé dans l'AD = connexion refusée ; rôles conservés à la réactivation. Écran Angular pour le compte sans rôle. Source : revue client (D1). |
 | P-05 | 2.3.1, 4.5 | Ajoutée par pm — Livrables de modélisation : schéma de base détaillé (types, index, volumétrie par table), diagrammes de classes et de séquences par flux | N | E1 (mise à jour E11) | dev1 | À faire | Documents livrés dans `docs/`, générés ou relus contre le schéma Liquibase. |
 | P-06 | 5.3.1 | Ajoutée par pm — Points d'entrée du contrat : `POST /noeuds/{id}/dossiers`, `POST /documents` (multipart), `POST /recherches`, `GET /documents/{id}/contenu?version`, `POST /documents/{id}/versions`, `POST /documents/{id}/rattachements` et `DELETE …/{noeudId}`, `GET /documents/{id}/droits` et `/noeuds/{id}/droits?pourUtilisateur`, avec droit requis et règle de rejeu du tableau | N | E9 | dev2 | À faire | Test de contrat automatisé sur ces 8 opérations (chemin, méthode, droit, Idempotency-Key). Implémentation par le propriétaire de chaque lot. |
 | P-07 | 5.3.2 | Ajoutée par pm — Limites : 64 Ko de métadonnées par requête ; codes de succès 200, 201, 202 et 204 | N | E9 | dev2 | À faire | Tests : métadonnées de plus de 64 Ko refusées ; codes de succès conformes. |
@@ -284,3 +300,12 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | P-20 | 12.5 | Ajoutée par pm — Renommage : permission Modifier, unicité du nom dans le dossier parent (409), audit avant et après | N | E7 | dev1 | À faire | Tests : doublon = 409, événement d'audit. |
 | P-21 | 12.7 | Ajoutée par pm — Socle commun de colonnes du document : objet, date du document (clé de tri prioritaire), niveau de confidentialité, durée de conservation déduite du type | N | E7 (colonnes posables dès E1) | dev1 | À faire | Colonnes dédiées ; tri par défaut sur la date du document. |
 | P-22 | 12.2.3 | Ajoutée par pm — Consultation des droits effectifs avec leur origine (rôle, nœud d'attribution, héritage, rattachement, confidentialité), par API et écran d'administration ; modification des droits effective immédiatement (compteur `version_habilitations`) et auditée avant et après | N | E3 | dev1 | À faire | Tests : origine exposée ; retrait de droit effectif sans délai ; événement d'audit. |
+
+### Exigences issues de la revue technique client (voir `DECISIONS-REVUE-TECHNIQUE.md`)
+
+| N° | Réf. | Exigence | Init. | Étape | Resp. | Statut | Preuve attendue |
+|---|---|---|---|---|---|---|---|
+| R-01 | Revue D8 | Source : revue client — Pilotage nominatif du workflow par API pour l'intranet et les applications tierces : créer et modifier les règles de circuit, désigner les validateurs, consulter l'état d'un circuit, annuler un circuit | N | E8-API | dev2 | À faire | Points d'entrée REST documentés dans l'OpenAPI, soumis aux clés API (portée), à Idempotency-Key et à l'audit ; chaque action attribuée à une personne nommée (délégation `X-On-Behalf-Of`) ; test de contrat. |
+| R-02 | Revue D8 | Source : revue client — Validation depuis une application tierce : décision VALIDE, REFUSE (motif obligatoire) ou ANNULEE rendue par l'intranet pour le compte du validateur désigné | N | E8-API | dev2 | À faire | Test : une clé habilitée à déléguer enregistre la décision du validateur désigné, avec double identité dans l'audit ; refus si le délégué n'est pas validateur du circuit ; même calcul de statut que dans l'interface. |
+| R-03 | Revue D12 | Source : revue client — Espace de partage simple pour les fichiers en élaboration (cas des marchés, CPS) : déposer, télécharger, modifier localement, téléverser une nouvelle version ; aucune co-édition ni édition en ligne ; aucune édition dans l'espace d'archive | N | E7 | dev1 | À faire | Nature d'espace « échange » sur le nœud ; test du cycle déposer, télécharger, verser une nouvelle version sous habilitations de groupe ; absence de toute fonction d'édition en ligne. |
+| R-04 | Revue D13 | Source : revue client — Restriction d'un validateur à un type de document (un profil ne valide que certains types) : jugée trop détaillée, **hors périmètre du marché** | — | — | pm | Hors périmètre | Ne pas implémenter. Confirmation écrite à obtenir (le compte rendu dit « probablement »). Ne concerne pas T-108. |
