@@ -66,5 +66,6 @@
     <include file="changesets/202609261125_creation_table_workflow_ged_signature.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609261130_ajout_auteur_suppression_douce.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609261135_ajout_metadonnees_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609261140_jalon_socle_donnees.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
