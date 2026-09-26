@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Lot E6 (dev3) — texte extrait et index plein texte (§4.3.4, §4.4).
+
+  À INTÉGRER par dev1, après 202609271000_recherche_normalisation.xml.
+
+  Une ligne par document : le texte agrégé de sa version COURANTE (« l'index
+  porte sur la version courante »). Restaurer une ancienne version l'enfile
+  à nouveau pour l'OCR, ce qui remplace la ligne : c'est la réindexation « à
+  la demande » des versions antérieures.
+  tsv = ged_document_tsvector(texte), calculé par l'application à chaque
+  écriture (indexation incrémentale) et recalculé par lots par la
+  réindexation complète — une colonne GENERATED ne se recalculerait pas après
+  un changement de la fonction de normalisation.
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="202609271010_document_texte" author="dev3">
+        <comment>Texte extrait (OCR ou couche native) et vecteur plein texte french + arabic</comment>
+        <createTable tableName="document_texte" remarks="Texte de la version courante de chaque document, indexé">
+            <column name="version_id" type="uuid">
+                <constraints primaryKey="true" primaryKeyName="pk_document_texte" nullable="false"/>
+            </column>
+            <column name="document_id" type="uuid">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_document_texte_document_id"/>
+            </column>
+            <column name="langue" type="varchar(32)"><constraints nullable="false"/></column>
+            <column name="texte" type="text"><constraints nullable="false"/></column>
+            <column name="tsv" type="tsvector"><constraints nullable="false"/></column>
+            <column name="provenance" type="varchar(20)" remarks="COUCHE_TEXTE, OCR, MIXTE ou NATIF">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nb_pages" type="int"/>
+            <column name="indexe_le" type="timestamptz" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <sql>
+            ALTER TABLE document_texte ADD CONSTRAINT ck_document_texte_provenance
+                CHECK (provenance IN ('COUCHE_TEXTE', 'OCR', 'MIXTE', 'NATIF'));
+            CREATE INDEX idx_document_texte_tsv ON document_texte USING gin (tsv);
+        </sql>
+        <rollback>
+            <dropTable tableName="document_texte"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609271010_document_texte_droits" author="dev3">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">SELECT COUNT(*) FROM pg_roles WHERE rolname = 'ged_app'</sqlCheck>
+        </preConditions>
+        <sql>GRANT SELECT, INSERT, UPDATE, DELETE ON document_texte TO ged_app;</sql>
+        <rollback>
+            <sql>REVOKE ALL ON document_texte FROM ged_app;</sql>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

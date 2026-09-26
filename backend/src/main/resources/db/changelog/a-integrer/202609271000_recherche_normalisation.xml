@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Lot E6 (dev3) — traitement linguistique de la recherche plein texte (§4.4).
+
+  À INTÉGRER par dev1 dans le changelog maître, avant 202609271010_document_texte.xml.
+
+  - extension unaccent (installée dans public ; extension « trusted » depuis
+    PostgreSQL 13 : le propriétaire de la base peut la créer sans être
+    superutilisateur) ;
+  - ged_unaccent(text) : unaccent IMMUTABLE (la fonction d'origine est STABLE,
+    donc inutilisable dans un index ou une colonne calculée) ;
+  - ged_normaliser_arabe(text) : dictionnaire de normalisation de l'arabe
+    demandé par le §4.4 — unaccent ne touche pas l'arabe : suppression des
+    diacritiques (tashkil U+064B à U+065F, alef suscrit U+0670), du tatweel
+    (U+0640) et unification des formes de l'alef (أ إ آ ٱ → ا) ;
+  - ged_document_tsvector(text) : le vecteur indexé, formule du §4.4
+      to_tsvector('french', unaccent(texte)) || to_tsvector('arabic', texte)
+    où chaque configuration ne reçoit QUE les mots de son écriture
+    (ged_partie_latine / ged_partie_arabe). Sans ce partage, la configuration
+    arabic indexe les mots français tels quels, mots vides compris : « de »
+    ou « la » retrouvaient alors tous les documents. Une seule définition
+    pour l'indexation incrémentale et la réindexation complète ;
+  - ged_requete_texte(text) : websearch_to_tsquery sur les mêmes parties,
+    combinées en ET (sémantique par défaut de websearch : tous les termes) ;
+  - configuration ged_francais (french + unaccent) : sert au surlignage
+    ts_headline sur le texte d'origine, accents conservés à l'affichage.
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="202609271000_extension_unaccent" author="dev3">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM pg_extension WHERE extname = 'unaccent'</sqlCheck>
+        </preConditions>
+        <sql>CREATE EXTENSION IF NOT EXISTS unaccent SCHEMA public</sql>
+        <rollback>
+            <sql>DROP EXTENSION IF EXISTS unaccent</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609271000_fonctions_normalisation" author="dev3">
+        <comment>Normalisation française (unaccent) et arabe (diacritiques, tatweel, formes de l'alef)</comment>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ged_unaccent(t text) RETURNS text
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$ SELECT public.unaccent('public.unaccent'::regdictionary, t) $$
+        </sql>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ged_normaliser_arabe(t text) RETURNS text
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$
+                SELECT translate(
+                           regexp_replace(t, '[\u064B-\u065F\u0670\u0640]', '', 'g'),
+                           chr(1571) || chr(1573) || chr(1570) || chr(1649),
+                           repeat(chr(1575), 4))
+            $$
+        </sql>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ged_partie_latine(t text) RETURNS text
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$ SELECT regexp_replace(t, '[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+', ' ', 'g') $$
+        </sql>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ged_partie_arabe(t text) RETURNS text
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$ SELECT regexp_replace(t, '[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\s"-]+', ' ', 'g') $$
+        </sql>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ged_document_tsvector(t text) RETURNS tsvector
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$
+                SELECT to_tsvector('pg_catalog.french'::regconfig, ged_unaccent(ged_partie_latine(t)))
+                    || to_tsvector('pg_catalog.arabic'::regconfig, ged_normaliser_arabe(ged_partie_arabe(t)))
+            $$
+        </sql>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ged_requete_texte(q text) RETURNS tsquery
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$
+                SELECT websearch_to_tsquery('pg_catalog.french'::regconfig, ged_unaccent(ged_partie_latine(q)))
+                    &amp;&amp; websearch_to_tsquery('pg_catalog.arabic'::regconfig, ged_normaliser_arabe(ged_partie_arabe(q)))
+            $$
+        </sql>
+        <rollback>
+            <sql>
+                DROP FUNCTION IF EXISTS ged_requete_texte(text);
+                DROP FUNCTION IF EXISTS ged_document_tsvector(text);
+                DROP FUNCTION IF EXISTS ged_partie_arabe(text);
+                DROP FUNCTION IF EXISTS ged_partie_latine(text);
+                DROP FUNCTION IF EXISTS ged_normaliser_arabe(text);
+                DROP FUNCTION IF EXISTS ged_unaccent(text);
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609271000_configuration_ged_francais" author="dev3">
+        <comment>Configuration de surlignage : french avec unaccent</comment>
+        <sql>
+            CREATE TEXT SEARCH CONFIGURATION ged_francais (COPY = pg_catalog.french);
+            ALTER TEXT SEARCH CONFIGURATION ged_francais
+                ALTER MAPPING FOR hword, hword_part, word WITH public.unaccent, french_stem;
+        </sql>
+        <rollback>
+            <sql>DROP TEXT SEARCH CONFIGURATION IF EXISTS ged_francais</sql>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

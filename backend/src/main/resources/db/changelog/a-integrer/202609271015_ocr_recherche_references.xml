@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Lot E6 (dev3) — clés étrangères de ocr_job et document_texte.
+
+  À INTÉGRER par dev1 APRÈS la création de document, version_document (modèle
+  UUID) et cle_fichier (lot E5). Suppression en cascade : la purge définitive
+  d'un document (§12.5) emporte son texte et ses jobs ; l'audit, lui, reste.
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="202609271015_ocr_recherche_references" author="dev3">
+        <preConditions onFail="HALT">
+            <tableExists tableName="document"/>
+            <tableExists tableName="version_document"/>
+            <tableExists tableName="cle_fichier"/>
+            <tableExists tableName="ocr_job"/>
+            <tableExists tableName="document_texte"/>
+        </preConditions>
+        <addForeignKeyConstraint constraintName="fk_ocr_job_document_id"
+                                 baseTableName="ocr_job" baseColumnNames="document_id"
+                                 referencedTableName="document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_ocr_job_version_id"
+                                 baseTableName="ocr_job" baseColumnNames="version_id"
+                                 referencedTableName="version_document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_ocr_job_fichier_id"
+                                 baseTableName="ocr_job" baseColumnNames="fichier_id"
+                                 referencedTableName="cle_fichier" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_document_texte_document_id"
+                                 baseTableName="document_texte" baseColumnNames="document_id"
+                                 referencedTableName="document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_document_texte_version_id"
+                                 baseTableName="document_texte" baseColumnNames="version_id"
+                                 referencedTableName="version_document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <rollback>
+            <dropForeignKeyConstraint baseTableName="document_texte" constraintName="fk_document_texte_version_id"/>
+            <dropForeignKeyConstraint baseTableName="document_texte" constraintName="fk_document_texte_document_id"/>
+            <dropForeignKeyConstraint baseTableName="ocr_job" constraintName="fk_ocr_job_fichier_id"/>
+            <dropForeignKeyConstraint baseTableName="ocr_job" constraintName="fk_ocr_job_version_id"/>
+            <dropForeignKeyConstraint baseTableName="ocr_job" constraintName="fk_ocr_job_document_id"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>
