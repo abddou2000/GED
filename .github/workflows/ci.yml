@@ -1,0 +1,228 @@
+# =====================================================================
+#  Intégration continue de la GED Marchica Med (DAT 9.2, 10.1, 6.2.3, 8.3)
+#
+#  À chaque push et à chaque demande de fusion :
+#    - back-end : compilation, tests (non-régression) sur PostgreSQL 16,
+#      JAR exécutable et son empreinte, SBOM CycloneDX ;
+#    - front-end : tests, paquet Angular de production et son empreinte,
+#      SBOM CycloneDX, audit npm (échec sur vulnérabilité haute ou critique) ;
+#    - vulnérabilités des dépendances Java : OWASP Dependency-Check, échec à
+#      partir d'un score CVSS 7 (ged.cvss.seuil) ;
+#    - registre des dépendances : licences arbitrées (DAT 11.2).
+#  Les artefacts produits ici sont ceux que deployer.sh installe : même
+#  artefact promu de DEV à UAT puis PROD, vérifié par son empreinte SHA-256.
+#
+#  Secret requis : NVD_API_KEY (clé gratuite, https://nvd.nist.gov/developers/request-an-api-key).
+# =====================================================================
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Back-end (tests, JAR, SBOM)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          # Authentification trust : identique au poste de développement de
+          # l'équipe (conteneur jetable, joignable du seul job).
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_NAME: ged_ci
+      DB_NAME_TEST: ged_ci_test
+      PGHOST: localhost
+      PGUSER: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Préparer la base de test (rôles, schémas, droits)
+        run: |
+          # Scripts du socle de données (E1) : présents une fois E1 intégré.
+          if [ -f backend/scripts/db/creer-roles.sql ]; then
+            psql -v ON_ERROR_STOP=1 -d postgres -f backend/scripts/db/creer-roles.sql
+            psql -v ON_ERROR_STOP=1 -d postgres -v base="$DB_NAME_TEST" -v tests=oui \
+                 -f backend/scripts/db/preparer-base.sql
+          else
+            createdb "$DB_NAME_TEST"
+          fi
+          psql -d "$DB_NAME_TEST" -Atc "select cfgname from pg_ts_config where cfgname in ('french','arabic') order by 1"
+
+      - name: Compiler, tester, construire le JAR et le SBOM
+        working-directory: backend
+        # L'analyse de vulnérabilités tourne dans son propre job (base NVD en cache).
+        run: mvn -B -ntp verify -Ddependency-check.skip=true
+
+      - name: Empreinte du JAR
+        working-directory: backend/target
+        run: |
+          mv ged-*.jar ged.jar
+          sha256sum ged.jar > ged.jar.sha256
+          cat ged.jar.sha256
+
+      - name: Rapports de tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports-tests-backend
+          path: backend/target/surefire-reports/
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: |
+            backend/target/ged.jar
+            backend/target/ged.jar.sha256
+          retention-days: 90
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-backend
+          path: |
+            backend/target/bom.json
+            backend/target/bom.xml
+          retention-days: 365
+
+  frontend:
+    name: Front-end (tests, paquet, SBOM, audit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Tests
+        run: npx ng test --watch=false
+
+      - name: Paquet de production
+        run: npm run build
+
+      - name: Archive et empreinte du paquet
+        run: |
+          tar -czf ../ged-front.tar.gz -C dist/frontend/browser .
+          cd .. && sha256sum ged-front.tar.gz > ged-front.tar.gz.sha256 && cat ged-front.tar.gz.sha256
+
+      - name: SBOM CycloneDX
+        run: npm run sbom
+
+      - name: Audit des dépendances livrées
+        # Échec sur vulnérabilité haute ou critique, soit CVSS >= 7, comme le back-end.
+        run: npm audit --omit=dev --audit-level=high
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-paquet
+          path: |
+            ged-front.tar.gz
+            ged-front.tar.gz.sha256
+          retention-days: 90
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-frontend
+          path: frontend/dist/bom.json
+          retention-days: 365
+
+  vulnerabilites:
+    name: OWASP Dependency-Check (CVSS >= 7)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Base de vulnérabilités en cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ github.run_id }}
+          restore-keys: nvd-
+
+      - name: Analyser les dépendances
+        working-directory: backend
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          if [ -z "$NVD_API_KEY" ]; then
+            echo "::error::Secret NVD_API_KEY absent : l'analyse OWASP Dependency-Check ne peut pas tourner (DAT 6.2.3)."
+            exit 1
+          fi
+          mvn -B -ntp -DskipTests verify
+
+      - name: Rapport de vulnérabilités
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-dependency-check
+          path: |
+            backend/target/dependency-check-report.html
+            backend/target/dependency-check-report.json
+          retention-days: 365
+
+  registre:
+    name: Registre des dépendances et licences
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom-backend
+          path: backend/target
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom-frontend
+          path: frontend/dist
+
+      - name: Licences arbitrées, registre à jour
+        run: node outils/registre-dependances.mjs --verifier
