@@ -1,0 +1,14 @@
+# Sauvegarde quotidienne de la GED (DAT 6.5), sur le serveur d'application.
+# Installation : /etc/systemd/system/, puis systemctl enable --now ged-sauvegarde.timer
+[Unit]
+Description=GED Marchica Med - sauvegarde quotidienne (base, fichiers, cles)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# root : lecture du keystore et des secrets, écriture sur les supports de sauvegarde.
+ExecStart=/opt/ged/deploiement/sauvegarde/sauvegarde-quotidienne.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
