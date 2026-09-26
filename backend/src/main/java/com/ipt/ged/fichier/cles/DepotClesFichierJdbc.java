@@ -20,7 +20,7 @@ public class DepotClesFichierJdbc implements DepotClesFichier {
     private static final RowMapper<CleFichier> LIGNE = (rs, i) -> new CleFichier(
             rs.getObject("id", UUID.class),
             rs.getBytes("dek_enveloppee"),
-            rs.getString("kek_id"),
+            rs.getString("kek_identifiant"),
             rs.getString("algorithme"));
 
     private final JdbcTemplate jdbc;
@@ -31,13 +31,13 @@ public class DepotClesFichierJdbc implements DepotClesFichier {
 
     @Override
     public void enregistrer(CleFichier cle) {
-        jdbc.update("INSERT INTO cle_fichier (id, dek_enveloppee, kek_id, algorithme) VALUES (?, ?, ?, ?)",
+        jdbc.update("INSERT INTO cle_fichier (id, dek_enveloppee, kek_identifiant, algorithme) VALUES (?, ?, ?, ?)",
                 cle.id(), cle.dekEnveloppee(), cle.kekId(), cle.algorithme());
     }
 
     @Override
     public Optional<CleFichier> trouver(UUID id) {
-        return jdbc.query("SELECT id, dek_enveloppee, kek_id, algorithme FROM cle_fichier WHERE id = ?", LIGNE, id)
+        return jdbc.query("SELECT id, dek_enveloppee, kek_identifiant, algorithme FROM cle_fichier WHERE id = ?", LIGNE, id)
                 .stream().findFirst();
     }
 
@@ -49,23 +49,23 @@ public class DepotClesFichierJdbc implements DepotClesFichier {
     @Override
     public List<CleFichier> lotHorsKek(String kekActive, UUID apres, int taille) {
         if (apres == null) {
-            return jdbc.query("SELECT id, dek_enveloppee, kek_id, algorithme FROM cle_fichier "
-                    + "WHERE kek_id <> ? ORDER BY id LIMIT ?", LIGNE, kekActive, taille);
+            return jdbc.query("SELECT id, dek_enveloppee, kek_identifiant, algorithme FROM cle_fichier "
+                    + "WHERE kek_identifiant <> ? ORDER BY id LIMIT ?", LIGNE, kekActive, taille);
         }
-        return jdbc.query("SELECT id, dek_enveloppee, kek_id, algorithme FROM cle_fichier "
-                + "WHERE kek_id <> ? AND id > ? ORDER BY id LIMIT ?", LIGNE, kekActive, apres, taille);
+        return jdbc.query("SELECT id, dek_enveloppee, kek_identifiant, algorithme FROM cle_fichier "
+                + "WHERE kek_identifiant <> ? AND id > ? ORDER BY id LIMIT ?", LIGNE, kekActive, apres, taille);
     }
 
     @Override
     public boolean remplacerEnveloppe(UUID id, String ancienneKek, CleEnveloppee nouvelle) {
-        return jdbc.update("UPDATE cle_fichier SET dek_enveloppee = ?, kek_id = ?, modifie_le = CURRENT_TIMESTAMP "
-                        + "WHERE id = ? AND kek_id = ?",
+        return jdbc.update("UPDATE cle_fichier SET dek_enveloppee = ?, kek_identifiant = ?, modifie_le = CURRENT_TIMESTAMP "
+                        + "WHERE id = ? AND kek_identifiant = ?",
                 nouvelle.octets(), nouvelle.kekId(), id, ancienneKek) > 0;
     }
 
     @Override
     public long compterParKek(String kekId) {
-        Long n = jdbc.queryForObject("SELECT COUNT(*) FROM cle_fichier WHERE kek_id = ?", Long.class, kekId);
+        Long n = jdbc.queryForObject("SELECT COUNT(*) FROM cle_fichier WHERE kek_identifiant = ?", Long.class, kekId);
         return n != null ? n : 0;
     }
 }

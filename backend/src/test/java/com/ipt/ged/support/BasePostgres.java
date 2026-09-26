@@ -3,6 +3,7 @@ package com.ipt.ged.support;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import liquibase.Contexts;
+import liquibase.LabelExpression;
 import liquibase.Liquibase;
 import liquibase.database.Database;
 import liquibase.database.DatabaseFactory;
@@ -13,55 +14,74 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * Base PostgreSQL réelle pour les tests d'intégration des lots E5/E6 (file
- * SKIP LOCKED, tsvector french/arabic) : H2 ne sait rien de tout cela.
+ * Schéma PostgreSQL <b>jetable</b> pour les tests d'intégration des lots E5/E6
+ * (file SKIP LOCKED, tsvector french/arabic, clés étrangères réelles) : le
+ * changelog maître complet y est appliqué par Liquibase, avec le compte
+ * propriétaire {@code ged_owner}, comme au déploiement ; le schéma est
+ * supprimé à la fermeture. La base de test partagée par les tests Spring
+ * (schéma {@code ged}) n'est pas touchée.
  *
- * <p>Base de dev3 ({@code ged_dev3_test}, brief d'équipe règle 4), URL
- * surchargeable par {@code GED_TEST_PG_URL}. Chaque classe de test travaille
- * dans un <b>schéma jetable</b> créé à la volée, où les changesets
- * « a-integrer » sont appliqués par Liquibase comme ils le seront en
- * production ; le schéma est supprimé à la fin.
+ * <p>Même connexion que le profil {@code test} : {@code DB_HOST}, {@code DB_PORT},
+ * {@code DB_NAME_TEST} (sinon {@code <DB_NAME>_test}), {@code DB_OWNER_USER},
+ * {@code DB_OWNER_PASSWORD}. Prérequis : {@code preparer-base.sql -v tests=oui}.
  */
 public final class BasePostgres implements AutoCloseable {
 
-    private static final String URL = System.getenv().getOrDefault("GED_TEST_PG_URL",
-            "jdbc:postgresql://localhost:5432/ged_dev3_test");
-    private static final String UTILISATEUR = System.getenv().getOrDefault("GED_TEST_PG_UTILISATEUR", "postgres");
-    private static final String MDP = System.getenv().getOrDefault("GED_TEST_PG_MDP", "");
+    private static final String CHANGELOG = "db/changelog/db.changelog-master.xml";
 
+    private final String url;
+    private final String utilisateur;
+    private final String mdp;
     private final String schema;
     private final HikariDataSource source;
+    private UUID workspace;
+    private UUID typeDocument;
 
-    private BasePostgres(String schema, HikariDataSource source) {
+    private BasePostgres(String url, String utilisateur, String mdp, String schema, HikariDataSource source) {
+        this.url = url;
+        this.utilisateur = utilisateur;
+        this.mdp = mdp;
         this.schema = schema;
         this.source = source;
     }
 
-    /** Crée un schéma jetable et y applique les changesets. */
+    private static String env(String nom, String defaut) {
+        Map<String, String> e = System.getenv();
+        String v = e.get(nom);
+        return v == null || v.isBlank() ? defaut : v;
+    }
+
+    /** Crée le schéma jetable et y applique tout le changelog maître. */
     public static BasePostgres ouvrir() throws Exception {
-        String schema = "test_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        try (Connection c = DriverManager.getConnection(URL, UTILISATEUR, MDP);
+        String base = env("DB_NAME_TEST", env("DB_NAME", "ged_dev1") + "_test");
+        String url = "jdbc:postgresql://" + env("DB_HOST", "localhost") + ":" + env("DB_PORT", "5432") + "/" + base;
+        String utilisateur = env("DB_OWNER_USER", "ged_owner");
+        String mdp = env("DB_OWNER_PASSWORD", "");
+        String schema = "ged_verif_e6_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, utilisateur, mdp);
              Statement s = c.createStatement()) {
             s.execute("CREATE SCHEMA " + schema);
         }
         HikariConfig cfg = new HikariConfig();
-        cfg.setJdbcUrl(URL + (URL.contains("?") ? "&" : "?") + "currentSchema=" + schema + ",public");
-        cfg.setUsername(UTILISATEUR);
-        cfg.setPassword(MDP);
+        cfg.setJdbcUrl(url + "?currentSchema=" + schema);
+        cfg.setUsername(utilisateur);
+        cfg.setPassword(mdp);
         cfg.setMaximumPoolSize(12);
         cfg.setPoolName("pg-" + schema);
         HikariDataSource ds = new HikariDataSource(cfg);
         try (Connection c = ds.getConnection()) {
             Database db = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(c));
             db.setDefaultSchemaName(schema);
-            try (Liquibase lb = new Liquibase("db/test-postgres/maitre.xml", new ClassLoaderResourceAccessor(), db)) {
-                lb.update(new Contexts());
+            db.setLiquibaseSchemaName(schema);
+            try (Liquibase lb = new Liquibase(CHANGELOG, new ClassLoaderResourceAccessor(), db)) {
+                lb.update(new Contexts(), new LabelExpression());
             }
         }
-        return new BasePostgres(schema, ds);
+        return new BasePostgres(url, utilisateur, mdp, schema, ds);
     }
 
     public HikariDataSource source() {
@@ -76,23 +96,39 @@ public final class BasePostgres implements AutoCloseable {
         return schema;
     }
 
-    /** Insère un document et sa version simulés (clés étrangères du socle). */
-    public void document(UUID documentId, UUID versionId) {
+    /**
+     * Insère un document et sa version, avec l'espace et le type requis par
+     * les clés étrangères du modèle (lot E1).
+     */
+    public synchronized void document(UUID documentId, UUID versionId) {
         JdbcTemplate j = jdbc();
-        j.update("INSERT INTO document (id, nom) VALUES (?, 'test') ON CONFLICT DO NOTHING", documentId);
-        j.update("INSERT INTO version_document (id, document_id) VALUES (?, ?)", versionId, documentId);
+        if (workspace == null) {
+            UUID employe = UUID.randomUUID(), workflow = UUID.randomUUID();
+            workspace = UUID.randomUUID();
+            typeDocument = UUID.randomUUID();
+            j.update("INSERT INTO employe (id, first_name, last_name) VALUES (?, 'Test', 'E6')", employe);
+            j.update("INSERT INTO workflow_ged (id, name) VALUES (?, 'circuit de test')", workflow);
+            j.update("INSERT INTO workspace (id, name, code, status, employe_id, workflow_ged_id) "
+                    + "VALUES (?, 'espace de test', ?, 'ACTIF', ?, ?)", workspace, "ESP-" + workspace, employe, workflow);
+            j.update("INSERT INTO type_document (id, code, type_de_document, description, workspace_id) "
+                    + "VALUES (?, ?, 'Type de test', 'test', ?)", typeDocument, "TD-" + typeDocument, workspace);
+        }
+        j.update("INSERT INTO document (id, name, workspace_id, type_document_id) VALUES (?, 'test', ?, ?) "
+                + "ON CONFLICT (id) DO NOTHING", documentId, workspace, typeDocument);
+        j.update("INSERT INTO version_document (id, document_id, file_name, file_path) VALUES (?, ?, 'f.pdf', 'x/f.pdf')",
+                versionId, documentId);
     }
 
-    /** Clé de fichier simulée (clé étrangère ocr_job.fichier_id). */
+    /** Clé de fichier (clé étrangère ocr_job.cle_fichier_id). */
     public void cleFichier(UUID fichierId) {
-        jdbc().update("INSERT INTO cle_fichier (id, dek_enveloppee, kek_id) VALUES (?, ?, 'kek-00001')",
+        jdbc().update("INSERT INTO cle_fichier (id, dek_enveloppee, kek_identifiant) VALUES (?, ?, 'kek-00001')",
                 fichierId, new byte[60]);
     }
 
     @Override
     public void close() throws Exception {
         source.close();
-        try (Connection c = DriverManager.getConnection(URL, UTILISATEUR, MDP);
+        try (Connection c = DriverManager.getConnection(url, utilisateur, mdp);
              Statement s = c.createStatement()) {
             s.execute("DROP SCHEMA IF EXISTS " + schema + " CASCADE");
         }

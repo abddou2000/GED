@@ -45,7 +45,7 @@ import java.util.stream.Stream;
 public class RepriseFichiersEnClair {
 
     private static final Logger log = LoggerFactory.getLogger(RepriseFichiersEnClair.class);
-    static final String ENTETE = "chemin_relatif;fichier_id;empreinte_sha256;taille_octets;type_mime;kek_id;statut";
+    static final String ENTETE = "chemin_relatif;fichier_id;empreinte_sha256;taille_octets;type_mime;kek_identifiant;statut";
 
     private final StockageChiffre stockage;
     private final DetecteurTypeReel detecteur;

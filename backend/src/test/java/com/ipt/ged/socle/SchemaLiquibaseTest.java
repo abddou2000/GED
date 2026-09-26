@@ -47,13 +47,24 @@ class SchemaLiquibaseTest {
 
     private static final String CHANGELOG = "db/changelog/db.changelog-master.xml";
 
-    /** Tables du modèle à l'issue du lot E1. */
-    private static final Set<String> TABLES_ATTENDUES = Set.of(
+    /** Tables du modèle à l'issue du lot E1 (jalon socle-e1). */
+    private static final Set<String> TABLES_E1 = Set.of(
             "employe", "compte_utilisateur", "workflow_ged", "workflow_ged_etape", "workspace",
             "access_group", "access_group_workspace", "access_group_employe", "etiquette",
             "index_def", "plan_indexation", "plan_index", "type_document", "document",
             "version_document", "document_etiquette", "document_index_valeur",
             "workflow_ged_signature");
+
+    /** Tables ajoutées par les lots E5 (stockage chiffré) et E6 (OCR, recherche plein texte). */
+    private static final Set<String> TABLES_E5_E6 = Set.of("cle_fichier", "ocr_job", "document_texte");
+
+    /** Toutes les tables du changelog maître. */
+    private static final Set<String> TABLES_ATTENDUES;
+    static {
+        Set<String> t = new TreeSet<>(TABLES_E1);
+        t.addAll(TABLES_E5_E6);
+        TABLES_ATTENDUES = Set.copyOf(t);
+    }
 
     /** Tables d'association, à clé composite : les seules sans colonne {@code id}. */
     private static final Set<String> ASSOCIATIONS = Set.of(
@@ -108,7 +119,7 @@ class SchemaLiquibaseTest {
                 liquibase.update(new Contexts(), new LabelExpression());
                 assertEquals(changesets, compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog"));
             } finally {
-                executer(c, "DROP SCHEMA " + schema + " CASCADE");
+                supprimerSchema(c, schema);
             }
         }
     }
@@ -122,22 +133,24 @@ class SchemaLiquibaseTest {
             try {
                 Liquibase liquibase = liquibase(c, schema);
                 liquibase.update(new Contexts(), new LabelExpression());
-                String horsJalon = " WHERE tag IS DISTINCT FROM 'socle-e1'";
-                int avant = compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog" + horsJalon);
-                // Rien n'est postérieur au jalon : le retour arrière ne défait que
-                // le jalon lui-même (Liquibase inclut la ligne étiquetée) et laisse
-                // intact tout le schéma du lot.
+                // Changesets du lot E1 jusqu'au jalon, jalon exclu.
+                String jusquAuJalon = " WHERE orderexecuted < (SELECT orderexecuted FROM " + schema
+                        + ".databasechangelog WHERE tag = 'socle-e1')";
+                int avant = compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog" + jusquAuJalon);
+                // Le retour arrière au jalon défait les lots postérieurs (E5, E6)
+                // et le jalon lui-même (Liquibase inclut la ligne étiquetée), et
+                // laisse intact tout le schéma du lot E1.
                 liquibase.rollback("socle-e1", (String) null);
-                assertEquals(avant, compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog" + horsJalon));
+                assertEquals(avant, compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog"));
                 Set<String> tables = tables(c, schema);
                 tables.removeAll(Set.of("databasechangelog", "databasechangeloglock"));
-                assertEquals(new TreeSet<>(TABLES_ATTENDUES), tables);
+                assertEquals(new TreeSet<>(TABLES_E1), tables);
                 // Rejouer la montée repose le jalon.
                 liquibase.update(new Contexts(), new LabelExpression());
                 assertEquals(1, compter(c, "SELECT count(*) FROM " + schema
                         + ".databasechangelog WHERE tag = 'socle-e1'"));
             } finally {
-                executer(c, "DROP SCHEMA " + schema + " CASCADE");
+                supprimerSchema(c, schema);
             }
         }
     }
@@ -192,7 +205,9 @@ class SchemaLiquibaseTest {
                   JOIN information_schema.constraint_column_usage ccu
                     ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
                  WHERE tc.table_schema = ? AND tc.constraint_type = 'FOREIGN KEY'
-                   AND kcu.column_name NOT IN ('parent_id', 'supprime_par')
+                   -- version_id : nom imposé par le dossier (document_texte, ocr_job, §4.4),
+                   -- vise version_document.
+                   AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'version_id')
                    AND kcu.column_name NOT LIKE '%' || ccu.table_name || '_id'""", schema);
         assertEquals(List.of(), incoherentes, "clés étrangères dont le nom ne désigne pas la table visée");
     }
@@ -234,6 +249,17 @@ class SchemaLiquibaseTest {
     private static Set<String> tables(Connection c, String schema) throws SQLException {
         return new TreeSet<>(lignes(c, "SELECT table_name FROM information_schema.tables"
                 + " WHERE table_schema = ? AND table_type = 'BASE TABLE'", schema));
+    }
+
+    /**
+     * Liquibase passe la connexion en mode transactionnel (autocommit coupé) :
+     * sans validation explicite, la suppression du schéma jetable était
+     * annulée à la fermeture et les schémas s'accumulaient dans la base de test.
+     */
+    private static void supprimerSchema(Connection c, String schema) throws SQLException {
+        if (!c.getAutoCommit()) c.rollback();
+        executer(c, "DROP SCHEMA " + schema + " CASCADE");
+        if (!c.getAutoCommit()) c.commit();
     }
 
     private static void executer(Connection c, String sql) throws SQLException {

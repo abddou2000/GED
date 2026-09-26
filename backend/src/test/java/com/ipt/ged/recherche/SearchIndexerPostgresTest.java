@@ -187,10 +187,10 @@ class SearchIndexerPostgresTest {
     void droits() {
         UUID visible = indexer("dossier foncier de la parcelle 12");
         UUID cache = indexer("dossier foncier de la parcelle 13");
-        jdbc.update("UPDATE document SET nom = 'public' WHERE id = ?", visible);
-        jdbc.update("UPDATE document SET nom = 'confidentiel' WHERE id = ?", cache);
+        jdbc.update("UPDATE document SET name = 'public' WHERE id = ?", visible);
+        jdbc.update("UPDATE document SET name = 'confidentiel' WHERE id = ?", cache);
         PredicatDroits parEspace = (colonne, u) -> new FragmentSql(
-                "EXISTS (SELECT 1 FROM document d WHERE d.id = " + colonne + " AND d.nom = :droits_nom)",
+                "EXISTS (SELECT 1 FROM document d WHERE d.id = " + colonne + " AND d.name = :droits_nom)",
                 Map.of("droits_nom", "public"));
         SearchIndexerPostgres filtre = new SearchIndexerPostgres(jdbc, parEspace);
         PageResultats p = filtre.rechercher(RequeteRecherche.simple("parcelle", 0, 10), UTILISATEUR);
@@ -219,7 +219,7 @@ class SearchIndexerPostgresTest {
         UUID doc = UUID.randomUUID();
         UUID v1 = UUID.randomUUID(), v2 = UUID.randomUUID();
         base.document(doc, v1);
-        jdbc.update("INSERT INTO version_document (id, document_id) VALUES (?, ?)", v2, doc);
+        jdbc.update("INSERT INTO version_document (id, document_id, file_name, file_path) VALUES (?, ?, 'v2.pdf', 'x/v2.pdf')", v2, doc);
         indexer.indexer(new SearchIndexer.TexteAIndexer(doc, v1, "fra", "ancienne clause pénale", "OCR", 1));
         indexer.indexer(new SearchIndexer.TexteAIndexer(doc, v2, "fra", "nouvelle clause de révision", "OCR", 1));
         assertTrue(chercher("pénale").isEmpty());

@@ -1,5 +1,6 @@
 package com.ipt.ged.ocr.file;
 
+import com.ipt.ged.common.UuidV7;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -43,7 +44,7 @@ import java.util.UUID;
  */
 public class OcrJobQueuePostgres implements OcrJobQueue {
 
-    private static final String COLONNES = "id, document_id, version_id, fichier_id, type_mime, langue, statut, "
+    private static final String COLONNES = "id, document_id, version_id, cle_fichier_id, type_mime, langue, statut, "
             + "tentatives, prochaine_tentative_le, verrouille_par, verrouille_jusqu_a, motif_echec, nb_pages, "
             + "depose_le, cree_le, termine_le";
     private static final String ACTIFS = "('EN_ATTENTE_OCR', 'EN_COURS_OCR')";
@@ -53,7 +54,7 @@ public class OcrJobQueuePostgres implements OcrJobQueue {
             rs.getObject("id", UUID.class),
             rs.getObject("document_id", UUID.class),
             rs.getObject("version_id", UUID.class),
-            rs.getObject("fichier_id", UUID.class),
+            rs.getObject("cle_fichier_id", UUID.class),
             rs.getString("type_mime"),
             rs.getString("langue"),
             StatutOcr.valueOf(rs.getString("statut")),
@@ -79,8 +80,8 @@ public class OcrJobQueuePostgres implements OcrJobQueue {
 
     @Override
     public UUID enfiler(NouveauJob job) {
-        UUID id = UUID.randomUUID();
-        int crees = jdbc.update("INSERT INTO ocr_job (id, document_id, version_id, fichier_id, type_mime, langue, "
+        UUID id = UuidV7.suivant();
+        int crees = jdbc.update("INSERT INTO ocr_job (id, document_id, version_id, cle_fichier_id, type_mime, langue, "
                         + "statut, depose_le) VALUES (?, ?, ?, ?, ?, ?, 'EN_ATTENTE_OCR', ?) "
                         + "ON CONFLICT (version_id) WHERE statut IN " + ACTIFS + " DO NOTHING",
                 id, job.documentId(), job.versionId(), job.fichierId(), job.typeMime(), job.langue(),

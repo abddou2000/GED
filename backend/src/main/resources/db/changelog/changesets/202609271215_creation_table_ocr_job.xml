@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271215_creation_table_ocr_job.xml">
+
+    <!--
+        Lot E6 — file des traitements OCR portée par PostgreSQL (§4.3.4), sans
+        broker. Le dépôt insère le job dans sa transaction (§12.11, temps 1) ;
+        les workers le réservent par SELECT ... FOR UPDATE SKIP LOCKED et posent
+        un bail (verrouille_par / verrouille_jusqu_a) prolongé à chaque page.
+        version_id : nom retenu par le dossier (§4.3.4, §4.4), vise version_document.
+    -->
+    <changeSet id="202609271215-1" author="ged">
+        <comment>File des traitements OCR : un job par version déposée.</comment>
+        <createTable tableName="ocr_job">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_ocr_job" nullable="false"/>
+            </column>
+            <column name="document_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cle_fichier_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type_mime" type="VARCHAR(127)"/>
+            <column name="langue" type="VARCHAR(32)" defaultValue="fra+ara">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut" type="VARCHAR(20)" defaultValue="EN_ATTENTE_OCR">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tentatives" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="prochaine_tentative_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="verrouille_par" type="VARCHAR(100)"/>
+            <column name="verrouille_jusqu_a" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="motif_echec" type="TEXT"/>
+            <column name="nb_pages" type="INTEGER"/>
+            <column name="depose_le" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="demarre_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="termine_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="modifie_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <!-- La purge définitive (§12.5) emporte les jobs du document. -->
+        <addForeignKeyConstraint constraintName="fk_ocr_job_document" baseTableName="ocr_job" baseColumnNames="document_id"
+                                 referencedTableName="document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_ocr_job_version_document" baseTableName="ocr_job" baseColumnNames="version_id"
+                                 referencedTableName="version_document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_ocr_job_cle_fichier" baseTableName="ocr_job" baseColumnNames="cle_fichier_id"
+                                 referencedTableName="cle_fichier" referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex indexName="idx_ocr_job_document_id" tableName="ocr_job">
+            <column name="document_id"/>
+        </createIndex>
+        <createIndex indexName="idx_ocr_job_version_id" tableName="ocr_job">
+            <column name="version_id"/>
+        </createIndex>
+        <createIndex indexName="idx_ocr_job_cle_fichier_id" tableName="ocr_job">
+            <column name="cle_fichier_id"/>
+        </createIndex>
+        <createIndex indexName="idx_ocr_job_statut_depose_le" tableName="ocr_job">
+            <column name="statut"/>
+            <column name="depose_le"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.ocr_job ADD CONSTRAINT ck_ocr_job_statut CHECK (statut IN ('EN_ATTENTE_OCR', 'EN_COURS_OCR', 'OCR_TERMINE', 'OCR_ECHEC'))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.ocr_job ADD CONSTRAINT ck_ocr_job_langue CHECK (langue ~ '^(fra|ara)([+](fra|ara))*$')</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.ocr_job ADD CONSTRAINT ck_ocr_job_tentatives CHECK (tentatives &gt;= 0)</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.ocr_job ADD CONSTRAINT ck_ocr_job_bail CHECK (statut &lt;&gt; 'EN_COURS_OCR' OR (verrouille_par IS NOT NULL AND verrouille_jusqu_a IS NOT NULL))</sql>
+        <!-- Un seul job actif par version : un dépôt rejoué n'enfile pas deux fois. -->
+        <sql>CREATE UNIQUE INDEX uk_ocr_job_version_id_actif ON ${database.defaultSchemaName}.ocr_job (version_id) WHERE statut IN ('EN_ATTENTE_OCR', 'EN_COURS_OCR')</sql>
+        <!-- Réservation : jobs en attente, le plus ancien dépôt d'abord. -->
+        <sql>CREATE INDEX idx_ocr_job_depose_le_attente ON ${database.defaultSchemaName}.ocr_job (depose_le, prochaine_tentative_le) WHERE statut = 'EN_ATTENTE_OCR'</sql>
+        <!-- Reprise des baux expirés (worker arrêté brutalement). -->
+        <sql>CREATE INDEX idx_ocr_job_verrouille_jusqu_a ON ${database.defaultSchemaName}.ocr_job (verrouille_jusqu_a) WHERE statut = 'EN_COURS_OCR'</sql>
+        <rollback>
+            <dropTable tableName="ocr_job"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

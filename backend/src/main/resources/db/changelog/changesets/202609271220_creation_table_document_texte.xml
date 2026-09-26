@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271220_creation_table_document_texte.xml">
+
+    <!--
+        Lot E6 — texte extrait et index plein texte (§4.3.4, §4.4) :
+        document_texte(document_id, version_id, langue, texte, tsv), plus la clé
+        technique id (§4.2.2) et la provenance du texte.
+
+        Une ligne par document : le texte agrégé de sa version COURANTE (« l'index
+        porte sur la version courante ») ; restaurer une ancienne version la
+        renvoie à l'OCR, ce qui remplace la ligne.
+        tsv = ged_document_tsvector(texte), calculé à chaque écriture et recalculé
+        par la réindexation complète : une colonne GENERATED ne se recalculerait
+        pas après un changement de la normalisation.
+    -->
+    <changeSet id="202609271220-1" author="ged">
+        <comment>Texte extrait (OCR ou couche native) et vecteur plein texte french + arabic.</comment>
+        <createTable tableName="document_texte">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_document_texte" nullable="false"/>
+            </column>
+            <column name="document_id" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_document_texte_document_id"/>
+            </column>
+            <column name="version_id" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_document_texte_version_id"/>
+            </column>
+            <column name="langue" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="texte" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tsv" type="TSVECTOR">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provenance" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nb_pages" type="INTEGER"/>
+            <column name="indexe_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_document_texte_document" baseTableName="document_texte" baseColumnNames="document_id"
+                                 referencedTableName="document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_document_texte_version_document" baseTableName="document_texte" baseColumnNames="version_id"
+                                 referencedTableName="version_document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document_texte ADD CONSTRAINT ck_document_texte_provenance CHECK (provenance IN ('COUCHE_TEXTE', 'OCR', 'MIXTE', 'NATIF'))</sql>
+        <sql>CREATE INDEX idx_document_texte_tsv ON ${database.defaultSchemaName}.document_texte USING gin (tsv)</sql>
+        <rollback>
+            <dropTable tableName="document_texte"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

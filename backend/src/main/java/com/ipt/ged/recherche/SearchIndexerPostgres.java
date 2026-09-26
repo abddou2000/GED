@@ -1,5 +1,6 @@
 package com.ipt.ged.recherche;
 
+import com.ipt.ged.common.UuidV7;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -50,11 +51,11 @@ public class SearchIndexerPostgres implements SearchIndexer {
         // Le texte n'est transmis qu'une fois (il peut peser plusieurs Mo) :
         // le vecteur est calculé côté base à partir de la même valeur.
         jdbc.update("WITH s(texte) AS (SELECT CAST(? AS text)) "
-                        + "INSERT INTO document_texte (version_id, document_id, langue, texte, tsv, provenance, nb_pages, indexe_le) "
-                        + "SELECT ?, ?, ?, s.texte, ged_document_tsvector(s.texte), ?, ?, now() FROM s "
+                        + "INSERT INTO document_texte (id, version_id, document_id, langue, texte, tsv, provenance, nb_pages, indexe_le) "
+                        + "SELECT ?, ?, ?, ?, s.texte, ged_document_tsvector(s.texte), ?, ?, now() FROM s "
                         + "ON CONFLICT (version_id) DO UPDATE SET langue = EXCLUDED.langue, texte = EXCLUDED.texte, "
                         + "tsv = EXCLUDED.tsv, provenance = EXCLUDED.provenance, nb_pages = EXCLUDED.nb_pages, indexe_le = now()",
-                texte, t.versionId(), t.documentId(), t.langue(), t.provenance(), t.nbPages());
+                texte, UuidV7.suivant(), t.versionId(), t.documentId(), t.langue(), t.provenance(), t.nbPages());
     }
 
     @Override

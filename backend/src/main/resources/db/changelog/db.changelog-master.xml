@@ -68,4 +68,12 @@
     <include file="changesets/202609261135_ajout_metadonnees_document.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609261140_jalon_socle_donnees.xml" relativeToChangelogFile="true"/>
 
+    <!-- Lots E5 (stockage chiffré) et E6 (OCR asynchrone, recherche plein texte) -->
+    <include file="changesets/202609271200_creation_table_cle_fichier.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271205_ajout_fichier_chiffre_version_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271210_creation_fonctions_recherche_plein_texte.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271215_creation_table_ocr_job.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271220_creation_table_document_texte.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271225_jalon_fichiers_ocr_recherche.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>
