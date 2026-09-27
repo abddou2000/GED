@@ -35,6 +35,77 @@ Branche `ct/dev2`. Mise à jour : 27/09/2026.
   indiscernable, validation, exceptions Spring, 401/403 de la chaîne) ; tests
   existants passés de `$.message`/`$.errors` à `$.detail`/`$.erreurs`.
   `mvn test` : 303 verts.
+- **Reprise de `GestionErreursIdentite` (dev1)** : une fois l'amorce fusionnée, les
+  exceptions de `identite/erreur/` héritent d'`ExceptionMetier` avec leurs codes
+  (`IDENTIFIANTS_REFUSES` 401, `TROP_DE_TENTATIVES` → `TropDeRequetesException` 429 avec
+  `Retry-After`, `ANNUAIRE_INDISPONIBLE` 503, `ENTETE_CSRF_MANQUANT` 403,
+  `RENOUVELLEMENT_REFUSE` 401) et l'advice `GestionErreursIdentite` est supprimé :
+  plus aucun format d'erreur parallèle.
+
+### Lot E4 — journal d'audit : **LIVRÉ sur ct/dev2** (commits 1925eb6 à 9c0916e)
+
+| Réf. matrice | Exigence (DAT) | Livré | Statut proposé |
+|---|---|---|---|
+| 4.7 | 5.3.2 — problem+json, code métier stable | `common/erreur` (`ExceptionMetier` et sous-classes, `CodesErreur`, `Problemes`), `GlobalExceptionHandler` en RFC 7807, 401/403 de la chaîne (`ReponsesSecuriteProblem`), front `core/probleme.ts` | Identique dès que dev1 branche `ReponsesSecuriteProblem` dans `SecurityConfig` |
+| 4.8 | 5.3.2 — codes 403, 404 hors périmètre, 409, 413, 415, 422, 429 | tous couverts, `Retry-After` sur 429, 404 à libellé fixe | Identique pour le format ; le « hors périmètre » réel vient d'E3 |
+| 6.2 | 7.4.1 — `journal_audit` (acteur, application, IP, action, objet, avant/après, résultat, trace_id) | table partitionnée par mois, identifiant séquentiel, catalogue `ActionAudit`, `AuditService`, contrat `EvenementAudit` pour les lots | Identique pour le mécanisme ; exhaustivité après branchement dev1/dev3 (ci-dessous) |
+| 6.3 | 7.4.2 — INSERT seul, déclencheurs, scellement SHA-256 chaîné exporté | privilèges `ged_app` INSERT/SELECT, déclencheur `BEFORE UPDATE OR DELETE OR TRUNCATE` (mère et partitions), scellement horaire en base et hors base (fichier ajout seul + journal technique), vérification mensuelle et à la demande tracée, métrique et alertes | Identique |
+| 6.4 | 7.4.3 — écran, export CSV/JSON, rétention 10 ans | API `/api/v1/audit` (lecture seule), écran Angular « Journal d'audit », export avec scellements et SHA-256, consultation et export tracés, partitions jamais supprimées automatiquement | Proche : garde provisoire « authentifié » (compte unique aujourd'hui) ; permission `CONSULTER_AUDIT` avec E3 |
+
+Événements tracés à ce jour : opérations d'administration des référentiels (espaces :
+création, modification, déplacement, archivage, corbeille, restauration ; types, index,
+plans, circuits, étiquettes, groupes : création, modification avec avant/après,
+corbeille, restauration, une trace par objet pour les opérations de masse), décisions de
+validation (approbation, rejet, relance), indexation enregistrée (valeurs et nom
+recomposé), refus de droits (403), consultation, export et vérification du journal.
+
+**Branchement attendu des autres lots** (contrat `com.ipt.ged.audit.EvenementAudit`,
+écouté par `EcouteurEvenementsAudit` ; aucune modification de leur service par dev2) :
+- **dev3** — `EvenementDocument extends EvenementAudit` avec ces méthodes par défaut :
+  `action()` = `type()`, `objetType()` = `"DOCUMENT"`, `objetId()` = `documentId()`,
+  `acteurUtilisateurId()` = `acteur().employeId()`, `acteurApplicationId()` =
+  `acteur().applicationId()` ; `MetadonneesModifiees` redéfinit `avant()`/`apres()`.
+  Idem pour `FichierInfecte` (`FICHIER_INFECTE`, résultat `REFUS`) et
+  `AnomalieIntegrite` (`INTEGRITE_ANOMALIE`, `ECHEC`). Brancher aussi
+  `VerificationAntivirus` sur `AnalyseurAntivirus::disponible`.
+- **dev1** — `ConnexionReussie` (`CONNEXION_REUSSIE`, objet `UTILISATEUR`,
+  `acteurUtilisateurId` = `utilisateurId`, `adresseIp`), `ConnexionEchouee`
+  (`CONNEXION_REFUSEE`, résultat `REFUS`, motif = motif d'échec, `acteurNom` =
+  identifiant saisi), `SessionsRevoquees` (`SESSIONS_REVOQUEES`) implémentent
+  `EvenementAudit`. Faire exposer par le principal E2 l'identifiant utilisateur
+  utilisé par `ActeurCourant.employeId()` (aujourd'hui l'employé).
+- **dev1 (E3)** — déclarer un bean `GardeConsultationAudit` fondé sur
+  `CONSULTER_AUDIT` ; tracer `HABILITATION_MODIFIEE` et les 404 hors périmètre utiles.
+- **dev1 (vague 2)** — `SchemaLiquibaseTest` modifié par dev2 (tables d'audit,
+  partitions écartées, jalon `socle-e1` compté hors lots postérieurs) : union simple
+  avec les tables d'identité.
+
+Tests (tous sur PostgreSQL réel, `DB_NAME=ged_dev2`) : `JournalAuditInalterableTest`
+(connecté en `ged_app` : UPDATE/DELETE/TRUNCATE refusés, SQLSTATE 42501 ; connecté en
+`ged_owner` : déclencheur sur mère et partition ; succès annulé avec sa transaction,
+refus conservé), `ScellementAuditTest` (chaîne, export, **altération par `ged_owner`
+avec déclencheur désactivé → `EMPREINTE_DIFFERENTE`**, **scellement réécrit en base →
+`EXPORT_DIFFERENT`**), `ConsultationAuditApiTest` (filtres, pagination, export CSV/JSON
+et empreinte, injection CSV neutralisée, aucune écriture, consultation tracée),
+`AuditOperationsApiTest`, `AuditDecisionsValidationTest`, `SchemaLiquibaseTest`
+(conventions et retour arrière). **`mvn test` : 323 verts.** Front : 8 tests verts,
+build vert ; écran vérifié dans le navigateur contre le back-end local.
+
+Autres ajustements de la vague :
+- `server.forward-headers-strategy: native` ; la valve Tomcat ne croit
+  `X-Forwarded-For` que des proxys de `ged.journalisation.proxys-de-confiance`
+  (même règle que le filtre MDC), au lieu de tous les réseaux privés.
+- Sonde `annuaire` : celle de dev1 fait foi (même nom de bean : la mienne est retirée) ;
+  exclue du groupe `readiness`, alerte dédiée `GedAnnuaireIndisponible`.
+- Exploitation mise à jour pour E2 (`GED_LDAP_*`, `GED_JWT_KEYSTORE*`,
+  `GED_ADMINISTRATEURS`, `GED_SESSION_DUREE_ABSOLUE`), sauvegarde de la clé RS256.
+- **Pour dev3** : le contrôle « antivirus obligatoire en prod » de
+  `fichier/ConfigurationFichiers` ne couvre pas le profil `uat` (le profil `uat` importe
+  `prod` mais le contrôle teste le nom de profil) ; à étendre, fichier non modifié par dev2.
+
+Reste pour dev2 : vérification du scellement sur la volumétrie réelle (5 millions
+d'enregistrements par an : durée de la vérification mensuelle à mesurer en UAT) ;
+branchement des événements dev1/dev3 à contrôler après leurs fusions.
 
 ## Vague 1 — livrée (fusion 95b11e1)
 
