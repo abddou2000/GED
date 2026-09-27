@@ -126,6 +126,8 @@ public class DocumentService {
     private final DocumentConfidentielDesigneRepository designes;
     private final UtilisateurRepository utilisateurs;
     private final WorkSpaceRepository noeuds;
+    private final com.ipt.ged.depot.source.ResolutionOrigineDepot origines;
+    private final com.ipt.ged.fichier.integrite.LectureControlee lectures;
 
     public DocumentService(UploadDocumentRepository repo, TypeDocumentRepository typeRepo,
                            SignatureService signatureService,
@@ -136,7 +138,8 @@ public class DocumentService {
                            AccessPredicate droits, ControleAcces controle, GardeEcriture garde,
                            DocumentRattachementRepository rattachements,
                            DocumentConfidentielDesigneRepository designes, UtilisateurRepository utilisateurs,
-                           WorkSpaceRepository noeuds) {
+                           WorkSpaceRepository noeuds, com.ipt.ged.depot.source.ResolutionOrigineDepot origines,
+                           com.ipt.ged.fichier.integrite.LectureControlee lectures) {
         this.repo = repo;
         this.typeRepo = typeRepo;
         this.signatureService = signatureService;
@@ -156,6 +159,8 @@ public class DocumentService {
         this.designes = designes;
         this.utilisateurs = utilisateurs;
         this.noeuds = noeuds;
+        this.origines = origines;
+        this.lectures = lectures;
     }
 
     private static Authentication appelant() {
@@ -316,6 +321,12 @@ public class DocumentService {
         doc.setExtension(ext);
         doc.setSizeKo(depot.stockage().tailleOctets() / 1024);
         doc.setExpirationDate(expiration);
+        // Source et déposant enregistrés au temps 1 (T-040, §12.11).
+        var origine = origines.courante();
+        doc.setCanalDepot(origine.canal());
+        doc.setApplicationId(origine.applicationId());
+        doc.setDeposantUtilisateurId(origine.deposantUtilisateurId());
+        doc.setDepotDelegue(origine.delegue());
         doc.setConfidentialite(confidentialite != null ? confidentialite
                 : type.getConfidentialiteDefaut() != null ? type.getConfidentialiteDefaut() : Confidentialite.PUBLIC);
         if (createdById != null) {
@@ -526,13 +537,14 @@ public class DocumentService {
         if (d.estArchive() && !original) {
             Optional<CopiesConservation.CopieValide> copie = copies.valide(v.getId());
             if (copie.isPresent()) {
-                InputStream flux = stockage.lire(copie.get().cleFichierId());
+                // Premier segment authentifié avant la réponse (ANO-E5-002).
+                InputStream flux = lectures.ouvrir(copie.get().cleFichierId(), "copie de conservation du document " + id);
                 evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
                         "copie de conservation PDF/A de " + v.getFileName()));
                 return new FichierTelecharge(d.getName() + ".pdf", copie.get().tailleOctets(), flux);
             }
         }
-        InputStream flux = stockage.lire(v.getCleFichierId());
+        InputStream flux = lectures.ouvrir(v.getCleFichierId(), "téléchargement du document " + id);
         String nom = d.getName() + (d.getExtension() != null && !d.getExtension().isBlank() ? "." + d.getExtension() : "");
         evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
                 v.getFileName()));

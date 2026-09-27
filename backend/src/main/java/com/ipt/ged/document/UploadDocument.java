@@ -198,6 +198,23 @@ public class UploadDocument extends Supprimable {
     @Column(name = "statut_indexation", nullable = false, length = 16)
     private IssueIndexation statutIndexation = IssueIndexation.A_INDEXER;
 
+    /** Canal du dépôt (T-040, §5.1) : INTERFACE, API, BUREAU_ORDRE, REPRISE. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "canal_depot", nullable = false, length = 16)
+    private com.ipt.ged.depot.source.CanalDepot canalDepot = com.ipt.ged.depot.source.CanalDepot.INTERFACE;
+
+    /** Application appelante (clé d'API) ; {@code null} depuis l'interface. */
+    @Column(name = "application_id")
+    private UUID applicationId;
+
+    /** Identité GED du déposant (utilisateur, ou personne déléguée par une application). */
+    @Column(name = "deposant_utilisateur_id")
+    private UUID deposantUtilisateurId;
+
+    /** Dépôt d'une application pour le compte d'une personne (X-On-Behalf-Of, §5.5). */
+    @Column(name = "depot_delegue", nullable = false)
+    private boolean depotDelegue;
+
     /** Document archivé : lecture seule totale (§12.6), désarchivage excepté. */
     public boolean estArchive() {
         return statutConservation == com.ipt.ged.common.StatutConservation.ARCHIVE;

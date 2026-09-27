@@ -17,7 +17,9 @@ public record RechercheRequest(
     List<FiltreIndex> criteres,
     UUID grouperPar,
     /** Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6). */
-    String archives
+    String archives,
+    /** Canal du dépôt (T-040) : INTERFACE, API, BUREAU_ORDRE, REPRISE ; tous si absent. */
+    String canal
 ) {
     /**
      * Un filtre sur un index.
