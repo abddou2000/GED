@@ -34,13 +34,16 @@ ged:
     # dont l'adresse dérivée est précisément celle-ci.
     email-admin: ${GED_EMAIL_ADMIN:sara.bennani@marchica.ma}
 
-  # Stockage sécurisé : keystore local jetable (data/ n'est pas versionné).
+  # Stockage sécurisé : keystore local jetable, rangé HORS du dépôt git, dans
+  # le profil de l'utilisateur. Un chemin relatif dépendait du répertoire de
+  # lancement : démarrée depuis la racine du dépôt, l'application créait la
+  # clé maîtresse dans un dossier que git ne savait pas ignorer (ANO-E5-001).
   # La phrase secrète par défaut n'est PAS un secret : elle ne protège que des
   # fichiers de démonstration sur ce poste. Sans ClamAV installé, l'antivirus
   # est neutralisé (interdit en prod, qui refuse alors de démarrer).
   fichiers:
     cles:
-      keystore: ${GED_KEYSTORE_CHEMIN:./data/cles/ged-kek.p12}
+      keystore: ${GED_KEYSTORE_CHEMIN:${user.home}/.ged-dev/cles/ged-kek.p12}
       mot-de-passe: ${GED_KEYSTORE_MDP:dev-local-only}
       creer-si-absent: true
     antivirus:

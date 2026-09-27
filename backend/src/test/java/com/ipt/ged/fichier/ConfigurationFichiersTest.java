@@ -46,6 +46,18 @@ class ConfigurationFichiersTest {
     }
 
     @Test
+    @DisplayName("ANO-E5-001 : le keystore du profil dev ne dépend pas du répertoire de lancement")
+    void keystoreDevHorsDepot() {
+        org.springframework.beans.factory.config.YamlPropertiesFactoryBean yaml =
+                new org.springframework.beans.factory.config.YamlPropertiesFactoryBean();
+        yaml.setResources(new org.springframework.core.io.ClassPathResource("application-dev.yml"));
+        String chemin = yaml.getObject().getProperty("ged.fichiers.cles.keystore");
+        assertNotNull(chemin);
+        assertTrue(chemin.contains("${user.home}"), chemin);
+        assertFalse(chemin.contains(":./") || chemin.contains(":data/"), "chemin relatif : " + chemin);
+    }
+
+    @Test
     @DisplayName("Valeurs par défaut conformes au §6.1.5")
     void defauts() {
         ProprietesFichiers p = new ProprietesFichiers();
