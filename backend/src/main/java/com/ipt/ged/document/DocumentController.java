@@ -35,7 +35,7 @@ public class DocumentController {
     @GetMapping
     public PageResponse<DocumentResponse> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) UUID workspaceId,
             @RequestParam(required = false) String sortBy,
@@ -46,7 +46,7 @@ public class DocumentController {
     @GetMapping("/trashed")
     public PageResponse<DocumentResponse> trashed(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir) {

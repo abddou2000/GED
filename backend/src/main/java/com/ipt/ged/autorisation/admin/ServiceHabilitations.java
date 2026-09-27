@@ -20,7 +20,6 @@ import com.ipt.ged.workspace.WorkSpace;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -123,7 +122,7 @@ public class ServiceHabilitations {
             throw new EntityNotFoundException("Document introuvable : " + d.documentId());
         }
         if (habilitations.existe(d.sujetType(), d.sujetId(), d.roleId(), d.noeudId(), d.documentId())) {
-            throw new DuplicateKeyException("Cette attribution existe déjà");
+            throw new com.ipt.ged.autorisation.ConflitAutorisationException("Cette attribution existe déjà");
         }
         Habilitation h = Habilitation.pour(d.sujetType(), d.sujetId());
         h.setRole(role);

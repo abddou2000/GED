@@ -26,7 +26,6 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -471,7 +470,7 @@ public class DocumentService {
             throw new IllegalArgumentException("Le document est déjà rangé dans cet espace (emplacement principal).");
         }
         if (rattachements.existsByDocumentIdAndNoeudId(documentId, noeudId)) {
-            throw new DuplicateKeyException("Le document est déjà rattaché à cet espace.");
+            throw new com.ipt.ged.autorisation.ConflitAutorisationException("Le document est déjà rattaché à cet espace.");
         }
         rattachements.save(new DocumentRattachement(d, noeud, ActeurCourant.utilisateurId()));
         publier(AccesDocumentModifie.RATTACHEMENT_AJOUTE, documentId, noeudId, null, null);

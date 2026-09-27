@@ -129,6 +129,12 @@ public class JeuDroits {
                 null);
     }
 
+    /** Attribution d'un rôle désigné par son identifiant (rôle composé dans le test). */
+    public HabilitationVue habiliterRole(String identifiant, UUID roleId, UUID noeudId) {
+        return habilitations.attribuer(new DemandeHabilitation(TypeSujet.UTILISATEUR, utilisateurId(identifiant),
+                roleId, noeudId, null, false), null);
+    }
+
     public HabilitationVue habiliterGroupe(UUID groupeId, String role, UUID noeudId) {
         return habilitations.attribuer(new DemandeHabilitation(TypeSujet.GROUPE, groupeId, idRole(role), noeudId,
                 null, false), null);

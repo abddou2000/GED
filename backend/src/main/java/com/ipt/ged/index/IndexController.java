@@ -28,7 +28,7 @@ public class IndexController {
     @GetMapping
     public PageResponse<IndexResponse> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir) {
@@ -38,7 +38,7 @@ public class IndexController {
     @GetMapping("/trashed")
     public PageResponse<IndexResponse> trashed(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir) {

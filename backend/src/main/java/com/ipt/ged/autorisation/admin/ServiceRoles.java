@@ -11,7 +11,6 @@ import com.ipt.ged.identite.Role;
 import com.ipt.ged.identite.RoleRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,7 +90,7 @@ public class ServiceRoles {
         }
         String libelle = libelle(d.libelle());
         if (roles.findByCode(code).isPresent()) {
-            throw new DuplicateKeyException("Le code de rôle « " + code + " » est déjà utilisé");
+            throw new com.ipt.ged.autorisation.ConflitAutorisationException("Le code de rôle « " + code + " » est déjà utilisé");
         }
         Role r = new Role(code, libelle);
         r.getPermissions().addAll(resoudre(d.permissions()));
@@ -127,7 +126,7 @@ public class ServiceRoles {
             throw new IllegalArgumentException("Un rôle système ne se supprime pas");
         }
         if (habilitations.existsByRoleId(id)) {
-            throw new DuplicateKeyException("Rôle encore attribué : retirez d'abord ses habilitations");
+            throw new com.ipt.ged.autorisation.ConflitAutorisationException("Rôle encore attribué : retirez d'abord ses habilitations");
         }
         Map<String, Object> avant = instantane(r);
         roles.delete(r);
