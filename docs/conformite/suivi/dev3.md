@@ -396,3 +396,74 @@ ClamAV (`FauxClamd`) et LibreOffice (`FauxSoffice`) : aucun binaire réel sur le
 - dev1 / pm : la reprise de données doit renseigner la version par `RepriseVersionsEnClair`
   (chemins `file_path` → stockage chiffré) avant d'inclure le changeset contract ;
   `preparer-base.sql` crée l'extension `unaccent` (à rejouer sur les bases existantes).
+
+---
+
+## Vagues 3 et 4 — dépôt en deux temps, dépôt avec métadonnées, cycle de vie (E6 fin, E7)
+
+Consigne du coordinateur (vagues 3-4) ; D9 (bascule de la version courante) retiré de ce lot et
+confié à dev1 : le modèle des versions et le verrou ne sont pas modifiés ici.
+
+| Réf. | Exigence | Statut proposé | Preuve |
+|---|---|---|---|
+| T-115 (12.11) | Dépôt en deux temps : INDEXE, SANS_PLAN, A_INDEXER, reprise, 201/202 | Identique (hors Idempotency-Key, dev2) | Paquet `depot` : temps 1 = `DocumentService.upload` (inchangé : contrôles, fichier chiffré, document, version, clé, job OCR) ; temps 2 = `IndexationAuDepot` en `REQUIRES_NEW`. `document.statut_indexation` (changeset `202609291000`, ck, reprise des documents existants). Un échec du temps 2 laisse le document reçu en `A_INDEXER` avec son motif ; l'écran d'indexation reprend (`PUT /indexation/documents/{id}` → `INDEXE`). `DepotDeuxTempsApiTest` (6, sans transaction de test). |
+| T-043 (5.3) | Dépôt avec métadonnées en une opération, validées contre le plan, 64 Ko | Identique | `POST /documents` : partie `metadonnees` (objet JSON, clés = code ou identifiant d'index). Validation complète **avant toute écriture** (`ValidationPlan`, règle partagée avec l'écran d'indexation) : 400 `METADONNEES_INVALIDES` avec erreurs par champ, 413 `METADONNEES_TROP_VOLUMINEUSES` au-delà de 64 Ko ; rien n'est déposé. |
+| T-100 (12.5) | Purge définitive avec destruction cryptographique | Identique (permission : point d'extension) | `PurgeService` : 409 `DOCUMENT_NON_SUPPRIME` hors corbeille ; lignes métier supprimées, DEK détruites dans la transaction, fichiers effacés après validation, aperçus invalidés ; `DOCUMENT_PURGE` ; jamais automatique. Permission `Purger` : `AutorisationsCycleDeVie` (implémentation provisoire « authentifié », E3 la remplace). `PurgeApiTest` (3 : fichier indéchiffrable après purge, tout ou rien). |
+| T-101 (12.6, D10) | Archivage manuel, dossier entier, drapeau, lecture seule, job par lot | Identique (contrat de dev1, implémentations provisoires jusqu'à la fusion) | Statut porté par le contrat du lot modèle (dev1, d33e581) : `ArchivageDocuments` (statut du document) et `ArchivageNoeuds` (drapeau du dossier et de sa sous-arborescence, documents à archiver par tranches), interfaces reprises à l'identique ; `ArchivageService` (empreinte revérifiée, copie PDF/A, statut, audit `DOCUMENT_ARCHIVE`) ; lecture seule totale en service (409 `DOCUMENT_ARCHIVE` sur fiche, index, versions, verrou, corbeille) **et** en base (déclencheur `trg_version_document_archive`) ; désarchivage réservé, empreinte revérifiée. Dossier entier : `ArchivageDossiers`, `job_archivage` + sélection figée (`documentsAArchiver` par tranches), tranches de 100 chacune dans sa transaction (repli document par document), bail et reprise, progression, annulation entre deux tranches (archivés conservés), rapport, un événement par document ; drapeau posé sur le dossier et sa sous-arborescence une fois toutes les tranches passées, dépôt alors refusé (Q7) ; retrait du drapeau par `marquerActif`. Recherche : archivés inclus par défaut, filtre `INCLURE` / `EXCLURE` / `SEULEMENT`, statut rendu. `ArchivageApiTest` (5), `ArchivageDossierApiTest` (5). |
+| T-060 (6.1.4) | Copie de conservation PDF/A-2 validée par veraPDF, Word archivable | Identique (LibreOffice simulé) | `ConvertisseurPdfA` : PDF déjà conforme gardé ; LibreOffice (export `SelectPdfVersion=2`) pour le bureautique, Word compris ; PDFBox pour images (TIFF multipage) et PDF (identification XMP, intention sRGB) ; repli par rendu en images (« essentiellement une image », Q7) ; **chaque candidat validé par veraPDF** (bibliothèque 1.30.2, profil PDF/A-2B). Copie chiffrée comme tout fichier, original conservé, servie par défaut (`?original=true` pour l'original). Échec = archivé avec l'original, `copie_conservation.statut = ECHEC` + motif, journalisé. `ConvertisseurPdfATest` (6, veraPDF réel). |
+| T-114 (12.10) | Export ZIP en flux avec manifeste | Identique (prédicat : point d'extension) | `ExportDossiers` : `ZipOutputStream` sans fichier temporaire, déchiffrement au fil de l'eau, manifeste en tête (UTF-8, `;`, colonnes du §12.10), version courante, doublons de nom suffixés ; `PredicatDroits` (celui de la recherche, remplacé par E3) ; `DOCUMENT_EXPORTE` par document ; au-delà de 500 documents ou 2 Go : `job_export` (sélection figée), archive chiffrée, « Mes exports », expiration 7 jours. `ExportApiTest` (3). |
+
+### Anomalie corrigée : course sur les en-têtes (signalée par dev2)
+
+`PrevisualisationApiTest.apercuPdf` : `ConcurrentModificationException` intermittente. Cause :
+le corps `StreamingResponseBody` s'écrit dans un autre fil ; le `HeaderWriterFilter` de Spring
+Security écrit ses en-têtes à l'engagement de la réponse (fil d'écriture) **et** en sortie de
+chaîne (fil de la requête) : deux fils modifiaient la même table d'en-têtes (en production :
+en-têtes incohérents possibles). Correction (55bb079) : téléchargement, aperçu et export servis
+par `InputStreamResource`, copiés en flux dans le fil de la requête ; l'archive ZIP est produite
+par un fil dédié dans un tube, jamais au contact de la réponse. Les tests vérifient
+`asyncNotStarted()`. Le test de la branche de dev2 est la version E5 d'origine : corrigé par la
+fusion de ce lot (le correctif est dans le contrôleur, pas dans le test).
+
+### Points d'extension et fusion
+
+- Contrat d'archivage de dev1 (d33e581) : `common.StatutConservation`,
+  `document.archivage.ArchivageDocuments`, `workspace.archivage.ArchivageNoeuds` repris **à
+  l'identique** (mêmes blobs git). Implémentations provisoires de cette branche
+  (`cycledevie.provisoire.ArchivageDocumentsProvisoire`, `ArchivageNoeudsEspaces`, sur
+  `workspace`), déclarées seulement en l'absence d'une autre : **à supprimer à la fusion**,
+  `ArchivageDocumentsJdbc` / `ArchivageNoeudsJdbc` de dev1 prenant le relais. L'archiviste passé
+  au contrat est l'employé dans cette branche ; à la fusion, passer l'identité GED
+  (`ActeurCourant.utilisateurId()`).
+- Colonnes `document.statut_conservation`, `archive_le`, `archive_par` : posées par le changeset
+  `202609301000` de dev1 ; le changeset provisoire `202609301005` les crée à l'identique ici
+  (sans la clé étrangère vers `utilisateur`) et passe en MARK_RAN quand elles existent. Champs de
+  `UploadDocument` alignés sur ceux de dev1. Le déclencheur de gel des versions
+  (`202609301010`) vient après.
+- Garde d'écriture : `DocumentService.refuserSiArchive` et le contrôle d'`IndexationService`
+  (409 `DOCUMENT_ARCHIVE`, même code) sont à remplacer à la fusion par
+  `GardeEcriture.exigerModifiable` de dev1.
+- `AutorisationsCycleDeVie` (Purger, Archiver, désarchivage réservé) : à fournir par E3 (dev1).
+- `Dossiers` (nom du dossier, documents de la sous-arborescence avec chemins, pour l'export) :
+  implémentation sur `workspace` ; à remplacer par une implémentation sur `noeud` /
+  `document_rattachement` à la fusion.
+- Renommages du socle de dev1 à reporter à la fusion : `deleted` → `supprime`,
+  `workspace` → `noeud`, emplacement principal du document ; SQL concernés : `DossiersEspaces`,
+  `ExportDossiers.details` (colonnes `objet`, `date_document` du socle commun de dev1 à lire au
+  lieu de `metadonnees`), `SearchIndexerPostgres`, `PurgeService` (rattachements à supprimer).
+- Idempotency-Key du dépôt (§12.11 « rejeu sans effet ») : lot de dev2.
+
+### Vérifié uniquement par simulateur ou partiellement
+
+- **LibreOffice** : absent du poste ; export PDF/A-2 simulé (`FauxSoffice` produit un vrai PDF/A,
+  que veraPDF valide réellement). LibreOffice ≥ 7.4 requis en production (option d'export en JSON).
+- **veraPDF** : réel (bibliothèque). **ClamAV** : faux clamd (inchangé).
+- Charge : aucun essai d'archivage ou d'export de plusieurs milliers de documents.
+
+### Dépendances ajoutées (registre de dev2 à régénérer)
+
+`org.verapdf:validation-model-jakarta` 1.30.2 (GPL-3.0+ ou MPL-2.0+, **MPL-2.0 retenue** :
+compatible avec la cession à MMED, bibliothèque non modifiée) et ses transitives
+(`verapdf-*`, `Saxon-HE` MPL-2.0, `rhino` MPL-2.0, `xmlresolver` Apache-2.0, `jaxb` EDL/BSD) ;
+`org.apache.pdfbox:xmpbox` 3.0.8 (Apache-2.0). À ajouter à la table des usages de
+`outils/registre-dependances.mjs` (dev2).
