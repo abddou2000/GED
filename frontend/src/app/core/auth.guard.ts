@@ -37,7 +37,15 @@ export const roleGuard: CanActivateFn = () => {
   return auth.sansRole() ? inject(Router).createUrlTree(['/accueil']) : true;
 };
 
-/** Écrans d'administration : rôle Administrateur. */
+/** Écran réservé aux détenteurs d'une permission (confort : le serveur refuse de toute façon). */
+export function permissionGuard(permission: string): CanActivateFn {
+  return () => {
+    const auth = inject(AuthService);
+    return auth.peut(permission) ? true : inject(Router).createUrlTree(['/accueil']);
+  };
+}
+
+/** Écrans d'administration : rôle Administrateur (permission GERER_ROLES_HABILITATIONS). */
 export const administrateurGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   return auth.administrateur() ? true : inject(Router).createUrlTree(['/accueil']);

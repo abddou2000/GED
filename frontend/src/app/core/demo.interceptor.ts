@@ -82,6 +82,11 @@ export function demoInterceptor(
         id: '01920000-0000-7000-8000-0000000000aa', identifiant: 'sbennani',
         employeId: '01920000-0000-7000-8000-000000000001', fullName: 'Sara Bennani',
         email: 'sara.bennani@marchica.ma', direction: null, roles: ['ADMINISTRATEUR'],
+        // Démonstration : l'Administrateur de portée globale exerce toutes les permissions.
+        permissions: ['CONSULTER', 'DEPOSER', 'MODIFIER', 'VALIDER', 'DIFFUSER', 'DEPLACER', 'ARCHIVER',
+          'SUPPRIMER', 'PURGER', 'GERER_REFERENTIELS', 'GERER_ESPACES', 'GERER_ROLES_HABILITATIONS',
+          'GERER_CLES_API', 'CONSULTER_AUDIT', 'ADMINISTRER_INDEX', 'SUPERVISER_TRAITEMENTS',
+          'VOIR_PRIVE', 'VOIR_CONFIDENTIEL'],
       },
     });
   }

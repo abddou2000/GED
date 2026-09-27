@@ -35,8 +35,14 @@ export interface WorkSpaceRequest {
 export interface TreeNode {
   id: string;
   name: string;
-  status: string;
+  /** Absent pour un nœud de passage. */
+  status: string | null;
   parentId: string | null;
+  /**
+   * Nœud non couvert par une habilitation de l'utilisateur, montré seulement
+   * parce qu'il mène à un nœud couvert (P5) : libellé seul, sans lien ni action.
+   */
+  passage?: boolean;
   children: TreeNode[];
 }
 

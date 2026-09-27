@@ -72,12 +72,18 @@
     <a routerLink="/televerser" routerLinkActive="active" (click)="closeDrawer()" aria-label="Documents déposés">
       <mat-icon svgIcon="nav-upload"></mat-icon><span>Documents</span>
     </a>
+    <!-- Référentiels : visibles de qui les administre (GERER_REFERENTIELS). -->
+    @if (auth.peut('GERER_REFERENTIELS')) {
     <a routerLink="/regles-de-workflow" routerLinkActive="active" (click)="closeDrawer()" aria-label="Règles de Workflow">
       <mat-icon svgIcon="nav-workflow"></mat-icon><span>Règles de Workflow</span>
     </a>
-    <a routerLink="/groupe-d-acces" routerLinkActive="active" (click)="closeDrawer()" aria-label="Groupe d'accès">
-      <mat-icon svgIcon="nav-groups"></mat-icon><span>Groupe d'accès</span>
+    }
+    @if (auth.peut('GERER_ROLES_HABILITATIONS')) {
+    <a routerLink="/groupe-d-acces" routerLinkActive="active" (click)="closeDrawer()" aria-label="Groupes GED">
+      <mat-icon svgIcon="nav-groups"></mat-icon><span>Groupes</span>
     </a>
+    }
+    @if (auth.peut('GERER_REFERENTIELS')) {
     <a routerLink="/index" routerLinkActive="active" (click)="closeDrawer()" aria-label="Index">
       <mat-icon svgIcon="nav-index"></mat-icon><span>Index</span>
     </a>
@@ -91,7 +97,17 @@
       <mat-icon svgIcon="nav-tag"></mat-icon><span>Étiquette</span>
     </a>
     }
+    }
     @if (auth.administrateur()) {
+      <a routerLink="/administration/habilitations" routerLinkActive="active" (click)="closeDrawer()" aria-label="Habilitations">
+        <mat-icon svgIcon="user"></mat-icon><span>Habilitations</span>
+      </a>
+      <a routerLink="/administration/roles" routerLinkActive="active" (click)="closeDrawer()" aria-label="Rôles">
+        <mat-icon svgIcon="nav-groups"></mat-icon><span>Rôles</span>
+      </a>
+      <a routerLink="/administration/droits-effectifs" routerLinkActive="active" (click)="closeDrawer()" aria-label="Droits effectifs">
+        <mat-icon svgIcon="nav-index"></mat-icon><span>Droits effectifs</span>
+      </a>
       <a routerLink="/administration/sessions" routerLinkActive="active" (click)="closeDrawer()" aria-label="Sessions">
         <mat-icon svgIcon="nav-groups"></mat-icon><span>Sessions</span>
       </a>

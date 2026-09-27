@@ -12,8 +12,13 @@ export interface Identite {
   fullName: string;
   email: string | null;
   direction: string | null;
-  /** Rôles GED : confort d'affichage seulement, le serveur les revérifie à chaque appel. */
+  /** Rôles GED détenus (toute portée) : confort d'affichage seulement, le serveur les revérifie à chaque appel. */
   roles: string[];
+  /**
+   * Permissions exercées quelque part (lot E3) : menus et actions sont masqués
+   * sans elles. Confort seulement — le serveur décide à chaque requête.
+   */
+  permissions?: string[];
 }
 
 /** Réponse de `/auth/login` et `/auth/refresh`. */
@@ -62,7 +67,16 @@ export class AuthService {
     return u !== null && u.roles.length === 0;
   });
 
-  readonly administrateur = computed(() => this.utilisateur()?.roles.includes('ADMINISTRATEUR') ?? false);
+  /**
+   * Administrateur des droits : la permission GERER_ROLES_HABILITATIONS n'est
+   * reçue qu'en portée globale (§12.2.2), comme l'accès à /api/v1/admin/**.
+   */
+  readonly administrateur = computed(() => this.peut('GERER_ROLES_HABILITATIONS'));
+
+  /** L'utilisateur exerce-t-il cette permission quelque part ? (confort d'affichage) */
+  peut(permission: string): boolean {
+    return this.utilisateur()?.permissions?.includes(permission) ?? false;
+  }
 
   /** Renouvellement en cours, partagé par tous les appels qui l'attendent. */
   private renouvellementEnCours: Observable<ReponseConnexion> | null = null;

@@ -121,6 +121,7 @@
 .tname { font-size: 14px; font-weight: 600; color: var(--ink); flex: 1; min-width: 0; }
 a.tname { text-decoration: none; }
 a.tname:hover { text-decoration: underline; }
+.tname.passage { font-weight: 400; font-style: italic; color: var(--ink-soft); }
 .tdots { margin-left: auto; }
 
 /* ---------- Documents en feuilles de l'arbre ---------- */

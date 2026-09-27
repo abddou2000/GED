@@ -103,6 +103,23 @@ export const routes: Routes = [
         loadComponent: () => import('./features/signature/mes-workflow/mes-workflow').then(m => m.MesWorkflow),
       },
       {
+        // Administration des droits (lot E3, §12.2) : habilitations et
+        // attribution d'un premier rôle, composition des rôles, droits effectifs.
+        path: 'administration/habilitations',
+        canActivate: [administrateurGuard],
+        loadComponent: () => import('./features/administration/habilitations/habilitations').then(m => m.HabilitationsAdmin),
+      },
+      {
+        path: 'administration/roles',
+        canActivate: [administrateurGuard],
+        loadComponent: () => import('./features/administration/roles/roles').then(m => m.RolesAdmin),
+      },
+      {
+        path: 'administration/droits-effectifs',
+        canActivate: [administrateurGuard],
+        loadComponent: () => import('./features/administration/droits-effectifs/droits-effectifs').then(m => m.DroitsEffectifsAdmin),
+      },
+      {
         // Administration : révocation des sessions d'un utilisateur (risque R26).
         path: 'administration/sessions',
         canActivate: [administrateurGuard],
