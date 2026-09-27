@@ -84,8 +84,12 @@ public class ReponsesSecuriteProblem implements AuthenticationEntryPoint, Access
         ecrire(requete, reponse, HttpStatus.FORBIDDEN, CodesErreur.ACCES_REFUSE, "Accès refusé.");
     }
 
-    private void ecrire(HttpServletRequest requete, HttpServletResponse reponse, HttpStatus statut,
-                        String code, String detail) throws IOException {
+    /**
+     * Écrit une réponse problem+json depuis un filtre, hors de Spring MVC (refus
+     * d'une clé d'API, quota…). Sans effet si la réponse est déjà engagée.
+     */
+    public void ecrire(HttpServletRequest requete, HttpServletResponse reponse, HttpStatus statut,
+                       String code, String detail) throws IOException {
         if (reponse.isCommitted()) return;
         ProblemDetail probleme = Problemes.creer(statut, code, detail, requete);
         reponse.setStatus(statut.value());

@@ -34,8 +34,8 @@ public final class Tri {
      */
     public static final int TAILLE_MAX = 200;
 
-    /** Taille appliquée quand l'appelant en demande une absurde (0, négative). */
-    private static final int TAILLE_DEFAUT = 10;
+    /** Taille appliquée quand l'appelant en demande une absurde (0, négative) : 50 (DAT §5.3.2). */
+    private static final int TAILLE_DEFAUT = 50;
 
     /**
      * @param champsAutorises colonnes sur lesquelles le tri est permis

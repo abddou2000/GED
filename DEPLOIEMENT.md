@@ -170,7 +170,9 @@ message-là — il ne sait pas distinguer les deux cas.
 **Sauvegarde.** Deux choses à sauvegarder, et les deux ensemble :
 
 - la base PostgreSQL (`pg_dump -Fc`, schémas `ged` et `ged_liquibase`),
-- le dossier de stockage (`ged.storage.root`), qui contient les fichiers.
+- le référentiel de fichiers chiffrés (`ged.fichiers.racine`, variable
+  `GED_STOCKAGE_RACINE`), et à part ses clés (keystore `GED_KEYSTORE_CHEMIN`,
+  table `cle_fichier`) : voir `docs/exploitation/RESTAURATION.md`.
 
 L'un sans l'autre ne permet pas de restaurer : la base porte les métadonnées,
 le disque porte les documents.

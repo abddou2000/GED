@@ -1,0 +1,42 @@
+# ============================================================
+#  API d'intégration (DAT §5) : clés d'API, idempotence, conventions.
+#  Importé par application.yml (spring.config.import).
+# ============================================================
+ged:
+  api:
+    cles:
+      # Préfixe des clés émises : ged_<env>_<identifiant>_<secret>. Une clé
+      # d'un autre environnement est refusée.
+      environnement: ${GED_ENVIRONNEMENT:dev}
+      # Validité par défaut d'une clé (12 mois) et chevauchement après
+      # régénération (7 jours), DAT §5.4.
+      validite: 365d
+      chevauchement: 7d
+      # Clés signalées dans l'écran d'administration avant leur expiration.
+      alerte-expiration: 30d
+      # Quotas par défaut d'une nouvelle application, par clé.
+      quota-minute: 600
+      quota-jour: 100000
+      # Persistance des compteurs de quotas tenus en mémoire.
+      persistance-compteurs: 1m
+    idempotence:
+      # Réponse d'une création mémorisée 24 heures par appelant.
+      duree: 24h
+      purge-cron: "0 15 * * * *"
+      # Créations soumises à Idempotency-Key (DAT §5.3.2) : dépôt, versement,
+      # création de dossier, rattachement. Une ligne par point d'entrée.
+      routes:
+        - POST /api/v1/documents
+        - POST /api/v1/documents/*/versions
+        - POST /api/v1/documents/*/rattachements
+        - POST /api/v1/workspaces
+        - POST /api/v1/noeuds/*/dossiers
+    conventions:
+      # 64 Ko de métadonnées par requête (DAT §5.3.2).
+      metadonnees-max: 65536
+      # Annonces de dépréciation (rupture = /api/v2, v1 maintenue 12 mois) :
+      # depreciations:
+      #   - prefixe: /api/v1/
+      #     annonce: 2027-01-01
+      #     retrait: 2028-01-01
+      #     successeur: /api/v2/

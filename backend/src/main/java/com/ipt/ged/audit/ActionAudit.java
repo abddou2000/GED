@@ -105,7 +105,14 @@ public enum ActionAudit {
     // --- Intégration (§5) ----------------------------------------------------
     APPEL_API,
     CLE_API_GENEREE,
+    CLE_API_REGENEREE,
     CLE_API_REVOQUEE,
+    CLE_API_REFUSEE,
+    QUOTA_DEPASSE,
+    APPLICATION_CREEE,
+    APPLICATION_MODIFIEE,
+    APPLICATION_ACTIVEE,
+    APPLICATION_DESACTIVEE,
 
     // --- Journal d'audit lui-même (§7.4.3 : la consultation est auditée) -----
     AUDIT_CONSULTE,

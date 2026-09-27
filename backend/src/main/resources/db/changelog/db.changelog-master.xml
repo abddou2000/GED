@@ -68,5 +68,6 @@
     <include file="changesets/202609261135_ajout_metadonnees_document.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609261140_jalon_socle_donnees.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609271000_creation_journal_audit.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281000_creation_cles_api.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
