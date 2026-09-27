@@ -126,6 +126,7 @@ public class DocumentService {
     private final DocumentConfidentielDesigneRepository designes;
     private final UtilisateurRepository utilisateurs;
     private final WorkSpaceRepository noeuds;
+    private final com.ipt.ged.depot.source.ResolutionOrigineDepot origines;
 
     public DocumentService(UploadDocumentRepository repo, TypeDocumentRepository typeRepo,
                            SignatureService signatureService,
@@ -136,7 +137,7 @@ public class DocumentService {
                            AccessPredicate droits, ControleAcces controle, GardeEcriture garde,
                            DocumentRattachementRepository rattachements,
                            DocumentConfidentielDesigneRepository designes, UtilisateurRepository utilisateurs,
-                           WorkSpaceRepository noeuds) {
+                           WorkSpaceRepository noeuds, com.ipt.ged.depot.source.ResolutionOrigineDepot origines) {
         this.repo = repo;
         this.typeRepo = typeRepo;
         this.signatureService = signatureService;
@@ -156,6 +157,7 @@ public class DocumentService {
         this.designes = designes;
         this.utilisateurs = utilisateurs;
         this.noeuds = noeuds;
+        this.origines = origines;
     }
 
     private static Authentication appelant() {
@@ -316,6 +318,12 @@ public class DocumentService {
         doc.setExtension(ext);
         doc.setSizeKo(depot.stockage().tailleOctets() / 1024);
         doc.setExpirationDate(expiration);
+        // Source et déposant enregistrés au temps 1 (T-040, §12.11).
+        var origine = origines.courante();
+        doc.setCanalDepot(origine.canal());
+        doc.setApplicationId(origine.applicationId());
+        doc.setDeposantUtilisateurId(origine.deposantUtilisateurId());
+        doc.setDepotDelegue(origine.delegue());
         doc.setConfidentialite(confidentialite != null ? confidentialite
                 : type.getConfidentialiteDefaut() != null ? type.getConfidentialiteDefaut() : Confidentialite.PUBLIC);
         if (createdById != null) {

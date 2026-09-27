@@ -16,7 +16,7 @@ import java.util.UUID;
  * @param deposeAu borne haute incluse de la date de dépôt.
  */
 public record CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDate deposeDu, LocalDate deposeAu,
-                                  Archives archives) {
+                                  Archives archives, String canalDepot) {
 
     public static final CriteresMetadonnees AUCUN = new CriteresMetadonnees(null, null, null, null);
 
@@ -27,7 +27,12 @@ public record CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDa
     public enum Archives { INCLURE, EXCLURE, SEULEMENT }
 
     public CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDate deposeDu, LocalDate deposeAu) {
-        this(typeDocumentId, workspaceId, deposeDu, deposeAu, Archives.INCLURE);
+        this(typeDocumentId, workspaceId, deposeDu, deposeAu, Archives.INCLURE, null);
+    }
+
+    public CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDate deposeDu, LocalDate deposeAu,
+                               Archives archives) {
+        this(typeDocumentId, workspaceId, deposeDu, deposeAu, archives, null);
     }
 
     public CriteresMetadonnees {
@@ -54,6 +59,11 @@ public record CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDa
         if (deposeAu != null) {
             f.add(new FragmentSql("d.created_at < :critere_au",
                     Map.of("critere_au", deposeAu.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC))));
+        }
+        if (canalDepot != null && !canalDepot.isBlank()) {
+            // Canal du dépôt (T-040) : INTERFACE, API, BUREAU_ORDRE, REPRISE.
+            f.add(new FragmentSql("d.canal_depot = :critere_canal", Map.of("critere_canal",
+                    com.ipt.ged.depot.source.CanalDepot.valueOf(canalDepot.trim().toUpperCase()).name())));
         }
         if (archives == Archives.EXCLURE) {
             f.add(new FragmentSql("d.statut_conservation <> 'ARCHIVE'", Map.of()));

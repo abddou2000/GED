@@ -15,6 +15,8 @@ export interface ResultatRecherche {
   deposeLe: string | null;
   /** ACTIF ou ARCHIVE (badge, §12.6). */
   statutConservation?: 'ACTIF' | 'ARCHIVE' | null;
+  /** Canal du dépôt (T-040). */
+  canalDepot?: string | null;
 }
 
 export interface PageResultats {
@@ -35,6 +37,8 @@ export interface CriteresRecherche {
   au?: string | null;
   /** Documents archivés : inclus par défaut (§12.6). */
   archives?: 'INCLURE' | 'EXCLURE' | 'SEULEMENT';
+  /** Canal du dépôt (T-040) ; tous si absent. */
+  canal?: string | null;
 }
 
 export type StatutOcr = 'EN_ATTENTE_OCR' | 'EN_COURS_OCR' | 'OCR_TERMINE' | 'OCR_ECHEC';

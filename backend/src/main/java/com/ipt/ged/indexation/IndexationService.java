@@ -619,6 +619,8 @@ public class IndexationService {
                 // Archivés inclus par défaut, filtre pour les exclure ou ne garder qu'eux (§12.6).
                 .filter(d -> !"EXCLURE".equals(requete.archives()) || !d.estArchive())
                 .filter(d -> !"SEULEMENT".equals(requete.archives()) || d.estArchive())
+                .filter(d -> requete.canal() == null || requete.canal().isBlank()
+                        || d.getCanalDepot().name().equalsIgnoreCase(requete.canal().trim()))
                 .toList();
         if (candidats.isEmpty()) return List.of();
 

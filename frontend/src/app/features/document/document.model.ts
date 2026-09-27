@@ -38,6 +38,13 @@ export interface DocumentItem {
   /** ACTIF, ou ARCHIVE : lecture seule totale (§12.6). */
   statutConservation?: 'ACTIF' | 'ARCHIVE' | null;
   archiveLe?: string | null;
+  /** Canal du dépôt (T-040) : INTERFACE, API, BUREAU_ORDRE, REPRISE. */
+  canalDepot?: CanalDepot | null;
+  /** Application appelante (clé d'API), absente depuis l'interface. */
+  applicationId?: string | null;
+  /** Identité GED du déposant (déposant délégué si depotDelegue). */
+  deposantUtilisateurId?: string | null;
+  depotDelegue?: boolean;
   /** En corbeille. */
   supprime?: boolean;
   /** Niveau de confidentialité (§12.3). */
@@ -50,6 +57,16 @@ export interface DocumentItem {
   /** Emplacements complémentaires visibles (fiche seulement). */
   rattachements?: Ref[] | null;
 }
+
+export type CanalDepot = 'INTERFACE' | 'API' | 'BUREAU_ORDRE' | 'REPRISE';
+
+/** Libellés des canaux de dépôt (T-040). */
+export const LIBELLES_CANAL: Record<CanalDepot, string> = {
+  INTERFACE: 'Interface web',
+  API: 'Application (API)',
+  BUREAU_ORDRE: "Bureau d'ordre",
+  REPRISE: 'Reprise',
+};
 
 export type Confidentialite = 'PUBLIC' | 'PRIVE' | 'CONFIDENTIEL';
 

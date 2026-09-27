@@ -96,7 +96,7 @@ public class ExportDossiers {
     public record Ligne(UUID documentId, UUID versionId, UUID cleFichierId, List<String> chemins, String nom,
                         String extension, String objet, String type, String dateDocument, Instant deposeLe,
                         String deposant, String confidentialite, String statut, int version, String empreinte,
-                        long tailleOctets, String entree) {
+                        long tailleOctets, String entree, String canal, String application) {
     }
 
     /** Documents autorisés du dossier, prêts à écrire. */
@@ -148,6 +148,7 @@ public class ExportDossiers {
         List<Ligne> brutes = nomme.query("""
                 SELECT d.id, d.name, d.extension, t.type_de_document, d.created_at, d.statut_conservation,
                        d.objet, CAST(d.date_document AS text) AS date_document, d.confidentialite,
+                       d.canal_depot, CAST(d.application_id AS text) AS application,
                        trim(coalesce(e.first_name, '') || ' ' || coalesce(e.last_name, '')) AS deposant,
                        v.id AS version_id, v.cle_fichier_id, v.empreinte, v.taille_octets,
                        (SELECT count(*) FROM version_document v2 WHERE v2.document_id = d.id
@@ -163,7 +164,8 @@ public class ExportDossiers {
                         rs.getString("extension"), rs.getString("objet"), rs.getString("type_de_document"),
                         rs.getString("date_document"), instant(rs.getTimestamp("created_at")),
                         rs.getString("deposant"), rs.getString("confidentialite"), rs.getString("statut_conservation"),
-                        rs.getInt("numero"), rs.getString("empreinte"), rs.getLong("taille_octets"), null));
+                        rs.getInt("numero"), rs.getString("empreinte"), rs.getLong("taille_octets"), null,
+                        rs.getString("canal_depot"), rs.getString("application")));
         Map<UUID, Ligne> parId = new HashMap<>();
         brutes.forEach(l -> parId.put(l.documentId(), l));
         List<Ligne> lignes = new ArrayList<>();
@@ -172,7 +174,8 @@ public class ExportDossiers {
             if (l != null) {
                 lignes.add(new Ligne(l.documentId(), l.versionId(), l.cleFichierId(), e.getValue(), l.nom(),
                         l.extension(), l.objet(), l.type(), l.dateDocument(), l.deposeLe(), l.deposant(),
-                        l.confidentialite(), l.statut(), l.version(), l.empreinte(), l.tailleOctets(), null));
+                        l.confidentialite(), l.statut(), l.version(), l.empreinte(), l.tailleOctets(), null,
+                        l.canal(), l.application()));
             }
         }
         return lignes;
@@ -199,7 +202,8 @@ public class ExportDossiers {
             total += l.tailleOctets();
             nommees.add(new Ligne(l.documentId(), l.versionId(), l.cleFichierId(), l.chemins(), l.nom(),
                     l.extension(), l.objet(), l.type(), l.dateDocument(), l.deposeLe(), l.deposant(),
-                    l.confidentialite(), l.statut(), l.version(), l.empreinte(), l.tailleOctets(), entree));
+                    l.confidentialite(), l.statut(), l.version(), l.empreinte(), l.tailleOctets(), entree,
+                    l.canal(), l.application()));
         }
         return new Selection(dossier.id(), dossier.nom(), nommees, total);
     }
@@ -266,7 +270,8 @@ public class ExportDossiers {
     static String manifeste(Selection s) {
         StringBuilder csv = new StringBuilder("﻿");
         csv.append(String.join(";", "identifiant", "fichier", "chemins", "nom", "objet", "type", "date_document",
-                "date_depot", "deposant", "confidentialite", "statut", "version", "empreinte_sha256")).append("\r\n");
+                "date_depot", "deposant", "confidentialite", "statut", "version", "empreinte_sha256",
+                "canal_depot", "application")).append("\r\n");
         for (Ligne l : s.lignes()) {
             String chemins = String.join(" | ", l.chemins().stream()
                     .map(c -> c.isBlank() ? s.dossierNom() : s.dossierNom() + "/" + c).toList());
@@ -274,7 +279,7 @@ public class ExportDossiers {
                     champ(l.nom()), champ(l.objet()), champ(l.type()), champ(l.dateDocument()),
                     champ(l.deposeLe() != null ? l.deposeLe().toString() : null), champ(l.deposant()),
                     champ(l.confidentialite()), champ(l.statut()), champ(String.valueOf(l.version())),
-                    champ(l.empreinte()))).append("\r\n");
+                    champ(l.empreinte()), champ(l.canal()), champ(l.application()))).append("\r\n");
         }
         return csv.toString();
     }

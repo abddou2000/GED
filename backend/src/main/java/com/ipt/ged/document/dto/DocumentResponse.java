@@ -59,7 +59,14 @@ public record DocumentResponse(
         String motifIndexation,
         /** {@code ACTIF} ou {@code ARCHIVE} (§12.6) : un document archivé est en lecture seule. */
         String statutConservation,
-        Instant archiveLe
+        Instant archiveLe,
+        /** Canal du dépôt (T-040) : INTERFACE, API, BUREAU_ORDRE, REPRISE. */
+        String canalDepot,
+        /** Application appelante (clé d'API), {@code null} depuis l'interface. */
+        UUID applicationId,
+        /** Identité GED du déposant ; déposant délégué si {@code depotDelegue}. */
+        UUID deposantUtilisateurId,
+        boolean depotDelegue
 ) {
     public record Ref(UUID id, String label) {}
 
@@ -109,14 +116,17 @@ public record DocumentResponse(
                 d.getStatutIndexation() != null ? d.getStatutIndexation().name() : null,
                 null,
                 d.getStatutConservation() != null ? d.getStatutConservation().name() : null,
-                d.getArchiveLe());
+                d.getArchiveLe(),
+                d.getCanalDepot() != null ? d.getCanalDepot().name() : null,
+                d.getApplicationId(), d.getDeposantUtilisateurId(), d.isDepotDelegue());
     }
 
     /** Même réponse, avec l'issue d'indexation établie par le dépôt et son motif. */
     public DocumentResponse avecIndexation(String statut, String motif) {
         return new DocumentResponse(id, name, workspace, typeDocument, fileName, extension, sizeKo, sizeLabel,
                 expirationDate, active, verrouille, supprime, chemin, createdBy, etiquettes, versions, createdAt,
-                confidentialite, permissions, rattachements, statutOcr, statut, motif, statutConservation, archiveLe);
+                confidentialite, permissions, rattachements, statutOcr, statut, motif, statutConservation, archiveLe,
+                canalDepot, applicationId, deposantUtilisateurId, depotDelegue);
     }
 
     /**

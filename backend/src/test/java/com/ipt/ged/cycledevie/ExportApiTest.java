@@ -126,7 +126,8 @@ class ExportApiTest extends BaseCycleDeVieApiTest {
         String ligneA = java.util.Arrays.stream(lignes).filter(l -> l.startsWith(a.toString())).findFirst().orElseThrow();
         String empreinteV2 = java.util.HexFormat.of().formatHex(
                 java.security.MessageDigest.getInstance("SHA-256").digest(v2));
-        assertTrue(ligneA.endsWith(";ACTIF;2;" + empreinteV2), ligneA);
+        // … statut, version, empreinte, puis canal du dépôt et application (T-040).
+        assertTrue(ligneA.endsWith(";ACTIF;2;" + empreinteV2 + ";INTERFACE;"), ligneA);
         assertTrue(manifeste.contains(dossier + "/Annexes"), "chemin du document du sous-dossier");
         assertFalse(manifeste.contains(secret.toString()));
 
