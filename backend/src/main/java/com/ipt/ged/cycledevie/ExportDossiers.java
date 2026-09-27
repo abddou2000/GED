@@ -79,10 +79,12 @@ public class ExportDossiers {
     private final ProprietesCycleDeVie proprietes;
     private final TransactionTemplate transaction;
     private final com.ipt.ged.autorisation.ControleAcces controle;
+    private final com.ipt.ged.fichier.integrite.LectureControlee lectures;
 
     public ExportDossiers(JdbcTemplate jdbc, Dossiers dossiers, PredicatDroits droits, StockageChiffre stockage,
                           ApplicationEventPublisher evenements, ProprietesCycleDeVie proprietes,
-                          PlatformTransactionManager transactions, com.ipt.ged.autorisation.ControleAcces controle) {
+                          PlatformTransactionManager transactions, com.ipt.ged.autorisation.ControleAcces controle,
+                          com.ipt.ged.fichier.integrite.LectureControlee lectures) {
         this.jdbc = jdbc;
         this.nomme = new NamedParameterJdbcTemplate(jdbc);
         this.dossiers = dossiers;
@@ -92,6 +94,7 @@ public class ExportDossiers {
         this.proprietes = proprietes;
         this.transaction = new TransactionTemplate(transactions);
         this.controle = controle;
+        this.lectures = lectures;
     }
 
     /** Un document exporté : son entrée dans l'archive et sa ligne de manifeste. */
@@ -242,7 +245,7 @@ public class ExportDossiers {
                 zip.closeEntry();
             }
             zip.putNextEntry(new ZipEntry(l.entree()));
-            try (InputStream in = stockage.lire(l.cleFichierId())) {
+            try (InputStream in = lectures.ouvrir(l.cleFichierId(), "export du document " + l.documentId())) {
                 in.transferTo(zip);
             }
             zip.closeEntry();
@@ -345,7 +348,7 @@ public class ExportDossiers {
             throw ErreurCycleDeVie.conflit(ErreurCycleDeVie.EXPORT_INDISPONIBLE,
                     "Export non disponible (état " + e.etat() + ").");
         }
-        return stockage.lire(fichier);
+        return lectures.ouvrir(fichier, "archive d'export " + id);
     }
 
     /** Réserve un export en attente (ou abandonné) et produit son archive chiffrée. */

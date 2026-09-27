@@ -127,6 +127,7 @@ public class DocumentService {
     private final UtilisateurRepository utilisateurs;
     private final WorkSpaceRepository noeuds;
     private final com.ipt.ged.depot.source.ResolutionOrigineDepot origines;
+    private final com.ipt.ged.fichier.integrite.LectureControlee lectures;
 
     public DocumentService(UploadDocumentRepository repo, TypeDocumentRepository typeRepo,
                            SignatureService signatureService,
@@ -137,7 +138,8 @@ public class DocumentService {
                            AccessPredicate droits, ControleAcces controle, GardeEcriture garde,
                            DocumentRattachementRepository rattachements,
                            DocumentConfidentielDesigneRepository designes, UtilisateurRepository utilisateurs,
-                           WorkSpaceRepository noeuds, com.ipt.ged.depot.source.ResolutionOrigineDepot origines) {
+                           WorkSpaceRepository noeuds, com.ipt.ged.depot.source.ResolutionOrigineDepot origines,
+                           com.ipt.ged.fichier.integrite.LectureControlee lectures) {
         this.repo = repo;
         this.typeRepo = typeRepo;
         this.signatureService = signatureService;
@@ -158,6 +160,7 @@ public class DocumentService {
         this.utilisateurs = utilisateurs;
         this.noeuds = noeuds;
         this.origines = origines;
+        this.lectures = lectures;
     }
 
     private static Authentication appelant() {
@@ -534,13 +537,14 @@ public class DocumentService {
         if (d.estArchive() && !original) {
             Optional<CopiesConservation.CopieValide> copie = copies.valide(v.getId());
             if (copie.isPresent()) {
-                InputStream flux = stockage.lire(copie.get().cleFichierId());
+                // Premier segment authentifié avant la réponse (ANO-E5-002).
+                InputStream flux = lectures.ouvrir(copie.get().cleFichierId(), "copie de conservation du document " + id);
                 evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
                         "copie de conservation PDF/A de " + v.getFileName()));
                 return new FichierTelecharge(d.getName() + ".pdf", copie.get().tailleOctets(), flux);
             }
         }
-        InputStream flux = stockage.lire(v.getCleFichierId());
+        InputStream flux = lectures.ouvrir(v.getCleFichierId(), "téléchargement du document " + id);
         String nom = d.getName() + (d.getExtension() != null && !d.getExtension().isBlank() ? "." + d.getExtension() : "");
         evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
                 v.getFileName()));
