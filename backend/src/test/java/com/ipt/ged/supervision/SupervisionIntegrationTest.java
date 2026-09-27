@@ -50,15 +50,18 @@ class SupervisionIntegrationTest {
     }
 
     @Test
-    @DisplayName("La sonde de santé couvre base, référentiel, annuaire, antivirus et files (DAT 6.7)")
+    @DisplayName("La sonde de santé couvre base, référentiel, antivirus et files ; l'annuaire hors disponibilité (DAT 6.7)")
     void sondesPresentes() {
         var global = (CompositeHealth) sante.health();
         assertThat(global.getComponents())
-                .containsKeys("db", "referentielFichiers", "annuaire", "antivirus", "filesTraitement");
+                .containsKeys("db", "referentielFichiers", "antivirus", "filesTraitement");
 
         var disponibilite = (CompositeHealth) sante.healthForPath("readiness");
         assertThat(disponibilite.getComponents())
-                .containsKeys("db", "referentielFichiers", "annuaire", "antivirus", "filesTraitement");
+                .containsKeys("db", "referentielFichiers", "antivirus", "filesTraitement")
+                // Annuaire indisponible : plus de nouvelles connexions, mais les
+                // sessions ouvertes travaillent ; l'instance reste en service.
+                .doesNotContainKey("annuaire");
     }
 
     @Test

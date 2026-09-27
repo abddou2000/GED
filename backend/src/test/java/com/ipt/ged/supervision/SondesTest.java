@@ -21,10 +21,10 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Sondes de santé du DAT 6.7. ClamAV et l'annuaire sont absents du poste : la
- * sonde antivirus est éprouvée contre un clamd simulé qui parle le protocole
- * réel ({@code zPING\0} / {@code PONG\0}) ; la sonde annuaire, contre un
- * annuaire simulé ({@link SondeAnnuaireTest}).
+ * Sondes de santé du DAT 6.7. ClamAV est absent du poste : la sonde antivirus
+ * est éprouvée contre un clamd simulé qui parle le protocole réel
+ * ({@code zPING\0} / {@code PONG\0}). La sonde de l'annuaire relève du lot
+ * identité.
  */
 class SondesTest {
 
@@ -86,9 +86,6 @@ class SondesTest {
     @DisplayName("Sondes désactivées : UP, avec la mention explicite de la désactivation")
     void sondesDesactivees() {
         assertThat(new SondeAntivirus(false, "x", 1, 10, (VerificationAntivirus) null).health().getDetails()).containsKey("supervision");
-        Health annuaire = new SondeAnnuaire(false, List.of("ldaps://x:636"), 10).health();
-        assertThat(annuaire.getStatus()).isEqualTo(Status.UP);
-        assertThat(annuaire.getDetails()).containsKey("supervision");
     }
 
     @Test
