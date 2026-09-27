@@ -9,6 +9,7 @@ E1-C05|^journal_audit\.id$|DAT 7.4.1 : identifiant séquentiel du journal d'audi
 E1-C06|^journal_audit\.id$|DAT 7.4.1 : identifiant séquentiel du journal d'audit
 # §7.4.3 : partitionnement mensuel ; PostgreSQL impose la clé de partition dans la clé primaire.
 E1-C04|^journal_audit$|DAT 7.4.3 : partition mensuelle, clé primaire (id, horodatage) imposée par PostgreSQL
-# §12.5 : « indicateur de suppression douce (supprime, supprime_par, supprime_le) » — le DAT
-# nomme lui-même la colonne ; elle référence l'utilisateur sans suffixe _id.
-E1-C07|\.supprime_par$|DAT 12.5 : nom de colonne supprime_par imposé
+# §12.4 (document_rattachement(…, cree_par, cree_le)) et §12.5 (supprime, supprime_par,
+# supprime_le) : le DAT nomme lui-même les colonnes d'auteur « <action>_par », sans suffixe
+# _id. La même forme est admise pour les autres colonnes d'auteur (verrou_par, archive_par…).
+E1-C07|\.[a-z]+_par$|DAT 12.4 et 12.5 : colonnes d'auteur <action>_par nommées par le DAT

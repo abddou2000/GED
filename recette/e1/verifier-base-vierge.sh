@@ -88,15 +88,22 @@ if [[ "$DEMARRER" -eq 1 ]]; then
   # ./data/cles, stockage) ne doivent rien créer dans la copie de travail (voir ANO-E5-001).
   JAR="$(cd "$(dirname "$JAR")" && pwd)/$(basename "$JAR")"
   pushd "$TRAVAIL" >/dev/null
+  # Actuator sur un port de management distinct (E10) ; annuaire embarqué du profil dev déplacé
+  # pour ne pas heurter l'instance d'un autre membre. Arguments supplémentaires éventuels :
+  # QA_ARGS_APPLICATION (par exemple la configuration de l'annuaire de l'environnement).
+  MGMT="${GED_MANAGEMENT_PORT:-$((PORT + 10))}"; LDAP_EMB="${QA_PORT_ANNUAIRE:-$((PORT + 15400))}"
+  # shellcheck disable=SC2086
   DB_NAME="$BASE" DB_HOST="$PGHOST" DB_PORT="$PGPORT" DB_USER=ged_app DB_PASSWORD="${GED_APP_PASSWORD:-}" \
+    GED_MANAGEMENT_PORT="$MGMT" GED_LDAP_URLS="${GED_LDAP_URLS:-ldap://localhost:$LDAP_EMB}" \
     java -jar "$JAR" --server.port="$PORT" --spring.liquibase.enabled=false --ged.base.nom="$BASE" \
+    --ged.identite.annuaire.embarque.port="$LDAP_EMB" ${QA_ARGS_APPLICATION:-} \
     > "$TRAVAIL/application.log" 2>&1 &
   PID=$!
   popd >/dev/null
   etat=""
   for _ in $(seq 1 90); do
     sleep 2
-    etat="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/actuator/health" || true)"
+    etat="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$MGMT/actuator/health" || true)"
     [[ "$etat" == 200 ]] && break
     kill -0 "$PID" 2>/dev/null || break
   done
