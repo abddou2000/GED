@@ -17,11 +17,23 @@ public record TypeDocumentResponse(
         Ref workspace,
         Ref planIndexation,
         List<String> typeAutorise,
-        int tailleMaxMo
+        int tailleMaxMo,
+        Integer dureeConservationMois,
+        String pointDepart,
+        String pointDepartIndexCode,
+        String confidentialiteDefaut,
+        /** Type actif : un type désactivé n'accepte plus de dépôt. */
+        boolean actif,
+        /** Version en vigueur du plan d'indexation, s'il y en a un. */
+        Integer versionPlan
 ) {
     public record Ref(UUID id, String label) {}
 
     public static TypeDocumentResponse from(TypeDocument t) {
+        return from(t, null);
+    }
+
+    public static TypeDocumentResponse from(TypeDocument t, Integer versionPlan) {
         List<String> types = (t.getTypeAutorise() == null || t.getTypeAutorise().isBlank())
                 ? List.of()
                 : Arrays.stream(t.getTypeAutorise().split(","))
@@ -31,6 +43,9 @@ public record TypeDocumentResponse(
                 t.getWorkspace() != null ? new Ref(t.getWorkspace().getId(), t.getWorkspace().getName()) : null,
                 t.getPlanIndexation() != null
                         ? new Ref(t.getPlanIndexation().getId(), t.getPlanIndexation().getNomDuPlan()) : null,
-                types, t.getTailleMaxMo());
+                types, t.getTailleMaxMo(), t.getDureeConservationMois(),
+                t.getPointDepart() != null ? t.getPointDepart().name() : null, t.getPointDepartIndexCode(),
+                t.getConfidentialiteDefaut() != null ? t.getConfidentialiteDefaut().name() : null,
+                t.isActif(), versionPlan);
     }
 }

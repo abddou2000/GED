@@ -273,6 +273,11 @@ public class IndexationService {
                             "« " + valeur + " » ne fait pas partie des valeurs de « " + champ.getNomIndex() + " ».");
                 }
             }
+            case BOOLEEN -> {
+                if (com.ipt.ged.planindexation.metamodele.ValeursMetadonnees.booleen(valeur) == null) {
+                    throw new IllegalArgumentException("« " + champ.getNomIndex() + " » attend oui / non.");
+                }
+            }
             case TEXTE -> { /* aucune contrainte */ }
         }
     }
@@ -734,6 +739,9 @@ public class IndexationService {
                 Double min = nombre(filtre.de()), max = nombre(filtre.a());
                 yield (min == null || v >= min) && (max == null || v <= max);
             }
+            case BOOLEEN -> !estRenseigne(filtre.valeur())
+                    || java.util.Objects.equals(com.ipt.ged.planindexation.metamodele.ValeursMetadonnees.booleen(valeur),
+                            com.ipt.ged.planindexation.metamodele.ValeursMetadonnees.booleen(filtre.valeur()));
         };
     }
 

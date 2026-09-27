@@ -27,9 +27,24 @@ import java.util.UUID;
 public class DocumentController {
 
     private final DocumentService service;
+    private final com.fasterxml.jackson.databind.ObjectMapper json;
+    private final com.ipt.ged.document.recherche.RechercheMetadonnees recherche;
 
-    public DocumentController(DocumentService service) {
+    public DocumentController(DocumentService service, com.fasterxml.jackson.databind.ObjectMapper json,
+                              com.ipt.ged.document.recherche.RechercheMetadonnees recherche) {
         this.service = service;
+        this.json = json;
+        this.recherche = recherche;
+    }
+
+    /**
+     * Recherche sur métadonnées (§12.7) : critères par index du plan, date du
+     * document comme clé de tri prioritaire, périmètre autorisé seulement.
+     */
+    @PostMapping("/recherche")
+    public PageResponse<DocumentResponse> rechercher(
+            @RequestBody com.ipt.ged.document.recherche.RechercheMetadonnees.Requete requete) {
+        return recherche.rechercher(requete);
     }
 
     @GetMapping
@@ -76,11 +91,46 @@ public class DocumentController {
             @RequestParam(value = "expirationDate", required = false) String expirationDate,
             @RequestParam(value = "etiquetteIds", required = false) List<UUID> etiquetteIds,
             @RequestParam(value = "confidentialite", required = false) Confidentialite confidentialite,
+            @RequestParam(value = "objet", required = false) String objet,
+            @RequestParam(value = "dateDocument", required = false) String dateDocument,
+            @RequestParam(value = "metadonnees", required = false) String metadonnees,
             @AuthenticationPrincipal UtilisateurConnecte principal) {
         UUID createdById = principal != null ? principal.getEmployeId() : null;
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.upload(file, name, typeDocumentId, expirationDate, createdById, etiquetteIds,
-                        confidentialite));
+                        confidentialite, metadonnees(metadonnees), objet, dateDocument));
+    }
+
+    /** Métadonnées du dépôt : objet JSON {"CODE_INDEX": valeur}, 64 Ko au plus (§5.3.2). */
+    private Map<String, Object> metadonnees(String brut) {
+        if (brut == null || brut.isBlank()) return null;
+        if (brut.getBytes(StandardCharsets.UTF_8).length > 64 * 1024) {
+            throw new IllegalArgumentException("Métadonnées limitées à 64 Ko.");
+        }
+        try {
+            return json.readValue(brut, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalArgumentException("Les métadonnées doivent être un objet JSON {\"CODE_INDEX\": valeur}.");
+        }
+    }
+
+    /** Déplace le document dans un autre dossier : body { "noeudId": ... } (§12.5). */
+    @PatchMapping("/{id}/emplacement")
+    public DocumentResponse deplacer(@PathVariable UUID id, @RequestBody Map<String, UUID> body) {
+        UUID noeudId = body.get("noeudId");
+        if (noeudId == null) throw new IllegalArgumentException("L'espace de destination (noeudId) est obligatoire");
+        return service.deplacer(id, noeudId);
+    }
+
+    /** Téléchargement d'une version quelconque (toutes sont conservées, §12.8). */
+    @GetMapping("/{id}/versions/{versionId}/download")
+    public ResponseEntity<Resource> telechargerVersion(@PathVariable UUID id, @PathVariable UUID versionId) {
+        DocumentVersion v = service.versionPourTelechargement(id, versionId);
+        Resource resource = service.storage().load(v.getFilePath());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(v.getFileName()))
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(resource);
     }
 
     /** Emplacements complémentaires visibles (§12.4). */
@@ -132,8 +182,9 @@ public class DocumentController {
 
     /** Verrouille ou libere le document. */
     @PatchMapping("/{id}/verrou")
-    public DocumentResponse verrou(@PathVariable UUID id, @RequestParam boolean verrouille) {
-        return service.setVerrou(id, verrouille);
+    public DocumentResponse verrou(@PathVariable UUID id, @RequestParam boolean verrouille,
+                                  @RequestParam(value = "motif", required = false) String motif) {
+        return service.setVerrou(id, verrouille, motif);
     }
 
     /** Depose une nouvelle version du fichier. */

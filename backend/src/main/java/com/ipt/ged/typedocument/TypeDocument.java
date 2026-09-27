@@ -43,6 +43,26 @@ public class TypeDocument extends Supprimable {
     @JoinColumn(name = "noeud_id", nullable = false)
     private WorkSpace workspace;
 
+    /** Durée de conservation en mois (§12.9) ; {@code null} = pas d'échéance. */
+    @Column(name = "duree_conservation_mois")
+    private Integer dureeConservationMois;
+
+    /** Point de départ de la conservation : date du document (défaut), date de dépôt ou métadonnée date. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "point_depart", nullable = false, length = 20)
+    private PointDepart pointDepart = PointDepart.DATE_DOCUMENT;
+
+    /** Code de l'index date du plan servant de point de départ (point de départ METADONNEE). */
+    @Column(name = "point_depart_index_code")
+    private String pointDepartIndexCode;
+
+    /**
+     * Type actif : un type désactivé n'accepte plus de dépôt. Un type utilisé
+     * ne se supprime pas (FK RESTRICT), il se désactive (§12.7).
+     */
+    @Column(name = "actif", nullable = false)
+    private boolean actif = true;
+
     /** Niveau de confidentialité donné par défaut aux documents de ce type (§12.3). */
     @Enumerated(EnumType.STRING)
     @Column(name = "confidentialite_defaut", nullable = false)

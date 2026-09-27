@@ -277,13 +277,21 @@ SELECT reprise_source.nouvel_id('documents_file', s.id), s.name,
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.documents_file s;
 
+-- Versions (§12.8, lot E7) : numéros dans l'ordre de dépôt, UNE version
+-- courante par document (index unique partiel) — celle que l'ancienne base
+-- marquait par défaut, la plus récente si plusieurs l'étaient (course de
+-- l'ancienne application), la plus récente si aucune.
 INSERT INTO version_document (id, document_id, file_name, file_path, extension, size_ko, observation,
-                              is_default, created_at, updated_at)
-SELECT reprise_source.nouvel_id('document_versions', s.id),
-       reprise_source.nouvel_id('documents_file', s.document_id),
-       s.file_name, s.file_path, s.extension, coalesce(s.size_ko, 0), s.observation,
-       coalesce(s.is_default, false), reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
-  FROM reprise_source.document_versions s;
+                              courante, numero, created_at, updated_at)
+SELECT reprise_source.nouvel_id('document_versions', x.id),
+       reprise_source.nouvel_id('documents_file', x.document_id),
+       x.file_name, x.file_path, x.extension, coalesce(x.size_ko, 0), x.observation,
+       x.rang_courante = 1, x.numero, reprise_source.utc(x.created_at), reprise_source.utc(x.updated_at)
+  FROM (SELECT s.*,
+               row_number() OVER (PARTITION BY s.document_id ORDER BY s.created_at, s.id) AS numero,
+               row_number() OVER (PARTITION BY s.document_id
+                                  ORDER BY coalesce(s.is_default, false) DESC, s.created_at DESC, s.id DESC) AS rang_courante
+          FROM reprise_source.document_versions s) x;
 
 INSERT INTO document_etiquette (document_id, etiquette_id)
 SELECT reprise_source.nouvel_id('documents_file', s.document_id),

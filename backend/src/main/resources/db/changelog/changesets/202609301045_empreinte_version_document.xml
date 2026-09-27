@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301045_empreinte_version_document.xml">
+
+    <!--
+        Empreinte SHA-256 de chaque version (§12.8). La colonne est créée par
+        le lot stockage de dev3 (changeset 202609271205, même définition) : ce
+        changeset ne la crée que si elle manque, pour que le lot modèle puisse
+        s'en servir avant la fusion. Une fois les deux branches réunies, il est
+        marqué exécuté sans rien faire (MARK_RAN).
+    -->
+    <changeSet id="202609301045-1" author="ged">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="version_document" columnName="empreinte"/></not>
+        </preConditions>
+        <comment>Empreinte SHA-256 des versions, si le lot stockage ne l'a pas déjà créée.</comment>
+        <addColumn tableName="version_document">
+            <column name="empreinte" type="CHAR(64)"/>
+        </addColumn>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.version_document ADD CONSTRAINT ck_version_document_empreinte CHECK (empreinte ~ '^[0-9a-f]{64}$')</sql>
+        <rollback>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.version_document DROP CONSTRAINT ck_version_document_empreinte</sql>
+            <dropColumn tableName="version_document" columnName="empreinte"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

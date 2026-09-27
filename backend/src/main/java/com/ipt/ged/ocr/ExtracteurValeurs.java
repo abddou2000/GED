@@ -55,6 +55,9 @@ public class ExtracteurValeurs {
                 : chercherApresLibelle(champ.getNomIndex(), texte);
 
         return switch (champ.getFieldType()) {
+            // Nature ajoutée au lot E7 : jamais déduite du texte (§12.7, aucune
+            // alimentation par l'OCR).
+            case BOOLEEN -> null;
             case LISTE -> options.stream()
                     .filter(o -> contientMot(texte, o))
                     .findFirst().orElse(null);

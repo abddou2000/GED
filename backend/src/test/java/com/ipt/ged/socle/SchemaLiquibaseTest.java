@@ -69,13 +69,21 @@ class SchemaLiquibaseTest {
      * nœuds, les groupes d'accès des groupes GED ; les rôles globaux et les
      * rattachements groupe / espace sont repris en habilitations.
      */
-    private static final Set<String> TABLES_ATTENDUES;
+    private static final Set<String> TABLES_E3;
     static {
         Set<String> t = new TreeSet<>(TABLES_E2);
         t.removeAll(Set.of("workspace", "access_group", "access_group_workspace", "access_group_employe",
                 "utilisateur_role"));
         t.addAll(Set.of("noeud", "groupe_ged", "groupe_membre", "permission", "role_permission", "habilitation",
                 "document_rattachement", "document_confidentiel_designe", "version_habilitations"));
+        TABLES_E3 = Set.copyOf(t);
+    }
+
+    /** Tables du modèle courant : E3 plus le méta-modèle du lot E7 (plans versionnés, re-typologisation). */
+    private static final Set<String> TABLES_ATTENDUES;
+    static {
+        Set<String> t = new TreeSet<>(TABLES_E3);
+        t.addAll(Set.of("plan_indexation_version", "job_retypage"));
         TABLES_ATTENDUES = Set.copyOf(t);
     }
 
@@ -141,7 +149,7 @@ class SchemaLiquibaseTest {
     }
 
     @Test
-    @DisplayName("Retour arrière par jalon : autorisation-e3, identite-e2 puis socle-e1")
+    @DisplayName("Retour arrière par jalon : modele-e7, autorisation-e3, identite-e2 puis socle-e1")
     void retourArriereAuxJalons() throws Exception {
         String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
@@ -156,9 +164,13 @@ class SchemaLiquibaseTest {
                         "neuf permissions élémentaires, sept d'administration, deux de confidentialité");
                 assertEquals(1, compter(c, "SELECT count(*) FROM " + schema + ".version_habilitations"));
 
-                // Rien n'est postérieur au jalon E3 : le schéma ne bouge pas.
-                liquibase.rollback("autorisation-e3", (String) null);
+                // Rien n'est postérieur au jalon E7 (modèle) : le schéma ne bouge pas.
+                liquibase.rollback("modele-e7", (String) null);
                 assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
+
+                // Retour au jalon E3 : plans versionnés et re-typologisation se défont.
+                liquibase.rollback("autorisation-e3", (String) null);
+                assertEquals(new TreeSet<>(TABLES_E3), tablesMetier(c, schema));
 
                 // Retour au jalon E2 : nœuds et groupes reprennent leurs noms,
                 // les tables d'association d'origine sont recréées.
@@ -170,11 +182,11 @@ class SchemaLiquibaseTest {
                 liquibase.rollback("socle-e1", (String) null);
                 assertEquals(new TreeSet<>(TABLES_E1), tablesMetier(c, schema));
 
-                // Rejouer la montée repose les trois jalons.
+                // Rejouer la montée repose les quatre jalons.
                 liquibase.update(new Contexts(), new LabelExpression());
                 assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
-                assertEquals(3, compter(c, "SELECT count(*) FROM " + schema
-                        + ".databasechangelog WHERE tag IN ('socle-e1', 'identite-e2', 'autorisation-e3')"));
+                assertEquals(4, compter(c, "SELECT count(*) FROM " + schema
+                        + ".databasechangelog WHERE tag IN ('socle-e1', 'identite-e2', 'autorisation-e3', 'modele-e7')"));
             } finally {
                 supprimerSchema(c, schema);
             }

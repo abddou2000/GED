@@ -35,8 +35,12 @@ public class IndexService {
 
     private final IndexRepository repo;
 
-    public IndexService(IndexRepository repo) {
+    /** Versions figées des plans qui contiennent l'index (§12.7). */
+    private final com.ipt.ged.planindexation.metamodele.ServiceVersionsPlan versions;
+
+    public IndexService(IndexRepository repo, com.ipt.ged.planindexation.metamodele.ServiceVersionsPlan versions) {
         this.repo = repo;
+        this.versions = versions;
     }
 
     @Transactional(readOnly = true)
@@ -78,7 +82,11 @@ public class IndexService {
         }
         x.setCode(req.code());
         apply(x, req);
-        return IndexResponse.from(repo.save(x));
+        IndexField enregistre = repo.saveAndFlush(x);
+        // Modifier un index (nature, obligatoire, valeurs) modifie les plans qui
+        // l'emploient : chacun reçoit une nouvelle version.
+        versions.versionnerPlansDeLIndex(enregistre.getId());
+        return IndexResponse.from(enregistre);
     }
 
     @Transactional

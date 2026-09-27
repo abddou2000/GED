@@ -65,6 +65,12 @@ public final class ContraintesDepot {
             throw new IllegalArgumentException("Le type de document « " + type.getTypeDeDocument()
                     + " » est en corbeille : dépôt impossible.");
         }
+        // Un type utilisé ne se supprime pas, il se désactive (§12.7) : plus
+        // aucun dépôt ni changement vers lui, ses documents restent intacts.
+        if (!type.isActif()) {
+            throw new IllegalArgumentException("Le type de document « " + type.getTypeDeDocument()
+                    + " » est désactivé : dépôt impossible.");
+        }
     }
 
     /** Extension d'un nom de fichier, sans le point ; chaîne vide s'il n'y en a pas. */

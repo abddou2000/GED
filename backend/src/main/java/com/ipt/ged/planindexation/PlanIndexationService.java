@@ -35,9 +35,14 @@ public class PlanIndexationService {
     private final PlanIndexationRepository repo;
     private final IndexRepository indexRepo;
 
-    public PlanIndexationService(PlanIndexationRepository repo, IndexRepository indexRepo) {
+    /** Versions figées du plan (§12.7) : chaque modification en produit une. */
+    private final com.ipt.ged.planindexation.metamodele.ServiceVersionsPlan versions;
+
+    public PlanIndexationService(PlanIndexationRepository repo, IndexRepository indexRepo,
+                                 com.ipt.ged.planindexation.metamodele.ServiceVersionsPlan versions) {
         this.repo = repo;
         this.indexRepo = indexRepo;
+        this.versions = versions;
     }
 
     @Transactional(readOnly = true)
@@ -82,7 +87,11 @@ public class PlanIndexationService {
         }
         p.setCode(req.code());
         apply(p, req);
-        return PlanIndexationResponse.from(repo.save(p));
+        PlanIndexation enregistre = repo.saveAndFlush(p);
+        // Nouvelle version si les index du plan ont changé : les documents déjà
+        // déposés gardent la leur (§12.7).
+        versions.enVigueur(enregistre);
+        return PlanIndexationResponse.from(enregistre);
     }
 
     @Transactional

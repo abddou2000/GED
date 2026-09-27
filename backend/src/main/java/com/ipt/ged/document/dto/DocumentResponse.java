@@ -42,15 +42,32 @@ public record DocumentResponse(
          */
         List<String> permissions,
         /** Emplacements complémentaires visibles de l'appelant (§12.4 ; fiche seulement). */
-        List<Ref> rattachements
+        List<Ref> rattachements,
+        /** Socle commun (§12.7) : objet et date du document. */
+        String objet,
+        String dateDocument,
+        /** Métadonnées du plan, normalisées, par code d'index. */
+        java.util.Map<String, Object> metadonnees,
+        /** Conservation (§12.6, §12.9). */
+        String statutConservation,
+        String echeanceConservation,
+        /** Verrou (§12.8) : motif et date ; absents si le document est libre. */
+        String verrouMotif,
+        Instant verrouLe
 ) {
     public record Ref(UUID id, String label) {}
 
     /** Étiquette avec sa couleur : la liste l'affiche en pastille. */
     public record Tag(UUID id, String tag, String couleur) {}
 
+    /**
+     * @param principale version COURANTE (une seule par document, §12.8)
+     * @param numero     ordre de versement
+     * @param empreinte  SHA-256 du contenu
+     */
     public record Version(UUID id, String fileName, String observation,
-                          boolean principale, String sizeLabel, Instant createdAt) {}
+                          boolean principale, String sizeLabel, Instant createdAt,
+                          int numero, String empreinte, UUID auteurId) {}
 
     public static DocumentResponse from(UploadDocument d) {
         return from(d, d.getWorkspace(), null, null);
@@ -77,7 +94,12 @@ public record DocumentResponse(
                 tags(d), versions(d),
                 d.getCreatedAt(),
                 d.getConfidentialite() != null ? d.getConfidentialite().name() : null,
-                permissions, rattachements);
+                permissions, rattachements,
+                d.getObjet(), d.getDateDocument() != null ? d.getDateDocument().toString() : null,
+                d.getMetadonnees(),
+                d.getStatutConservation() != null ? d.getStatutConservation().name() : null,
+                d.getEcheanceConservation() != null ? d.getEcheanceConservation().toString() : null,
+                d.getVerrouMotif(), d.getVerrouLe());
     }
 
     /**
@@ -107,7 +129,8 @@ public record DocumentResponse(
         try {
             return d.getVersions().stream()
                     .map(v -> new Version(v.getId(), v.getFileName(), v.getObservation(),
-                            v.isPrincipale(), humanSize(v.getSizeKo()), v.getCreatedAt()))
+                            v.isPrincipale(), humanSize(v.getSizeKo()), v.getCreatedAt(),
+                            v.getNumero(), v.getEmpreinte(), v.getAuteurId()))
                     .toList();
         } catch (RuntimeException e) {
             return List.of();

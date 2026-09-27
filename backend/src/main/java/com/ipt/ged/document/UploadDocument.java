@@ -70,8 +70,18 @@ public class UploadDocument extends Supprimable {
      * Échéance de conservation (§12.9) : calculée PAR LA BASE à partir du type
      * (durée, point de départ) ; jamais écrite par l'application.
      */
+    @org.hibernate.annotations.Generated(event = {org.hibernate.generator.EventType.INSERT,
+            org.hibernate.generator.EventType.UPDATE})
     @Column(name = "echeance_conservation", insertable = false, updatable = false)
     private LocalDate echeanceConservation;
+
+    /**
+     * Version du plan d'indexation en vigueur au dépôt (§12.7) : les
+     * métadonnées du document sont validées contre ELLE, pas contre le plan
+     * courant du type.
+     */
+    @Column(name = "plan_indexation_version_id")
+    private UUID planIndexationVersionId;
 
     /**
      * Niveau de confidentialité (§12.3), indépendant de l'emplacement ; fixé au

@@ -65,6 +65,15 @@ public class TypeDocumentController {
         return service.update(id, req);
     }
 
+    /**
+     * Active ou désactive un type (§12.7) : un type utilisé ne se supprime pas
+     * (409 TYPE_UTILISE), il se désactive.
+     */
+    @PatchMapping("/{id}/actif")
+    public TypeDocumentResponse activer(@PathVariable UUID id, @RequestParam boolean actif) {
+        return service.activer(id, actif);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         service.softDelete(id);

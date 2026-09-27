@@ -38,12 +38,42 @@ public class TypeDocumentService {
     private static final Set<String> TRIS_NUM = Set.of("id", "tailleMaxMo");
 
     private final PlanIndexationRepository planRepo;
+    private final com.ipt.ged.planindexation.metamodele.ServiceVersionsPlan versionsPlan;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public TypeDocumentService(TypeDocumentRepository repo, WorkSpaceRepository workspaceRepo,
-                               PlanIndexationRepository planRepo) {
+                               PlanIndexationRepository planRepo,
+                               com.ipt.ged.planindexation.metamodele.ServiceVersionsPlan versionsPlan,
+                               org.springframework.jdbc.core.JdbcTemplate jdbc) {
         this.repo = repo;
         this.workspaceRepo = workspaceRepo;
         this.planRepo = planRepo;
+        this.versionsPlan = versionsPlan;
+        this.jdbc = jdbc;
+    }
+
+    /** Réponse avec la version en vigueur du plan (créée si le plan a changé). */
+    private TypeDocumentResponse reponse(TypeDocument t) {
+        Integer version = versionsPlan.enVigueur(t)
+                .map(com.ipt.ged.planindexation.metamodele.PlanIndexationVersion::getNumero).orElse(null);
+        return TypeDocumentResponse.from(t, version);
+    }
+
+    /** Le type porte-t-il des documents (corbeille comprise) ? */
+    private boolean utilise(UUID id) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM document WHERE type_document_id = ?)", Boolean.class, id));
+    }
+
+    /**
+     * Active ou désactive un type (§12.7) : un type utilisé ne se supprime pas,
+     * il se désactive — plus aucun dépôt, ses documents restent intacts.
+     */
+    @Transactional
+    public TypeDocumentResponse activer(UUID id, boolean actif) {
+        TypeDocument t = load(id);
+        t.setActif(actif);
+        return reponse(repo.save(t));
     }
 
     @Transactional(readOnly = true)
@@ -64,7 +94,9 @@ public class TypeDocumentService {
 
     @Transactional(readOnly = true)
     public TypeDocumentResponse get(UUID id) {
-        return TypeDocumentResponse.from(load(id));
+        TypeDocument t = load(id);
+        Integer version = t.getPlanIndexation() == null ? null : versionsPlan.derniereVersion(t.getPlanIndexation().getId());
+        return TypeDocumentResponse.from(t, version);
     }
 
     // Aucune chaîne « create type_de_document » au catalogue : repli sur le
@@ -76,7 +108,7 @@ public class TypeDocumentService {
         }
         TypeDocument t = new TypeDocument(req.code(), req.typeDeDocument());
         apply(t, req);
-        return TypeDocumentResponse.from(repo.save(t));
+        return reponse(repo.save(t));
     }
 
     @Transactional
@@ -88,12 +120,28 @@ public class TypeDocumentService {
         t.setCode(req.code());
         t.setTypeDeDocument(req.typeDeDocument());
         apply(t, req);
-        return TypeDocumentResponse.from(repo.save(t));
+        // Toute modification du type produit, si son plan a changé, une nouvelle
+        // version : les documents déjà déposés gardent la leur (§12.7).
+        return reponse(repo.saveAndFlush(t));
     }
 
     @Transactional
     public void softDelete(UUID id) {
-        load(id).mettreEnCorbeille(ActeurCourant.employeId());
+        TypeDocument t = load(id);
+        refuserSiUtilise(t);
+        t.mettreEnCorbeille(ActeurCourant.employeId());
+    }
+
+    /**
+     * Suppression d'un type utilisé impossible (§12.7) : contrôle applicatif,
+     * doublé en base par la clé étrangère RESTRICT. Le type se désactive.
+     */
+    private void refuserSiUtilise(TypeDocument t) {
+        if (utilise(t.getId())) {
+            throw new com.ipt.ged.autorisation.ConflitAutorisationException("TYPE_UTILISE",
+                    "Le type « " + t.getTypeDeDocument() + " » porte des documents : il ne peut pas être supprimé,"
+                            + " seulement désactivé.");
+        }
     }
 
     // Restauration = inverse de la mise en corbeille.
@@ -104,7 +152,9 @@ public class TypeDocumentService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndSupprimeFalse(ids).forEach(t -> t.mettreEnCorbeille(ActeurCourant.employeId()));
+        List<TypeDocument> l = repo.findByIdInAndSupprimeFalse(ids);
+        l.forEach(this::refuserSiUtilise);
+        l.forEach(t -> t.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
@@ -165,5 +215,27 @@ public class TypeDocumentService {
 
         t.setTypeAutorise(req.typeAutorise() != null ? String.join(",", req.typeAutorise()) : null);
         t.setTailleMaxMo(req.tailleMaxMo());
+
+        // Conservation (§12.9) : l'échéance des documents du type est
+        // recalculée par la base si la durée ou le point de départ change.
+        t.setDureeConservationMois(req.dureeConservationMois());
+        PointDepart depart = req.pointDepart() != null ? req.pointDepart() : PointDepart.DATE_DOCUMENT;
+        String code = null;
+        if (depart == PointDepart.METADONNEE) {
+            if (req.pointDepartIndexCode() == null || req.pointDepartIndexCode().isBlank()) {
+                throw new IllegalArgumentException("Point de départ « métadonnée » : l'index date est obligatoire.");
+            }
+            code = t.getPlanIndexation() == null ? null : t.getPlanIndexation().getIndices().stream()
+                    .filter(i -> !i.isSupprime() && i.getCode().equalsIgnoreCase(req.pointDepartIndexCode().trim()))
+                    .filter(i -> i.getFieldType() == com.ipt.ged.index.IndexFieldType.DATE)
+                    .map(com.ipt.ged.index.IndexField::getCode).findFirst().orElse(null);
+            if (code == null) {
+                throw new IllegalArgumentException("Point de départ : « " + req.pointDepartIndexCode()
+                        + " » n'est pas un index de nature date du plan de ce type.");
+            }
+        }
+        t.setPointDepart(depart);
+        t.setPointDepartIndexCode(code);
+        if (req.confidentialiteDefaut() != null) t.setConfidentialiteDefaut(req.confidentialiteDefaut());
     }
 }

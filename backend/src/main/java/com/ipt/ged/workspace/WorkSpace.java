@@ -94,6 +94,16 @@ public class WorkSpace extends Supprimable {
     @Column(name = "archive_par")
     private UUID archivePar;
 
+    /**
+     * Usage de l'espace (R-03, D12) : METIER ou ECHANGE (partage simple). Pour
+     * un dossier, la base recopie l'usage de son espace : la valeur écrite par
+     * l'application ne compte que pour un espace.
+     */
+    @Enumerated(EnumType.STRING)
+    @Generated(event = {EventType.INSERT, EventType.UPDATE}, writable = true)
+    @Column(name = "usage_espace", nullable = false, length = 10)
+    private UsageEspace usageEspace = UsageEspace.METIER;
+
     /** ESPACE (racine) ou DOSSIER, déduit du parent par la base. */
     @Generated(event = {EventType.INSERT, EventType.UPDATE})
     @Column(name = "nature", insertable = false, updatable = false)

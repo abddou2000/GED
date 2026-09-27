@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301040_plan_indexation_version.xml">
+
+    <!--
+        Plan d'indexation versionné (§12.7, gouvernance) : toute modification
+        d'un plan, de l'un de ses index ou du plan d'un type produit une
+        nouvelle version (définition figée en JSONB) ; chaque document
+        référence la version en vigueur à son dépôt, et ses métadonnées sont
+        validées contre ELLE : modifier un plan n'altère aucun document déjà
+        déposé. Les plans existants reçoivent leur version 1, et les documents
+        existants la version 1 du plan de leur type.
+    -->
+    <changeSet id="202609301040-1" author="ged">
+        <comment>Versions des plans d'indexation ; version du plan de chaque document.</comment>
+        <createTable tableName="plan_indexation_version">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()"><constraints primaryKey="true" primaryKeyName="pk_plan_indexation_version" nullable="false"/></column>
+            <column name="plan_indexation_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="numero" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="definition" type="JSONB"><constraints nullable="false"/></column>
+            <column name="cree_par" type="UUID"/>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_plan_indexation_version_plan_indexation_id_numero" tableName="plan_indexation_version" columnNames="plan_indexation_id, numero"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.plan_indexation_version ADD CONSTRAINT ck_plan_indexation_version_numero CHECK (numero &gt; 0)</sql>
+        <addForeignKeyConstraint constraintName="fk_plan_indexation_version_plan_indexation" baseTableName="plan_indexation_version" baseColumnNames="plan_indexation_id"
+                                 referencedTableName="plan_indexation" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint constraintName="fk_plan_indexation_version_cree_par" baseTableName="plan_indexation_version" baseColumnNames="cree_par"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addColumn tableName="document">
+            <column name="plan_indexation_version_id" type="UUID"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_document_plan_indexation_version" baseTableName="document" baseColumnNames="plan_indexation_version_id"
+                                 referencedTableName="plan_indexation_version" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <createIndex indexName="idx_document_plan_indexation_version_id" tableName="document"><column name="plan_indexation_version_id"/></createIndex>
+        <sql>INSERT INTO ${database.defaultSchemaName}.plan_indexation_version (plan_indexation_id, numero, definition)
+             SELECT p.id, 1, jsonb_build_object('champs', coalesce((
+    SELECT jsonb_agg(jsonb_build_object(
+               'id', i.id, 'code', i.code, 'libelle', i.nom_index, 'nature', i.type_champs,
+               'obligatoire', i.obligatoire, 'valeurs', i.valeurs, 'valeurDefaut', i.valeur_par_defaut,
+               'indexeRecherche', i.indexe_pour_recherche) ORDER BY pi.position)
+      FROM ${database.defaultSchemaName}.plan_index pi JOIN ${database.defaultSchemaName}.index_def i ON i.id = pi.index_def_id
+     WHERE pi.plan_indexation_id = p.id AND NOT i.supprime), '[]'::jsonb)) FROM ${database.defaultSchemaName}.plan_indexation p</sql>
+        <sql>UPDATE ${database.defaultSchemaName}.document d SET plan_indexation_version_id = v.id
+               FROM ${database.defaultSchemaName}.type_document t
+               JOIN ${database.defaultSchemaName}.plan_indexation_version v ON v.plan_indexation_id = t.plan_indexation_id AND v.numero = 1
+              WHERE t.id = d.type_document_id</sql>
+        <rollback>
+            <dropIndex tableName="document" indexName="idx_document_plan_indexation_version_id"/>
+            <dropForeignKeyConstraint baseTableName="document" constraintName="fk_document_plan_indexation_version"/>
+            <dropColumn tableName="document" columnName="plan_indexation_version_id"/>
+            <dropTable tableName="plan_indexation_version"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

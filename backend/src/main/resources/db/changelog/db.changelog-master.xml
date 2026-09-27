@@ -89,5 +89,13 @@
     <include file="changesets/202609281200_jalon_autorisation.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301000_archivage_noeud_document.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301010_socle_commun_verrou_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301020_conservation_type_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301030_index_def_booleen.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301040_plan_indexation_version.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301045_empreinte_version_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301050_versions_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301060_creation_table_job_retypage.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301070_usage_espace_noeud.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301200_jalon_modele.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
