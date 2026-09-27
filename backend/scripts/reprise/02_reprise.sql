@@ -128,7 +128,7 @@ SELECT reprise_source.nouvel_id('employes', s.id), s.first_name, s.last_name, co
 -- Les identités GED (table utilisateur) naissent à la première connexion par
 -- l'annuaire, rattachées à la fiche employé reprise ci-dessus.
 
-INSERT INTO workflow_ged (id, name, deleted, created_at, updated_at)
+INSERT INTO workflow_ged (id, name, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('workflow_ged', s.id), s.name, coalesce(s.deleted, false),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.workflow_ged s;
@@ -143,7 +143,7 @@ SELECT reprise_source.nouvel_id('workflow_ged_steps', s.id),
 -- Auto-référence (parent) : une seule instruction, les contrôles de clé
 -- étrangère sont évalués en fin d'instruction, quel que soit l'ordre des lignes.
 INSERT INTO workspace (id, name, code, description, status, employe_id, parent_id, workflow_ged_id,
-                       deleted, created_at, updated_at)
+                       supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.description, s.status,
        reprise_source.nouvel_id('employes', s.employe_id),
        reprise_source.nouvel_id('work_spaces', s.parent_workspace_id),
@@ -153,7 +153,7 @@ SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.descript
 
 INSERT INTO access_group (id, code, name, droit_access, droit_lecture, droit_modifier, droit_uploader,
                           droit_supprimer, droit_deplacer, droit_ajouter_version,
-                          droit_verrouiller_deverrouiller, deleted, created_at, updated_at)
+                          droit_verrouiller_deverrouiller, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('access_groups', s.id), s.code, s.name,
        coalesce(s.droit_access, false), coalesce(s.droit_lecture, false), coalesce(s.droit_modifier, false),
        coalesce(s.droit_uploader, false), coalesce(s.droit_supprimer, false),
@@ -172,13 +172,13 @@ SELECT reprise_source.nouvel_id('access_groups', s.access_group_id),
        reprise_source.nouvel_id('employes', s.employe_id)
   FROM reprise_source.pivot_employe_groups s;
 
-INSERT INTO etiquette (id, code, tag, couleur, deleted, created_at, updated_at)
+INSERT INTO etiquette (id, code, tag, couleur, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('etiquettes', s.id), s.code, s.tag, s.couleur, coalesce(s.deleted, false),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.etiquettes s;
 
 INSERT INTO index_def (id, code, nom_index, type_champs, valeurs, valeur_par_defaut, obligatoire,
-                       indexe_pour_recherche, index_de_groupage, deleted, created_at, updated_at)
+                       indexe_pour_recherche, index_de_groupage, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('indices', s.id), s.code, s.nom_index, s.type_champs, s.valeurs,
        s.valeur_par_defaut, coalesce(s.obligatoire, false), coalesce(s.indexe_pour_recherche, false),
        coalesce(s.index_de_groupage, false), coalesce(s.deleted, false),
@@ -191,7 +191,7 @@ SELECT reprise_source.nouvel_id('indices', s.id), s.code, s.nom_index, s.type_ch
 -- index correspondant sont conservés tels quels. Une charte illisible n'est
 -- pas touchée : l'application la traite déjà comme vide.
 INSERT INTO plan_indexation (id, code, nom_du_plan, mode_indexation, manuel, majuscule, separateur,
-                             charte_nommage, deleted, created_at, updated_at)
+                             charte_nommage, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('plan_d_indexations', s.id), s.code, s.nom_du_plan,
        coalesce(s.mode_indexation, false), coalesce(s.manuel, false), coalesce(s.majuscule, false),
        coalesce(s.separateur, '_'),
@@ -218,7 +218,7 @@ SELECT reprise_source.nouvel_id('plan_d_indexations', s.plan_d_indexation_id),
   FROM reprise_source.pivot_plan_d_indexation_indices s;
 
 INSERT INTO type_document (id, code, type_de_document, description, workspace_id, plan_indexation_id,
-                           type_autorise, taille_max_mo, deleted, created_at, updated_at)
+                           type_autorise, taille_max_mo, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('type_de_documents', s.id), s.code, s.type_de_document, s.description,
        reprise_source.nouvel_id('work_spaces', s.workspace_id),
        reprise_source.nouvel_id('plan_d_indexations', s.plan_d_indexation_id),
@@ -227,7 +227,7 @@ SELECT reprise_source.nouvel_id('type_de_documents', s.id), s.code, s.type_de_do
   FROM reprise_source.type_de_documents s;
 
 INSERT INTO document (id, name, workspace_id, type_document_id, file_name, file_path, extension, size_ko,
-                      expiration_date, reference, active, is_locked, created_by_employe_id, deleted,
+                      expiration_date, reference, active, is_locked, created_by_employe_id, supprime,
                       created_at, updated_at)
 SELECT reprise_source.nouvel_id('documents_file', s.id), s.name,
        reprise_source.nouvel_id('work_spaces', s.workspace_id),

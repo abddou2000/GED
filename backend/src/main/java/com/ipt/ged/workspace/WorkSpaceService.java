@@ -47,14 +47,14 @@ public class WorkSpaceService {
 
     @Transactional(readOnly = true)
     public PageResponse<WorkSpaceResponse> list(int page, int size, String search, String sortBy, String sortDir) {
-        Page<WorkSpace> result = repo.findByDeletedFalseAndNameContainingIgnoreCase(
+        Page<WorkSpace> result = repo.findBySupprimeFalseAndNameContainingIgnoreCase(
                 search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
         return PageResponse.of(result, this::toResponse);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<WorkSpaceResponse> trashed(int page, int size, String search, String sortBy, String sortDir) {
-        Page<WorkSpace> result = repo.findByDeletedTrueAndNameContainingIgnoreCase(
+        Page<WorkSpace> result = repo.findBySupprimeTrueAndNameContainingIgnoreCase(
                 search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
         return PageResponse.of(result, this::toResponse);
     }
@@ -99,12 +99,12 @@ public class WorkSpaceService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(w -> w.mettreEnCorbeille(ActeurCourant.employeId()));
+        repo.findByIdInAndSupprimeFalse(ids).forEach(w -> w.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(w -> w.restaurer());
+        repo.findByIdInAndSupprimeTrue(ids).forEach(w -> w.restaurer());
     }
 
     /** Déplace un dossier sous un nouveau parent (null = racine), en interdisant les cycles. */
@@ -138,7 +138,7 @@ public class WorkSpaceService {
     /** Forêt de dossiers actifs (racines + enfants imbriqués). */
     @Transactional(readOnly = true)
     public List<TreeNode> tree() {
-        List<WorkSpace> all = repo.findByDeletedFalseOrderByIdAsc().stream()
+        List<WorkSpace> all = repo.findBySupprimeFalseOrderByIdAsc().stream()
                 .filter(w -> w.getStatus() == WorkspaceStatus.ACTIF)
                 .toList();
 
@@ -162,7 +162,7 @@ public class WorkSpaceService {
     /** Liste allégée {id, name} pour les sélecteurs (parent). */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> forSelect() {
-        return repo.findByDeletedFalseOrderByIdAsc().stream()
+        return repo.findBySupprimeFalseOrderByIdAsc().stream()
                 .map(w -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", w.getId());
@@ -188,7 +188,7 @@ public class WorkSpaceService {
      */
     private WorkSpace loadPourEcriture(UUID id) {
         WorkSpace w = load(id);
-        if (w.isDeleted()) {
+        if (w.isSupprime()) {
             throw new IllegalArgumentException(
                     "Espace de travail en corbeille : modification impossible. Restaurez-le d'abord.");
         }
@@ -202,7 +202,7 @@ public class WorkSpaceService {
         queue.add(id);
         while (!queue.isEmpty()) {
             UUID current = queue.poll();
-            for (WorkSpace child : repo.findByParentIdAndDeletedFalse(current)) {
+            for (WorkSpace child : repo.findByParentIdAndSupprimeFalse(current)) {
                 if (result.add(child.getId())) {
                     queue.add(child.getId());
                 }
@@ -233,7 +233,7 @@ public class WorkSpaceService {
     }
 
     private WorkSpaceResponse toResponse(WorkSpace w) {
-        return WorkSpaceResponse.from(w, repo.countByParentIdAndDeletedFalse(w.getId()));
+        return WorkSpaceResponse.from(w, repo.countByParentIdAndSupprimeFalse(w.getId()));
     }
 
     /** Petit builder mutable pour assembler l'arbre avant de figer les records. */

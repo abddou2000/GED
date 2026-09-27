@@ -38,7 +38,7 @@ public class EtiquetteService {
     public PageResponse<EtiquetteResponse> list(int page, int size, String search,
                                                 String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
-        Page<Etiquette> result = repo.findByDeletedFalseAndTagContainingIgnoreCase(search, pageable);
+        Page<Etiquette> result = repo.findBySupprimeFalseAndTagContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, EtiquetteResponse::from);
     }
 
@@ -46,7 +46,7 @@ public class EtiquetteService {
     public PageResponse<EtiquetteResponse> trashed(int page, int size, String search,
                                                    String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
-        Page<Etiquette> result = repo.findByDeletedTrueAndTagContainingIgnoreCase(search, pageable);
+        Page<Etiquette> result = repo.findBySupprimeTrueAndTagContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, EtiquetteResponse::from);
     }
 
@@ -88,18 +88,18 @@ public class EtiquetteService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(e -> e.mettreEnCorbeille(ActeurCourant.employeId()));
+        repo.findByIdInAndSupprimeFalse(ids).forEach(e -> e.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(e -> e.restaurer());
+        repo.findByIdInAndSupprimeTrue(ids).forEach(e -> e.restaurer());
     }
 
     /** Liste allégée {id, name} pour les sélecteurs (upload). */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> forSelect() {
-        return repo.findByDeletedFalseOrderByIdAsc().stream()
+        return repo.findBySupprimeFalseOrderByIdAsc().stream()
                 .map(e -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", e.getId());

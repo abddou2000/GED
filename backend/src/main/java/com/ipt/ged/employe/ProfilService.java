@@ -64,17 +64,17 @@ public class ProfilService {
         String courriel = identite == null ? null
                 : annuaire.lire(identite.getId()).map(EntreeCacheAnnuaire::getCourriel).orElse(null);
 
-        List<ProfilResponse.Ref> dossiers = workspaces.findByDeletedFalseOrderByIdAsc().stream()
+        List<ProfilResponse.Ref> dossiers = workspaces.findBySupprimeFalseOrderByIdAsc().stream()
                 .filter(w -> w.getOwner() != null && w.getOwner().getId().equals(employeId))
                 .map(w -> new ProfilResponse.Ref(w.getId(), w.getName()))
                 .toList();
 
-        List<ProfilResponse.Ref> mesGroupes = groupes.findByDeletedFalseOrderByIdAsc().stream()
+        List<ProfilResponse.Ref> mesGroupes = groupes.findBySupprimeFalseOrderByIdAsc().stream()
                 .filter(g -> membre(g, employeId))
                 .map(g -> new ProfilResponse.Ref(g.getId(), g.getName()))
                 .toList();
 
-        int deposes = (int) documents.findByDeletedFalseOrderByIdDesc().stream()
+        int deposes = (int) documents.findBySupprimeFalseOrderByIdDesc().stream()
                 .filter(d -> auteur(d, employeId))
                 .count();
 

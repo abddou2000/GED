@@ -44,7 +44,7 @@ public class PlanIndexationService {
     public PageResponse<PlanIndexationResponse> list(int page, int size, String search,
                                                      String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
-        Page<PlanIndexation> result = repo.findByDeletedFalseAndNomDuPlanContainingIgnoreCase(search, pageable);
+        Page<PlanIndexation> result = repo.findBySupprimeFalseAndNomDuPlanContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, PlanIndexationResponse::from);
     }
 
@@ -52,7 +52,7 @@ public class PlanIndexationService {
     public PageResponse<PlanIndexationResponse> trashed(int page, int size, String search,
                                                         String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
-        Page<PlanIndexation> result = repo.findByDeletedTrueAndNomDuPlanContainingIgnoreCase(search, pageable);
+        Page<PlanIndexation> result = repo.findBySupprimeTrueAndNomDuPlanContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, PlanIndexationResponse::from);
     }
 
@@ -98,18 +98,18 @@ public class PlanIndexationService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(p -> p.mettreEnCorbeille(ActeurCourant.employeId()));
+        repo.findByIdInAndSupprimeFalse(ids).forEach(p -> p.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(p -> p.restaurer());
+        repo.findByIdInAndSupprimeTrue(ids).forEach(p -> p.restaurer());
     }
 
     /** Liste allégée {id, name} pour les sélecteurs (types de document). */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> forSelect() {
-        return repo.findByDeletedFalseOrderByIdAsc().stream()
+        return repo.findBySupprimeFalseOrderByIdAsc().stream()
                 .map(p -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", p.getId());

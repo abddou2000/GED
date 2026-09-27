@@ -42,10 +42,10 @@ public class IndexationSeeder implements CommandLineRunner {
     public void run(String... args) {
         if (valeurs.count() > 0) return;
 
-        List<UploadDocument> actifs = documents.findByDeletedFalseOrderByIdDesc();
+        List<UploadDocument> actifs = documents.findBySupprimeFalseOrderByIdDesc();
         if (actifs.isEmpty()) return;
 
-        Map<String, IndexField> parCode = indices.findByDeletedFalseOrderByIdAsc().stream()
+        Map<String, IndexField> parCode = indices.findBySupprimeFalseOrderByIdAsc().stream()
                 .collect(Collectors.toMap(IndexField::getCode, Function.identity(), (a, b) -> a));
 
         // Jeux de valeurs distincts, pour que le filtrage et le groupage se voient

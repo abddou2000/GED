@@ -26,7 +26,19 @@
 ged:
   base:
     nom: ${DB_NAME:ged}
+    # Chiffrement ET vérification du certificat du serveur PostgreSQL (§6.2.1).
+    sslmode: ${DB_SSLMODE:verify-full}
 
 spring:
+  datasource:
+    hikari:
+      data-source-properties:
+        # Autorité qui a signé le certificat du serveur PostgreSQL (PKI MMED).
+        sslrootcert: ${DB_SSLROOTCERT:/etc/ged/pki/postgresql-ca.crt}
+  liquibase:
+    # En uat et en prod, les migrations sont appliquées par le script de
+    # déploiement (liquibase validate puis update, compte ged_owner), jamais au
+    # démarrage de l'application. SPRING_LIQUIBASE_ENABLED=true le rétablit.
+    enabled: false
   jpa:
     show-sql: false

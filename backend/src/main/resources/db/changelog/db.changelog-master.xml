@@ -67,12 +67,15 @@
     <include file="changesets/202609261130_ajout_auteur_suppression_douce.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609261135_ajout_metadonnees_document.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609261140_jalon_socle_donnees.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609270955_creation_fonction_uuid_v7.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609271000_creation_table_role.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609271005_creation_table_utilisateur.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609271010_creation_table_utilisateur_role.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609271015_creation_table_cache_annuaire.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609271020_creation_table_session.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609271025_suppression_table_compte_utilisateur.xml" relativeToChangelogFile="true"/>
-    <include file="changesets/202609271030_jalon_identite.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271040_ajout_cle_id_tables_association.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271045_renommage_indicateur_suppression.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271200_jalon_identite.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

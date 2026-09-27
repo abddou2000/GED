@@ -38,7 +38,7 @@ public class AccessGroupTriParTaille {
             throw new IllegalArgumentException("Tri non autorisé : " + collection);
         }
         String motif = "%" + (search == null ? "" : search).toLowerCase() + "%";
-        String ou = " from AccessGroup g where g.deleted = :supprimes"
+        String ou = " from AccessGroup g where g.supprime = :supprimes"
                   + " and lower(g.name) like :motif";
 
         TypedQuery<AccessGroup> q = em.createQuery(

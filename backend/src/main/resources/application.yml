@@ -23,7 +23,10 @@ spring:
   # surchargeable par variables d'environnement, voir backend/.env.example.
   # ------------------------------------------------------------
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${ged.base.nom}?currentSchema=${DB_SCHEMA:ged}
+    # sslmode : prefer en dev et test (PostgreSQL local) ; verify-full en uat et
+    # prod (profil prod), où la connexion à la base est chiffrée ET le certificat
+    # du serveur vérifié contre l'autorité de MMED (§6.2.1).
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${ged.base.nom}?currentSchema=${DB_SCHEMA:ged}&sslmode=${ged.base.sslmode}
     username: ${DB_USER:ged_app}
     password: ${DB_PASSWORD:}
 
@@ -60,6 +63,9 @@ server:
 #  Securite : authentification par jeton JWT
 # ============================================================
 ged:
+  base:
+    sslmode: ${DB_SSLMODE:prefer}
+
   securite:
     # Origines autorisees a appeler l'API (CORS), separees par des virgules.
     origines: ${GED_ORIGINES:http://localhost:*,http://127.0.0.1:*}

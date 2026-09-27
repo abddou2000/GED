@@ -70,8 +70,8 @@ public class DocumentService {
                                                String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
         Page<UploadDocument> result = (workspaceId != null)
-                ? repo.findByDeletedFalseAndWorkspaceIdAndNameContainingIgnoreCase(workspaceId, search, pageable)
-                : repo.findByDeletedFalseAndNameContainingIgnoreCase(search, pageable);
+                ? repo.findBySupprimeFalseAndWorkspaceIdAndNameContainingIgnoreCase(workspaceId, search, pageable)
+                : repo.findBySupprimeFalseAndNameContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, DocumentResponse::from);
     }
 
@@ -79,7 +79,7 @@ public class DocumentService {
     public PageResponse<DocumentResponse> trashed(int page, int size, String search,
                                                   String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
-        Page<UploadDocument> result = repo.findByDeletedTrueAndNameContainingIgnoreCase(search, pageable);
+        Page<UploadDocument> result = repo.findBySupprimeTrueAndNameContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, DocumentResponse::from);
     }
 
@@ -289,12 +289,12 @@ public class DocumentService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(d -> d.mettreEnCorbeille(ActeurCourant.employeId()));
+        repo.findByIdInAndSupprimeFalse(ids).forEach(d -> d.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(d -> d.restaurer());
+        repo.findByIdInAndSupprimeTrue(ids).forEach(d -> d.restaurer());
     }
 
     /* ---------- privé ---------- */
@@ -324,7 +324,7 @@ public class DocumentService {
      * personne ne relira.
      */
     private static void refuserSiEnCorbeille(UploadDocument d, String operation) {
-        if (d.isDeleted()) {
+        if (d.isSupprime()) {
             throw new IllegalArgumentException("Document en corbeille : " + operation
                     + " impossible. Restaurez-le d'abord.");
         }

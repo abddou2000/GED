@@ -76,10 +76,10 @@ public class StatsController {
         long enAttente = principal != null && principal.getEmployeId() != null
                 ? signatures.nombreEnAttente(principal.getEmployeId()) : 0L;
         return new Overview(
-                workspaces.countByDeletedFalse(),
-                documents.countByDeletedFalse(),
+                workspaces.countBySupprimeFalse(),
+                documents.countBySupprimeFalse(),
                 enAttente,
-                accessGroups.countByDeletedFalse());
+                accessGroups.countBySupprimeFalse());
     }
 
     /**

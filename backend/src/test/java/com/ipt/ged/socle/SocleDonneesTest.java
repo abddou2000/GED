@@ -131,13 +131,13 @@ class SocleDonneesTest {
 
         mvc.perform(delete("/api/v1/etiquettes/" + id)).andExpect(status().isNoContent());
         Map<String, Object> ligne = ligneEtiquette(id);
-        assertEquals(Boolean.TRUE, ligne.get("deleted"));
+        assertEquals(Boolean.TRUE, ligne.get("supprime"));
         assertEquals(admin, ligne.get("supprime_par"));
         assertNotNull(ligne.get("supprime_le"));
 
         mvc.perform(patch("/api/v1/etiquettes/" + id + "/restore")).andExpect(status().isNoContent());
         ligne = ligneEtiquette(id);
-        assertEquals(Boolean.FALSE, ligne.get("deleted"));
+        assertEquals(Boolean.FALSE, ligne.get("supprime"));
         assertNull(ligne.get("supprime_par"));
         assertNull(ligne.get("supprime_le"));
 
@@ -153,7 +153,7 @@ class SocleDonneesTest {
     void contrainteSuppressionCoherente() {
         UUID admin = Comptes.idAdmin(employeRepository);
         DataAccessException refus = assertThrows(DataAccessException.class, () -> jdbc.update(
-                "INSERT INTO etiquette (id, code, tag, couleur, deleted, supprime_par, supprime_le)"
+                "INSERT INTO etiquette (id, code, tag, couleur, supprime, supprime_par, supprime_le)"
                         + " VALUES (?, 'TAG-CK', 'x', '#000', false, ?, now())", UUID.randomUUID(), admin));
         assertEquals("23514", sqlState(refus), "violation de contrainte CHECK attendue");
     }
@@ -199,7 +199,7 @@ class SocleDonneesTest {
 
     private Map<String, Object> ligneEtiquette(String id) {
         em.flush();
-        return jdbc.queryForMap("SELECT deleted, supprime_par, supprime_le FROM etiquette WHERE id = ?",
+        return jdbc.queryForMap("SELECT supprime, supprime_par, supprime_le FROM etiquette WHERE id = ?",
                 UUID.fromString(id));
     }
 

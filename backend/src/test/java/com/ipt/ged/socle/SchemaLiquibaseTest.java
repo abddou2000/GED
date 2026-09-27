@@ -64,10 +64,11 @@ class SchemaLiquibaseTest {
         TABLES_ATTENDUES = Set.copyOf(t);
     }
 
-    /** Tables d'association, à clé composite : les seules sans colonne {@code id}. */
-    private static final Set<String> ASSOCIATIONS = Set.of(
-            "access_group_workspace", "access_group_employe", "plan_index", "document_etiquette",
-            "utilisateur_role");
+    /**
+     * Tables sans colonne {@code id} : aucune depuis ANO-E1-001 (§4.2.2), les
+     * tables d'association ayant reçu une clé {@code id} et une contrainte uk_.
+     */
+    private static final Set<String> ASSOCIATIONS = Set.of();
 
     /** Tables à corbeille : portent l'auteur et la date de suppression. */
     private static final Set<String> A_CORBEILLE = Set.of(
@@ -176,6 +177,8 @@ class SchemaLiquibaseTest {
                     + " WHERE table_schema = ? AND table_name = ? AND constraint_type = 'PRIMARY KEY'", schema, table);
             assertEquals("pk_" + table, pk);
         }
+        // Clés générées par la base (tables d'association) : UUID version 7.
+        assertEquals("7", texte(c, "SELECT substr(" + schema + ".uuid_v7()::text, 15, 1)"));
         // Toute colonne se terminant par _id (clé étrangère) est elle aussi un uuid.
         List<String> nonUuid = lignes(c, "SELECT table_name || '.' || column_name FROM information_schema.columns"
                 + " WHERE table_schema = ? AND column_name LIKE '%\\_id' AND data_type <> 'uuid'"
@@ -218,11 +221,11 @@ class SchemaLiquibaseTest {
         assertEquals(List.of(), incoherentes, "clés étrangères dont le nom ne désigne pas la table visée");
     }
 
-    /** supprime_par (uuid) et supprime_le (timestamptz) partout où existe `deleted`. */
+    /** supprime_par (uuid) et supprime_le (timestamptz) partout où existe `supprime`. */
     private void verifierSuppressionDouce(Connection c, String schema) throws SQLException {
-        List<String> avecDeleted = lignes(c, "SELECT table_name FROM information_schema.columns"
-                + " WHERE table_schema = ? AND column_name = 'deleted' ORDER BY 1", schema);
-        assertEquals(new TreeSet<>(A_CORBEILLE), new TreeSet<>(avecDeleted));
+        List<String> avecSupprime = lignes(c, "SELECT table_name FROM information_schema.columns"
+                + " WHERE table_schema = ? AND column_name = 'supprime' ORDER BY 1", schema);
+        assertEquals(new TreeSet<>(A_CORBEILLE), new TreeSet<>(avecSupprime));
         for (String table : A_CORBEILLE) {
             assertEquals("uuid", texte(c, "SELECT data_type FROM information_schema.columns"
                     + " WHERE table_schema = ? AND table_name = ? AND column_name = 'supprime_par'", schema, table));

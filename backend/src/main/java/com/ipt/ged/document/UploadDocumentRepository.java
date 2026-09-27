@@ -35,21 +35,21 @@ public interface UploadDocumentRepository extends JpaRepository<UploadDocument, 
        l'emporte sur le Sort du Pageable, ce qui rendait les en-tetes de colonne
        cliquables sans effet. */
 
-    Page<UploadDocument> findByDeletedFalseAndNameContainingIgnoreCase(String search, Pageable pageable);
+    Page<UploadDocument> findBySupprimeFalseAndNameContainingIgnoreCase(String search, Pageable pageable);
 
-    Page<UploadDocument> findByDeletedTrueAndNameContainingIgnoreCase(String search, Pageable pageable);
+    Page<UploadDocument> findBySupprimeTrueAndNameContainingIgnoreCase(String search, Pageable pageable);
 
-    Page<UploadDocument> findByDeletedFalseAndWorkspaceIdAndNameContainingIgnoreCase(
+    Page<UploadDocument> findBySupprimeFalseAndWorkspaceIdAndNameContainingIgnoreCase(
             UUID workspaceId, String search, Pageable pageable);
 
-    List<UploadDocument> findByIdInAndDeletedFalse(List<UUID> ids);
+    List<UploadDocument> findByIdInAndSupprimeFalse(List<UUID> ids);
 
     /** Tous les documents actifs — base de départ de la recherche par index. */
-    List<UploadDocument> findByDeletedFalseOrderByIdDesc();
+    List<UploadDocument> findBySupprimeFalseOrderByIdDesc();
 
-    List<UploadDocument> findByIdInAndDeletedTrue(List<UUID> ids);
+    List<UploadDocument> findByIdInAndSupprimeTrue(List<UUID> ids);
 
-    long countByDeletedFalse();
+    long countBySupprimeFalse();
 
     /** Une ligne de la répartition par type : le libellé du type et son total. */
     interface PartParType {
@@ -66,7 +66,7 @@ public interface UploadDocumentRepository extends JpaRepository<UploadDocument, 
            select t.typeDeDocument as label, count(d) as total
              from UploadDocument d
              left join d.typeDocument t
-            where d.deleted = false
+            where d.supprime = false
             group by t.typeDeDocument
             order by count(d) desc""")
     List<PartParType> compterParType();
@@ -79,6 +79,6 @@ public interface UploadDocumentRepository extends JpaRepository<UploadDocument, 
     @Query("""
            select d.createdAt
              from UploadDocument d
-            where d.deleted = false and d.createdAt >= :depuis""")
+            where d.supprime = false and d.createdAt >= :depuis""")
     List<Instant> datesDeCreationDepuis(@Param("depuis") Instant depuis);
 }

@@ -136,7 +136,7 @@ class RepriseDonneesTest {
                 texte(c, "SELECT parent_id::text FROM workspace WHERE code = 'WS-FACT'"));
         // Booléens, corbeille sans auteur connu, métadonnées par défaut.
         assertEquals(1, compter(c, "SELECT count(*) FROM document WHERE is_locked"));
-        assertEquals(1, compter(c, "SELECT count(*) FROM document WHERE deleted AND supprime_par IS NULL AND supprime_le IS NULL"));
+        assertEquals(1, compter(c, "SELECT count(*) FROM document WHERE supprime AND supprime_par IS NULL AND supprime_le IS NULL"));
         assertEquals(3, compter(c, "SELECT count(*) FROM document WHERE metadonnees = '{}'::jsonb"));
         // Taille inconnue ramenée à 0 (colonne désormais NOT NULL).
         assertEquals(0, compter(c, "SELECT size_ko FROM document WHERE file_name = 'rapport.docx'"));

@@ -70,9 +70,8 @@ public class SecurityConfig {
             @Value("${ged.securite.origines:http://localhost:*,http://127.0.0.1:*}") String origines,
             Environment environnement) {
         this.origines = origines;
-        boolean prod = Arrays.asList(environnement.getActiveProfiles()).contains("prod");
-        if (prod && origines.contains("localhost")) {
-            log.warn("Profil prod avec des origines CORS locales ({}). "
+        if (exploitation(environnement) && origines.contains("localhost")) {
+            log.warn("Profil prod ou uat avec des origines CORS locales ({}). "
                     + "Définissez GED_ORIGINES avec les domaines réels du frontend.", origines);
         }
     }
@@ -80,7 +79,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, FiltreJwt filtreJwt,
                                            Environment environnement) throws Exception {
-        boolean horsProduction = !Arrays.asList(environnement.getActiveProfiles()).contains("prod");
+        // Documentation de l'API fermée en production ET en recette (uat), qui
+        // partagent les mêmes contrôles de sécurité.
+        boolean horsProduction = !exploitation(environnement);
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
@@ -102,6 +103,12 @@ public class SecurityConfig {
                         .anyRequest().access(auMoinsUnRole()))
                 .addFilterBefore(filtreJwt, UsernamePasswordAuthenticationFilter.class);
         return http.build();
+    }
+
+    /** Profils d'exploitation : prod et uat appliquent les mêmes contrôles de sécurité. */
+    static boolean exploitation(Environment environnement) {
+        return Arrays.stream(environnement.getActiveProfiles())
+                .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("uat"));
     }
 
     /**

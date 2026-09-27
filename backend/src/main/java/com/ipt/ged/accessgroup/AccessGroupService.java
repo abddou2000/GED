@@ -70,8 +70,8 @@ public class AccessGroupService {
             return triParTaille.rechercher(search, supprimes, champ, sens, pageable);
         }
         return supprimes
-                ? repo.findByDeletedTrueAndNameContainingIgnoreCase(search, pageable)
-                : repo.findByDeletedFalseAndNameContainingIgnoreCase(search, pageable);
+                ? repo.findBySupprimeTrueAndNameContainingIgnoreCase(search, pageable)
+                : repo.findBySupprimeFalseAndNameContainingIgnoreCase(search, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -120,18 +120,18 @@ public class AccessGroupService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(g -> g.mettreEnCorbeille(ActeurCourant.employeId()));
+        repo.findByIdInAndSupprimeFalse(ids).forEach(g -> g.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(g -> g.restaurer());
+        repo.findByIdInAndSupprimeTrue(ids).forEach(g -> g.restaurer());
     }
 
     /** Liste allégée {id, name} pour les sélecteurs. */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> forSelect() {
-        return repo.findByDeletedFalseOrderByIdAsc().stream()
+        return repo.findBySupprimeFalseOrderByIdAsc().stream()
                 .map(g -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", g.getId());

@@ -26,7 +26,7 @@ public record DocumentResponse(
          * document supprimé s'affichait donc à l'identique d'un document vivant,
          * l'écran n'ayant aucun moyen de savoir que toute écriture y sera refusée.
          */
-        boolean deleted,
+        boolean supprime,
         /** Chemin de rangement lisible : dossier / type. */
         String chemin,
         String createdBy,
@@ -49,7 +49,7 @@ public record DocumentResponse(
                 d.getTypeDocument() != null ? new Ref(d.getTypeDocument().getId(), d.getTypeDocument().getTypeDeDocument()) : null,
                 d.getFileName(), d.getExtension(), d.getSizeKo(), humanSize(d.getSizeKo()),
                 d.getExpirationDate() != null ? d.getExpirationDate().toString() : null,
-                d.isActive(), d.isVerrouille(), d.isDeleted(),
+                d.isActive(), d.isVerrouille(), d.isSupprime(),
                 chemin(d),
                 d.getCreatedBy() != null ? d.getCreatedBy().getFullName() : null,
                 tags(d), versions(d),

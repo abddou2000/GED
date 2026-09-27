@@ -39,7 +39,7 @@ public class AccessGroupSeeder implements CommandLineRunner {
         if (repo.count() > 0) {
             return;
         }
-        List<WorkSpace> allWs = workspaces.findByDeletedFalseOrderByIdAsc();
+        List<WorkSpace> allWs = workspaces.findBySupprimeFalseOrderByIdAsc();
         List<Employe> users = employes.findByHasUserTrue();
         if (allWs.isEmpty() || users.isEmpty()) {
             return;

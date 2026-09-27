@@ -14,7 +14,7 @@ import java.util.UUID;
  *
  * <p>Les trois colonnes ne se modifient qu'ensemble, par
  * {@link #mettreEnCorbeille} et {@link #restaurer} : il n'y a volontairement
- * pas de {@code setDeleted}. Un indicateur remis à faux en laissant l'auteur et
+ * pas de {@code setSupprime}. Un indicateur remis à faux en laissant l'auteur et
  * la date en place décrirait un objet vivant « supprimé par X » — la contrainte
  * {@code ck_<table>_suppression} le refuserait d'ailleurs en base.
  */
@@ -24,7 +24,7 @@ public abstract class Supprimable extends Auditable {
 
     /** Corbeille : true = supprimé de façon réversible. */
     @Column(nullable = false)
-    private boolean deleted = false;
+    private boolean supprime = false;
 
     /** Employé qui a mis l'objet en corbeille ; null s'il est vivant. */
     @Column(name = "supprime_par")
@@ -41,14 +41,14 @@ public abstract class Supprimable extends Auditable {
      *               traitement technique sans acteur authentifié.
      */
     public void mettreEnCorbeille(UUID auteur) {
-        this.deleted = true;
+        this.supprime = true;
         this.supprimePar = auteur;
         this.supprimeLe = Instant.now();
     }
 
     /** Sort l'objet de la corbeille : l'auteur et la date de suppression sont effacés. */
     public void restaurer() {
-        this.deleted = false;
+        this.supprime = false;
         this.supprimePar = null;
         this.supprimeLe = null;
     }

@@ -60,7 +60,7 @@ WITH controles(ordre, controle, attendu, obtenu) AS (
            JOIN document d ON d.id = reprise_source.nouvel_id('documents_file', s.id)
           WHERE d.created_at IS DISTINCT FROM s.created_at AT TIME ZONE 'UTC')
     UNION ALL SELECT 34, 'documents en corbeille', (SELECT count(*) FROM reprise_source.documents_file WHERE deleted),
-        (SELECT count(*) FROM document WHERE deleted)
+        (SELECT count(*) FROM document WHERE supprime)
     UNION ALL SELECT 35, 'versions principales', (SELECT count(*) FROM reprise_source.document_versions WHERE is_default),
         (SELECT count(*) FROM version_document WHERE is_default)
     UNION ALL SELECT 36, 'jetons de charte encore numériques et désignant un index', 0::bigint,

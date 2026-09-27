@@ -20,7 +20,7 @@ public record WorkSpaceResponse(
          * que plus aucune écriture n'y est acceptée. Les deux informations sont
          * distinctes et doivent l'être toutes les deux.
          */
-        boolean deleted,
+        boolean supprime,
         Ref owner,
         Ref parent,
         Ref workflow,
@@ -52,7 +52,7 @@ public record WorkSpaceResponse(
                 w.getCode(),
                 w.getDescription(),
                 w.getStatus().name(),
-                w.isDeleted(),
+                w.isSupprime(),
                 w.getOwner() != null ? new Ref(w.getOwner().getId(), w.getOwner().getFullName()) : null,
                 w.getParent() != null ? new Ref(w.getParent().getId(), w.getParent().getName()) : null,
                 w.getWorkflow() != null ? new Ref(w.getWorkflow().getId(), w.getWorkflow().getName()) : null,

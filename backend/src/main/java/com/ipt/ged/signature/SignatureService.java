@@ -68,7 +68,7 @@ public class SignatureService {
     @Transactional(readOnly = true)
     public List<SignatureResponse> pending(UUID employeId) {
         return repo.findByEmployeIdAndStatusOrderByStepOrderAsc(employeId, SignatureStatus.PENDING).stream()
-                .filter(s -> s.getDocument() != null && !s.getDocument().isDeleted())
+                .filter(s -> s.getDocument() != null && !s.getDocument().isSupprime())
                 .filter(this::isActionable)
                 .map(SignatureResponse::from)
                 .toList();
@@ -232,7 +232,7 @@ public class SignatureService {
      * trace exploitable.
      */
     private void checkDocumentVivant(WorkflowSignature sig) {
-        if (sig.getDocument() != null && sig.getDocument().isDeleted()) {
+        if (sig.getDocument() != null && sig.getDocument().isSupprime()) {
             throw new IllegalArgumentException(
                     "Document en corbeille : cette étape ne peut plus être traitée. Restaurez-le d'abord.");
         }

@@ -15,12 +15,13 @@
     <changeSet id="202609271010-1" author="ged">
         <comment>Association identité / rôle.</comment>
         <createTable tableName="utilisateur_role">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()"><constraints primaryKey="true" primaryKeyName="pk_utilisateur_role" nullable="false"/></column>
             <column name="utilisateur_id" type="UUID"><constraints nullable="false"/></column>
             <column name="role_id" type="UUID"><constraints nullable="false"/></column>
             <column name="attribue_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()"><constraints nullable="false"/></column>
             <column name="attribue_par" type="UUID"/>
         </createTable>
-        <addPrimaryKey constraintName="pk_utilisateur_role" tableName="utilisateur_role" columnNames="utilisateur_id, role_id"/>
+        <addUniqueConstraint constraintName="uk_utilisateur_role_utilisateur_id_role_id" tableName="utilisateur_role" columnNames="utilisateur_id, role_id"/>
         <addForeignKeyConstraint constraintName="fk_utilisateur_role_utilisateur" baseTableName="utilisateur_role" baseColumnNames="utilisateur_id"
                                  referencedTableName="utilisateur" referencedColumnNames="id" onDelete="CASCADE"/>
         <addForeignKeyConstraint constraintName="fk_utilisateur_role_role" baseTableName="utilisateur_role" baseColumnNames="role_id"
