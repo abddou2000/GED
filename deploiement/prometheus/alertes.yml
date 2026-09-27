@@ -54,6 +54,18 @@ groups:
           resume: "Annuaire injoignable ({{ $labels.environnement }}) : nouvelles connexions impossibles"
           description: "La sonde annuaire est DOWN depuis 2 minutes. Les utilisateurs déjà connectés continuent jusqu'à l'expiration de leur session."
 
+      - alert: GedAnnuaireControleurIndisponible
+        # Décision D4 : plusieurs contrôleurs de domaine déclarés, l'un d'eux ne
+        # répond plus. Les connexions passent par les autres (sonde DEGRADE) :
+        # redondance perdue, à rétablir avant la prochaine panne.
+        expr: ged_annuaire_controleur == 0
+        for: 5m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Contrôleur de domaine {{ $labels.controleur }} injoignable ({{ $labels.environnement }})"
+          description: "Le compte de service ne se lie plus à {{ $labels.controleur }} depuis 5 minutes. Les connexions utilisent les autres contrôleurs."
+
   - name: ged-erreurs
     rules:
       - alert: GedTauxErreurs5xx
@@ -120,6 +132,30 @@ groups:
         annotations:
           resume: "95 % des documents OCRisés hors objectif ({{ $labels.environnement }})"
           description: "95e centile du délai dépôt -> disponibilité en recherche : {{ $value | humanizeDuration }}."
+
+  - name: ged-audit
+    rules:
+      - alert: GedAuditScellementCompromis
+        # La dernière vérification du scellement a relevé des anomalies : un
+        # enregistrement ou un scellement a été modifié hors de l'application
+        # (DAT 7.4.2). Incident de sécurité : prévenir le responsable sécurité.
+        expr: ged_audit_anomalies > 0
+        labels:
+          severite: critique
+        annotations:
+          resume: "Journal d'audit : {{ $value }} anomalie(s) de scellement ({{ $labels.environnement }})"
+          description: "Détail : POST /api/v1/audit/verifications ou journal technique (VerificationAudit). Ne rien corriger avant expertise."
+
+      - alert: GedAuditScellementEnRetard
+        # Le scellement est horaire : au-delà de 3 heures sans nouvelle période
+        # scellée, la tâche est arrêtée ou en échec (export impossible ?).
+        expr: ged_audit_scellement_retard_seconds > 3 * 3600
+        for: 10m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Journal d'audit non scellé depuis {{ $value | humanizeDuration }} ({{ $labels.environnement }})"
+          description: "Vérifier le journal technique (ScellementAudit) et l'accès en écriture au fichier d'export des scellements."
 
   - name: ged-certificats
     rules:

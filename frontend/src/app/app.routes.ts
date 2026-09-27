@@ -85,6 +85,24 @@ export const routes: Routes = [
         loadComponent: () => import('./features/etiquette/etiquette-list/etiquette-list').then(m => m.EtiquetteList),
       },
       {
+        // Journal d'audit (DAT §7.4.3), lecture seule. Garde par permission
+        // CONSULTER_AUDIT à brancher avec le lot autorisation (E3).
+        path: 'journal-audit',
+        loadComponent: () => import('./features/audit/journal-audit/journal-audit').then(m => m.JournalAudit),
+      },
+      {
+        // Applications clientes et clés d'API (DAT §5.4). Le serveur refuse
+        // l'accès aux applications elles-mêmes ; garde par permission
+        // d'administration à brancher avec le lot autorisation (E3).
+        path: 'cles-api',
+        loadComponent: () => import('./features/cles-api/cles-api-admin/cles-api-admin').then(m => m.ClesApiAdmin),
+      },
+      {
+        // Centre de notifications de l'utilisateur (DAT §12.9).
+        path: 'notifications',
+        loadComponent: () => import('./features/notifications/notifications-list/notifications-list').then(m => m.NotificationsList),
+      },
+      {
         path: 'televerser',
         loadComponent: () => import('./features/document/document-list/document-list').then(m => m.DocumentList),
       },

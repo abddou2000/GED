@@ -63,7 +63,7 @@ class EtiquetteApiTest {
         create("TAG-DUP", "Un", "#000000");
         mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(body("TAG-DUP", "Deux", "#111111")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("déjà utilisé")));
+                .andExpect(jsonPath("$.detail", containsString("déjà utilisé")));
     }
 
     @Test
@@ -71,7 +71,7 @@ class EtiquetteApiTest {
     void missingTag() throws Exception {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON).content("{\"code\":\"TAG-X\",\"couleur\":\"#fff\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.tag").exists());
+                .andExpect(jsonPath("$.erreurs.tag").exists());
     }
 
     @Test
@@ -79,7 +79,7 @@ class EtiquetteApiTest {
     void missingColor() throws Exception {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON).content("{\"code\":\"TAG-Y\",\"tag\":\"Y\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.couleur").exists());
+                .andExpect(jsonPath("$.erreurs.couleur").exists());
     }
 
     @Test

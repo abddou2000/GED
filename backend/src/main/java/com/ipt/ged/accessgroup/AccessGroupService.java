@@ -1,5 +1,7 @@
 package com.ipt.ged.accessgroup;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.JournalAdministration;
 import com.ipt.ged.autorisation.VersionHabilitations;
 import com.ipt.ged.autorisation.admin.ServiceHabilitations;
 import com.ipt.ged.autorisation.evenement.HabilitationModifiee;
@@ -50,11 +52,13 @@ public class AccessGroupService {
     private final ServiceHabilitations habilitations;
     private final VersionHabilitations version;
     private final ApplicationEventPublisher evenements;
+    /** Journal d'audit : administration des groupes (DAT §7.4.1), en plus de HABILITATION_MODIFIEE. */
+    private final JournalAdministration journal;
 
     public AccessGroupService(AccessGroupRepository repo, WorkSpaceRepository workspaceRepo,
                               EmployeRepository employeRepo, AccessGroupTriParTaille triParTaille,
                               ServiceHabilitations habilitations, VersionHabilitations version,
-                              ApplicationEventPublisher evenements) {
+                              ApplicationEventPublisher evenements, JournalAdministration journal) {
         this.repo = repo;
         this.workspaceRepo = workspaceRepo;
         this.employeRepo = employeRepo;
@@ -62,6 +66,7 @@ public class AccessGroupService {
         this.habilitations = habilitations;
         this.version = version;
         this.evenements = evenements;
+        this.journal = journal;
     }
 
     @Transactional(readOnly = true)
@@ -106,12 +111,15 @@ public class AccessGroupService {
         }
         AccessGroup g = repo.save(new AccessGroup(req.code(), req.name()));
         apply(g, req);
-        return reponse(g);
+        AccessGroupResponse cree = reponse(g);
+        journal.cree(ActionAudit.GROUPE_CREE, "GROUPE", cree.id(), cree);
+        return cree;
     }
 
     @Transactional
     public AccessGroupResponse update(UUID id, AccessGroupRequest req) {
         AccessGroup g = load(id);
+        AccessGroupResponse avant = reponse(g);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
         }
@@ -121,7 +129,9 @@ public class AccessGroupService {
         g.setCode(req.code());
         g.setName(req.name());
         apply(g, req);
-        return reponse(repo.save(g));
+        AccessGroupResponse apres = reponse(repo.save(g));
+        journal.modifie(ActionAudit.GROUPE_MODIFIE, "GROUPE", id, avant, apres);
+        return apres;
     }
 
     @Transactional
@@ -155,6 +165,7 @@ public class AccessGroupService {
             if (supprimer) g.mettreEnCorbeille(ActeurCourant.employeId());
             else g.restaurer();
             publier(g, avant);
+            journal.action(supprimer ? ActionAudit.GROUPE_SUPPRIME : ActionAudit.GROUPE_RESTAURE, "GROUPE", g.getId());
         }
         if (!groupes.isEmpty()) version.incrementer();
     }

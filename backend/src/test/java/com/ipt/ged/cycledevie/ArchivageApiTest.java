@@ -84,7 +84,7 @@ class ArchivageApiTest extends BaseCycleDeVieApiTest {
                 .findFirst().orElseThrow();
         assertEquals("DOCUMENT_ARCHIVE", e.action());
         assertEquals("VALIDE", e.copieConservation());
-        assertNotNull(e.acteurUtilisateurId());
+        assertNotNull(e.acteur().employeId());
     }
 
     @Test

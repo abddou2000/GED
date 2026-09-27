@@ -1,5 +1,8 @@
 package com.ipt.ged.indexation;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.AuditService;
+import com.ipt.ged.audit.EntreeAudit;
 import com.ipt.ged.common.Limites;
 import com.ipt.ged.document.ContraintesDepot;
 import com.ipt.ged.fichier.controle.ControleFichiers;
@@ -52,6 +55,8 @@ public class IndexationService {
     private final DocumentIndexRepository valeurRepository;
     /** Le type porte le plan : l'apercu part du type, pas d'un document. */
     private final TypeDocumentRepository typeRepository;
+    /** Journal d'audit : indexation enregistrée, valeurs avant et après (DAT §7.4.1). */
+    private final AuditService audit;
     private final ControleFichiers controleFichiers;
     /** Point d'application unique des droits (lot E3). */
     private final com.ipt.ged.autorisation.AccessPredicate droits;
@@ -175,6 +180,20 @@ public class IndexationService {
             }
         }
 
+        // Valeurs avant et après, par nom d'index, pour le journal d'audit.
+        Map<String, Object> avant = new LinkedHashMap<>();
+        Map<String, Object> apres = new LinkedHashMap<>();
+        for (Map.Entry<UUID, String> ligne : recues.entrySet()) {
+            DocumentIndex ancienne = existantes.get(ligne.getKey());
+            String valeurAvant = ancienne != null ? ancienne.getValeur() : null;
+            String valeurApres = ligne.getValue() == null || ligne.getValue().isEmpty() ? null : ligne.getValue();
+            if (!java.util.Objects.equals(valeurAvant, valeurApres)) {
+                String nom = autorises.get(ligne.getKey()).getNomIndex();
+                avant.put(nom, valeurAvant);
+                apres.put(nom, valeurApres);
+            }
+        }
+
         // Seconde passe : écriture, plus rien ne peut être refusé ici.
         for (Map.Entry<UUID, String> ligne : recues.entrySet()) {
             IndexField champ = autorises.get(ligne.getKey());
@@ -204,7 +223,16 @@ public class IndexationService {
            système suivis d'interrogations — « 260811_105301_?_? » — c'est-à-dire
            détruisait le nom sans qu'aucune donnée n'ait été fournie. */
         if (!recues.isEmpty()) {
+            String nomAvant = doc.getName();
             recomposerReference(doc);
+            if (!java.util.Objects.equals(nomAvant, doc.getName())) {
+                avant.put("nom du document", nomAvant);
+                apres.put("nom du document", doc.getName());
+            }
+        }
+        if (!avant.isEmpty() || !apres.isEmpty()) {
+            audit.enregistrer(EntreeAudit.de(ActionAudit.INDEXATION_ENREGISTREE, "DOCUMENT", documentId)
+                    .avecAvantApres(avant, apres));
         }
         return valeurs(documentId);
     }

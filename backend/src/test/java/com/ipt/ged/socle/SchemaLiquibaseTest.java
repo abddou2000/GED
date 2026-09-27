@@ -79,6 +79,20 @@ class SchemaLiquibaseTest {
         TABLES_E3 = Set.copyOf(t);
     }
 
+    /**
+     * Tables du journal d'audit (lot E4). Leur clé {@code id} est un bigint
+     * SÉQUENTIEL, comme le prescrit le §7.4.1 : c'est l'ordre du scellement
+     * chaîné. Les partitions mensuelles de journal_audit (journal_audit_AAAAMM)
+     * dépendent de la date de migration et sont écartées des comparaisons.
+     */
+    private static final Set<String> TABLES_AUDIT = Set.of("journal_audit", "journal_audit_scellement");
+
+    /** Tables de l'API d'intégration (lot E9) : clés UUID, conventions de nommage. */
+    private static final Set<String> TABLES_API = Set.of("application", "cle_api", "cle_api_portee", "idempotence_cle");
+
+    /** Notifications (DAT §12.9) : boîte d'envoi et préférence (clé : l'utilisateur). */
+    private static final Set<String> TABLES_NOTIFICATION = Set.of("notification", "preference_notification");
+
     /** Tables ajoutées par les lots E5 (stockage chiffré) et E6 (OCR, recherche plein texte). */
     private static final Set<String> TABLES_E5_E6 = Set.of("cle_fichier", "ocr_job", "document_texte");
 
@@ -86,14 +100,21 @@ class SchemaLiquibaseTest {
     private static final Set<String> TABLES_E7_CYCLE_DE_VIE = Set.of(
             "copie_conservation", "job_archivage", "job_archivage_element", "job_export", "job_export_element");
 
-    /** Toutes les tables du changelog maître. */
+    /** Toutes les tables du changelog maître : E3, lots de dev3 (E5 à E7) et de dev2 (audit, API, notifications). */
     private static final Set<String> TABLES_ATTENDUES;
     static {
         Set<String> t = new TreeSet<>(TABLES_E3);
         t.addAll(TABLES_E5_E6);
         t.addAll(TABLES_E7_CYCLE_DE_VIE);
+        t.addAll(TABLES_AUDIT);
+        t.addAll(TABLES_API);
+        t.addAll(TABLES_NOTIFICATION);
         TABLES_ATTENDUES = Set.copyOf(t);
     }
+
+    /** Tables dont la clé primaire n'est pas un {@code id} uuid : audit (bigint séquentiel), préférence (utilisateur). */
+    private static final Set<String> CLES_PARTICULIERES = Set.of("journal_audit", "journal_audit_scellement",
+            "preference_notification");
 
     /**
      * Tables sans colonne {@code id} : aucune depuis ANO-E1-001 (§4.2.2), les
@@ -172,8 +193,8 @@ class SchemaLiquibaseTest {
                         "neuf permissions élémentaires, sept d'administration, deux de confidentialité");
                 assertEquals(1, compter(c, "SELECT count(*) FROM " + schema + ".version_habilitations"));
 
-                // Retour au jalon E3 : les lots postérieurs (E5, E6, E7 cycle de
-                // vie, colonnes du lot modèle) se défont.
+                // Retour au jalon E3 : les lots postérieurs (E5, E6, E7 cycle de vie, journal
+                // d'audit, API d'intégration, notifications) se défont, le modèle E3 reste.
                 liquibase.rollback("autorisation-e3", (String) null);
                 assertEquals(new TreeSet<>(TABLES_E3), tablesMetier(c, schema));
 
@@ -209,7 +230,7 @@ class SchemaLiquibaseTest {
     /** Clé primaire {@code id} de type uuid sur toute table qui n'est pas une association. */
     private void verifierClesUuid(Connection c, String schema) throws SQLException {
         for (String table : TABLES_ATTENDUES) {
-            if (ASSOCIATIONS.contains(table)) continue;
+            if (ASSOCIATIONS.contains(table) || CLES_PARTICULIERES.contains(table)) continue;
             String type = texte(c, "SELECT data_type FROM information_schema.columns"
                     + " WHERE table_schema = ? AND table_name = ? AND column_name = 'id'", schema, table);
             assertEquals("uuid", type, "clé primaire de " + table);
@@ -344,7 +365,8 @@ class SchemaLiquibaseTest {
 
     private static Set<String> tables(Connection c, String schema) throws SQLException {
         return new TreeSet<>(lignes(c, "SELECT table_name FROM information_schema.tables"
-                + " WHERE table_schema = ? AND table_type = 'BASE TABLE'", schema));
+                + " WHERE table_schema = ? AND table_type = 'BASE TABLE'"
+                + " AND table_name !~ '^journal_audit_[0-9]{6}$'", schema));
     }
 
     private static void executer(Connection c, String sql) throws SQLException {

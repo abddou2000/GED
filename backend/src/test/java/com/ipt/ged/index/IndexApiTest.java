@@ -77,7 +77,7 @@ class IndexApiTest {
         create("IDX-DUP", "Un", "TEXTE", null);
         mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(body("IDX-DUP", "Deux", "TEXTE", null)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("déjà utilisé")));
+                .andExpect(jsonPath("$.detail", containsString("déjà utilisé")));
     }
 
     @Test
@@ -86,7 +86,7 @@ class IndexApiTest {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
                         .content("{\"code\":\"IDX-X\",\"fieldType\":\"TEXTE\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.nomIndex").exists());
+                .andExpect(jsonPath("$.erreurs.nomIndex").exists());
     }
 
     @Test

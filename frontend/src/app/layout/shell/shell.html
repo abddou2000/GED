@@ -14,6 +14,15 @@
 
     <div class="topbar-spacer"></div>
 
+    <!-- Pastille des notifications (DAT §12.9) : nombre de non lues. -->
+    <a class="cloche" routerLink="/notifications"
+       [attr.aria-label]="notifications.nonLues() > 0 ? 'Notifications, ' + notifications.nonLues() + ' non lues' : 'Notifications'">
+      <mat-icon svgIcon="bell"></mat-icon>
+      @if (notifications.nonLues() > 0) {
+        <span class="pastille">{{ notifications.nonLues() > 99 ? '99+' : notifications.nonLues() }}</span>
+      }
+    </a>
+
     <button class="acc-btn" [matMenuTriggerFor]="accMenu" aria-label="Compte utilisateur" aria-haspopup="menu">
       <span class="acc-av">{{ session.initials() }}</span>
       <span class="acc-name">{{ session.user()?.fullName || 'Utilisateur' }}</span>
@@ -123,6 +132,17 @@
       <a routerLink="/administration/sessions" routerLinkActive="active" (click)="closeDrawer()" aria-label="Sessions">
         <mat-icon svgIcon="nav-groups"></mat-icon><span>Sessions</span>
       </a>
+    }
+    <!-- Journal d'audit (CONSULTER_AUDIT) et clés d'API (GERER_CLES_API) : lot E4 / E9. -->
+    @if (auth.peut('CONSULTER_AUDIT')) {
+    <a routerLink="/journal-audit" routerLinkActive="active" (click)="closeDrawer()" aria-label="Journal d'audit">
+      <mat-icon svgIcon="nav-audit"></mat-icon><span>Journal d'audit</span>
+    </a>
+    }
+    @if (auth.peut('GERER_CLES_API')) {
+    <a routerLink="/cles-api" routerLinkActive="active" (click)="closeDrawer()" aria-label="Clés d'API">
+      <mat-icon svgIcon="nav-cle"></mat-icon><span>Clés d'API</span>
+    </a>
     }
   </nav>
 

@@ -169,7 +169,8 @@ class DepotDeuxTempsApiTest {
         String meta = "{\"" + cMontant + "\": \"beaucoup\", \"INCONNU\": \"x\", \"" + cDate + "\": \"01/09/2026\"}";
         JsonNode r = json(deposer(typeAvecPlan, meta).andExpect(status().isBadRequest()));
         assertEquals(ErreurDepot.METADONNEES_INVALIDES, r.get("code").asText());
-        String detail = r.get("message").asText();
+        // problem+json (contrat dev2) : le texte est dans « detail ».
+        String detail = r.get("detail").asText();
         assertTrue(detail.contains("INCONNU") && detail.contains(cMontant) && detail.contains(cFournisseur)
                 && detail.contains(cDate), detail);
         assertEquals(docs, documentsDuType(typeAvecPlan));

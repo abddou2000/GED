@@ -89,6 +89,10 @@
     <include file="changesets/202609281200_jalon_autorisation.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301000_archivage_noeud_document.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301010_socle_commun_verrou_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271000_creation_journal_audit.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281000_creation_cles_api.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609291000_creation_notifications.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610011000_portee_cles_api_noeud.xml" relativeToChangelogFile="true"/>
 
     <!-- Lots E5 (stockage chiffré) et E6 (OCR asynchrone, recherche plein texte) -->
     <include file="changesets/202609271200_creation_table_cle_fichier.xml" relativeToChangelogFile="true"/>

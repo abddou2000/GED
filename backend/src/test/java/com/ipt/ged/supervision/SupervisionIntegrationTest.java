@@ -54,7 +54,7 @@ class SupervisionIntegrationTest {
     void sondesPresentes() {
         var global = (CompositeHealth) sante.health();
         assertThat(global.getComponents())
-                .containsKeys("db", "referentielFichiers", "annuaire", "antivirus", "filesTraitement");
+                .containsKeys("db", "referentielFichiers", "antivirus", "filesTraitement");
 
         var disponibilite = (CompositeHealth) sante.healthForPath("readiness");
         assertThat(disponibilite.getComponents())
