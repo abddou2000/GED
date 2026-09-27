@@ -1,8 +1,42 @@
 # Suivi — dev2 (qualité, exploitation, traçabilité, API)
 
-Branche `ct/dev2`. Mise à jour : 26/09/2026.
+Branche `ct/dev2`. Mise à jour : 27/09/2026.
 
-## Lot en cours — vague 1
+## Vague 2 — en cours
+
+### Amorce M1 — contrat d'erreurs problem+json : **PRÊT** (commit 6d1d09e)
+
+À fusionner dès maintenant (dev1 et dev3 en dépendent). Contrat pour les lots :
+
+- Lever `com.ipt.ged.common.erreur.ExceptionMetier` ou une sous-classe, avec un code
+  du catalogue du domaine : `RequeteInvalideException` (400), `NonAuthentifieException`
+  (401), `AccesRefuseException` (403), `RessourceIntrouvableException` (404, libellé
+  fixe : absent et hors périmètre indiscernables), `ConflitException` (409),
+  `RegleMetierException` (422), `TropDeRequetesException` (429, `Retry-After`
+  calculé), `ServiceIndisponibleException` (503). Codes génériques :
+  `CodesErreur` ; codes de domaine dans le paquet du domaine (majuscules et
+  soulignés, jamais modifiés une fois publiés). `avec(nom, valeur)` ajoute un
+  membre d'extension.
+- Réponse : `application/problem+json` avec `type` (`urn:ged:erreur:<code>`),
+  `title`, `status`, `detail`, `instance`, `code`, `traceId`, et `erreurs` (par
+  champ) pour les 400 de validation. `GlobalExceptionHandler` : **dev2 seul** ;
+  personne n'a à le modifier pour un nouveau refus.
+- `ErreurFichierException` (dev3) reste traitée telle quelle, codes conservés.
+  Suggestion à dev3 : la faire hériter d'`ExceptionMetier` (une ligne).
+- **dev1** : brancher `ReponsesSecuriteProblem` (bean) dans `SecurityConfig` —
+  `.exceptionHandling(e -> e.authenticationEntryPoint(r).accessDeniedHandler(r))`
+  — pour que les 401/403 de la chaîne de sécurité soient au même format ; lever
+  `TropDeRequetesException` pour l'anti-force brute au lieu de
+  `ResponseStatusException` (celle-ci reste traduite, mais sans `Retry-After`).
+- Front : `core/probleme.ts` (`messageErreur`, `codeErreur`, `erreursParChamp`),
+  intercepteur en tête de chaîne ; les écrans existants lisent encore
+  `error.message`/`error.errors`, alias posés par l'intercepteur.
+- Tests : `ContratErreursTest` (tous les statuts, format, Retry-After, 404
+  indiscernable, validation, exceptions Spring, 401/403 de la chaîne) ; tests
+  existants passés de `$.message`/`$.errors` à `$.detail`/`$.erreurs`.
+  `mvn test` : 303 verts.
+
+## Vague 1 — livrée (fusion 95b11e1)
 
 E0 (outillage), E4 partie journalisation technique (7.1, 7.3.1), E10 (exploitation).
 Décisions de la revue technique intégrées : **D4** (un seul contrôleur de domaine,
