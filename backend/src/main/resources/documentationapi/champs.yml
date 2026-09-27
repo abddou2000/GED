@@ -1,0 +1,404 @@
+# ============================================================
+#  Dictionnaire de la spécification OpenAPI (T-053, DAT §5.3)
+#
+#  Décrit champ par champ les charges utiles de l'API, SANS annotation dans
+#  les contrôleurs et DTO des autres lots : EnrichissementOpenApi l'applique
+#  à la spécification générée par springdoc.
+#
+#  - objets     : description de chaque schéma (charge utile) ;
+#  - champs     : description et exemple d'un champ, par nom, valables pour
+#                 tous les schémas qui portent ce nom ;
+#  - surcharges : « Schema.champ », quand un même nom change de sens.
+#
+#  Un champ ajouté à un DTO sans entrée ici fait échouer
+#  SpecificationOpenApiTest, qui affiche les lignes à compléter.
+#  Conventions (DAT §5.3.2) : identifiants UUID opaques, dates ISO 8601 en UTC.
+# ============================================================
+
+objets:
+  Ref: Référence courte vers un objet (identifiant et libellé affiché).
+  WorkSpaceRequest: Création ou modification d'un espace de travail (nœud de l'arborescence).
+  WorkSpaceResponse: Espace de travail, avec son propriétaire, son parent et son circuit de validation.
+  TreeNode: Nœud de l'arborescence des espaces, avec ses enfants.
+  StepRequest: Étape d'une règle de workflow (validateur désigné).
+  StepResponse: Étape d'une règle de workflow.
+  WorkflowRequest: Création ou modification d'une règle de workflow.
+  WorkflowResponse: Règle de workflow et espaces qui l'utilisent.
+  TypeDocumentRequest: Création ou modification d'un type de document.
+  TypeDocumentResponse: Type de document, avec son espace et son plan d'indexation.
+  PlanIndexationRequest: Création ou modification d'un plan d'indexation et de sa charte de nommage.
+  PlanIndexationResponse: Plan d'indexation, avec un aperçu du nom composé.
+  IndexRequest: Création ou modification d'un index (métadonnée typée).
+  IndexResponse: Index (métadonnée typée) d'un plan d'indexation.
+  Ligne: Valeur saisie pour un index d'un document.
+  ValeurRequest: Enregistrement des valeurs d'index d'un document.
+  ValeurResponse: Valeur d'index enregistrée sur un document.
+  EtiquetteRequest: Création ou modification d'une étiquette.
+  EtiquetteResponse: Étiquette (mot-clé coloré) applicable aux documents.
+  DocumentRequest: Modification des métadonnées d'un document.
+  DocumentResponse: Document, avec ses étiquettes et ses versions.
+  Tag: Étiquette posée sur un document.
+  Version: Version d'un document ; une seule est courante.
+  ApplicationRequest: Création ou modification d'une application cliente de l'API (DAT §5.4).
+  ApplicationResponse: Application cliente de l'API, avec ses clés (jamais leur secret).
+  CleResponse: Clé d'API telle que l'expose le serveur ; ni le secret ni son empreinte.
+  CleGenereeResponse: Clé d'API générée ; la valeur complète n'est renvoyée qu'une seule fois.
+  GenerationRequest: Génération d'une clé d'API pour une application.
+  ActivationRequest: Activation ou désactivation d'une application cliente.
+  RevocationRequest: Révocation motivée d'une clé d'API.
+  AccessGroupRequest: Création ou modification d'un groupe d'accès.
+  AccessGroupResponse: Groupe d'accès, avec ses espaces et ses membres.
+  NotificationResponse: Notification de l'utilisateur (DAT §12.9) ; trois familles de cas seulement.
+  CompteurResponse: Nombre de notifications non lues (pastille).
+  MarquageResponse: Résultat du marquage global des notifications.
+  PreferenceRequest: Préférence de notification ; l'e-mail peut être désactivé.
+  PreferenceResponse: Préférence de notification de l'utilisateur.
+  FiltreIndex: Critère de recherche sur un index.
+  RechercheRequest: Recherche multicritère sur les index, filtrée par les droits de l'appelant.
+  GroupeResponse: Groupe de résultats de recherche (index de groupage).
+  ResultatResponse: Document trouvé par une recherche.
+  CritereResponse: Critère de recherche généré depuis un index « indexé pour recherche ».
+  ApercuResponse: Index déduits du nom d'un fichier avant dépôt ; rien n'est écrit.
+  AnalyseResponse: Proposition d'indexation d'un document déposé ; rien n'est écrit.
+  Proposition: Valeur proposée pour un index, avec le verdict du contrôle de type.
+  DemandeConnexion: Identifiants de connexion.
+  ReponseConnexion: Jeton de session délivré après une connexion réussie.
+  Anomalie: Anomalie détectée par la vérification du journal d'audit.
+  Rapport: Rapport de vérification de l'intégrité du journal d'audit (DAT §7.4.2).
+  LigneAudit: Événement du journal d'audit (DAT §7.4.1).
+  JsonNode: Objet JSON libre (valeurs avant ou après une modification).
+  SignatureResponse: Étape de validation (signature) attendue ou rendue sur un document.
+  Part: Répartition d'un indicateur par libellé.
+  Overview: Indicateurs d'ensemble du tableau de bord.
+  Point: Point d'une série temporelle.
+  Etat: État d'activation d'un traitement.
+  MotOcr: Mot reconnu par l'OCR, avec sa position dans la page.
+  TexteExtrait: Texte extrait d'un document (couche texte ou OCR).
+  EtatExtracteur: Moteur d'extraction de texte disponible.
+  EmployeResponse: Employé (personne métier).
+  ProfilResponse: Profil de l'utilisateur connecté.
+
+champs:
+  # --- Envoi multipart -------------------------------------------------------
+  file: {description: "Fichier envoyé (multipart/form-data) ; type réel, taille et antivirus contrôlés.", exemple: null}
+
+  # --- Identifiants et références -------------------------------------------
+  id: {description: "Identifiant opaque (UUID).", exemple: "0192f0a6-5b3c-7d1e-9f20-3a4b5c6d7e8f"}
+  label: {description: "Libellé affiché de l'objet référencé.", exemple: "Direction financière"}
+  code: {description: "Code unique, stable et lisible de l'objet.", exemple: "DAF"}
+  name: {description: "Nom de l'objet.", exemple: "Direction financière"}
+  nom: {description: "Nom affiché.", exemple: "Bureau d'ordre"}
+  description: {description: "Description libre.", exemple: "Espace des pièces comptables de la DAF."}
+  libelle: {description: "Libellé affiché.", exemple: "Numéro de marché"}
+  deleted: {description: "Vrai si l'objet est dans la corbeille (suppression douce).", exemple: false}
+  active: {description: "Vrai si l'objet est actif.", exemple: true}
+  actif: {description: "Vrai si le traitement est actif.", exemple: true}
+  status: {description: "État de l'espace de travail.", exemple: "ACTIF"}
+  type: {description: "Nature de l'objet.", exemple: "CIRCUIT_OUVERT"}
+  etat: {description: "État calculé de la clé.", exemple: "ACTIVE"}
+  motif: {description: "Motif saisi (obligatoire pour un refus ou une révocation).", exemple: "Pièces justificatives manquantes"}
+  detail: {description: "Explication lisible.", exemple: "Période scellée sans enregistrement attendu."}
+  source: {description: "Origine de la valeur proposée : NOM_FICHIER, CONTENU, ou nul.", exemple: "NOM_FICHIER"}
+  reference: {description: "Référence composée du document selon la charte du plan.", exemple: "MAR_2026_014"}
+  document: {description: "Document concerné.", exemple: null}
+  count: {description: "Nombre d'éléments.", exemple: 12}
+  total: {description: "Nombre total d'éléments.", exemple: 128}
+  date: {description: "Date (ISO 8601).", exemple: "2026-09-27"}
+  texte: {description: "Texte reconnu ou extrait.", exemple: "MARCHÉ N° 2026-014"}
+  ligne: {description: "Numéro de ligne dans la page (à partir de 1).", exemple: 3}
+  page: {description: "Numéro de page (à partir de 0).", exemple: 0}
+
+  # --- Pagination (DAT §5.3.2 : 50 par défaut, 200 au plus) -----------------
+  content: {description: "Éléments de la page courante.", exemple: null}
+  size: {description: "Taille de page appliquée (50 par défaut, plafonnée à 200).", exemple: 50}
+  totalPages: {description: "Nombre total de pages.", exemple: 3}
+
+  # --- Espaces, workflow, groupes -------------------------------------------
+  employeId: {description: "Identifiant de l'employé concerné.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  parentId: {description: "Identifiant de l'espace parent ; nul pour un espace racine.", exemple: "0192f0a6-2222-7d1e-9f20-3a4b5c6d7e8f"}
+  workflowId: {description: "Identifiant de la règle de workflow appliquée aux dépôts de l'espace.", exemple: "0192f0a6-3333-7d1e-9f20-3a4b5c6d7e8f"}
+  owner: {description: "Propriétaire de l'espace.", exemple: null}
+  parent: {description: "Espace parent.", exemple: null}
+  workflow: {description: "Règle de workflow de l'espace.", exemple: null}
+  childrenCount: {description: "Nombre de sous-espaces directs.", exemple: 4}
+  children: {description: "Sous-espaces directs.", exemple: null}
+  accessGroups: {description: "Groupes d'accès couvrant l'espace.", exemple: null}
+  stepOrder: {description: "Rang de l'étape dans la règle (à partir de 1).", exemple: 1}
+  steps: {description: "Étapes de la règle.", exemple: null}
+  employeFullName: {description: "Nom complet du validateur.", exemple: "Sara Bennani"}
+  workspaces: {description: "Espaces concernés.", exemple: null}
+  workspaceIds: {description: "Identifiants des espaces couverts par le groupe.", exemple: [0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f]}
+  userIds: {description: "Identifiants des employés membres du groupe.", exemple: [0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f]}
+  users: {description: "Membres du groupe.", exemple: null}
+  workspacesCount: {description: "Nombre d'espaces couverts.", exemple: 3}
+  usersCount: {description: "Nombre de membres.", exemple: 8}
+
+  # --- Types de document, plans et index ------------------------------------
+  typeDeDocument: {description: "Nom du type de document.", exemple: "Marché public"}
+  workspaceId: {description: "Identifiant de l'espace de travail.", exemple: "0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f"}
+  workspace: {description: "Espace de travail du document.", exemple: null}
+  planIndexationId: {description: "Identifiant du plan d'indexation du type ; nul si le type n'en a pas.", exemple: "0192f0a6-5555-7d1e-9f20-3a4b5c6d7e8f"}
+  planIndexation: {description: "Plan d'indexation du type.", exemple: null}
+  typeAutorise: {description: "Extensions de fichier acceptées pour ce type.", exemple: [pdf, docx]}
+  tailleMaxMo: {description: "Taille maximale d'un fichier de ce type, en Mo (DAT §6.1.5).", exemple: 100}
+  nomDuPlan: {description: "Nom du plan d'indexation.", exemple: "Plan des marchés"}
+  modeIndexation: {description: "Mode d'indexation : vrai = automatique, faux = manuel.", exemple: true}
+  manuel: {description: "Charte de nommage : vrai = nom saisi, faux = nom composé depuis les index.", exemple: false}
+  majuscule: {description: "Vrai si le nom composé est mis en majuscules.", exemple: true}
+  separateur: {description: "Séparateur des segments du nom de fichier.", exemple: "_"}
+  indexIds: {description: "Index du plan ; leur ordre est celui du nommage.", exemple: [0192f0a6-6666-7d1e-9f20-3a4b5c6d7e8f]}
+  charteIds: {description: "Jetons du nom composé, dans l'ordre : identifiants d'index ou clés système (date, year).", exemple: [year, 0192f0a6-6666-7d1e-9f20-3a4b5c6d7e8f]}
+  indices: {description: "Index du plan, dans l'ordre.", exemple: null}
+  indexCount: {description: "Nombre d'index du plan.", exemple: 4}
+  charteNommage: {description: "Charte de nommage telle qu'enregistrée.", exemple: '["year","0192f0a6-6666-7d1e-9f20-3a4b5c6d7e8f"]'}
+  preview: {description: "Aperçu du nom composé par la charte.", exemple: "2026_MARCHE"}
+  nomIndex: {description: "Nom affiché de l'index.", exemple: "Numéro de marché"}
+  fieldType: {description: "Type de valeur de l'index : TEXTE, NOMBRE, DATE ou LISTE.", exemple: "TEXTE"}
+  valeurs: {description: "Valeurs autorisées, séparées par des virgules (type LISTE seulement).", exemple: "Travaux,Fournitures,Services"}
+  valeurParDefaut: {description: "Valeur proposée par défaut.", exemple: "Travaux"}
+  obligatoire: {description: "Vrai si la valeur est exigée à l'indexation.", exemple: true}
+  indexePourRecherche: {description: "Vrai si l'index devient un critère de recherche.", exemple: true}
+  indexDeGroupage: {description: "Vrai si l'index peut regrouper les résultats de recherche.", exemple: false}
+  indexFieldId: {description: "Identifiant de l'index concerné.", exemple: "0192f0a6-6666-7d1e-9f20-3a4b5c6d7e8f"}
+  valeur: {description: "Valeur de l'index (texte ; dates au format ISO 8601).", exemple: "2026-014"}
+  options: {description: "Valeurs autorisées (type LISTE seulement).", exemple: [Travaux, Fournitures]}
+  groupage: {description: "Vrai si l'index sert aussi à regrouper les résultats.", exemple: false}
+
+  # --- Étiquettes et documents ----------------------------------------------
+  tag: {description: "Libellé de l'étiquette.", exemple: "Urgent"}
+  couleur: {description: "Couleur de l'étiquette (hexadécimal).", exemple: '#B3261E'}
+  typeDocumentId: {description: "Identifiant du type de document.", exemple: "0192f0a6-7777-7d1e-9f20-3a4b5c6d7e8f"}
+  typeDocument: {description: "Type du document.", exemple: null}
+  expirationDate: {description: "Date d'expiration du document (AAAA-MM-JJ), ou nulle.", exemple: "2031-12-31"}
+  etiquetteIds: {description: "Identifiants des étiquettes posées sur le document.", exemple: [0192f0a6-8888-7d1e-9f20-3a4b5c6d7e8f]}
+  fileName: {description: "Nom du fichier déposé.", exemple: "MAR_2026_014.pdf"}
+  extension: {description: "Extension du fichier.", exemple: "pdf"}
+  sizeKo: {description: "Taille du fichier en Ko.", exemple: 482}
+  sizeLabel: {description: "Taille lisible du fichier.", exemple: "482 Ko"}
+  verrouille: {description: "Vrai si le document est verrouillé (écritures refusées en 409).", exemple: false}
+  chemin: {description: "Chemin de l'espace du document dans l'arborescence.", exemple: "DAF / Marchés / 2026"}
+  createdBy: {description: "Nom de l'auteur du dépôt.", exemple: "Sara Bennani"}
+  createdAt: {description: "Date de création (ISO 8601 UTC).", exemple: "2026-09-27T09:30:00Z"}
+  etiquettes: {description: "Étiquettes posées sur le document.", exemple: null}
+  versions: {description: "Versions du document, la courante marquée « principale ».", exemple: null}
+  observation: {description: "Observation saisie avec la version.", exemple: "Version signée"}
+  principale: {description: "Vrai pour la version courante (une seule par document).", exemple: true}
+
+  # --- Applications et clés d'API (DAT §5.4) --------------------------------
+  adressesAutorisees: {description: "Adresses IP ou plages CIDR autorisées ; vide = toute adresse.", exemple: [10.0.0.15, 10.0.1.0/24]}
+  quotaMinute: {description: "Quota d'appels par minute et par clé (600 par défaut).", exemple: 600}
+  quotaJour: {description: "Quota d'appels par jour et par clé (100 000 par défaut).", exemple: 100000}
+  creeLe: {description: "Date de création (ISO 8601 UTC).", exemple: "2026-09-27T09:30:00Z"}
+  modifieLe: {description: "Date de dernière modification (ISO 8601 UTC).", exemple: "2026-09-28T14:05:00Z"}
+  cles: {description: "Clés de l'application, les plus récentes d'abord.", exemple: null}
+  clesExpirantBientot: {description: "Nombre de clés actives expirant dans les 30 jours.", exemple: 1}
+  identifiant: {description: "Identifiant public de la clé (16 caractères hexadécimaux).", exemple: "3f9a1c0b7e2d4a65"}
+  environnement: {description: "Environnement de la clé (dev, uat, prod) ; une clé d'un autre environnement est refusée.", exemple: "prod"}
+  delegation: {description: "Vrai si la clé peut agir pour le compte d'un utilisateur (X-On-Behalf-Of).", exemple: false}
+  expireLe: {description: "Date d'expiration de la clé (12 mois par défaut).", exemple: "2027-09-27T09:30:00Z"}
+  revoqueeLe: {description: "Date de révocation ; nulle si la clé n'est pas révoquée.", exemple: null}
+  motifRevocation: {description: "Motif de la révocation.", exemple: "Clé exposée dans un journal applicatif"}
+  remplaceeParCleApiId: {description: "Clé qui remplace celle-ci après régénération ; nulle sinon.", exemple: null}
+  derniereUtilisation: {description: "Date du dernier appel authentifié par la clé.", exemple: "2026-09-28T08:12:44Z"}
+  appelsDuJour: {description: "Nombre d'appels de la clé depuis minuit UTC.", exemple: "1250"}
+  expireBientot: {description: "Vrai si la clé active expire dans les 30 jours.", exemple: false}
+  validiteJours: {description: "Durée de validité de la clé en jours (365 par défaut).", exemple: 365}
+  cle: {description: "Valeur complète de la clé : ged_<env>_<identifiant>_<secret>. Affichée une seule fois, jamais conservée en clair.", exemple: "ged_prod_3f9a1c0b7e2d4a65_9b1f…"}
+  details: {description: "Clé générée (sans son secret).", exemple: null}
+
+  # --- Notifications (DAT §12.9) --------------------------------------------
+  famille: {description: "Famille du cas : CIRCUIT_VALIDATION, ACCES_ESPACE ou FIN_CONSERVATION.", exemple: "CIRCUIT_VALIDATION"}
+  titre: {description: "Titre de la notification (objet de l'e-mail).", exemple: "Validation demandée : Marché 2026-014"}
+  message: {description: "Texte de la notification.", exemple: "Votre validation est demandée pour le document « Marché 2026-014 »."}
+  lien: {description: "Chemin relatif dans l'application vers l'objet concerné, ou nul.", exemple: "televerser/0192f0a6-9999-7d1e-9f20-3a4b5c6d7e8f"}
+  objetType: {description: "Nature de l'objet concerné (DOCUMENT, ESPACE…).", exemple: "DOCUMENT"}
+  objetId: {description: "Identifiant de l'objet concerné.", exemple: "0192f0a6-9999-7d1e-9f20-3a4b5c6d7e8f"}
+  lueLe: {description: "Date de lecture ; nulle si non lue.", exemple: null}
+  lue: {description: "Vrai si la notification a été lue.", exemple: false}
+  courriel: {description: "État de l'expédition par e-mail : A_ENVOYER, ENVOYE, ECHEC, DESACTIVE, SANS_ADRESSE.", exemple: "ENVOYE"}
+  nonLues: {description: "Nombre de notifications non lues.", exemple: 3}
+  marquees: {description: "Nombre de notifications marquées lues.", exemple: 3}
+  courrielActif: {description: "Vrai si les notifications sont aussi envoyées par e-mail.", exemple: true}
+  inAppActif: {description: "Toujours vrai ; la notification dans l'application ne se désactive pas.", exemple: true}
+
+  # --- Recherche et indexation ----------------------------------------------
+  de: {description: "Borne basse incluse (DATE ou NOMBRE).", exemple: "2026-01-01"}
+  a: {description: "Borne haute incluse (DATE ou NOMBRE).", exemple: "2026-12-31"}
+  criteres: {description: "Filtres portant sur les index.", exemple: null}
+  grouperPar: {description: "Identifiant de l'index de groupage retenu (facultatif).", exemple: null}
+  documents: {description: "Documents du groupe.", exemple: null}
+  planNom: {description: "Nom du plan appliqué ; nul si le type n'en a pas.", exemple: "Plan des marchés"}
+  champs: {description: "Un élément par index du plan, dans l'ordre du plan.", exemple: null}
+  nbReconnus: {description: "Nombre d'index que la lecture a suffi à remplir.", exemple: 3}
+  nbAttendus: {description: "Nombre total d'index du plan.", exemple: 4}
+  nomPropose: {description: "Nom que porterait le document ; nul en nommage manuel.", exemple: "MAR_2026_014"}
+  avertissement: {description: "Ce que la lecture n'a pas pu conclure ; nul si tout a été déduit.", exemple: "Deux index sur quatre seulement ont pu être déduits du nom du fichier."}
+  provenanceTexte: {description: "Comment le contenu a été lu : COUCHE_TEXTE, OCR ou AUCUNE.", exemple: "COUCHE_TEXTE"}
+  valeurProposee: {description: "Valeur déduite ; nulle si rien d'exploitable.", exemple: "2026-014"}
+  valeurActuelle: {description: "Valeur déjà enregistrée ; nulle si le champ est vierge.", exemple: "2026-013"}
+  reconnue: {description: "Vrai si la valeur proposée passe le contrôle de type.", exemple: true}
+  documentId: {description: "Identifiant du document.", exemple: "0192f0a6-9999-7d1e-9f20-3a4b5c6d7e8f"}
+  fichier: {description: "Nom du fichier analysé.", exemple: "MAR_2026_014.pdf"}
+  modeAutomatique: {description: "Vrai si le plan est en indexation automatique.", exemple: true}
+  segments: {description: "Segments du nom de fichier découpé par le séparateur.", exemple: [MAR, "2026", "014"]}
+  propositions: {description: "Une proposition par index du plan.", exemple: null}
+  referenceProposee: {description: "Référence composée à partir des propositions.", exemple: "MAR_2026_014"}
+  detailTexte: {description: "Diagnostic de la chaîne d'extraction du texte.", exemple: "Couche texte présente (3 pages)."}
+
+  # --- Connexion -------------------------------------------------------------
+  email: {description: "Adresse e-mail (identifiant de connexion).", exemple: "sara.bennani@marchica.ma"}
+  motDePasse: {description: "Mot de passe ; jamais journalisé ni renvoyé.", exemple: "********"}
+  token: {description: "Jeton de session à présenter dans Authorization (Bearer).", exemple: "eyJhbGciOiJIUzI1NiJ9…"}
+  tokenType: {description: "Type du jeton.", exemple: "Bearer"}
+  expiresIn: {description: "Durée de validité du jeton en secondes.", exemple: 28800}
+  fullName: {description: "Nom complet.", exemple: "Sara Bennani"}
+  firstName: {description: "Prénom.", exemple: "Sara"}
+  lastName: {description: "Nom de famille.", exemple: "Bennani"}
+
+  # --- Journal d'audit (DAT §7.4) -------------------------------------------
+  periodeDebut: {description: "Début de la période horaire concernée.", exemple: "2026-09-27T09:00:00Z"}
+  verifieLe: {description: "Date de la vérification.", exemple: "2026-09-27T10:05:00Z"}
+  periodesVerifiees: {description: "Nombre de périodes horaires vérifiées.", exemple: 24}
+  enregistrementsVerifies: {description: "Nombre d'événements vérifiés.", exemple: 15820}
+  scelleJusquA: {description: "Fin de la dernière période scellée.", exemple: "2026-09-27T10:00:00Z"}
+  anomalies: {description: "Anomalies détectées ; vide = journal intègre.", exemple: null}
+  horodatage: {description: "Date de l'événement (ISO 8601 UTC).", exemple: "2026-09-27T09:30:12.345Z"}
+  acteurUtilisateurId: {description: "Utilisateur auteur (ou délégué) ; nul pour un traitement technique.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  acteurApplicationId: {description: "Application appelante (clé d'API) ; nulle pour l'interface.", exemple: null}
+  acteurNom: {description: "Identifiant lisible de l'acteur.", exemple: "sara.bennani@marchica.ma"}
+  adresseIp: {description: "Adresse IP du client (derrière un mandataire de confiance).", exemple: "10.0.0.15"}
+  action: {description: "Code stable de l'action auditée.", exemple: "DOCUMENT_DEPOSE"}
+  avant: {description: "Valeurs avant la modification (champs modifiés).", exemple: null}
+  apres: {description: "Valeurs après la modification.", exemple: null}
+  resultat: {description: "Résultat : SUCCES, REFUS ou ECHEC.", exemple: "SUCCES"}
+  traceId: {description: "Identifiant de trace W3C commun au journal technique.", exemple: "4bf92f3577b34da6a3ce929d0e0e4736"}
+
+  # --- Signatures (circuit actuel) ------------------------------------------
+  approver: {description: "Nom du validateur de l'étape.", exemple: "Sara Bennani"}
+  stepLabel: {description: "Libellé de l'étape.", exemple: "Visa du directeur financier"}
+  signedAt: {description: "Date de la décision ; nulle si en attente.", exemple: "2026-09-27T11:02:00Z"}
+  documentActive: {description: "Vrai si le document est actif.", exemple: true}
+
+  # --- Tableau de bord, OCR, profil -----------------------------------------
+  pendingSignatures: {description: "Nombre de validations en attente.", exemple: 7}
+  x: {description: "Abscisse du mot dans la page (pixels à 300 dpi).", exemple: 412}
+  y: {description: "Ordonnée du mot dans la page (pixels à 300 dpi).", exemple: "1180"}
+  largeur: {description: "Largeur du mot (pixels).", exemple: 96}
+  hauteur: {description: "Hauteur du mot (pixels).", exemple: 28}
+  confiance: {description: "Confiance de la reconnaissance (0 à 100).", exemple: 91.5}
+  provenance: {description: "Origine du texte : COUCHE_TEXTE, OCR ou AUCUNE.", exemple: "OCR"}
+  nbPages: {description: "Nombre de pages traitées.", exemple: 3}
+  mots: {description: "Mots reconnus avec leur position.", exemple: null}
+  priorite: {description: "Rang du moteur (le plus petit est essayé d'abord).", exemple: 1}
+  disponible: {description: "Vrai si le moteur est utilisable sur ce serveur.", exemple: true}
+  hasUser: {description: "Vrai si l'employé possède un compte de connexion.", exemple: true}
+  compteActif: {description: "Vrai si le compte de connexion est actif.", exemple: true}
+  derniereConnexion: {description: "Date de la dernière connexion réussie.", exemple: "2026-09-27T08:01:00Z"}
+  espacesProprietaire: {description: "Espaces dont l'utilisateur est propriétaire.", exemple: null}
+  groupesAcces: {description: "Groupes d'accès de l'utilisateur.", exemple: null}
+  documentsDeposes: {description: "Nombre de documents déposés par l'utilisateur.", exemple: 42}
+  signaturesEnAttente: {description: "Nombre de validations attendues de l'utilisateur.", exemple: 2}
+  signaturesTraitees: {description: "Nombre de validations rendues par l'utilisateur.", exemple: 30}
+
+surcharges:
+  WorkSpaceRequest.status: {description: "État de l'espace : ACTIF, INACTIF ou ARCHIVE.", exemple: "ACTIF"}
+  TreeNode.status: {description: "État de l'espace : ACTIF, INACTIF ou ARCHIVE.", exemple: "ACTIF"}
+  SignatureResponse.status: {description: "État de l'étape : PENDING (en attente), SIGNED (validée), REJECTED (refusée).", exemple: "PENDING"}
+  SignatureResponse.type: {description: "Type du document à valider.", exemple: "Marché public"}
+  SignatureResponse.workspace: {description: "Nom de l'espace du document.", exemple: "Marchés"}
+  SignatureResponse.motif: {description: "Motif du refus.", exemple: "Pièces justificatives manquantes"}
+  ResultatResponse.workspace: {description: "Nom de l'espace du document.", exemple: "Marchés"}
+  ResultatResponse.typeDocument: {description: "Nom du type du document.", exemple: "Marché public"}
+  ResultatResponse.name: {description: "Nom du document.", exemple: "MAR_2026_014"}
+  Anomalie.type: {description: "Nature de l'anomalie (chaînage rompu, période non scellée…).", exemple: "EMPREINTE_DIFFERENTE"}
+  NotificationResponse.type: {description: "Cas de notification (trois familles exclusivement, DAT §12.9).", exemple: "CIRCUIT_OUVERT"}
+  LigneAudit.id: {description: "Numéro d'ordre de l'événement dans le journal.", exemple: 15820}
+  LigneAudit.motif: {description: "Motif d'un refus ou d'un échec.", exemple: "Droits insuffisants sur l'espace"}
+  LigneAudit.objetType: {description: "Nature de l'objet concerné (DOCUMENT, ESPACE, CLE_API…).", exemple: "DOCUMENT"}
+  LigneAudit.traceId: {description: "Identifiant de trace W3C commun au journal technique.", exemple: "4bf92f35-77b3-4da6-a3ce-929d0e0e4736"}
+  EtatExtracteur.nom: {description: "Nom du moteur d'extraction.", exemple: "tesseract"}
+  TexteExtrait.detail: {description: "Diagnostic de l'extraction.", exemple: "Couche texte absente, OCR sur 3 pages."}
+  MotOcr.page: {description: "Numéro de la page du mot (à partir de 1).", exemple: 1}
+  GroupeResponse.libelle: {description: "Valeur de l'index de groupage commune au groupe.", exemple: "Travaux"}
+  GroupeResponse.total: {description: "Nombre de documents du groupe.", exemple: 12}
+  Proposition.motif: {description: "Pourquoi la proposition n'est pas retenue ; nul si elle l'est.", exemple: "Date invalide : 31/02/2026"}
+  RevocationRequest.motif: {description: "Motif de la révocation (obligatoire).", exemple: "Clé exposée dans un journal applicatif"}
+  ApplicationRequest.code: {description: "Code de l'application : minuscules, chiffres et tirets, immuable.", exemple: "bureau-ordre"}
+  ApplicationResponse.code: {description: "Code de l'application.", exemple: "bureau-ordre"}
+  ApplicationRequest.description: {description: "Description de l'application.", exemple: "Application du bureau d'ordre central."}
+  ApplicationResponse.description: {description: "Description de l'application.", exemple: "Application du bureau d'ordre central."}
+  ApplicationResponse.active: {description: "Vrai si l'application peut appeler l'API.", exemple: true}
+  ActivationRequest.active: {description: "Vrai pour activer l'application, faux pour la désactiver.", exemple: false}
+  DocumentRequest.name: {description: "Nom du document.", exemple: "MAR_2026_014"}
+  DocumentResponse.name: {description: "Nom du document.", exemple: "MAR_2026_014"}
+  DocumentRequest.active: {description: "Vrai si le document est actif.", exemple: true}
+  DocumentResponse.workspace: {description: "Espace de travail du document.", exemple: null}
+  Part.label: {description: "Libellé de la catégorie.", exemple: "Marché public"}
+  Point.count: {description: "Nombre d'éléments à cette date.", exemple: 5}
+  Overview.workspaces: {description: "Nombre d'espaces de travail.", exemple: 24}
+  Overview.documents: {description: "Nombre de documents.", exemple: "1830"}
+  Overview.accessGroups: {description: "Nombre de groupes d'accès.", exemple: 6}
+  ReponseConnexion.employeId: {description: "Identifiant de l'employé connecté.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  WorkflowResponse.workspaces: {description: "Noms des espaces qui utilisent la règle.", exemple: [Marchés, DAF]}
+  StepRequest.label: {description: "Libellé de l'étape.", exemple: "Visa du directeur financier"}
+  StepResponse.label: {description: "Libellé de l'étape.", exemple: "Visa du directeur financier"}
+  StepRequest.employeId: {description: "Identifiant du validateur désigné.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  StepResponse.employeId: {description: "Identifiant du validateur désigné.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  AccessGroupRequest.name: {description: "Nom du groupe d'accès.", exemple: "Comptables"}
+  AccessGroupResponse.name: {description: "Nom du groupe d'accès.", exemple: "Comptables"}
+  WorkflowRequest.name: {description: "Nom de la règle de workflow.", exemple: "Validation DAF"}
+  WorkflowResponse.name: {description: "Nom de la règle de workflow.", exemple: "Validation DAF"}
+  ProfilResponse.email: {description: "Adresse e-mail du compte de connexion.", exemple: "sara.bennani@marchica.ma"}
+  PageResponseMapStringObject.content: {description: "Éléments de la page courante (objets libres).", exemple: null}
+
+
+# Paramètres de chemin et de requête, par nom.
+parametres:
+  id: Identifiant opaque (UUID) de l'objet.
+  cleId: Identifiant de la clé d'API.
+  documentId: Identifiant du document.
+  versionId: Identifiant de la version.
+  page: Numéro de page, à partir de 0.
+  size: "Taille de page : 50 par défaut, plafonnée à 200 (DAT §5.3.2)."
+  taille: "Taille de page (alias de size) : 50 par défaut, plafonnée à 200."
+  search: Texte recherché dans les colonnes affichées de la liste.
+  sortBy: Colonne de tri, parmi une liste blanche ; ignorée si elle n'y figure pas.
+  sortDir: "Sens du tri : asc ou desc (défaut)."
+  typeDocumentId: Identifiant du type de document.
+  workspaceId: Identifiant de l'espace de travail.
+  nomFichier: Nom du fichier à analyser quand le fichier lui-même n'est pas envoyé.
+  name: Nom du document.
+  expirationDate: "Date d'expiration du document (AAAA-MM-JJ)."
+  etiquetteIds: Identifiants des étiquettes à poser.
+  observation: Observation enregistrée avec la version.
+  verrouille: Vrai pour verrouiller le document, faux pour le déverrouiller.
+  jours: Nombre de jours de la série (30 par défaut).
+  nonLues: Vrai pour ne lister que les notifications non lues.
+  has_user: 1 pour ne lister que les employés qui ont un compte de connexion.
+  format: "Format d'export : csv (défaut) ou json."
+  du: Début de la période (ISO 8601 UTC, inclus).
+  au: Fin de la période (ISO 8601 UTC, exclue).
+  utilisateur: Identifiant de l'utilisateur acteur.
+  application: Identifiant de l'application actrice (clé d'API).
+  action: Code d'action d'audit (ex. DOCUMENT_DEPOSE).
+  objetType: "Nature de l'objet (DOCUMENT, ESPACE…)."
+  objetId: Identifiant de l'objet.
+  resultat: "Résultat : SUCCES, REFUS ou ECHEC."
+
+# Corps sans schéma nommé (Map côté contrôleur), reconnus par la fin du chemin.
+corps:
+  multiple-delete:
+    description: Identifiants des objets à placer dans la corbeille.
+    exemple: {ids: [0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f]}
+  multiple-restore:
+    description: Identifiants des objets à restaurer depuis la corbeille.
+    exemple: {ids: [0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f]}
+  /parent:
+    description: "Nouvel espace parent ; parentId nul pour placer l'espace à la racine."
+    exemple: {parentId: 0192f0a6-2222-7d1e-9f20-3a4b5c6d7e8f}
+  /approve:
+    description: Validation d'une étape ; motif facultatif.
+    exemple: {motif: Conforme}
+  /reject:
+    description: Refus d'une étape ; le motif explique le refus.
+    exemple: {motif: Pièces justificatives manquantes}

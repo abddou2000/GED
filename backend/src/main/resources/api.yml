@@ -40,3 +40,19 @@ ged:
       #     annonce: 2027-01-01
       #     retrait: 2028-01-01
       #     successeur: /api/v2/
+
+# ------------------------------------------------------------
+# Production : spécification OpenAPI et Swagger UI désactivés (T-053, DAT
+# §5.3 : documentation fermée en production), en plus du refus de ces routes
+# par la chaîne de sécurité. Le profil uat reste documenté pour la recette.
+# ------------------------------------------------------------
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

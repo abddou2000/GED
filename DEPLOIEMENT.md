@@ -73,6 +73,9 @@ rejouer le script sans elles retire ce droit.
 | `DB_USER` `DB_PASSWORD` | **oui** | Compte applicatif `ged_app` (défaut `ged_app`). |
 | `DB_OWNER_USER` `DB_OWNER_PASSWORD` | **oui** | Compte `ged_owner`, utilisé par Liquibase seul au démarrage (défaut `ged_owner`). |
 | `DB_SCHEMA` `DB_SCHEMA_LIQUIBASE` | non | Schémas, défauts `ged` et `ged_liquibase`. |
+| `GED_SMTP_HOTE` `GED_SMTP_PORT` | oui (e-mails) | Relais SMTP de MMED pour les notifications (DAT §12.9). Défaut `localhost:25` ; injoignable = trois tentatives puis état `ECHEC`, la notification restant visible dans l'application. |
+| `GED_SMTP_STARTTLS` `GED_SMTP_AUTH` `GED_SMTP_UTILISATEUR` `GED_SMTP_MOT_DE_PASSE` | non | TLS exigé par défaut ; authentification seulement si le relais l'impose. |
+| `GED_NOTIFICATION_EXPEDITEUR` `GED_URL_APPLICATION` | recommandé | Adresse d'expédition et adresse publique du front (lien « Ouvrir dans la GED » des e-mails). |
 
 Générer la clé :
 
