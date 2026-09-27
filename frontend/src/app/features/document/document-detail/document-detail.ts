@@ -238,6 +238,43 @@ export class DocumentDetail implements OnInit {
     });
   }
 
+  /**
+   * Aperçu d'une version dans un nouvel onglet (§6.1.6). Le blob déchiffré
+   * est servi par une URL d'objet locale, révoquée après une minute : le temps
+   * que le visionneur du navigateur l'ait chargée, sans la garder en mémoire.
+   * Un format sans aperçu (415) ou une conversion indisponible (503) renvoie
+   * au téléchargement.
+   */
+  apercu(v: Version): void {
+    const onglet = window.open('', '_blank');
+    this.service.apercu(v.id).subscribe({
+      next: blob => {
+        const href = URL.createObjectURL(blob);
+        if (onglet) { onglet.location.href = href; } else { window.open(href, '_blank'); }
+        setTimeout(() => URL.revokeObjectURL(href), 60_000);
+      },
+      error: (e: HttpErrorResponse) => {
+        onglet?.close();
+        this.notify.error(e.status === 415 || e.status === 503
+          ? 'Aperçu indisponible pour ce format : téléchargez le document.'
+          : 'Aperçu impossible.');
+      },
+    });
+  }
+
+  /** Libellé de l'état OCR de la version courante, pour le bandeau. */
+  libelleOcr(statut: string | null | undefined): string | null {
+    switch (statut) {
+      case 'EN_ATTENTE_OCR':
+      case 'EN_COURS_OCR':
+        return "Contenu en cours d'indexation : il sera interrogeable en recherche plein texte après son traitement.";
+      case 'OCR_ECHEC':
+        return 'Contenu non interrogeable : le traitement OCR a échoué. Le document reste consultable et téléchargeable.';
+      default:
+        return null;
+    }
+  }
+
   /** Date lisible ; mutualisée pour que tous les écrans lisent pareil. */
   readonly dateCourte = formaterDate;
 

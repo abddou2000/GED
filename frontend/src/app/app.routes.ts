@@ -88,6 +88,16 @@ export const routes: Routes = [
         loadComponent: () => import('./features/document/document-detail/document-detail').then(m => m.DocumentDetail),
       },
       {
+        // Recherche dans le contenu des documents (§4.4).
+        path: 'recherche',
+        loadComponent: () => import('./features/recherche/recherche-plein-texte/recherche-plein-texte').then(m => m.RecherchePleinTexte),
+      },
+      {
+        // Supervision des traitements OCR et réindexation (§4.3.4, §4.4.1).
+        path: 'traitements-ocr',
+        loadComponent: () => import('./features/recherche/supervision-ocr/supervision-ocr').then(m => m.SupervisionOcr),
+      },
+      {
         // Fiche de l'utilisateur : identité, droits, activité.
         path: 'profil',
         loadComponent: () => import('./features/profil/profil').then(m => m.ProfilPage),

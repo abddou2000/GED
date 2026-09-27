@@ -1,0 +1,46 @@
+.criteres {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 16px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  select,
+  input[type="date"] {
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid var(--line, #d9dee7);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 14px;
+  }
+
+  .q { flex: 1 1 320px; }
+}
+
+.total { margin: 4px 16px; font-size: 13px; color: var(--ink-soft); }
+.aide { margin: 12px 16px; color: var(--ink-soft); }
+
+.resultats {
+  margin: 0;
+  padding: 0 16px;
+  list-style: none;
+  overflow-y: auto;
+
+  li { padding: 12px 0; border-bottom: 1px solid var(--line, #eceff4); }
+  .nom { font-weight: 600; color: var(--navy); text-decoration: none; }
+  .nom:hover { text-decoration: underline; }
+  .meta { display: block; margin-top: 2px; font-size: 12px; color: var(--ink-soft); }
+  .extrait { margin: 6px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink); unicode-bidi: plaintext; }
+  mark { padding: 0 1px; border-radius: 2px; background: #fff1b8; color: inherit; }
+  .vide { color: var(--ink-soft); }
+}

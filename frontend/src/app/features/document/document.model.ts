@@ -22,6 +22,12 @@ export interface DocumentItem {
   etiquettes: Tag[];
   versions: Version[];
   createdAt: string;
+  /**
+   * Traitement OCR de la version courante : EN_ATTENTE_OCR / EN_COURS_OCR
+   * (contenu pas encore interrogeable), OCR_TERMINE, OCR_ECHEC (« contenu non
+   * interrogeable ») ; null si le format n'a pas de contenu textuel.
+   */
+  statutOcr?: 'EN_ATTENTE_OCR' | 'EN_COURS_OCR' | 'OCR_TERMINE' | 'OCR_ECHEC' | null;
 }
 
 /** Etiquette apposee a un document, avec sa couleur. */
@@ -39,6 +45,10 @@ export interface Version {
   principale: boolean;
   sizeLabel: string;
   createdAt: string;
+  /** Type réel détecté au dépôt (Tika). */
+  typeMime?: string | null;
+  /** SHA-256 du contenu, vérifié chaque mois. */
+  empreinte?: string | null;
 }
 
 /** Corps envoye pour modifier la fiche d'un document. */

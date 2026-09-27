@@ -33,6 +33,13 @@
     </div>
   } @else if (doc(); as d) {
 
+    @if (libelleOcr(d.statutOcr); as msg) {
+      <div class="bandeau-ocr" [class.echec]="d.statutOcr === 'OCR_ECHEC'">
+        <mat-icon svgIcon="search"></mat-icon>
+        <span>{{ msg }}</span>
+      </div>
+    }
+
     @if (d.verrouille) {
       <div class="bandeau-verrou">
         <mat-icon svgIcon="archive"></mat-icon>
@@ -192,6 +199,9 @@
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef class="c-act">Actions</th>
             <td mat-cell *matCellDef="let v" class="c-act">
+              <button mat-icon-button (click)="apercu(v)" matTooltip="Aperçu" aria-label="Aperçu de la version">
+                <mat-icon svgIcon="fullscreen"></mat-icon>
+              </button>
               @if (!v.principale && !verrouille) {
                 <button mat-icon-button (click)="restaurerVersion(v)"
                         matTooltip="Rendre courante" aria-label="Rendre courante">

@@ -14,7 +14,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { DocumentService } from '../document.service';
 import { IndexationService } from '../../indexation/indexation.service';
-import { OcrService } from '../../indexation/ocr.service';
 import { versDate, versIso } from '../../../core/dates';
 import { TypeDocumentService } from '../../type-document/type-document.service';
 import { SelectOption } from '../../type-document/type-document.model';
@@ -73,7 +72,6 @@ export class DocumentUpload implements OnInit {
   private service = inject(DocumentService);
   private typeService = inject(TypeDocumentService);
   private etiquetteService = inject(EtiquetteService);
-  private ocr = inject(OcrService);
   private indexation = inject(IndexationService);
   private plans = inject(PlanIndexationService);
   private index = inject(IndexService);
@@ -161,15 +159,9 @@ export class DocumentUpload implements OnInit {
       next: p => this.natures.set(new Map(p.content.map(i => [i.id, i]))),
       error: () => { /* on retombera sur du texte libre, jamais bloquant */ },
     });
-    // L'interrupteur ne doit pas promettre une lecture que le serveur refusera :
-    // on demande son état une fois pour toutes à l'ouverture.
-    this.ocr.etat().subscribe(e => {
-      if (!e.actif) {
-        this.lectureDisponible.set(false);
-        this.indexationAuto.set(false);
-        this.motifIndisponible.set("La lecture automatique est désactivée sur ce serveur.");
-      }
-    });
+    // L'indexation automatique ne lit plus que le nom du fichier (charte du
+    // plan) : le contenu n'alimente aucun index (§4.3.3), elle ne dépend donc
+    // plus de l'état de la chaîne OCR.
     // Le formulaire réactif n'est pas un signal : on suit le champ pour tenir
     // `typeChoisi` à jour et pouvoir avertir dès la sélection.
     this.form.get('typeDocumentId')!.valueChanges.subscribe(id => {

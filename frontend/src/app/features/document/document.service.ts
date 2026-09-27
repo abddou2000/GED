@@ -168,6 +168,15 @@ export class DocumentService {
   }
 
   /**
+   * Aperçu d'une version (§6.1.6) : PDF ou image déchiffrés à la volée,
+   * bureautique convertie en PDF. Même raison que le téléchargement pour
+   * passer par HttpClient : le jeton doit accompagner la requête.
+   */
+  apercu(versionId: string): Observable<Blob> {
+    return this.http.get(`${API_BASE}/versions/${versionId}/apercu`, { responseType: 'blob' });
+  }
+
+  /**
    * Télécharge puis déclenche l'enregistrement du fichier par le navigateur.
    *
    * POURQUOI ici et pas dans les écrans : quatre écrans proposent la même

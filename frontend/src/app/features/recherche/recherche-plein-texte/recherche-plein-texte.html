@@ -1,0 +1,69 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Recherche plein texte</h1>
+      <p class="breadcrumb">Accueil - Recherche dans le contenu des documents</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <form class="criteres" (ngSubmit)="lancer()">
+      <div class="search q">
+        <mat-icon svgIcon="search"></mat-icon>
+        <input name="q" [(ngModel)]="criteres.q" maxlength="500" aria-label="Termes recherchés"
+               placeholder="Termes, « expression exacte » entre guillemets, -exclusion — français ou arabe" />
+      </div>
+      <label>Type
+        <select name="type" [(ngModel)]="criteres.typeDocumentId">
+          <option [ngValue]="null">Tous</option>
+          @for (t of listeTypes(); track t.id) { <option [ngValue]="t.id">{{ t.libelle }}</option> }
+        </select>
+      </label>
+      <label>Espace
+        <select name="espace" [(ngModel)]="criteres.workspaceId">
+          <option [ngValue]="null">Tous</option>
+          @for (w of listeEspaces(); track w.id) { <option [ngValue]="w.id">{{ w.libelle }}</option> }
+        </select>
+      </label>
+      <label>Déposé du <input type="date" name="du" [(ngModel)]="criteres.du" /></label>
+      <label>au <input type="date" name="au" [(ngModel)]="criteres.au" /></label>
+      <label>Tri
+        <select name="tri" [(ngModel)]="criteres.tri">
+          @for (t of TRIS; track t.valeur) { <option [ngValue]="t.valeur">{{ t.libelle }}</option> }
+        </select>
+      </label>
+      <button mat-flat-button color="primary" type="submit" [disabled]="chargement() || !criteres.q.trim()">
+        Rechercher
+      </button>
+    </form>
+
+    @if (resultat(); as r) {
+      <p class="total">{{ r.total }} document(s) trouvé(s)</p>
+      <ul class="resultats">
+        @for (d of r.resultats; track d.documentId) {
+          <li>
+            <a class="nom" [routerLink]="['/televerser', d.documentId]">{{ d.nom }}</a>
+            <span class="meta">
+              {{ d.typeDocument ?? '—' }} · {{ d.espace ?? '—' }}
+              @if (d.deposeLe) { · déposé le {{ d.deposeLe | date: 'dd/MM/yyyy' }} }
+            </span>
+            <!-- Extrait en segments : interpolation (texte échappé), jamais innerHTML. -->
+            <p class="extrait" dir="auto">
+              @for (s of d.extrait; track $index) {
+                @if (s.surligne) { <mark>{{ s.texte }}</mark> } @else { <span>{{ s.texte }}</span> }
+              }
+            </p>
+          </li>
+        } @empty {
+          <li class="vide">Aucun document ne contient ces termes, ou leur contenu n'est pas encore interrogeable.</li>
+        }
+      </ul>
+      <mat-paginator [length]="r.total" [pageIndex]="page" [pageSize]="taille" [pageSizeOptions]="[10, 20, 50]"
+                     (page)="pagination($event)"></mat-paginator>
+    } @else {
+      <p class="aide">
+        Le contenu d'un document devient interrogeable après son traitement OCR (au plus tard 24 h après le dépôt).
+      </p>
+    }
+  </div>
+</div>
