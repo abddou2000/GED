@@ -127,6 +127,11 @@ champs:
   statutOcr: {description: "État OCR de la version courante : EN_ATTENTE_OCR, EN_COURS_OCR, OCR_TERMINE ou OCR_ECHEC ; nul si sans objet.", exemple: OCR_TERMINE}
   statutIndexation: {description: "Issue de l'indexation (§12.11) : INDEXE, SANS_PLAN ou A_INDEXER.", exemple: INDEXE}
   motifIndexation: {description: "Pourquoi l'indexation du dépôt n'a pas abouti ; nul sinon.", exemple: "Index NUM_MARCHE obligatoire manquant"}
+  # --- Source et canal du dépôt (T-040, §5.1, dev3) ------------------------
+  canalDepot: {description: "Canal du dépôt : INTERFACE, API, BUREAU_ORDRE ou REPRISE.", exemple: INTERFACE}
+  deposantUtilisateurId: {description: "Identité GED du déposant : utilisateur de l'interface ou personne déléguée par l'application (X-On-Behalf-Of).", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  depotDelegue: {description: "Vrai si une application a déposé pour le compte d'une personne (§5.5).", exemple: false}
+  canal: {description: "Canal du dépôt (INTERFACE, API, BUREAU_ORDRE, REPRISE) ; tous si absent.", exemple: BUREAU_ORDRE}
   statutConservation: {description: "ACTIF ou ARCHIVE (§12.6) : un document archivé est en lecture seule.", exemple: ACTIF}
   archiveLe: {description: "Date d'archivage ; nulle pour un document actif.", exemple: "2026-09-30T08:00:00Z"}
   archivePar: {description: "Identité GED qui a archivé.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
@@ -431,6 +436,7 @@ champs:
   signaturesTraitees: {description: "Nombre de validations rendues par l'utilisateur.", exemple: 30}
 
 surcharges:
+  DocumentResponse.applicationId: {description: "Application appelante (clé d'API) ; nulle pour un dépôt par l'interface (T-040).", exemple: null}
   WorkSpaceRequest.status: {description: "État de l'espace : ACTIF, INACTIF ou ARCHIVE.", exemple: "ACTIF"}
   TreeNode.status: {description: "État de l'espace : ACTIF, INACTIF ou ARCHIVE.", exemple: "ACTIF"}
   SignatureResponse.status: {description: "État de l'étape : PENDING (en attente), SIGNED (validée), REJECTED (refusée).", exemple: "PENDING"}

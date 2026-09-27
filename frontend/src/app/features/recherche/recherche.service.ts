@@ -20,6 +20,7 @@ export class RechercheService {
     if (c.du) params['du'] = c.du;
     if (c.au) params['au'] = c.au;
     if (c.archives && c.archives !== 'INCLURE') params['archives'] = c.archives;
+    if (c.canal) params['canal'] = c.canal;
     return this.http.get<PageResultats>(`${API_BASE}/recherche/plein-texte`, { params });
   }
 

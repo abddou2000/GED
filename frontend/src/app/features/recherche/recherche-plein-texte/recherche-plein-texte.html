@@ -27,6 +27,15 @@
       </label>
       <label>Déposé du <input type="date" name="du" [(ngModel)]="criteres.du" /></label>
       <label>au <input type="date" name="au" [(ngModel)]="criteres.au" /></label>
+      <label>Canal
+        <select name="canal" [(ngModel)]="criteres.canal">
+          <option [ngValue]="null">Tous</option>
+          <option value="INTERFACE">Interface web</option>
+          <option value="API">Application (API)</option>
+          <option value="BUREAU_ORDRE">Bureau d'ordre</option>
+          <option value="REPRISE">Reprise</option>
+        </select>
+      </label>
       <label>Archivés
         <select name="archives" [(ngModel)]="criteres.archives">
           <option value="INCLURE">Inclus</option>

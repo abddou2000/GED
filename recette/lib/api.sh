@@ -18,6 +18,7 @@
 #                              (contrat E9 : POST /api/v1/recherches, voir GED_API_RECHERCHE_CORPS)
 #   GED_API_RECHERCHE_CORPS    si défini, recherche en POST avec ce corps JSON ({terme} substitué)
 #   GED_API_SUPPRESSION        défaut /api/v1/documents/{id} (DELETE, suppression douce)
+#   GED_IDEMPOTENCE            1 (défaut) : en-tête Idempotency-Key sur chaque dépôt ; 0 : omis
 #   GED_TYPE_DOCUMENT_ID       type de document du dépôt (défaut : le premier de /api/v1/type-documents/for-select)
 #   GED_CURL_OPTS              options curl supplémentaires (ex. --cacert chaine-mmed.pem)
 # Aucun secret n'est écrit sur disque ni dans les traces : le jeton reste en mémoire.
@@ -108,7 +109,8 @@ api_depot() {
   local fichier="$1" nom="${2:-$(basename "$1")}" type="${3:-${_TYPE_ID:-}}"
   if [[ -z "$type" ]]; then _TYPE_ID="$(type_document_par_defaut)"; type="$_TYPE_ID"; fi
   local extra=()
-  [[ -n "${GED_IDEMPOTENCE:-}" ]] && extra+=(-H "Idempotency-Key: $(uuid_aleatoire)")
+  # Idempotency-Key obligatoire sur les créations (§5.3.2, livré en E9) ; GED_IDEMPOTENCE=0 pour l'omettre.
+  [[ "${GED_IDEMPOTENCE:-1}" != 0 ]] && extra+=(-H "Idempotency-Key: $(uuid_aleatoire)")
   api_appel POST "$GED_API_DEPOT" -F "file=@$(chemin_natif "$fichier");filename=${nom}" -F "name=${nom%.*}" -F "typeDocumentId=${type}" "${extra[@]}"
   DEPOT_ID=""
   [[ "$HTTP_CODE" =~ ^20[12]$ ]] && DEPOT_ID="$(json_champ id)"

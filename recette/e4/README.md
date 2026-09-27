@@ -1,0 +1,7 @@
+# Recette E4 — journalisation et audit
+
+| Script | Prouve |
+|---|---|
+| `verifier-journal.sh --base B` | Structure du `journal_audit` (§7.4.1), partitions mensuelles, déclencheurs de refus actifs sur la mère et chaque partition ; **connecté en `ged_app`** : INSERT et SELECT permis, UPDATE, DELETE, TRUNCATE refusés (SQLSTATE 42501) ; connecté en `ged_owner` : refus par déclencheur ; scellements en ajout seul ; `ged_readonly` en lecture. Toute tentative est annulée. |
+| `verifier-scellement.sh --base B` | Critère de sortie : `ged_owner` désactive les déclencheurs et modifie une ligne scellée → la vérification (`POST /api/v1/audit/verifications`) signale `EMPREINTE_DIFFERENTE` ; restauration → intègre ; scellement réécrit en base → écart avec la copie hors base ; vérification tracée. Exige au moins une période scellée (scellement horaire à hh:05). Base de recette uniquement. |
+| `RecetteAudit.java` (`lib/lancer-java.sh`) | Un événement par action (connexion réussie/refusée, dépôt, consultation, téléchargement, aperçu, modification avec avant/après, rattachement, verrou, archivage, export, suppression, restauration, purge, refus de droit, fichier infecté, habilitation, déconnexion), avec acteur, IP, résultat, trace ; consultation réservée (Administrateur, DG) et tracée ; exports CSV/JSON avec empreinte exacte ; aucune route d'écriture (D11) ; journal technique au pattern de l'Article 50 et corrélé par `traceId` (`GED_JOURNAL_TECHNIQUE`). |

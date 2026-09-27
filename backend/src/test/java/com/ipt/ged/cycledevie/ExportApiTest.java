@@ -126,7 +126,8 @@ class ExportApiTest extends BaseCycleDeVieApiTest {
         String ligneA = java.util.Arrays.stream(lignes).filter(l -> l.startsWith(a.toString())).findFirst().orElseThrow();
         String empreinteV2 = java.util.HexFormat.of().formatHex(
                 java.security.MessageDigest.getInstance("SHA-256").digest(v2));
-        assertTrue(ligneA.endsWith(";ACTIF;2;" + empreinteV2), ligneA);
+        // … statut, version, empreinte, puis canal du dépôt et application (T-040).
+        assertTrue(ligneA.endsWith(";ACTIF;2;" + empreinteV2 + ";INTERFACE;"), ligneA);
         assertTrue(manifeste.contains(dossier + "/Annexes"), "chemin du document du sous-dossier");
         assertFalse(manifeste.contains(secret.toString()));
 
@@ -183,5 +184,26 @@ class ExportApiTest extends BaseCycleDeVieApiTest {
         mvc.perform(get("/api/v1/exports/" + autre)).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/exports/" + autre + "/fichier")).andExpect(status().isNotFound());
         mvc.perform(post("/api/v1/exports/dossiers/" + UUID.randomUUID())).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("ANO-E7-001 : dossier hors périmètre → 404 indiscernable, aucun ZIP ni export de fond")
+    void dossierHorsPerimetre() throws Exception {
+        deposer(typeRacine, "Invisible", "i.pdf", "application/pdf", Pdfs.pdf("invisible"));
+        Integer exportsAvant = jdbc.queryForObject("SELECT count(*) FROM job_export", Integer.class);
+        // Utilisateur sans aucune habilitation : le dossier n'est ni couvert ni de passage.
+        mvc.perform(post("/api/v1/exports/dossiers/" + racine.getId())
+                        .with(user(identites.loadUserByUsername(Comptes.SANS_ROLE))))
+                .andExpect(status().isNotFound())
+                .andExpect(header().doesNotExist("Content-Disposition"));
+        proprietes.getExport().setSeuilDocuments(0);
+        mvc.perform(post("/api/v1/exports/dossiers/" + racine.getId())
+                        .with(user(identites.loadUserByUsername(Comptes.SANS_ROLE))))
+                .andExpect(status().isNotFound());
+        assertEquals(exportsAvant, jdbc.queryForObject("SELECT count(*) FROM job_export", Integer.class));
+        // Même réponse qu'un dossier inexistant.
+        mvc.perform(post("/api/v1/exports/dossiers/" + UUID.randomUUID())
+                        .with(user(identites.loadUserByUsername(Comptes.SANS_ROLE))))
+                .andExpect(status().isNotFound());
     }
 }

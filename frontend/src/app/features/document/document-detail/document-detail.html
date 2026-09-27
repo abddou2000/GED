@@ -91,6 +91,12 @@
         <div class="cartouche"><span class="val">{{ d.chemin }}</span><span class="lib">Chemin</span></div>
         <div class="cartouche"><span class="val">{{ d.createdBy || '—' }}</span><span class="lib">Créateur</span></div>
         <div class="cartouche"><span class="val">{{ dateCourte(d.createdAt) }}</span><span class="lib">Déposé le</span></div>
+        @if (d.canalDepot) {
+          <div class="cartouche">
+            <span class="val">{{ libelleCanal(d.canalDepot) }}{{ d.depotDelegue ? ' (pour le compte d\'une personne)' : '' }}</span>
+            <span class="lib">Canal de dépôt</span>
+          </div>
+        }
         <div class="cartouche"><span class="val">{{ d.confidentialite || 'PUBLIC' }}</span><span class="lib">Confidentialité</span></div>
         @if (d.rattachements?.length) {
           <div class="cartouche">
