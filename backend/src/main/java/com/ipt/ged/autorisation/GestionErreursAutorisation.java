@@ -25,6 +25,7 @@ public class GestionErreursAutorisation {
         Map<String, Object> corps = new LinkedHashMap<>();
         corps.put("timestamp", Instant.now());
         corps.put("status", 409);
+        corps.put("code", ex.code());
         corps.put("message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
     }

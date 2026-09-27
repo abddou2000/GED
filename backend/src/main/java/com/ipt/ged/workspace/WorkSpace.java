@@ -79,6 +79,21 @@ public class WorkSpace extends Supprimable {
     @Column(name = "chemin", insertable = false, updatable = false)
     private String chemin;
 
+    /**
+     * Drapeau d'archivage du nœud (D10) : dossier archivé en entier par le lot
+     * cycle de vie (contrat {@code workspace.archivage.ArchivageNoeuds}).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "statut_conservation", nullable = false, length = 10)
+    private com.ipt.ged.common.StatutConservation statutConservation = com.ipt.ged.common.StatutConservation.ACTIF;
+
+    @Column(name = "archive_le")
+    private java.time.Instant archiveLe;
+
+    /** Identité GED de l'archiviste. */
+    @Column(name = "archive_par")
+    private UUID archivePar;
+
     /** ESPACE (racine) ou DOSSIER, déduit du parent par la base. */
     @Generated(event = {EventType.INSERT, EventType.UPDATE})
     @Column(name = "nature", insertable = false, updatable = false)

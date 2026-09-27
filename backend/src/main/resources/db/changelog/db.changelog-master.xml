@@ -87,5 +87,7 @@
     <include file="changesets/202609281050_creation_table_version_habilitations.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609281055_declencheurs_version_habilitations.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609281200_jalon_autorisation.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301000_archivage_noeud_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301010_socle_commun_verrou_document.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

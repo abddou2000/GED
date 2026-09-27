@@ -1,5 +1,32 @@
 # Suivi — dev1
 
+## Contrat d'archivage pour dev3 (E7, livré en premier)
+
+Le lot cycle de vie (dev3) archive un dossier entier et chaque document ; le
+nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
+(commit « Poser le contrat d'archivage… ») :
+
+- `common.StatutConservation` : `ACTIF` / `ARCHIVE`.
+- Colonnes (changeset 202609301000) : `noeud` et `document` ←
+  `statut_conservation`, `archive_le`, `archive_par` (identité GED) ;
+  `document.echeance_conservation` (calculée par la base, §12.9).
+- `workspace.archivage.ArchivageNoeuds` (implémentation `ArchivageNoeudsJdbc`) :
+  `statut(noeud)`, `marquerArchive(noeud, auteur)` (nœud et sous-arborescence,
+  même horodatage, idempotent), `marquerActif(noeud)`,
+  `documentsAArchiver(noeud, apres, taille)` : documents vivants non archivés
+  dont l'emplacement **principal** est dans la sous-arborescence, id croissants,
+  pagination par clé (tranches de 100 du `job_archivage`).
+- `document.archivage.ArchivageDocuments` (implémentation `ArchivageDocumentsJdbc`,
+  `Propagation.MANDATORY` : dans la transaction de la tranche) :
+  `archiver(document, auteur)` (idempotent, 409 `DOCUMENT_VERROUILLE` si
+  verrouillé), `desarchiver(document)`.
+- `document.GardeEcriture.exigerModifiable(document)` : 409
+  `DOCUMENT_VERROUILLE` ou `DOCUMENT_ARCHIVE` ; à appeler par tout service
+  d'écriture du lot cycle de vie (purge exceptée : elle porte sur un document
+  en corbeille).
+- Aucun de ces contrats ne vérifie les droits : l'appelant exige Archiver
+  (`ControleAcces.exigerSurNoeud` / `exigerSurDocument`) avant.
+
 ## Lot en cours
 
 **E3 — Autorisation et confidentialité (vague 3)** : terminé côté développement,

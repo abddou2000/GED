@@ -313,7 +313,8 @@ public class DocumentService {
     public DocumentResponse setVerrou(UUID id, boolean verrouille) {
         controle.exigerSurDocument(CodePermission.MODIFIER, id);
         UploadDocument d = loadPourEcriture(id);
-        d.setVerrouille(verrouille);
+        if (verrouille) d.verrouiller(com.ipt.ged.common.ActeurCourant.utilisateurId(), null);
+        else d.deverrouiller();
         return DocumentResponse.from(repo.save(d));
     }
 

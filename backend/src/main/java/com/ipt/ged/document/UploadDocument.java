@@ -51,6 +51,29 @@ public class UploadDocument extends Supprimable {
     private WorkSpace workspace;
 
     /**
+     * Statut de conservation (§12.6) : porté par le document, donc identique
+     * depuis tous ses emplacements. ARCHIVE = lecture seule
+     * ({@link GardeEcriture}).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "statut_conservation", nullable = false, length = 10)
+    private com.ipt.ged.common.StatutConservation statutConservation = com.ipt.ged.common.StatutConservation.ACTIF;
+
+    @Column(name = "archive_le")
+    private java.time.Instant archiveLe;
+
+    /** Identité GED de l'archiviste. */
+    @Column(name = "archive_par")
+    private UUID archivePar;
+
+    /**
+     * Échéance de conservation (§12.9) : calculée PAR LA BASE à partir du type
+     * (durée, point de départ) ; jamais écrite par l'application.
+     */
+    @Column(name = "echeance_conservation", insertable = false, updatable = false)
+    private LocalDate echeanceConservation;
+
+    /**
      * Niveau de confidentialité (§12.3), indépendant de l'emplacement ; fixé au
      * dépôt d'après le type documentaire.
      */
@@ -99,6 +122,44 @@ public class UploadDocument extends Supprimable {
     // migré sans que rien ne le signale au démarrage.
     @Column(name = "is_locked", nullable = false, columnDefinition = "boolean default false")
     private boolean verrouille = false;
+
+    /** Auteur (identité GED), date et motif du verrou (§12.8). */
+    @Column(name = "verrou_par")
+    private UUID verrouPar;
+
+    @Column(name = "verrou_le")
+    private java.time.Instant verrouLe;
+
+    @Column(name = "verrou_motif", length = 500)
+    private String verrouMotif;
+
+    /** Objet du document (socle commun, §12.7). */
+    @Column(name = "objet", length = 1000)
+    private String objet;
+
+    /**
+     * Date du document (socle commun, §12.7) : clé de tri prioritaire de la
+     * recherche et point de départ par défaut de la conservation. Date de dépôt
+     * quand elle n'est pas fournie.
+     */
+    @Column(name = "date_document", nullable = false)
+    private LocalDate dateDocument = LocalDate.now();
+
+    /** Pose le verrou : auteur, date et motif (§12.8). */
+    public void verrouiller(UUID auteur, String motif) {
+        this.verrouille = true;
+        this.verrouPar = auteur;
+        this.verrouLe = java.time.Instant.now();
+        this.verrouMotif = motif;
+    }
+
+    /** Lève le verrou. */
+    public void deverrouiller() {
+        this.verrouille = false;
+        this.verrouPar = null;
+        this.verrouLe = null;
+        this.verrouMotif = null;
+    }
 
     /** Étiquettes apposées au document (N–N). */
     @ManyToMany(fetch = FetchType.EAGER)

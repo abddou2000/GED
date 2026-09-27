@@ -260,13 +260,19 @@ SELECT reprise_source.nouvel_id('type_de_documents', s.id), s.code, s.type_de_do
   FROM reprise_source.type_de_documents s;
 
 INSERT INTO document (id, name, noeud_principal_id, type_document_id, file_name, file_path, extension, size_ko,
-                      expiration_date, reference, active, is_locked, created_by_employe_id, supprime,
-                      created_at, updated_at)
+                      expiration_date, reference, active, is_locked, verrou_le, date_document,
+                      created_by_employe_id, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('documents_file', s.id), s.name,
        reprise_source.nouvel_id('work_spaces', s.workspace_id),
        reprise_source.nouvel_id('type_de_documents', s.type_document_id),
        s.file_name, s.file_path, s.extension, coalesce(s.size_ko, 0), s.expiration_date, s.reference,
        coalesce(s.active, true), coalesce(s.is_locked, false),
+       -- Verrou repris sans auteur ni motif (l'ancien modèle ne les connaissait
+       -- pas) : daté de la dernière modification. Date du document = date de
+       -- dépôt, l'ancien modèle n'en avait pas.
+       CASE WHEN coalesce(s.is_locked, false)
+            THEN coalesce(reprise_source.utc(s.updated_at), reprise_source.utc(s.created_at), now()) END,
+       coalesce(reprise_source.utc(s.created_at), now())::date,
        reprise_source.nouvel_id('employes', s.created_by_employe_id), coalesce(s.deleted, false),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.documents_file s;
