@@ -1,6 +1,9 @@
 package com.ipt.ged.document;
 
 import com.ipt.ged.common.ActeurCourant;
+import com.ipt.ged.cycledevie.Dossiers;
+import com.ipt.ged.cycledevie.ErreurCycleDeVie;
+import com.ipt.ged.cycledevie.conservation.CopiesConservation;
 import com.ipt.ged.depot.IssueIndexation;
 import com.ipt.ged.indexation.ValidationPlan;
 import com.ipt.ged.common.Limites;
@@ -88,12 +91,15 @@ public class DocumentService {
     private final StockageChiffre stockage;
     private final EnfilageOcr ocr;
     private final ApplicationEventPublisher evenements;
+    private final Dossiers dossiers;
+    private final CopiesConservation copies;
 
     public DocumentService(UploadDocumentRepository repo, TypeDocumentRepository typeRepo,
                            SignatureService signatureService,
                            EtiquetteRepository etiquetteRepo, EmployeRepository employeRepo,
                            DocumentVersionRepository versionRepo, ControleFichiers controle,
-                           StockageChiffre stockage, EnfilageOcr ocr, ApplicationEventPublisher evenements) {
+                           StockageChiffre stockage, EnfilageOcr ocr, ApplicationEventPublisher evenements,
+                           Dossiers dossiers, CopiesConservation copies) {
         this.repo = repo;
         this.typeRepo = typeRepo;
         this.signatureService = signatureService;
@@ -104,6 +110,8 @@ public class DocumentService {
         this.stockage = stockage;
         this.ocr = ocr;
         this.evenements = evenements;
+        this.dossiers = dossiers;
+        this.copies = copies;
     }
 
     @Transactional(readOnly = true)
@@ -165,6 +173,7 @@ public class DocumentService {
         TypeDocument type = typeRepo.findById(typeDocumentId)
                 .orElseThrow(() -> new EntityNotFoundException("Type de document introuvable : " + typeDocumentId));
         ContraintesDepot.validerTypeVivant(type);
+        refuserSiDossierArchive(type.getWorkspace());
 
         String original = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document";
         String ext = extractExtension(original);
@@ -219,6 +228,7 @@ public class DocumentService {
     @Transactional
     public DocumentResponse update(UUID id, DocumentRequest req) {
         UploadDocument d = loadPourEcriture(id);
+        refuserSiArchive(d, "modification");
         if (d.isVerrouille()) {
             throw new IllegalArgumentException("Document verrouille : modification impossible");
         }
@@ -231,6 +241,7 @@ public class DocumentService {
             TypeDocument type = typeRepo.findById(req.typeDocumentId())
                     .orElseThrow(() -> new EntityNotFoundException("Type de document introuvable : " + req.typeDocumentId()));
             ContraintesDepot.validerTypeVivant(type);
+            refuserSiDossierArchive(type.getWorkspace());
             d.setTypeDocument(type);
             // Le dossier suit le type : les laisser diverger rangerait le document
             // dans un espace qui n'accepte pas ce type.
@@ -250,6 +261,7 @@ public class DocumentService {
     @Transactional
     public DocumentResponse setVerrou(UUID id, boolean verrouille) {
         UploadDocument d = loadPourEcriture(id);
+        refuserSiArchive(d, "verrouillage");
         boolean avant = d.isVerrouille();
         d.setVerrouille(verrouille);
         UploadDocument saved = repo.save(d);
@@ -278,6 +290,7 @@ public class DocumentService {
         }
         UploadDocument d = loadPourEcriture(id);
         refuserSiEnCorbeille(d, "nouvelle version");
+        refuserSiArchive(d, "nouvelle version");
         if (d.isVerrouille()) {
             throw new IllegalArgumentException("Document verrouille : nouvelle version impossible");
         }
@@ -315,6 +328,7 @@ public class DocumentService {
     public DocumentResponse restaurerVersion(UUID documentId, UUID versionId) {
         UploadDocument d = loadPourEcriture(documentId);
         refuserSiEnCorbeille(d, "restauration de version");
+        refuserSiArchive(d, "restauration de version");
         DocumentVersion cible = versionRepo.findById(versionId)
                 .orElseThrow(() -> new EntityNotFoundException("Version introuvable : " + versionId));
         if (!cible.getDocument().getId().equals(documentId)) {
@@ -359,12 +373,30 @@ public class DocumentService {
      */
     @Transactional(readOnly = true)
     public FichierTelecharge telecharger(UUID id) {
+        return telecharger(id, false);
+    }
+
+    /**
+     * Pour un document archivé, la copie de conservation PDF/A est servie par
+     * défaut (§6.1.4) ; {@code original} force l'original.
+     */
+    @Transactional(readOnly = true)
+    public FichierTelecharge telecharger(UUID id, boolean original) {
         UploadDocument d = load(id);
         DocumentVersion v = courante(d)
                 .orElseThrow(() -> Refus.introuvable("aucune version pour le document " + id));
         if (v.getCleFichierId() == null) {
             // Version de l'ancien stockage en clair, pas encore reprise.
             throw Refus.introuvable("version " + v.getId() + " non reprise dans le stockage chiffré");
+        }
+        if (d.estArchive() && !original) {
+            Optional<CopiesConservation.CopieValide> copie = copies.valide(v.getId());
+            if (copie.isPresent()) {
+                InputStream flux = stockage.lire(copie.get().cleFichierId());
+                evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
+                        "copie de conservation PDF/A de " + v.getFileName()));
+                return new FichierTelecharge(d.getName() + ".pdf", copie.get().tailleOctets(), flux);
+            }
         }
         InputStream flux = stockage.lire(v.getCleFichierId());
         String nom = d.getName() + (d.getExtension() != null && !d.getExtension().isBlank() ? "." + d.getExtension() : "");
@@ -381,6 +413,7 @@ public class DocumentService {
     public void softDelete(UUID id) {
         UploadDocument d = load(id);
         if (d.isDeleted()) return;
+        refuserSiArchive(d, "suppression");
         d.mettreEnCorbeille(ActeurCourant.employeId());
         publierSuppression(d);
     }
@@ -395,7 +428,9 @@ public class DocumentService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(d -> {
+        List<UploadDocument> cibles = repo.findByIdInAndDeletedFalse(ids);
+        cibles.forEach(d -> refuserSiArchive(d, "suppression"));
+        cibles.forEach(d -> {
             d.mettreEnCorbeille(ActeurCourant.employeId());
             publierSuppression(d);
         });
@@ -449,6 +484,26 @@ public class DocumentService {
         if (d.isDeleted()) {
             throw new IllegalArgumentException("Document en corbeille : " + operation
                     + " impossible. Restaurez-le d'abord.");
+        }
+    }
+
+    /**
+     * Document archivé (§12.6) : lecture seule totale pour tous les rôles —
+     * fiche, index, versions, verrou, suppression. Seul le désarchivage y fait
+     * exception. Doublé en base pour les versions (déclencheur).
+     */
+    static void refuserSiArchive(UploadDocument d, String operation) {
+        if (d.estArchive()) {
+            throw new ErreurCycleDeVie(org.springframework.http.HttpStatus.CONFLICT, ErreurCycleDeVie.DOCUMENT_ARCHIVE,
+                    "Document archivé : " + operation + " impossible (lecture seule). Désarchivez-le d'abord.");
+        }
+    }
+
+    /** Dossier archivé (D10) : aucun dépôt ni rangement (revue client, question Q7). */
+    private void refuserSiDossierArchive(WorkSpace ws) {
+        if (ws != null && dossiers.estArchive(ws.getId())) {
+            throw new ErreurCycleDeVie(org.springframework.http.HttpStatus.CONFLICT, ErreurCycleDeVie.DOSSIER_ARCHIVE,
+                    "Dossier archivé « " + ws.getName() + " » : aucun dépôt n'y est accepté.");
         }
     }
 

@@ -38,11 +38,12 @@ public class RechercheController {
                                     @RequestParam(required = false) UUID workspaceId,
                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate du,
                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate au,
+                                    @RequestParam(defaultValue = "INCLURE") CriteresMetadonnees.Archives archives,
                                     Authentication utilisateur) {
         if (q.length() > 500) {
             throw new IllegalArgumentException("La recherche ne peut pas dépasser 500 caractères.");
         }
-        CriteresMetadonnees criteres = new CriteresMetadonnees(typeDocumentId, workspaceId, du, au);
+        CriteresMetadonnees criteres = new CriteresMetadonnees(typeDocumentId, workspaceId, du, au, archives);
         return indexer.rechercher(new RequeteRecherche(q, page, taille, tri, criteres.fragments()), utilisateur);
     }
 }

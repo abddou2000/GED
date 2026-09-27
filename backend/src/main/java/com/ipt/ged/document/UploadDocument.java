@@ -123,6 +123,26 @@ public class UploadDocument extends Supprimable {
     @Column(name = "statut_indexation", nullable = false, length = 16)
     private IssueIndexation statutIndexation = IssueIndexation.A_INDEXER;
 
+    /**
+     * Statut de conservation (§12.6) : un document ARCHIVE refuse toute écriture
+     * (fiche, index, versions, verrou, suppression) ; les versions sont en
+     * outre gelées en base par un déclencheur.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "statut_conservation", nullable = false, length = 16)
+    private StatutConservation statutConservation = StatutConservation.ACTIF;
+
+    @Column(name = "archive_le")
+    private java.time.Instant archiveLe;
+
+    /** Employé qui a archivé le document ; {@code null} s'il est actif. */
+    @Column(name = "archive_par")
+    private UUID archivePar;
+
+    public boolean estArchive() {
+        return statutConservation == StatutConservation.ARCHIVE;
+    }
+
     public UploadDocument(String name) {
         this.name = name;
     }

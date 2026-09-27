@@ -38,6 +38,13 @@ ged:
       # de traitement est testée à part (TravailleurOcrPostgresTest).
       actif: false
       workers: 0
+  cycledevie:
+    # Aucun travailleur de fond : les tests déclenchent eux-mêmes les jobs
+    # (ArchivageDossiers.traiterUnJob, ExportDossiers.traiterUnJob).
+    travailleur:
+      actif: false
+    archivage:
+      repertoire-travail: ./target/test-conservation-travail
 
   securite:
     # Mot de passe d'amorçage des comptes de test.

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609291110_gel_versions_document_archive.xml">
+
+    <!--
+        Archivage (§12.6) : « contrôle appliqué dans la couche service et doublé
+        par une contrainte en base sur les tables de versions ». Aucune version
+        ne s'ajoute, ne se modifie ni ne se supprime sur un document ARCHIVE.
+        Le modèle des versions lui-même (numéro, auteur, version courante,
+        lecture seule des versions antérieures, D9) relève du lot E7 modèle
+        (dev1) : ce déclencheur ne lit que le statut de conservation du document.
+    -->
+
+    <changeSet id="202609291110-1" author="ged">
+        <comment>Gel des versions d'un document archivé (§12.6).</comment>
+        <sql splitStatements="false">
+CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.ged_version_document_archive() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    doc uuid := CASE WHEN TG_OP = 'DELETE' THEN OLD.document_id ELSE NEW.document_id END;
+BEGIN
+    IF EXISTS (SELECT 1 FROM ${database.defaultSchemaName}.document d
+                WHERE d.id = doc AND d.statut_conservation = 'ARCHIVE') THEN
+        RAISE EXCEPTION 'Document % archivé : ses versions sont en lecture seule', doc
+            USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$
+        </sql>
+        <sql>CREATE TRIGGER trg_version_document_archive BEFORE INSERT OR UPDATE OR DELETE
+            ON ${database.defaultSchemaName}.version_document
+            FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.ged_version_document_archive()</sql>
+        <rollback>
+            <sql>DROP TRIGGER IF EXISTS trg_version_document_archive ON ${database.defaultSchemaName}.version_document</sql>
+            <sql>DROP FUNCTION IF EXISTS ${database.defaultSchemaName}.ged_version_document_archive()</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -58,17 +58,23 @@ class SchemaLiquibaseTest {
     /** Tables ajoutées par les lots E5 (stockage chiffré) et E6 (OCR, recherche plein texte). */
     private static final Set<String> TABLES_E5_E6 = Set.of("cle_fichier", "ocr_job", "document_texte");
 
+    /** Lot E7, cycle de vie (dev3) : copies de conservation, jobs d'archivage. */
+    private static final Set<String> TABLES_E7_CYCLE_DE_VIE = Set.of(
+            "copie_conservation", "job_archivage", "job_archivage_element");
+
     /** Toutes les tables du changelog maître. */
     private static final Set<String> TABLES_ATTENDUES;
     static {
         Set<String> t = new TreeSet<>(TABLES_E1);
         t.addAll(TABLES_E5_E6);
+        t.addAll(TABLES_E7_CYCLE_DE_VIE);
         TABLES_ATTENDUES = Set.copyOf(t);
     }
 
     /** Tables d'association, à clé composite : les seules sans colonne {@code id}. */
     private static final Set<String> ASSOCIATIONS = Set.of(
-            "access_group_workspace", "access_group_employe", "plan_index", "document_etiquette");
+            "access_group_workspace", "access_group_employe", "plan_index", "document_etiquette",
+            "job_archivage_element");
 
     /** Tables à corbeille : portent l'auteur et la date de suppression. */
     private static final Set<String> A_CORBEILLE = Set.of(
@@ -207,7 +213,8 @@ class SchemaLiquibaseTest {
                  WHERE tc.table_schema = ? AND tc.constraint_type = 'FOREIGN KEY'
                    -- version_id : nom imposé par le dossier (document_texte, ocr_job, §4.4),
                    -- vise version_document.
-                   AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'version_id')
+                   -- archive_par : pendant de supprime_par (§12.6, auteur de l'archivage).
+                   AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'archive_par', 'version_id')
                    AND kcu.column_name NOT LIKE '%' || ccu.table_name || '_id'""", schema);
         assertEquals(List.of(), incoherentes, "clés étrangères dont le nom ne désigne pas la table visée");
     }

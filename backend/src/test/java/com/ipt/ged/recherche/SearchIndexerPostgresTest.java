@@ -301,6 +301,17 @@ class SearchIndexerPostgresTest {
         assertEquals(List.of(a, b), chercherAvec(CriteresMetadonnees.AUCUN, RequeteRecherche.Tri.TYPE), "Avenant < Type de test");
         assertThrows(IllegalArgumentException.class, () -> new CriteresMetadonnees(null, null,
                 java.time.LocalDate.parse("2026-03-05"), java.time.LocalDate.parse("2026-03-01")));
+
+        // Archivés (§12.6) : inclus par défaut, exclus ou seuls sur demande, statut rendu pour le badge.
+        jdbc.update("UPDATE document SET statut_conservation = 'ARCHIVE', archive_le = now() WHERE id = ?", a);
+        assertEquals(List.of(a, b), chercherAvec(new CriteresMetadonnees(null, null, null, null,
+                CriteresMetadonnees.Archives.INCLURE), RequeteRecherche.Tri.TYPE));
+        assertEquals(List.of(b), chercherAvec(new CriteresMetadonnees(null, null, null, null,
+                CriteresMetadonnees.Archives.EXCLURE), RequeteRecherche.Tri.TYPE));
+        assertEquals(List.of(a), chercherAvec(new CriteresMetadonnees(null, null, null, null,
+                CriteresMetadonnees.Archives.SEULEMENT), RequeteRecherche.Tri.TYPE));
+        assertEquals("ARCHIVE", indexer.rechercher(RequeteRecherche.simple("bail", 0, 10), UTILISATEUR).resultats()
+                .stream().filter(r -> r.documentId().equals(a)).findFirst().orElseThrow().statutConservation());
     }
 
     private List<UUID> chercherAvec(CriteresMetadonnees c, RequeteRecherche.Tri tri) {

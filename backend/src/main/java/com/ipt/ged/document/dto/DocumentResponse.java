@@ -46,7 +46,10 @@ public record DocumentResponse(
          */
         String statutIndexation,
         /** Pourquoi l'indexation du dépôt n'a pas abouti ; renseigné par le seul dépôt. */
-        String motifIndexation
+        String motifIndexation,
+        /** {@code ACTIF} ou {@code ARCHIVE} (§12.6) : un document archivé est en lecture seule. */
+        String statutConservation,
+        Instant archiveLe
 ) {
     public record Ref(UUID id, String label) {}
 
@@ -79,14 +82,16 @@ public record DocumentResponse(
                 d.getCreatedAt(),
                 statutOcr,
                 d.getStatutIndexation() != null ? d.getStatutIndexation().name() : null,
-                null);
+                null,
+                d.getStatutConservation() != null ? d.getStatutConservation().name() : null,
+                d.getArchiveLe());
     }
 
     /** Même réponse, avec l'issue d'indexation établie par le dépôt et son motif. */
     public DocumentResponse avecIndexation(String statut, String motif) {
         return new DocumentResponse(id, name, workspace, typeDocument, fileName, extension, sizeKo, sizeLabel,
                 expirationDate, active, verrouille, deleted, chemin, createdBy, etiquettes, versions, createdAt,
-                statutOcr, statut, motif);
+                statutOcr, statut, motif, statutConservation, archiveLe);
     }
 
     /**

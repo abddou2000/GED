@@ -175,6 +175,25 @@ ged:
       reindexation-lot: 500
       reindexation-pause: 200ms
 
+  # ------------------------------------------------------------
+  #  Cycle de vie (lot E7) : purge (§12.5), archivage et copie PDF/A-2
+  #  (§12.6, §6.1.4, revue client D10), export de dossier (§12.10).
+  #  Aucune purge ni aucun archivage automatique (P4, D10).
+  # ------------------------------------------------------------
+  cycledevie:
+    travailleur:
+      actif: true                    # jobs d'archivage de dossier et exports de fond
+      intervalle: 5s
+      bail: 15m                      # prolongé à chaque tranche ; au-delà, repris ailleurs
+    archivage:
+      tranche: 100                   # documents par transaction (§12.6)
+      # tmpfs en production : la conversion PDF/A y dépose une copie en clair éphémère
+      repertoire-travail: ${GED_CONSERVATION_TRAVAIL:${java.io.tmpdir}/ged-conservation}
+    export:
+      seuil-documents: 500           # au-delà : traitement de fond (§12.10)
+      seuil-octets: 2147483648       # 2 Go
+      retention: 7d                  # puis destruction de l'archive produite
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

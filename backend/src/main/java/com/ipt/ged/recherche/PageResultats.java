@@ -20,7 +20,9 @@ public record PageResultats(List<Resultat> resultats, long total, int page, int 
      * @param deposeLe     date de dépôt.
      */
     public record Resultat(UUID documentId, UUID versionId, double pertinence, List<Segment> extrait,
-                           String nom, String typeDocument, String espace, java.time.Instant deposeLe) {
+                           String nom, String typeDocument, String espace, java.time.Instant deposeLe,
+                           /** {@code ACTIF} ou {@code ARCHIVE} : badge de statut (§12.6). */
+                           String statutConservation) {
     }
 
     public record Segment(String texte, boolean surligne) {

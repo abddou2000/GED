@@ -87,4 +87,8 @@
     <!-- Vague 3 : dépôt en deux temps (§12.11) et dépôt avec métadonnées (§5.3). -->
     <include file="changesets/202609291000_ajout_statut_indexation_document.xml" relativeToChangelogFile="true"/>
 
+    <!-- Vague 4 : cycle de vie (§12.5, §12.6, §12.10, §6.1.4). -->
+    <include file="changesets/202609291100_archivage_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609291110_gel_versions_document_archive.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

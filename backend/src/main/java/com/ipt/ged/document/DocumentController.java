@@ -102,8 +102,9 @@ public class DocumentController {
      * (§6.1.2) : ni copie en clair sur disque, ni fichier entier en mémoire.
      */
     @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> download(@PathVariable UUID id) {
-        return servir(service.telecharger(id));
+    public ResponseEntity<Resource> download(@PathVariable UUID id,
+                                                          @RequestParam(defaultValue = "false") boolean original) {
+        return servir(service.telecharger(id, original));
     }
 
     /**

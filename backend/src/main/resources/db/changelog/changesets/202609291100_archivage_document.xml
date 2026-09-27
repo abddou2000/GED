@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609291100_archivage_document.xml">
+
+    <!--
+        Lot E7, cycle de vie (dev3) : archivage (§12.6, revue client D10) et
+        copie de conservation PDF/A-2 (§6.1.4). Le statut de conservation est
+        porté par le document, donc identique depuis tous ses emplacements ; un
+        dossier entier s'archive par un job traité par tranches de 100.
+    -->
+    <changeSet id="202609291100-1" author="ged">
+        <comment>Statut de conservation du document (ACTIF, ARCHIVE), date et auteur de l'archivage.</comment>
+        <addColumn tableName="document">
+            <column name="statut_conservation" type="VARCHAR(16)" defaultValue="ACTIF">
+                <constraints nullable="false"/>
+            </column>
+            <column name="archive_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="archive_par" type="UUID"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_document_archive_par" baseTableName="document" baseColumnNames="archive_par"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <createIndex indexName="idx_document_archive_par" tableName="document">
+            <column name="archive_par"/>
+        </createIndex>
+        <createIndex indexName="idx_document_statut_conservation" tableName="document">
+            <column name="statut_conservation"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_statut_conservation
+            CHECK (statut_conservation IN ('ACTIF', 'ARCHIVE'))</sql>
+        <!-- Un document archivé porte sa date d'archivage ; un document actif n'en porte pas. -->
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_archivage
+            CHECK ((statut_conservation = 'ARCHIVE') = (archive_le IS NOT NULL))</sql>
+        <rollback>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_archivage</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_statut_conservation</sql>
+            <dropIndex indexName="idx_document_statut_conservation" tableName="document"/>
+            <dropIndex indexName="idx_document_archive_par" tableName="document"/>
+            <dropForeignKeyConstraint baseTableName="document" constraintName="fk_document_archive_par"/>
+            <dropColumn tableName="document" columnName="archive_par"/>
+            <dropColumn tableName="document" columnName="archive_le"/>
+            <dropColumn tableName="document" columnName="statut_conservation"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609291100-2" author="ged">
+        <comment>Copie de conservation PDF/A-2 d'une version, chiffrée comme tout fichier (§6.1.4).</comment>
+        <createTable tableName="copie_conservation">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_copie_conservation" nullable="false"/>
+            </column>
+            <column name="version_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Fichier chiffré de la copie ; nul si la conversion a échoué. -->
+            <column name="cle_fichier_id" type="UUID"/>
+            <column name="empreinte" type="CHAR(64)"/>
+            <column name="taille_octets" type="BIGINT"/>
+            <column name="statut" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Chaîne de conversion : LIBREOFFICE, PDFBOX_IMAGE, PDF_CONFORME, PDFBOX_PDF, RASTERISATION. -->
+            <column name="methode" type="VARCHAR(32)"/>
+            <column name="format" type="VARCHAR(16)"/>
+            <column name="motif" type="TEXT"/>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cree_par_employe_id" type="UUID"/>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_copie_conservation_version_document" baseTableName="copie_conservation"
+                                 baseColumnNames="version_id" referencedTableName="version_document" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_copie_conservation_cle_fichier" baseTableName="copie_conservation"
+                                 baseColumnNames="cle_fichier_id" referencedTableName="cle_fichier" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_copie_conservation_cree_par_employe" baseTableName="copie_conservation"
+                                 baseColumnNames="cree_par_employe_id" referencedTableName="employe" referencedColumnNames="id"/>
+        <addUniqueConstraint constraintName="uk_copie_conservation_version_id" tableName="copie_conservation" columnNames="version_id"/>
+        <createIndex indexName="idx_copie_conservation_cle_fichier_id" tableName="copie_conservation">
+            <column name="cle_fichier_id"/>
+        </createIndex>
+        <createIndex indexName="idx_copie_conservation_cree_par_employe_id" tableName="copie_conservation">
+            <column name="cree_par_employe_id"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.copie_conservation ADD CONSTRAINT ck_copie_conservation_statut
+            CHECK (statut IN ('VALIDE', 'ECHEC'))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.copie_conservation ADD CONSTRAINT ck_copie_conservation_fichier
+            CHECK ((statut = 'VALIDE') = (cle_fichier_id IS NOT NULL AND empreinte IS NOT NULL))</sql>
+        <rollback>
+            <dropTable tableName="copie_conservation"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609291100-3" author="ged">
+        <comment>Archivage d'un dossier entier : job par tranches de 100 et sélection figée (§12.6, D10).</comment>
+        <createTable tableName="job_archivage">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_job_archivage" nullable="false"/>
+            </column>
+            <!-- Dossier archivé (espace aujourd'hui, nœud après E3) : sans clé
+                 étrangère, le référentiel des dossiers change de table en E3. -->
+            <column name="dossier_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dossier_nom" type="VARCHAR(255)"/>
+            <column name="demandeur_employe_id" type="UUID"/>
+            <column name="etat" type="VARCHAR(16)" defaultValue="EN_ATTENTE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="traites" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="archives" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="anomalies" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="echecs" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="annulation_demandee" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="verrouille_par" type="VARCHAR(100)"/>
+            <column name="verrouille_jusqu_a" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="demarre_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="termine_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_job_archivage_demandeur_employe" baseTableName="job_archivage"
+                                 baseColumnNames="demandeur_employe_id" referencedTableName="employe" referencedColumnNames="id"/>
+        <createIndex indexName="idx_job_archivage_demandeur_employe_id" tableName="job_archivage">
+            <column name="demandeur_employe_id"/>
+        </createIndex>
+        <createIndex indexName="idx_job_archivage_etat" tableName="job_archivage">
+            <column name="etat"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.job_archivage ADD CONSTRAINT ck_job_archivage_etat
+            CHECK (etat IN ('EN_ATTENTE', 'EN_COURS', 'TERMINE', 'ANNULE'))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.job_archivage ADD CONSTRAINT ck_job_archivage_compteurs
+            CHECK (traites &gt;= 0 AND traites &lt;= total AND archives + echecs &lt;= traites AND anomalies &lt;= archives)</sql>
+
+        <createTable tableName="job_archivage_element">
+            <column name="job_archivage_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="document_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rang" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Nul tant que le document n'est pas traité. -->
+            <column name="resultat" type="VARCHAR(16)"/>
+            <column name="motif" type="TEXT"/>
+            <column name="traite_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addPrimaryKey constraintName="pk_job_archivage_element" tableName="job_archivage_element" columnNames="job_archivage_id, document_id"/>
+        <addForeignKeyConstraint constraintName="fk_job_archivage_element_job_archivage" baseTableName="job_archivage_element"
+                                 baseColumnNames="job_archivage_id" referencedTableName="job_archivage" referencedColumnNames="id" onDelete="CASCADE"/>
+        <!-- Un document purgé sort de la sélection (la purge ne touche qu'un document en corbeille). -->
+        <addForeignKeyConstraint constraintName="fk_job_archivage_element_document" baseTableName="job_archivage_element"
+                                 baseColumnNames="document_id" referencedTableName="document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex indexName="idx_job_archivage_element_document_id" tableName="job_archivage_element">
+            <column name="document_id"/>
+        </createIndex>
+        <createIndex indexName="idx_job_archivage_element_job_archivage_id_rang" tableName="job_archivage_element">
+            <column name="job_archivage_id"/>
+            <column name="rang"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.job_archivage_element ADD CONSTRAINT ck_job_archivage_element_resultat
+            CHECK (resultat IS NULL OR resultat IN ('ARCHIVE', 'ANOMALIE', 'DEJA_ARCHIVE', 'IGNORE', 'ECHEC'))</sql>
+        <rollback>
+            <dropTable tableName="job_archivage_element"/>
+            <dropTable tableName="job_archivage"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -130,6 +130,12 @@ public class IndexationService {
         if (doc.isVerrouille()) {
             throw new IllegalArgumentException("Document verrouille : indexation impossible");
         }
+        if (doc.estArchive()) {
+            // Document archivé (§12.6) : lecture seule totale.
+            throw new com.ipt.ged.cycledevie.ErreurCycleDeVie(org.springframework.http.HttpStatus.CONFLICT,
+                    com.ipt.ged.cycledevie.ErreurCycleDeVie.DOCUMENT_ARCHIVE,
+                    "Document archivé : indexation impossible (lecture seule).");
+        }
 
         // Le plan du type fait autorité : il dit ce qu'on a le droit d'écrire ET
         // ce qu'on est tenu de renseigner.
@@ -601,6 +607,9 @@ public class IndexationService {
                         || (d.getWorkspace() != null && d.getWorkspace().getId().equals(requete.workspaceId())))
                 .filter(d -> requete.typeDocumentId() == null
                         || (d.getTypeDocument() != null && d.getTypeDocument().getId().equals(requete.typeDocumentId())))
+                // Archivés inclus par défaut, filtre pour les exclure ou ne garder qu'eux (§12.6).
+                .filter(d -> !"EXCLURE".equals(requete.archives()) || !d.estArchive())
+                .filter(d -> !"SEULEMENT".equals(requete.archives()) || d.estArchive())
                 .toList();
         if (candidats.isEmpty()) return List.of();
 
@@ -702,7 +711,8 @@ public class IndexationService {
                 d.getTypeDocument() != null ? d.getTypeDocument().getTypeDeDocument() : null,
                 d.getExpirationDate() != null ? d.getExpirationDate().toString() : null,
                 d.getReference(),
-                valeurs);
+                valeurs,
+                d.getStatutConservation() != null ? d.getStatutConservation().name() : null);
     }
 
     private static ResultatResponse.ValeurResponse versValeur(DocumentIndex v) {

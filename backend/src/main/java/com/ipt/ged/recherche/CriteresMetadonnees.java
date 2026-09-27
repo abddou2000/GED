@@ -15,9 +15,20 @@ import java.util.UUID;
  * @param deposeDu borne basse incluse de la date de dépôt ;
  * @param deposeAu borne haute incluse de la date de dépôt.
  */
-public record CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDate deposeDu, LocalDate deposeAu) {
+public record CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDate deposeDu, LocalDate deposeAu,
+                                  Archives archives) {
 
     public static final CriteresMetadonnees AUCUN = new CriteresMetadonnees(null, null, null, null);
+
+    /**
+     * Documents archivés (§12.6) : inclus par défaut dans la recherche, avec un
+     * filtre pour les exclure ou ne garder qu'eux.
+     */
+    public enum Archives { INCLURE, EXCLURE, SEULEMENT }
+
+    public CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDate deposeDu, LocalDate deposeAu) {
+        this(typeDocumentId, workspaceId, deposeDu, deposeAu, Archives.INCLURE);
+    }
 
     public CriteresMetadonnees {
         if (deposeDu != null && deposeAu != null && deposeDu.isAfter(deposeAu)) {
@@ -40,6 +51,11 @@ public record CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDa
         if (deposeAu != null) {
             f.add(new FragmentSql("d.created_at < :critere_au",
                     Map.of("critere_au", deposeAu.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC))));
+        }
+        if (archives == Archives.EXCLURE) {
+            f.add(new FragmentSql("d.statut_conservation <> 'ARCHIVE'", Map.of()));
+        } else if (archives == Archives.SEULEMENT) {
+            f.add(new FragmentSql("d.statut_conservation = 'ARCHIVE'", Map.of()));
         }
         return f;
     }

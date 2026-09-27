@@ -31,7 +31,7 @@ import java.util.UUID;
  */
 public sealed interface EvenementDocument extends EvenementAudit permits DocumentDepose, VersionAjoutee, VersionRestauree,
         DocumentTelecharge, ApercuConsulte, MetadonneesModifiees, VerrouModifie, DocumentSupprime,
-        DocumentRestaure, ContenuIndexe, OcrEnEchec {
+        DocumentRestaure, ContenuIndexe, OcrEnEchec, DocumentPurge, DocumentArchive, DocumentDesarchive {
 
     /** Code stable de l'action, repris tel quel par le journal d'audit. */
     String type();
