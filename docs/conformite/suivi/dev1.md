@@ -84,10 +84,41 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
-**E7 — partie modèle (vague 4)** : terminé côté développement, branche
-`ct/dev1`, en attente d'intégration (fusions suspendues). E3 : accepté
-(483eb40). E2 : accepté (ea2f936). Aucun des deux n'est encore fusionné.
-E1 : fusionné par pm (fbb951c).
+**E8 — workflow de validation (vague 5)** : terminé côté développement,
+branche `ct/dev1`. **Fusion de `conformite-technique` (e81ecc2) non faite** :
+la commande `git merge` a été refusée par le contrôle des permissions de la
+session ; la réconciliation avec dev3 reste à faire dès qu'elle sera autorisée.
+E7 modèle : accepté (b739ed3). E2/E3 : fusionnés (4f41279). E1 : fusionné.
+
+## E8 — exigences traitées (§12.8 ; MATRICE-FONCTIONNELLE §4.5 ; MATRICE-TECHNIQUE 12.8)
+
+| Réf. | Exigence | Réalisation |
+|---|---|---|
+| 12.8 / 4.5.3 | Règle rattachable à un espace, un dossier ou un type ; la plus spécifique s'applique | `regle_workflow` sur `noeud` et `type_document` ; `ReglesApplicables` : type, puis nœud le plus proche en remontant (règle en corbeille ou sans validateur ignorée) ; `PUT /workflow/noeuds/{id}/regle`, `PUT /workflow/types/{id}/regle`, `GET /workflow/documents/{id}/regle` |
+| 12.8 / 4.5.4 | Validateur nommé ou par rôle sur un périmètre | `regle_validateur.employe_id` XOR `role_id` (+ `perimetre_noeud_id`, contrainte en base) ; rôle résolu au moment de la décision (global, périmètre ou ancêtre, document) et permission Valider exigée |
+| 12.8 / 4.5.4 | Règle modifiable, circuit figé au dépôt | `circuit` + `circuit_validateur` copiés dans la transaction du dépôt (`ServiceCircuits.ouvrirAuDepot`) ; test « circuit figé » |
+| 12.8 / 4.5.3 (D7) | Décisions VALIDE / REFUSE (motif obligatoire) / ANNULEE, sans ordre, aucun facultatif | table `decision (circuit_validateur_id, version_id, decision, motif, cree_le, auteur_id, application_id)`, jamais modifiée ; `POST /workflow/circuits/{id}/decisions` |
+| 12.8 / 4.5.3 | Statut recalculé sur la version courante ; versement = décisions caduques | recalcul dans la transaction de chaque décision et de chaque versement / désignation de version (écoute de `VERSION_AJOUTEE` / `VERSION_RESTAUREE`) ; `document.active` = circuit VALIDE |
+| 12.8 (Q1/R27, D1) | Validateur défaillant signalé, réaffectation manuelle tracée | `GET /workflow/anomalies` (SANS_IDENTITE, SANS_DROIT, INACTIF > `ged.workflow.inactivite-jours`, AUCUN_PORTEUR) ; `PUT /workflow/circuits/{id}/validateurs/{v}` (Administrateur, motif, ancien validateur / auteur / date conservés) |
+| 12.8 | Annulation par l'initiateur ou l'Administrateur, décisions conservées, nouveau circuit possible | `POST /workflow/circuits/{id}/annulation` ; `POST /workflow/documents/{id}/circuits` (409 `CIRCUIT_DEJA_OUVERT` / `AUCUNE_REGLE`) |
+| 12.8 / 4.5.3 | Diffusion du document validé, sans copie | `POST /workflow/documents/{id}/diffusion` : habilitations de document au rôle `LECTEUR` (nouveau, Consulter) pour personnes et groupes ; Diffuser exigée ; 409 `DOCUMENT_NON_VALIDE` |
+| 4.5.3 / 4.6.6 | Notification des validateurs et du déposant ; audit | `EvenementWorkflow` implémente `EvenementAudit` et `EvenementNotifiable` (copies conformes de dev2) : CIRCUIT_OUVERT, VALIDATION_RELANCEE, VALIDATION_APPROUVEE / REJETEE, DECISION_ANNULEE, CIRCUIT_ANNULE, VALIDATEUR_REAFFECTE, DOCUMENT_DIFFUSE, REGLE_WORKFLOW_RATTACHEE ; une publication par action |
+| D8 (E8-API) | Pilotage par API, décision pour le compte d'un validateur | contrat publié ci-dessus ; `AccesApiWorkflow` (acteur délégué, portée PILOTAGE / DECISION) ; double identité (auteur + `application_id`) tracée |
+| Reprise | Anciennes tables et signatures séquentielles | changesets `202610021000` (renommages), `202610021010` (circuit, décision), `202610021020` (signatures → circuits, retour arrière), `202610021030` (rôle LECTEUR), jalon `workflow-e8` ; scripts `02_reprise.sql` / `03_controles.sql` ; paquet `signature` supprimé |
+| Écrans | Validation sans étapes, statut sur la fiche, règles, réaffectation | « Mes validations » (à traiter, historique, validateurs défaillants) ; carte « Validation » de la fiche document ; formulaire de règle nommé / par rôle ; règle du type sur sa fiche ; règle facultative du nœud |
+
+Tests : `mvn test` → **344 tests, 0 échec** (dont `CircuitApiTest`, 12 cas,
+et la migration des signatures dans `SchemaLiquibaseTest`) ; `ng build` vert.
+Vérifié en exécution sur `ged_dev1` (backend 18081, interface 14301, arrêtés
+ensuite) : migration appliquée (le circuit repris du document d'essai en
+corbeille reste hors des listes), écrans « Mes validations », carte du
+circuit, formulaire de règle par rôle.
+
+Non fait / reste : fusion de `conformite-technique` et réconciliation dev3
+(voir « Lot en cours ») ; un validateur nommé est un employé (les anciens
+approbateurs n'avaient pas tous d'identité GED) ; la liste des personnes
+proposée à la diffusion vient de l'écran d'administration (un non-administrateur
+ne voit que les groupes).
 
 ## E7 (modèle) — exigences traitées
 
