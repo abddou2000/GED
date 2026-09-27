@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Travailleur des traitements de fond du cycle de vie : jobs d'archivage de
- * dossier. Un seul fil par
+ * dossier et exports volumineux, puis expiration des exports. Un seul fil par
  * instance ; plusieurs instances se partagent les jobs par bail
  * ({@code FOR UPDATE SKIP LOCKED}). Désactivable
  * ({@code ged.cycledevie.travailleur.actif=false}, profil de test).
@@ -24,11 +24,13 @@ public class PlanificateurCycleDeVie {
     private static final Logger log = LoggerFactory.getLogger(PlanificateurCycleDeVie.class);
 
     private final ArchivageDossiers archivage;
+    private final ExportDossiers exports;
     private final ProprietesCycleDeVie proprietes;
     private ScheduledExecutorService fil;
 
-    public PlanificateurCycleDeVie(ArchivageDossiers archivage, ProprietesCycleDeVie proprietes) {
+    public PlanificateurCycleDeVie(ArchivageDossiers archivage, ExportDossiers exports, ProprietesCycleDeVie proprietes) {
         this.archivage = archivage;
+        this.exports = exports;
         this.proprietes = proprietes;
     }
 
@@ -47,12 +49,16 @@ public class PlanificateurCycleDeVie {
         fil.scheduleWithFixedDelay(this::tour, ms, ms, TimeUnit.MILLISECONDS);
     }
 
-    /** Un passage : tous les jobs disponibles. */
+    /** Un passage : tous les jobs disponibles, puis l'expiration des exports. */
     void tour() {
         try {
             while (archivage.traiterUnJob()) {
                 // job suivant
             }
+            while (exports.traiterUnJob()) {
+                // export suivant
+            }
+            exports.expirer();
         } catch (RuntimeException e) {
             log.warn("Travailleur du cycle de vie : passage interrompu", e);
         }

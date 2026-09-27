@@ -58,9 +58,9 @@ class SchemaLiquibaseTest {
     /** Tables ajoutées par les lots E5 (stockage chiffré) et E6 (OCR, recherche plein texte). */
     private static final Set<String> TABLES_E5_E6 = Set.of("cle_fichier", "ocr_job", "document_texte");
 
-    /** Lot E7, cycle de vie (dev3) : copies de conservation, jobs d'archivage. */
+    /** Lot E7, cycle de vie (dev3) : copies de conservation, jobs d'archivage et d'export. */
     private static final Set<String> TABLES_E7_CYCLE_DE_VIE = Set.of(
-            "copie_conservation", "job_archivage", "job_archivage_element");
+            "copie_conservation", "job_archivage", "job_archivage_element", "job_export", "job_export_element");
 
     /** Toutes les tables du changelog maître. */
     private static final Set<String> TABLES_ATTENDUES;
@@ -74,7 +74,7 @@ class SchemaLiquibaseTest {
     /** Tables d'association, à clé composite : les seules sans colonne {@code id}. */
     private static final Set<String> ASSOCIATIONS = Set.of(
             "access_group_workspace", "access_group_employe", "plan_index", "document_etiquette",
-            "job_archivage_element");
+            "job_archivage_element", "job_export_element");
 
     /** Tables à corbeille : portent l'auteur et la date de suppression. */
     private static final Set<String> A_CORBEILLE = Set.of(

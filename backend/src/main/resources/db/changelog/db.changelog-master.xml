@@ -89,6 +89,7 @@
 
     <!-- Vague 4 : cycle de vie (§12.5, §12.6, §12.10, §6.1.4). -->
     <include file="changesets/202609291100_archivage_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609291105_creation_table_job_export.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609291110_gel_versions_document_archive.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
