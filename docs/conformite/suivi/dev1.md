@@ -1,5 +1,60 @@
 # Suivi — dev1
 
+## Contrat d'API du workflow (E8-API, D8) — publié pour dev2
+
+Mêmes points d'entrée pour l'interface et pour l'intranet (§2.3). Base
+`/api/v1/workflow`. Chaque action est attribuée à une personne nommée :
+l'utilisateur du jeton, ou l'identité déléguée (`X-On-Behalf-Of`) d'une
+application habilitée. Branchement de dev2 : déclarer en `@Primary` une
+implémentation de `workflow.api.AccesApiWorkflow` :
+
+- `acteur(auth, requete)` → `ActeurWorkflow(utilisateurId, employeId, applicationId, libelle)` :
+  pour une `ApplicationAuthentifiee`, l'identité de `FiltreCleApi.ATTRIBUT_DELEGATION`
+  (refus 403 sans délégation) ; pour un utilisateur, déléguer à `AccesApiWorkflowUtilisateurs` ;
+- `verifierPortee(auth, operation, noeudId)` → `ControlePorteeApplication` avec
+  `PILOTAGE` = `OperationApi.WORKFLOW_PILOTAGE`, `DECISION` = `OperationApi.WORKFLOW_DECISION`
+  (nœud = emplacement principal du document, ou nœud visé).
+
+Idempotency-Key : appliqué par le filtre de dev2 aux écritures, sans rien
+demander au workflow. Les droits restent ceux d'`AccessPredicate` (la personne
+déléguée doit elle-même détenir les permissions).
+
+| Méthode et chemin | Opération | Corps | Réponse | Refus |
+|---|---|---|---|---|
+| `GET /regles` (alias `/api/v1/workflowgeds`) | — | page `?page&size&search` | `RegleResponse` | — |
+| `GET /regles/{id}` | — | — | `RegleResponse` | 404 |
+| `POST /regles` | PILOTAGE | `{name, steps:[{employeId \| roleId+perimetreNoeudId?, label, stepOrder?}]}` | 201 `RegleResponse` | 400 ; 403 sans `GERER_REFERENTIELS` |
+| `PUT /regles/{id}` | PILOTAGE | idem | `RegleResponse` (effet sur les seuls dépôts futurs) | 400, 403, 404 |
+| `DELETE /regles/{id}` | PILOTAGE | — | 204 (corbeille) | 403, 404 |
+| `PUT /noeuds/{noeudId}/regle` | PILOTAGE | `{regleId \| null}` | 204 | 403, 404 |
+| `PUT /types/{typeId}/regle` | PILOTAGE | `{regleId \| null}` | 204 | 403, 404 |
+| `GET /documents/{documentId}/regle` | — | — | `{regleId, name, origine: TYPE\|NOEUD, origineId}` ou 204 | 404 hors périmètre |
+| `GET /documents/{documentId}/circuits` | — | — | `[CircuitResponse]`, le plus récent d'abord | 404 hors périmètre |
+| `GET /circuits/{circuitId}` | — | — | `CircuitResponse` | 404 |
+| `POST /documents/{documentId}/circuits` | PILOTAGE | `{}` | 201 `CircuitResponse` | 409 `CIRCUIT_DEJA_OUVERT`, 409 `AUCUNE_REGLE`, 403 |
+| `POST /circuits/{circuitId}/decisions` | DECISION | `{decision: VALIDE\|REFUSE\|ANNULEE, motif, validateurId?}` | 201 `CircuitResponse` | 400 `MOTIF_OBLIGATOIRE` (refus) ; 403 `PAS_VALIDATEUR` ; 409 `CIRCUIT_CLOS` ; 409 `DECISION_INCOHERENTE` (annuler sans décision) |
+| `POST /circuits/{circuitId}/annulation` | PILOTAGE | `{motif}` | `CircuitResponse` (statut `ANNULE`) | 400 `MOTIF_OBLIGATOIRE` ; 403 (ni initiateur ni Administrateur) ; 409 `CIRCUIT_CLOS` |
+| `PUT /circuits/{circuitId}/validateurs/{validateurId}` | PILOTAGE | `{employeId, motif}` | `CircuitResponse` | 403 (Administrateur seul) ; 409 `VALIDATEUR_DEJA_DECIDE` ; 409 `CIRCUIT_CLOS` |
+| `GET /a-traiter` | — | `?page&size` | page `ATraiterResponse` | — |
+| `GET /historique` | — | — | `[DecisionResponse]` de l'acteur | — |
+| `GET /anomalies` | — | — | `[AnomalieResponse]` (validateurs nommés sans identité, sans droit Valider, ou inactifs) | 403 (Administrateur) |
+| `POST /documents/{documentId}/diffusion` | PILOTAGE | `{utilisateurIds:[], groupeIds:[]}` | `{habilitationsPosees}` | 403 sans Diffuser ; 409 `DOCUMENT_NON_VALIDE` |
+
+`CircuitResponse` : `id, documentId, document, statut (EN_COURS|VALIDE|REFUSE|ANNULE),
+regleId, regle, initiateur, ouvertLe, closLe, annulePar, annuleLe, motifAnnulation,
+versionCouranteId, versionCouranteNumero, validateurs[{id, type (NOMME|ROLE),
+employeId, employe, roleCode, perimetreNoeudId, libelle, etat (EN_ATTENTE|VALIDE|REFUSE),
+derniereDecision, reaffecteDe, reaffectePar, reaffecteLe}], decisions[{id, validateurId,
+versionId, versionNumero, decision, motif, auteur, applicationId, le}], peutDecider, peutAnnuler`.
+
+Règles de calcul (§12.8, D7) : validateurs parallèles, aucun ordre, aucun
+facultatif. Statut recalculé dans la transaction de chaque décision ou
+versement : `VALIDE` si, pour chaque validateur, la dernière décision non
+annulée sur la version courante est `VALIDE` ; `REFUSE` si au moins un refus
+sur la version courante ; sinon `EN_COURS`. Un versement rend caduques les
+décisions antérieures. Validateur par rôle : résolu au moment de la décision
+(rôle détenu sur le périmètre, et permission Valider sur le document).
+
 ## Contrat d'archivage pour dev3 (E7, livré en premier)
 
 Le lot cycle de vie (dev3) archive un dossier entier et chaque document ; le
