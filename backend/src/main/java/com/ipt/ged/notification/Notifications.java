@@ -105,6 +105,6 @@ public class Notifications {
     }
 
     private boolean courrielActif(UUID utilisateurId) {
-        return preferences.findById(utilisateurId).map(PreferenceNotification::isCourrielActif).orElse(true);
+        return preferences.findByUtilisateurId(utilisateurId).map(PreferenceNotification::isCourrielActif).orElse(true);
     }
 }

@@ -1684,6 +1684,7 @@ classDiagram
   }
   class PreferenceNotification {
     <<entity>>
+    UUID id
     UUID utilisateurId
     boolean courrielActif
     Instant modifieLe

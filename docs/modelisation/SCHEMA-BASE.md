@@ -1,6 +1,6 @@
 # Schéma de la base de données (P-05, DAT §4.5, §12.1)
 
-> Généré par `node outils/schema-base.mjs` depuis la base `ged_dev2_test`, schéma `ged`, migrée par Liquibase (79 changesets ; jalons : `socle-e1`, `identite-e2`, `autorisation-e3`, `audit-e4`, `api-e9-v3`, `notification-e8`, `api-e9-v4`, `fichiers-ocr-e5-e6`). Ne pas modifier à la main : régénérer après chaque changeset.
+> Généré par `node outils/schema-base.mjs` depuis la base `ged_dev2_test`, schéma `ged`, migrée par Liquibase (81 changesets ; jalons : `socle-e1`, `identite-e2`, `autorisation-e3`, `audit-e4`, `api-e9-v3`, `notification-e8`, `api-e9-v4`, `fichiers-ocr-e5-e6`). Ne pas modifier à la main : régénérer après chaque changeset.
 
 Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'audit : `bigint` séquentiel, ordre du scellement chaîné), clés étrangères `<table>_id`, préfixes `pk_`, `uk_`, `fk_`, `ck_`, `idx_`. Les partitions mensuelles `journal_audit_AAAAMM` ne sont pas listées.
 
@@ -37,9 +37,9 @@ Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'a
 | Traçabilité et exploitation | `job_export` | 15 | référentiel (< 10 000) | < 10 Mo | — |
 | Traçabilité et exploitation | `job_export_element` | 4 | 90 000 | 6.8 Mo | exports de dossiers |
 | Traçabilité et exploitation | `journal_audit` | 14 | 25 000 000 | 12.8 Go | 5 millions d'événements par an, 0,5 Ko |
-| Traçabilité et exploitation | `journal_audit_scellement` | 9 | 43 800 | 5.4 Mo | un scellement par heure |
+| Traçabilité et exploitation | `journal_audit_scellement` | 9 | 43 800 | 5.7 Mo | un scellement par heure |
 | Traçabilité et exploitation | `notification` | 15 | 900 000 | 420.3 Mo | circuits, accès, échéances : environ 2 par document |
-| Traçabilité et exploitation | `preference_notification` | 3 | référentiel (< 10 000) | < 10 Mo | — |
+| Traçabilité et exploitation | `preference_notification` | 4 | référentiel (< 10 000) | < 10 Mo | — |
 | Typologie | `document_index_valeur` | 6 | 2 250 000 | 648.0 Mo | environ 5 index renseignés par document |
 | Typologie | `index_def` | 14 | référentiel (< 10 000) | < 10 Mo | — |
 | Typologie | `plan_index` | 4 | référentiel (< 10 000) | < 10 Mo | — |
@@ -632,7 +632,6 @@ erDiagram
     uuid trace_id
   }
   journal_audit_scellement {
-    bigint id PK
     timestamp_with_time_zone periode_debut
     timestamp_with_time_zone periode_fin
     bigint nombre
@@ -641,6 +640,7 @@ erDiagram
     character_64_ empreinte_precedente
     character_64_ empreinte
     timestamp_with_time_zone scelle_le
+    uuid id PK
   }
   notification {
     uuid id PK
@@ -660,9 +660,10 @@ erDiagram
     character_varying_1000_ courriel_erreur
   }
   preference_notification {
-    uuid utilisateur_id PK
+    uuid utilisateur_id
     boolean courriel_actif
     timestamp_with_time_zone modifie_le
+    uuid id PK
   }
   utilisateur ||--o{ job_archivage : "archiviste_utilisateur_id"
   employe ||--o{ job_archivage : "demandeur_employe_id"
@@ -1354,7 +1355,6 @@ Index :
 
 | Colonne | Type | Nul | Défaut |
 |---|---|---|---|
-| `id` | bigint | non |  |
 | `periode_debut` | timestamp with time zone | non |  |
 | `periode_fin` | timestamp with time zone | non |  |
 | `nombre` | bigint | non |  |
@@ -1363,6 +1363,7 @@ Index :
 | `empreinte_precedente` | character(64) | non |  |
 | `empreinte` | character(64) | non |  |
 | `scelle_le` | timestamp with time zone | non | `clock_timestamp()` |
+| `id` | uuid | non | `ged.uuid_v7()` |
 
 Contraintes :
 
@@ -1571,10 +1572,12 @@ Index :
 | `utilisateur_id` | uuid | non |  |
 | `courriel_actif` | boolean | non | `true` |
 | `modifie_le` | timestamp with time zone | non |  |
+| `id` | uuid | non |  |
 
 Contraintes :
 
-- `pk_preference_notification` (clé primaire) : `PRIMARY KEY (utilisateur_id)`
+- `pk_preference_notification` (clé primaire) : `PRIMARY KEY (id)`
+- `uk_preference_notification_utilisateur_id` (unicité) : `UNIQUE (utilisateur_id)`
 
 ### `role`
 
