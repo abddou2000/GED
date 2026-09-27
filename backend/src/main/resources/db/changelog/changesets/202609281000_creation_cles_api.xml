@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609281000_creation_cles_api.xml">
+
+    <!--
+        Applications clientes et clés d'API (dossier technique §5.4, §12.1 groupe
+        « Identités et accès », §12.2 : une clé d'API est un sujet comme un autre).
+
+        - application : l'application interfacée (bureau d'ordre, gestion des
+          marchés…), ses adresses autorisées et ses quotas.
+        - cle_api : les clés de l'application. Seule l'empreinte SHA-256 du secret
+          est conservée ; l'identifiant public de la clé sert à la retrouver.
+          La régénération laisse l'ancienne clé valide pendant un chevauchement
+          (remplacee_par_cle_api_id, expire_le avancée).
+        - cle_api_portee : portée par nœud et par opération (§5.4), vérifiée par
+          le point d'application unique des droits (lot autorisation, vague 4).
+          Pas de clé étrangère vers le nœud : les nœuds (espaces, dossiers) sont
+          refondus par le lot autorisation ; la cohérence est contrôlée par le
+          service.
+    -->
+    <changeSet id="202609281000-1" author="ged">
+        <comment>Applications clientes de l'API.</comment>
+        <createTable tableName="application">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_application" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_application_code"/>
+            </column>
+            <column name="nom" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(1000)"/>
+            <!-- Adresses ou plages CIDR autorisées, séparées par des virgules ;
+                 vide = toute adresse (obligatoire pour une clé qui délègue). -->
+            <column name="adresses_autorisees" type="VARCHAR(2000)"/>
+            <column name="quota_minute" type="INTEGER" defaultValueNumeric="600">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quota_jour" type="INTEGER" defaultValueNumeric="100000">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="modifie_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.application ADD CONSTRAINT ck_application_quotas CHECK (quota_minute &gt; 0 AND quota_jour &gt; 0)</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.application ADD CONSTRAINT ck_application_code CHECK (code ~ '^[a-z0-9][a-z0-9-]{1,63}$')</sql>
+        <rollback>
+            <dropTable tableName="application"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609281000-2" author="ged">
+        <comment>Clés d'API : identifiant public, empreinte du secret, cycle de vie.</comment>
+        <createTable tableName="cle_api">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_cle_api" nullable="false"/>
+            </column>
+            <column name="application_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_cle_api_application_id"
+                             referencedTableName="application" referencedColumnNames="id"/>
+            </column>
+            <!-- Partie publique de la clé (ged_<env>_<identifiant>_<secret>). -->
+            <column name="identifiant" type="VARCHAR(32)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_cle_api_identifiant"/>
+            </column>
+            <column name="environnement" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- SHA-256 du secret, en hexadécimal : le secret n'est jamais stocké. -->
+            <column name="empreinte" type="CHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Attribut « délégation » (§5.5), accordé par l'Administrateur. -->
+            <column name="delegation" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expire_le" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revoquee_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="motif_revocation" type="VARCHAR(500)"/>
+            <column name="remplacee_par_cle_api_id" type="UUID">
+                <constraints foreignKeyName="fk_cle_api_remplacee_par_cle_api_id"
+                             referencedTableName="cle_api" referencedColumnNames="id"/>
+            </column>
+            <column name="derniere_utilisation" type="TIMESTAMP WITH TIME ZONE"/>
+            <!-- Compteur journalier du quota, persisté périodiquement (§5.4). -->
+            <column name="quota_jour_date" type="DATE"/>
+            <column name="quota_jour_appels" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.cle_api ADD CONSTRAINT ck_cle_api_empreinte CHECK (empreinte ~ '^[0-9a-f]{64}$')</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.cle_api ADD CONSTRAINT ck_cle_api_identifiant CHECK (identifiant ~ '^[0-9a-f]{16}$')</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.cle_api ADD CONSTRAINT ck_cle_api_validite CHECK (expire_le &gt; cree_le)</sql>
+        <createIndex tableName="cle_api" indexName="idx_cle_api_application_id">
+            <column name="application_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="cle_api"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609281000-3" author="ged">
+        <comment>Portée d'une clé : nœud et opérations autorisées (vérifiée en vague 4).</comment>
+        <createTable tableName="cle_api_portee">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_cle_api_portee" nullable="false"/>
+            </column>
+            <column name="cle_api_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_cle_api_portee_cle_api_id"
+                             referencedTableName="cle_api" referencedColumnNames="id" deleteCascade="true"/>
+            </column>
+            <!-- Espace ou dossier ; la portée s'étend à sa sous-arborescence. -->
+            <column name="noeud_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Codes OperationApi séparés par des virgules. -->
+            <column name="operations" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="cle_api_portee" columnNames="cle_api_id, noeud_id"
+                             constraintName="uk_cle_api_portee_cle_api_id_noeud_id"/>
+        <rollback>
+            <dropTable tableName="cle_api_portee"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609281000-4" author="ged">
+        <comment>Idempotence des créations (§5.3.2) : réponse mémorisée 24 h par appelant.</comment>
+        <createTable tableName="idempotence_cle">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_idempotence_cle" nullable="false"/>
+            </column>
+            <!-- Application appelante, ou nul pour un utilisateur de l'interface. -->
+            <column name="application_id" type="UUID"/>
+            <!-- Portée de la clé : « application:<uuid> » ou « utilisateur:<identifiant> ». -->
+            <column name="appelant" type="VARCHAR(300)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cle" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="methode" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="chemin" type="VARCHAR(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="empreinte_requete" type="CHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- EN_COURS pendant l'exécution, TERMINEE une fois la réponse mémorisée. -->
+            <column name="etat" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="statut_reponse" type="INTEGER"/>
+            <column name="type_contenu" type="VARCHAR(255)"/>
+            <column name="entete_location" type="VARCHAR(1000)"/>
+            <column name="corps_reponse" type="BYTEA"/>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expire_le" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="idempotence_cle" columnNames="appelant, cle"
+                             constraintName="uk_idempotence_cle_appelant_cle"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.idempotence_cle ADD CONSTRAINT ck_idempotence_cle_etat CHECK (etat IN ('EN_COURS', 'TERMINEE'))</sql>
+        <createIndex tableName="idempotence_cle" indexName="idx_idempotence_cle_expire_le">
+            <column name="expire_le"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="idempotence_cle"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Jalon : clés d'API et idempotence (lot E9, vague 3). -->
+    <changeSet id="202609281000-5" author="ged">
+        <tagDatabase tag="api-e9-v3"/>
+    </changeSet>
+
+</databaseChangeLog>

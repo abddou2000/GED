@@ -64,11 +64,24 @@ public class ConfigurationAnnuaire {
             log.warn("Annuaire en LDAP non chiffré ({}) : admis en dev et test uniquement.", urls);
         }
 
+        LdapContextSource source = construire(a, urls, a.isPool());
+        log.info("Annuaire : {} contrôleur(s) de domaine déclaré(s), base « {} ».", urls.size(), a.getBase());
+        return source;
+    }
+
+    /**
+     * Source LDAP du compte de service sur les contrôleurs donnés, avec les
+     * réglages communs (délais, TLS, objectGUID binaire). Sert à la source
+     * principale et à la sonde, qui mesure chaque contrôleur séparément (D4) :
+     * mêmes réglages, donc même liaison authentifiée que les connexions.
+     */
+    static LdapContextSource construire(ProprietesIdentite.Annuaire a, List<String> urls, boolean pool) {
+        boolean toutLdaps = urls.stream().allMatch(u -> u.toLowerCase().startsWith("ldaps://"));
         LdapContextSource source = new LdapContextSource();
         source.setUrls(urls.toArray(String[]::new));
         source.setAuthenticationSource(new SecretCompteService(
                 a.getCompteService(), a.getMotDePasseService(), a.getMotDePasseServiceFichier()));
-        source.setPooled(a.isPool());
+        source.setPooled(pool);
 
         Map<String, Object> env = new HashMap<>();
         env.put("com.sun.jndi.ldap.connect.timeout", String.valueOf(a.getDelaiConnexion().toMillis()));
@@ -82,7 +95,6 @@ public class ConfigurationAnnuaire {
         }
         source.setBaseEnvironmentProperties(env);
         source.afterPropertiesSet();
-        log.info("Annuaire : {} contrôleur(s) de domaine déclaré(s), base « {} ».", urls.size(), a.getBase());
         return source;
     }
 

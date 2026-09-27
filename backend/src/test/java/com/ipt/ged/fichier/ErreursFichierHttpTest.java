@@ -3,31 +3,34 @@ package com.ipt.ged.fichier;
 import com.ipt.ged.common.GlobalExceptionHandler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
-
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Codes 413, 415, 422 (et 503) rendus par le gestionnaire commun, au format
- * habituel ({@code timestamp}, {@code status}, {@code message}) augmenté de
- * {@code code}.
+ * Codes 413, 415, 422 (et 503, 404) du lot stockage rendus par le gestionnaire
+ * commun au format {@code application/problem+json}, code métier conservé.
  */
 class ErreursFichierHttpTest {
 
     private final GlobalExceptionHandler gestionnaire = new GlobalExceptionHandler();
+    private final MockHttpServletRequest requete = new MockHttpServletRequest("POST", "/api/v1/documents");
 
     private void verifier(ErreurFichierException e, int statut, String code) {
-        ResponseEntity<Map<String, Object>> r = gestionnaire.handleFichier(e);
+        ResponseEntity<ProblemDetail> r = gestionnaire.fichier(e, requete);
         assertEquals(statut, r.getStatusCode().value());
-        Map<String, Object> corps = r.getBody();
+        ProblemDetail corps = r.getBody();
         assertNotNull(corps);
-        assertEquals(statut, corps.get("status"));
-        assertEquals(code, corps.get("code"));
-        assertNotNull(corps.get("timestamp"));
-        assertFalse(((String) corps.get("message")).isBlank());
+        assertEquals(statut, corps.getStatus());
+        assertEquals(code, corps.getProperties().get("code"));
+        assertEquals("/api/v1/documents", corps.getInstance().toString());
+        assertFalse(corps.getDetail().isBlank());
     }
 
     @Test
@@ -50,10 +53,19 @@ class ErreursFichierHttpTest {
     @Test
     @DisplayName("Plafond multipart dépassé → 413 au même format")
     void multipart() {
-        ResponseEntity<Map<String, Object>> r = gestionnaire.handleTailleMultipart(
-                new MaxUploadSizeExceededException(200L * 1024 * 1024));
+        ResponseEntity<Object> r = new GestionnaireExpose().multipart(
+                new MaxUploadSizeExceededException(200L * 1024 * 1024), new ServletWebRequest(requete));
         assertEquals(413, r.getStatusCode().value());
-        assertEquals(413, r.getBody().get("status"));
-        assertEquals("FICHIER_TROP_VOLUMINEUX", r.getBody().get("code"));
+        ProblemDetail corps = (ProblemDetail) r.getBody();
+        assertNotNull(corps);
+        assertEquals(413, corps.getStatus());
+        assertEquals("FICHIER_TROP_VOLUMINEUX", corps.getProperties().get("code"));
+    }
+
+    /** Donne accès à la méthode protégée héritée de ResponseEntityExceptionHandler. */
+    private static final class GestionnaireExpose extends GlobalExceptionHandler {
+        ResponseEntity<Object> multipart(MaxUploadSizeExceededException e, ServletWebRequest w) {
+            return handleMaxUploadSizeExceededException(e, new HttpHeaders(), HttpStatus.PAYLOAD_TOO_LARGE, w);
+        }
     }
 }

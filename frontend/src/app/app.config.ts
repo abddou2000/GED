@@ -18,6 +18,8 @@ import { GED_ICONS } from './core/ged-icons';
 import { MODE_DEMO } from './core/api';
 import { demoInterceptor } from './core/demo.interceptor';
 import { authInterceptor } from './core/auth.interceptor';
+import { problemeInterceptor } from './core/probleme';
+import { idempotenceInterceptor } from './core/idempotence';
 
 // Formats de date et libellés du calendrier en français.
 registerLocaleData(localeFr);
@@ -35,11 +37,14 @@ export const appConfig: ApplicationConfig = {
      * ne voit jamais que `/index.html`.
      */
     provideRouter(routes, withHashLocation()),
-    /* L'ordre compte : `authInterceptor` pose le jeton et traite le 401 ;
+    /* L'ordre compte : `problemeInterceptor` normalise les erreurs problem+json
+       de l'API (DAT 5.3.2) pour tous les écrans ; `idempotenceInterceptor`
+       pose l'Idempotency-Key exigée sur les créations ; `authInterceptor` pose le
+       jeton et traite le 401 ;
        `demoInterceptor` court-circuite les appels quand il n'y a pas de
-       backend. Le second doit rester en dernier pour ne rien intercepter
+       backend : il doit rester en dernier pour ne rien intercepter
        tant qu'un vrai serveur répond. */
-    provideHttpClient(withFetch(), withInterceptors([authInterceptor, demoInterceptor])),
+    provideHttpClient(withFetch(), withInterceptors([problemeInterceptor, idempotenceInterceptor, authInterceptor, demoInterceptor])),
     provideAnimationsAsync(),
 
     /**

@@ -92,7 +92,9 @@ public class MetriquesSupervision implements MeterBinder {
         // Sonde absente de ce déploiement : NaN, que Prometheus ignore, plutôt
         // qu'un 0 qui déclencherait une fausse alerte.
         if (composant == null) return Double.NaN;
-        return Status.UP.equals(composant.getStatus()) ? 1.0 : 0.0;
+        // DEGRADE (annuaire : un contrôleur sur N répond, D4) : le service est rendu.
+        String code = composant.getStatus().getCode();
+        return Status.UP.getCode().equals(code) || "DEGRADE".equals(code) ? 1.0 : 0.0;
     }
 
     double espace(boolean libre) {

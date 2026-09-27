@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609291000_creation_notifications.xml">
+
+    <!--
+        Notifications (dossier technique §12.9, dossier fonctionnel §4.6.6).
+
+        - notification : boîte d'envoi. Une ligne par destinataire, écrite dans la
+          transaction de l'événement déclencheur (tout ou rien avec lui). Elle
+          porte à la fois la notification dans l'application (pastille et liste,
+          lue_le) et l'état de son expédition par e-mail, faite ensuite de façon
+          asynchrone avec au plus trois tentatives.
+        - preference_notification : désactivation de l'e-mail par l'utilisateur ;
+          la notification dans l'application subsiste toujours.
+
+        Trois familles de déclencheurs exclusivement : circuit de validation
+        (ouverture, décision rendue, annulation), attribution d'un accès à un
+        espace, alerte de fin de conservation. La contrainte ck_notification_type
+        interdit tout autre cas.
+
+        Pas de clé étrangère vers l'identité du destinataire : le modèle des
+        identités est refondu par le lot identité (E2) ; le destinataire est
+        l'identifiant GED de l'utilisateur, contrôlé par le service.
+    -->
+    <changeSet id="202609291000-1" author="ged">
+        <comment>Boîte d'envoi des notifications (in-app et e-mail).</comment>
+        <createTable tableName="notification">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_notification" nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="destinataire_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Objet concerné (DOCUMENT, ESPACE, CIRCUIT…), pour le lien et l'audit. -->
+            <column name="objet_type" type="VARCHAR(64)"/>
+            <column name="objet_id" type="UUID"/>
+            <!-- Texte figé à la création : un modèle modifié plus tard ne réécrit
+                 pas l'historique de ce qui a été annoncé. -->
+            <column name="titre" type="VARCHAR(300)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="VARCHAR(4000)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Chemin relatif dans l'application (ex. documents/<id>). -->
+            <column name="lien" type="VARCHAR(1000)"/>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lue_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <!-- A_ENVOYER, ENVOYE, ECHEC (trois tentatives épuisées),
+                 DESACTIVE (préférence de l'utilisateur), SANS_ADRESSE. -->
+            <column name="courriel_etat" type="VARCHAR(12)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="courriel_tentatives" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="courriel_prochain_essai" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="courriel_envoye_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="courriel_erreur" type="VARCHAR(1000)"/>
+        </createTable>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.notification ADD CONSTRAINT ck_notification_type CHECK (type IN ('CIRCUIT_OUVERT', 'CIRCUIT_DECISION', 'CIRCUIT_ANNULE', 'ACCES_ESPACE_ATTRIBUE', 'ECHEANCE_CONSERVATION'))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.notification ADD CONSTRAINT ck_notification_courriel_etat CHECK (courriel_etat IN ('A_ENVOYER', 'ENVOYE', 'ECHEC', 'DESACTIVE', 'SANS_ADRESSE'))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.notification ADD CONSTRAINT ck_notification_courriel_tentatives CHECK (courriel_tentatives BETWEEN 0 AND 10)</sql>
+        <createIndex tableName="notification" indexName="idx_notification_destinataire_cree_le">
+            <column name="destinataire_id"/>
+            <column name="cree_le" descending="true"/>
+        </createIndex>
+        <!-- File d'expédition : seules les lignes en attente sont indexées. -->
+        <sql>CREATE INDEX idx_notification_a_envoyer ON ${database.defaultSchemaName}.notification (courriel_prochain_essai) WHERE courriel_etat = 'A_ENVOYER'</sql>
+        <!-- Pastille : décompte des non lues par destinataire. -->
+        <sql>CREATE INDEX idx_notification_non_lue ON ${database.defaultSchemaName}.notification (destinataire_id) WHERE lue_le IS NULL</sql>
+        <rollback>
+            <dropTable tableName="notification"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609291000-2" author="ged">
+        <comment>Préférence de notification par utilisateur (§12.9 : e-mail désactivable).</comment>
+        <createTable tableName="preference_notification">
+            <column name="utilisateur_id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_preference_notification" nullable="false"/>
+            </column>
+            <column name="courriel_actif" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="modifie_le" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <rollback>
+            <dropTable tableName="preference_notification"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Jalon : notifications (lot E8, partie dev2). -->
+    <changeSet id="202609291000-3" author="ged">
+        <tagDatabase tag="notification-e8"/>
+    </changeSet>
+
+</databaseChangeLog>

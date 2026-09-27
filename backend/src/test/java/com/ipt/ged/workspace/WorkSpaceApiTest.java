@@ -85,7 +85,7 @@ class WorkSpaceApiTest {
         create("A", "WS-DUP", null);
         mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(ws("B", "WS-DUP", null)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("déjà utilisé")));
+                .andExpect(jsonPath("$.detail", containsString("déjà utilisé")));
     }
 
     @Test
@@ -95,7 +95,7 @@ class WorkSpaceApiTest {
                         .content("{\"code\":\"WS-X\",\"employeId\":\"" + Comptes.idAdmin(employeRepository)
                                 + "\",\"workflowId\":\"" + workflowId + "\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.name").exists());
+                .andExpect(jsonPath("$.erreurs.name").exists());
     }
 
     @Test

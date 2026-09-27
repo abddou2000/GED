@@ -160,26 +160,26 @@ class SecuriteApiTest {
         mvc.perform(patch("/api/v1/signatures/" + sigId + "/approve").with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("assignée")));
+                .andExpect(jsonPath("$.detail", containsString("assignée")));
 
         mvc.perform(patch("/api/v1/signatures/" + sigId + "/approve").with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON)
                         .content("{\"employeId\":\"" + Comptes.idAdmin(employeRepository) + "\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("assignée")));
+                .andExpect(jsonPath("$.detail", containsString("assignée")));
 
         mvc.perform(patch("/api/v1/signatures/" + sigId + "/approve").with(enTantQue(Comptes.SECOND_ACTEUR))
                         .param("employeId", String.valueOf(Comptes.idAdmin(employeRepository)))
                         .contentType(APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("assignée")));
+                .andExpect(jsonPath("$.detail", containsString("assignée")));
 
         // Le rejet suit la même règle.
         mvc.perform(patch("/api/v1/signatures/" + sigId + "/reject").with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON)
                         .content("{\"employeId\":\"" + Comptes.idAdmin(employeRepository) + "\",\"motif\":\"tentative\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("assignée")));
+                .andExpect(jsonPath("$.detail", containsString("assignée")));
 
         // L'assignée légitime, elle, passe.
         mvc.perform(patch("/api/v1/signatures/" + sigId + "/approve").with(enTantQue(Comptes.ADMIN))

@@ -58,7 +58,10 @@ class EvenementsAuditTest {
             assertEquals("DOCUMENT", a.objetType());
             assertEquals(doc, a.objetId());
         }
-        assertEquals(employe, tous[0].acteurUtilisateurId());
+        // Identité complétée par le journal (utilisateur.id de la requête, lot E2) : l'employé
+        // est la personne métier, pas l'identité GED.
+        assertNull(tous[0].acteurUtilisateurId());
+        assertEquals(employe, tous[0].acteur().employeId());
         assertNull(tous[10].acteurUtilisateurId(), "traitement de fond : acteur complété par le journal");
         assertEquals(Map.of("nom", "a"), tous[5].avant());
         assertEquals(Map.of("verrouille", false), tous[6].avant());

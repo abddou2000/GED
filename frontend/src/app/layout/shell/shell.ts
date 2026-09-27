@@ -7,6 +7,7 @@ import { SessionService } from '../../core/session.service';
 import { AuthService } from '../../core/auth.service';
 import { BrandLogo } from '../../core/brand-logo/brand-logo';
 import { SignatureService } from '../../features/signature/signature.service';
+import { NotificationsService } from '../../features/notifications/notifications.service';
 
 /**
  * Coque applicative — disposition « topnav » (style UBold) :
@@ -29,6 +30,7 @@ export class Shell implements AfterViewInit {
   protected auth = inject(AuthService);
   private router = inject(Router);
   private signatures = inject(SignatureService);
+  protected notifications = inject(NotificationsService);
 
   protected drawerOpen = signal(false);
   protected pendingCount = signal(0);
@@ -89,6 +91,9 @@ export class Shell implements AfterViewInit {
     'plan-indexation': "Plan d'indexation",
     'type-de-document': 'Type de document',
     'etiquette': 'Étiquette',
+    'journal-audit': "Journal d'audit",
+    'cles-api': "Clés d'API",
+    'notifications': 'Notifications',
     'profil': 'Mon profil',
   };
 
@@ -112,13 +117,24 @@ export class Shell implements AfterViewInit {
            voit pas — un dépôt de document ouvre un circuit et ajoute une
            étape. Recompter à chaque navigation rattrape ces cas sans que
            chaque écran ait à y penser. */
-        if (this.session.user()?.id != null) this.recompterAtraiter();
+        if (this.session.user()?.id != null) {
+          this.recompterAtraiter();
+          this.notifications.rafraichirCompteur();
+        }
         // `routerLinkActive` pose sa classe pendant le même cycle : mesurer
         // tout de suite renverrait la position de l'onglet qu'on vient de
         // quitter. On attend la fin du cycle courant.
         setTimeout(() => this.placerJauge());
       });
     destroyRef.onDestroy(() => sub.unsubscribe());
+
+    /* Pastille des notifications : une notification naît d'une action d'un
+       autre utilisateur (circuit ouvert, accès attribué), donc sans navigation
+       de celui-ci. Relevé toutes les minutes, tant qu'une session est ouverte. */
+    const releve = setInterval(() => {
+      if (this.session.user()?.id != null) this.notifications.rafraichirCompteur();
+    }, 60_000);
+    destroyRef.onDestroy(() => clearInterval(releve));
 
     // Identité + compteur « à traiter » (badge du menu)
     this.session.ensureUser();
@@ -133,6 +149,7 @@ export class Shell implements AfterViewInit {
       this.signatures.revision();
       if (u?.id == null) return;
       this.recompterAtraiter();
+      this.notifications.rafraichirCompteur();
     });
   }
 
