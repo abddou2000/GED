@@ -2,7 +2,56 @@
 
 Branche `ct/dev2`. Mise à jour : 27/09/2026.
 
-## Vague 2 — en cours
+## Vague 3 — lot E9 socle API : **LIVRÉ sur ct/dev2** (commits 2218e40, 5d13b8d)
+
+Références de la matrice technique, section « Intégration et API (§5) », lignes
+comptées à partir de 0 (4.x), avec l'article du DAT.
+
+| Réf. | Exigence (DAT) | Livré | Statut proposé |
+|---|---|---|---|
+| 4.9 | 5.3.2 — Idempotency-Key obligatoire sur les créations | `FiltreIdempotence` générique (routes configurables : dépôt, version, rattachement, espace, dossier), table `idempotence_cle`, réservation avant exécution, empreinte requête (multipart indépendant du boundary) et réponse 2xx mémorisées 24 h par appelant (application ou utilisateur) ; rejeu → réponse initiale + `Idempotency-Replayed`, contenu différent → 422 `IDEMPOTENCE_CONFLIT`, traitement concurrent → 409 `IDEMPOTENCE_EN_COURS`, clé absente/invalide → 400 ; purge horaire. Front : intercepteur qui pose une clé UUID neuve sur chaque POST | Identique |
+| 4.10 | 5.3.2 — pagination, plafond 200, liste blanche | existant vérifié (plafond 200, tri en liste blanche) ; taille par défaut portée de 10 à 50, alias `taille` accepté | Identique |
+| 4.11 | 5.3.2 — taille par type, quotas par clé | quotas 600/min et 100 000/jour par clé (réglables par application), 429 + `Retry-After`, compteurs en mémoire persistés périodiquement (`cle_api.quota_jour_*`) ; métadonnées plafonnées à 64 Ko (413 `METADONNEES_TROP_VOLUMINEUSES`) | Identique **sous réserve** : compteurs par instance (voir limites) |
+| 4.12 | 5.3.2 — version majeure dans l'URL | `/api/v1` inchangé ; en-têtes `Deprecation`, `Sunset` (≥ 12 mois) et `Link rel="successor-version"` émis par préfixe déclaré (`ged.api.conventions.depreciations`), prêts pour `/api/v2` | Identique |
+| 4.14 | 5.4 — clés API | tables `application`, `cle_api` ; format `ged_<env>_<identifiant>_<secret>`, secret 256 bits montré une fois, empreinte SHA-256 (comparaison à temps constant) ; `X-API-Key` ; génération, consultation, expiration 12 mois, révocation motivée, régénération avec chevauchement de 7 jours, clés expirant sous 30 jours signalées ; adresses autorisées (IP ou CIDR) ; refus d'une clé d'un autre environnement ; événements d'audit pour chaque opération et chaque appel (`APPEL_API`, `CLE_API_REFUSEE`, `QUOTA_DEPASSE`, …) sans secret ; écran Angular « Clés d'API » | **Proche** : la portée (`cle_api_portee`) est modélisée mais branchée en vague 4 |
+| 4.1 | 5.2 — applications soumises au même modèle | l'application est un sujet authentifié (`ApplicationAuthentifiee`, `ROLE_APPLICATION`), journalisée comme un utilisateur ; point d'extension `ControlePorteeApplication` (permissif) | **Proche** : calcul des droits = E3 (dev1), vague 4 |
+| 4.15 | 5.5 — délégation X-On-Behalf-Of | modèle prêt (`cle_api.delegation`, délégation refusée sans liste d'adresses) ; `ResolveurIdentiteDeleguee` fermé par défaut (422 `IDENTITE_DELEGUEE_INVALIDE`) | Non (préparé, vague 4) |
+
+D8 (workflow pilotable par API) : l'énumération `OperationApi` de la portée prévoit
+`WORKFLOW_PILOTAGE` et `WORKFLOW_DECISION` ; rien d'autre n'est implémenté.
+
+**Branchement sécurité (pour dev1)** : aucune modification de `SecurityConfig`.
+Une chaîne dédiée `ConfigurationSecuriteApplications`
+(`@Order(HIGHEST_PRECEDENCE + 10)`) ne s'applique qu'aux requêtes `/api/**` portant
+`X-API-Key` ; les autres restent sur la chaîne utilisateur. Seule contrainte :
+`SecurityConfig` ne doit pas déclarer d'ordre plus prioritaire que
+`HIGHEST_PRECEDENCE + 10`. Une application n'a jamais accès à
+`/api/v1/applications/**`, `/api/v1/cles-api/**`, `/api/v1/audit/**`,
+`/api/v1/auth/**`. Points d'extension à remplacer en E3/vague 4 (beans
+`@ConditionalOnMissingBean`) : `ControlePorteeApplication`,
+`ResolveurIdentiteDeleguee`, `GardeAdministrationCles` (aujourd'hui : tout
+utilisateur authentifié administre les clés ; à restreindre par permission).
+
+**Alignement stockage (dev3)** : plus aucune mention de `ged.storage.*` ni de
+`GED_STORAGE_TEMP` ; `DEPLOIEMENT.md`, `ged.env.exemple` et
+`SondeReferentielFichiers` suivent `ged.fichiers.racine` / `GED_STOCKAGE_RACINE`.
+
+**Limites** : quotas comptés par instance (plusieurs instances derrière NGINX
+= quota multiplié ; un compteur partagé en base serait à arbitrer) ; 64 Ko contrôlé
+sur `Content-Length` pour le JSON et sur les parties non fichier en multipart ;
+corps de réponse mémorisé plafonné à 1 Mo (au-delà, le rejeu rend le statut et
+`Location` sans corps, toujours sans doublon) ; toute création via l'API exige désormais la clé
+d'idempotence, y compris pour les scripts et clients existants.
+
+**Tests** : `DB_NAME=ged_dev2 mvn -q test` vert, **348 tests**, 0 échec
+(nouveaux : `IdempotenceApiTest` 6, `ClesApiTest` 11, `QuotasEtFormatCleApiTest` 4,
+`ConventionsApiTest` 4 ; `SchemaLiquibaseTest` étendu). Les tests MockMvc reçoivent
+une clé d'idempotence par défaut (`CleIdempotenceParDefautDesTests`). Front :
+`ng test` vert (13 tests), `ng build` vert. Instable observé une fois, passé au
+rejeu : `PrevisualisationApiTest.apercuPdf` (`ConcurrentModificationException`
+dans `HeaderWriterFilter`, périmètre dev3).
+
+## Vague 2 — acceptée (7f7c5ab)
 
 ### Amorce M1 — contrat d'erreurs problem+json : **PRÊT** (commit 6d1d09e)
 
