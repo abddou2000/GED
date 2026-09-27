@@ -2,49 +2,50 @@ import { HttpErrorResponse, HttpHandlerFn, HttpRequest } from '@angular/common/h
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, switchMap } from 'rxjs/operators';
 import { API_BASE } from './api';
 import { AuthService } from './auth.service';
 
 /**
- * Porte le jeton sur chaque appel à l'API, et traite le refus du serveur.
+ * Porte le jeton d'accès sur chaque appel à l'API et renouvelle la session en
+ * silence (dossier technique §3.4.1).
  *
- * <p>Deux règles, dans cet ordre :
  * <ul>
- *   <li>l'en-tête n'est ajouté qu'aux appels vers NOTRE API. Un jeton envoyé à
- *       une adresse tierce — une police de caractères, une carte — serait remis
- *       à un serveur qui n'a rien à en connaître ;</li>
- *   <li>un <b>401</b> signifie que le serveur ne reconnaît plus la session :
- *       jeton expiré, compte désactivé, clé de signature changée. On ferme la
- *       session localement et on renvoie vers la connexion, plutôt que de
- *       laisser l'utilisateur devant des écrans qui échouent en silence.</li>
+ *   <li>L'en-tête `Authorization` n'est ajouté qu'aux appels vers NOTRE API.</li>
+ *   <li>Un <b>401</b> sur un appel ordinaire : le jeton d'accès (15 min) a
+ *       expiré ou la session a été révoquée. On tente UN renouvellement par le
+ *       cookie ; s'il réussit, l'appel est rejoué avec le nouveau jeton ; sinon
+ *       la session est fermée et l'utilisateur renvoyé vers la connexion.</li>
+ *   <li>Les points d'entrée d'authentification eux-mêmes ne déclenchent jamais
+ *       de renouvellement (pas de boucle).</li>
  * </ul>
- *
- * <p>Le <b>403</b> n'est pas traité ici : il veut dire « authentifié mais pas
- * autorisé ». Déconnecter dans ce cas serait faux — la session est valide, c'est
- * l'action qui ne l'est pas. L'écran concerné affiche le refus.
+ * <p>Le <b>403</b> n'est pas traité ici : authentifié mais pas autorisé.
  */
 export function authInterceptor(requete: HttpRequest<unknown>, suite: HttpHandlerFn) {
   const auth = inject(AuthService);
   const router = inject(Router);
 
   const versNotreApi = requete.url.startsWith(API_BASE) || requete.url.includes(`${API_BASE}/`);
-  const jeton = auth.jeton();
+  const pointAuth = /\/auth\/(login|refresh|logout)/.test(requete.url);
 
-  // La connexion elle-même ne porte pas de jeton : c'est elle qui le délivre.
-  const estConnexion = requete.url.includes(`${API_BASE}/auth/login`);
+  const avecJeton = (jeton: string | null) =>
+    jeton && versNotreApi && !pointAuth && !requete.headers.has('Authorization')
+      ? requete.clone({ setHeaders: { Authorization: `Bearer ${jeton}` } })
+      : requete;
 
-  const requeteFinale = jeton && versNotreApi && !estConnexion
-    ? requete.clone({ setHeaders: { Authorization: `Bearer ${jeton}` } })
-    : requete;
-
-  return suite(requeteFinale).pipe(
+  return suite(avecJeton(auth.jeton())).pipe(
     catchError((erreur: HttpErrorResponse) => {
-      if (erreur.status === 401 && !estConnexion) {
-        auth.deconnexion();
-        router.navigate(['/login'], { queryParams: { expire: 1 } });
+      if (erreur.status !== 401 || !versNotreApi || pointAuth) {
+        return throwError(() => erreur);
       }
-      return throwError(() => erreur);
+      return auth.renouveler().pipe(
+        catchError(e => {
+          auth.oublier();
+          router.navigate(['/login'], { queryParams: { expire: 1 } });
+          return throwError(() => e);
+        }),
+        switchMap(r => suite(avecJeton(r.token))),
+      );
     }),
   );
 }

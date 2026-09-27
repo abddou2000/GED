@@ -19,6 +19,17 @@
       }
     </mat-form-field>
 
+    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+      <mat-label>Confidentialité</mat-label>
+      <mat-select formControlName="confidentialite">
+        <mat-option [value]="null">Niveau par défaut du type</mat-option>
+        @for (n of niveaux; track n.valeur) {
+          <mat-option [value]="n.valeur">{{ n.libelle }}</mat-option>
+        }
+      </mat-select>
+      <mat-hint>Un document confidentiel reste visible de vous : vous êtes désigné par défaut</mat-hint>
+    </mat-form-field>
+
     <!-- Un type sans plan n'a aucun index : le dire tout de suite, plutôt que
          de laisser l'opérateur s'étonner qu'on ne lui demande rien. -->
     @if (typeChoisi(); as t) {

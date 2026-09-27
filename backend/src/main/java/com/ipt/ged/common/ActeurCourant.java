@@ -28,4 +28,17 @@ public final class ActeurCourant {
         }
         return null;
     }
+
+    /**
+     * @return l'identité GED ({@code utilisateur.id}) authentifiée, ou
+     *         {@code null} hors requête authentifiée. Auteur des attributions
+     *         et des événements d'audit des droits.
+     */
+    public static UUID utilisateurId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof UtilisateurConnecte u) {
+            return u.getUtilisateurId();
+        }
+        return null;
+    }
 }

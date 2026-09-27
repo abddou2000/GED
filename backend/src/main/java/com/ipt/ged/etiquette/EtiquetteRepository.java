@@ -13,15 +13,15 @@ public interface EtiquetteRepository extends JpaRepository<Etiquette, UUID> {
        l'emporte sur le Sort du Pageable, ce qui rendait les en-têtes de colonne
        cliquables sans effet. */
 
-    Page<Etiquette> findByDeletedFalseAndTagContainingIgnoreCase(String search, Pageable pageable);
+    Page<Etiquette> findBySupprimeFalseAndTagContainingIgnoreCase(String search, Pageable pageable);
 
-    Page<Etiquette> findByDeletedTrueAndTagContainingIgnoreCase(String search, Pageable pageable);
+    Page<Etiquette> findBySupprimeTrueAndTagContainingIgnoreCase(String search, Pageable pageable);
 
-    List<Etiquette> findByIdInAndDeletedFalse(List<UUID> ids);
+    List<Etiquette> findByIdInAndSupprimeFalse(List<UUID> ids);
 
-    List<Etiquette> findByIdInAndDeletedTrue(List<UUID> ids);
+    List<Etiquette> findByIdInAndSupprimeTrue(List<UUID> ids);
 
-    List<Etiquette> findByDeletedFalseOrderByIdAsc();
+    List<Etiquette> findBySupprimeFalseOrderByIdAsc();
 
     boolean existsByCodeIgnoreCase(String code);
 

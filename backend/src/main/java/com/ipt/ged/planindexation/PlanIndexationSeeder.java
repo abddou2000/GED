@@ -34,7 +34,7 @@ public class PlanIndexationSeeder implements CommandLineRunner {
         if (repo.count() > 0) {
             return;
         }
-        List<IndexField> indices = indexRepo.findByDeletedFalseOrderByIdAsc();
+        List<IndexField> indices = indexRepo.findBySupprimeFalseOrderByIdAsc();
         if (indices.isEmpty()) {
             return;
         }

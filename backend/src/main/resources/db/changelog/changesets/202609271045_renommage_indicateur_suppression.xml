@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271045_renommage_indicateur_suppression.xml">
+
+    <!--
+        Anomalie ANO-E1-002 (§12.5 : suppression douce « indicateur et
+        horodatage ») : l'indicateur s'appelle `supprime`, comme ses compagnons
+        `supprime_par` et `supprime_le`. Renommage sans perte (les contraintes
+        ck_<table>_suppression suivent la colonne) ; les index sont renommés en
+        conséquence.
+    -->
+    <changeSet id="202609271045-1" author="ged">
+        <comment>Renommage de l'indicateur de suppression douce : deleted devient supprime.</comment>
+        <renameColumn tableName="workflow_ged" oldColumnName="deleted" newColumnName="supprime" columnDataType="BOOLEAN"/>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workflow_ged_deleted RENAME TO idx_workflow_ged_supprime</sql>
+        <renameColumn tableName="workspace" oldColumnName="deleted" newColumnName="supprime" columnDataType="BOOLEAN"/>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workspace_deleted RENAME TO idx_workspace_supprime</sql>
+        <renameColumn tableName="access_group" oldColumnName="deleted" newColumnName="supprime" columnDataType="BOOLEAN"/>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_access_group_deleted RENAME TO idx_access_group_supprime</sql>
+        <renameColumn tableName="etiquette" oldColumnName="deleted" newColumnName="supprime" columnDataType="BOOLEAN"/>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_etiquette_deleted RENAME TO idx_etiquette_supprime</sql>
+        <renameColumn tableName="index_def" oldColumnName="deleted" newColumnName="supprime" columnDataType="BOOLEAN"/>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_index_def_deleted RENAME TO idx_index_def_supprime</sql>
+        <renameColumn tableName="plan_indexation" oldColumnName="deleted" newColumnName="supprime" columnDataType="BOOLEAN"/>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_plan_indexation_deleted RENAME TO idx_plan_indexation_supprime</sql>
+        <renameColumn tableName="type_document" oldColumnName="deleted" newColumnName="supprime" columnDataType="BOOLEAN"/>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_type_document_deleted RENAME TO idx_type_document_supprime</sql>
+        <renameColumn tableName="document" oldColumnName="deleted" newColumnName="supprime" columnDataType="BOOLEAN"/>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_document_deleted RENAME TO idx_document_supprime</sql>
+        <rollback>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_document_supprime RENAME TO idx_document_deleted</sql>
+            <renameColumn tableName="document" oldColumnName="supprime" newColumnName="deleted" columnDataType="BOOLEAN"/>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_type_document_supprime RENAME TO idx_type_document_deleted</sql>
+            <renameColumn tableName="type_document" oldColumnName="supprime" newColumnName="deleted" columnDataType="BOOLEAN"/>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_plan_indexation_supprime RENAME TO idx_plan_indexation_deleted</sql>
+            <renameColumn tableName="plan_indexation" oldColumnName="supprime" newColumnName="deleted" columnDataType="BOOLEAN"/>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_index_def_supprime RENAME TO idx_index_def_deleted</sql>
+            <renameColumn tableName="index_def" oldColumnName="supprime" newColumnName="deleted" columnDataType="BOOLEAN"/>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_etiquette_supprime RENAME TO idx_etiquette_deleted</sql>
+            <renameColumn tableName="etiquette" oldColumnName="supprime" newColumnName="deleted" columnDataType="BOOLEAN"/>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_access_group_supprime RENAME TO idx_access_group_deleted</sql>
+            <renameColumn tableName="access_group" oldColumnName="supprime" newColumnName="deleted" columnDataType="BOOLEAN"/>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workspace_supprime RENAME TO idx_workspace_deleted</sql>
+            <renameColumn tableName="workspace" oldColumnName="supprime" newColumnName="deleted" columnDataType="BOOLEAN"/>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workflow_ged_supprime RENAME TO idx_workflow_ged_deleted</sql>
+            <renameColumn tableName="workflow_ged" oldColumnName="supprime" newColumnName="deleted" columnDataType="BOOLEAN"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

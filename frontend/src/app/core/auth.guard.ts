@@ -7,34 +7,46 @@ import { AuthService } from './auth.service';
 /**
  * Barrière d'entrée de la coque applicative.
  *
- * <p>Elle ne remplace pas la sécurité : le serveur refuse de toute façon tout
- * appel sans jeton valide. Son rôle est d'éviter d'ouvrir une interface qui se
- * remplirait d'erreurs, et de renvoyer proprement vers la connexion.
- *
- * <p>Au premier passage, l'identité n'est pas encore connue : on la demande au
- * serveur ({@code /auth/me}) plutôt que de se fier à la présence d'un jeton
- * dans l'onglet — un jeton expiré est présent, mais ne vaut rien.
- *
- * <p>L'adresse demandée est conservée en paramètre : après connexion,
- * l'utilisateur revient là où il allait, et non sur l'accueil.
+ * <p>Elle ne remplace pas la sécurité : le serveur refuse tout appel sans jeton
+ * valable. Le jeton d'accès vivant en mémoire, il n'existe pas encore après un
+ * rechargement : la garde demande alors un renouvellement silencieux (cookie
+ * `HttpOnly`). S'il échoue, direction la connexion, en retenant l'adresse visée.
  */
 export const authGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  const versConnexion = () =>
-    router.createUrlTree(['/login'], { queryParams: { suite: state.url } });
-
-  if (!auth.jeton()) return versConnexion();
-
-  // Identité déjà résolue pendant cette navigation : rien à revalider.
-  if (auth.utilisateur()) return true;
+  if (auth.jeton() && auth.utilisateur()) return true;
 
   return auth.reprendreSession().pipe(
     map(() => true),
     catchError(() => {
-      auth.deconnexion();
-      return of(versConnexion());
+      auth.oublier();
+      return of(router.createUrlTree(['/login'], { queryParams: { suite: state.url } }));
     }),
   );
+};
+
+/**
+ * Écrans réservés aux identités qui ont au moins un rôle GED. Une identité tout
+ * juste provisionnée (sans rôle) reste sur la page d'accueil vide : c'est l'état
+ * attendu (§3.4.2), pas une anomalie. Le serveur refuse de toute façon (403).
+ */
+export const roleGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  return auth.sansRole() ? inject(Router).createUrlTree(['/accueil']) : true;
+};
+
+/** Écran réservé aux détenteurs d'une permission (confort : le serveur refuse de toute façon). */
+export function permissionGuard(permission: string): CanActivateFn {
+  return () => {
+    const auth = inject(AuthService);
+    return auth.peut(permission) ? true : inject(Router).createUrlTree(['/accueil']);
+  };
+}
+
+/** Écrans d'administration : rôle Administrateur (permission GERER_ROLES_HABILITATIONS). */
+export const administrateurGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  return auth.administrateur() ? true : inject(Router).createUrlTree(['/accueil']);
 };

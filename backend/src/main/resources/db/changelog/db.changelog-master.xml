@@ -67,5 +67,27 @@
     <include file="changesets/202609261130_ajout_auteur_suppression_douce.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609261135_ajout_metadonnees_document.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609261140_jalon_socle_donnees.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609270955_creation_fonction_uuid_v7.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271000_creation_table_role.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271005_creation_table_utilisateur.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271010_creation_table_utilisateur_role.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271015_creation_table_cache_annuaire.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271020_creation_table_session.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271025_suppression_table_compte_utilisateur.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271040_ajout_cle_id_tables_association.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271045_renommage_indicateur_suppression.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271200_jalon_identite.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281000_noeud_chemin_materialise.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281010_creation_table_permission.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281015_creation_table_role_permission.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281020_groupe_ged.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281030_creation_table_habilitation.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281040_confidentialite_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281045_creation_table_document_rattachement.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281050_creation_table_version_habilitations.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281055_declencheurs_version_habilitations.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281200_jalon_autorisation.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301000_archivage_noeud_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301010_socle_commun_verrou_document.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

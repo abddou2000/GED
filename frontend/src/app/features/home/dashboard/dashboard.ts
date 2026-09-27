@@ -3,6 +3,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
 import { StatTiles } from '../../../core/stat-tiles/stat-tiles';
 import { SessionService } from '../../../core/session.service';
+import { AuthService } from '../../../core/auth.service';
 import { DashboardPrefs } from './dashboard-prefs.service';
 import { Personnaliser } from './personnaliser/personnaliser';
 import { WAValider } from './widgets/w-a-valider';
@@ -36,6 +37,8 @@ export class Dashboard implements OnDestroy {
   private dialog = inject(MatDialog);
 
   protected prefs = inject(DashboardPrefs);
+  /** Compte sans rôle : page d'accueil vide (§3.4.2). */
+  protected readonly sansRole = inject(AuthService).sansRole;
   protected readonly firstName = this.session.firstName;
   protected readonly todayLabel = this.capitalize(
     new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()),

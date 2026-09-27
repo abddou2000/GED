@@ -13,15 +13,15 @@ public interface TypeDocumentRepository extends JpaRepository<TypeDocument, UUID
        l'emporte sur le Sort du Pageable, ce qui rendait les en-têtes de colonne
        cliquables sans effet. */
 
-    Page<TypeDocument> findByDeletedFalseAndTypeDeDocumentContainingIgnoreCase(String search, Pageable pageable);
+    Page<TypeDocument> findBySupprimeFalseAndTypeDeDocumentContainingIgnoreCase(String search, Pageable pageable);
 
-    Page<TypeDocument> findByDeletedTrueAndTypeDeDocumentContainingIgnoreCase(String search, Pageable pageable);
+    Page<TypeDocument> findBySupprimeTrueAndTypeDeDocumentContainingIgnoreCase(String search, Pageable pageable);
 
-    List<TypeDocument> findByIdInAndDeletedFalse(List<UUID> ids);
+    List<TypeDocument> findByIdInAndSupprimeFalse(List<UUID> ids);
 
-    List<TypeDocument> findByIdInAndDeletedTrue(List<UUID> ids);
+    List<TypeDocument> findByIdInAndSupprimeTrue(List<UUID> ids);
 
-    List<TypeDocument> findByDeletedFalseOrderByIdAsc();
+    List<TypeDocument> findBySupprimeFalseOrderByIdAsc();
 
     boolean existsByCodeIgnoreCase(String code);
 

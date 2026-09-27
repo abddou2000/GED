@@ -45,7 +45,8 @@ exporter() {
 
 echo "Export de $MYSQL_DATABASE vers $SORTIE"
 exporter employes "$(id id)" "$(txt first_name)" "$(txt last_name)" "$(bool has_user)" "$(ts created_at)" "$(ts updated_at)"
-exporter comptes_utilisateurs "$(id id)" "$(txt email)" "$(txt mot_de_passe)" "$(bool actif)" "$(id employe_id)" "$(ts derniere_connexion)"
+# comptes_utilisateurs n'est PAS exporté : aucune empreinte de mot de passe ne
+# doit quitter l'ancienne base (authentification par l'annuaire depuis le lot E2).
 exporter workflow_ged "$(id id)" "$(txt name)" "$(bool deleted)" "$(ts created_at)" "$(ts updated_at)"
 exporter workflow_ged_steps "$(id id)" "$(id workflow_ged_id)" "$(id employe_id)" "$(txt label)" "$(id step_order)" "$(ts created_at)" "$(ts updated_at)"
 exporter work_spaces "$(id id)" "$(txt name)" "$(txt code)" "$(txt description)" "$(txt status)" "$(id employe_id)" "$(id parent_workspace_id)" "$(id workflow_ged_id)" "$(bool deleted)" "$(ts created_at)" "$(ts updated_at)"

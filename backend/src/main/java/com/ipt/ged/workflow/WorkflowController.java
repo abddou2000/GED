@@ -30,7 +30,7 @@ public class WorkflowController {
     @GetMapping
     public PageResponse<WorkflowResponse> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
@@ -41,7 +41,7 @@ public class WorkflowController {
     @GetMapping("/trashed")
     public PageResponse<WorkflowResponse> trashed(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {

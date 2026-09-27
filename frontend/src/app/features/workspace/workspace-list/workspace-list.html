@@ -4,9 +4,12 @@
       <h1>Espaces de travail</h1>
       <p class="breadcrumb">Accueil - Listes des Espaces de travail</p>
     </div>
-    <button mat-flat-button color="primary" (click)="create()">
-      <mat-icon svgIcon="add"></mat-icon> Créer un espace
-    </button>
+    <!-- Créer un espace racine : permission d'administration GERER_ESPACES (confort ; le serveur décide). -->
+    @if (auth.peut('GERER_ESPACES')) {
+      <button mat-flat-button color="primary" (click)="create()">
+        <mat-icon svgIcon="add"></mat-icon> Créer un espace
+      </button>
+    }
   </div>
 
   <div class="card">
@@ -209,10 +212,17 @@
         </button>
         <mat-icon class="tfolder" [class.ouvert]="isExpanded(n.id)"
                   [svgIcon]="isExpanded(n.id) ? 'folder-open' : 'folder'"></mat-icon>
-        <a class="tname lien-dossier" [routerLink]="['/espaces-de-travail', n.id]">{{ n.name }}</a>
+        @if (n.passage) {
+          <!-- Nœud de passage (P5) : libellé seul, aucun lien ni action. -->
+          <span class="tname passage" matTooltip="Dossier de passage : vous n'avez de droits qu'en dessous">{{ n.name }}</span>
+        } @else {
+          <a class="tname lien-dossier" [routerLink]="['/espaces-de-travail', n.id]">{{ n.name }}</a>
+        }
 
+        @if (!n.passage) {
         <button mat-icon-button class="tdots" [matMenuTriggerFor]="menu"
                 [attr.aria-label]="'Actions sur ' + n.name"><mat-icon svgIcon="more"></mat-icon></button>
+        }
         <mat-menu #menu="matMenu">
           <button mat-menu-item (click)="ouvrir(n.id)"><mat-icon svgIcon="folder-open"></mat-icon><span>Ouvrir le dossier</span></button>
           <button mat-menu-item (click)="create(n.id)"><mat-icon svgIcon="folder-plus"></mat-icon><span>Créer un sous-dossier</span></button>
@@ -240,7 +250,7 @@
           <ng-container *ngTemplateOutlet="nodeTpl; context: { $implicit: n.children, depth: depth + 1 }"></ng-container>
         }
         <!-- Documents contenus dans ce dossier -->
-        @for (d of docsDe(n.id); track d.id; let i = $index) {
+        @for (d of (n.passage ? [] : docsDe(n.id)); track d.id; let i = $index) {
           <div class="trow tdoc" [style.paddingLeft.px]="(depth + 1) * 22 + 8"
                [style.--rang]="i">
             <span class="tspace"></span>

@@ -11,18 +11,18 @@ import java.util.UUID;
 
 public interface PlanIndexationRepository extends JpaRepository<PlanIndexation, UUID> {
 
-    Page<PlanIndexation> findByDeletedFalseAndNomDuPlanContainingIgnoreCase(String search, Pageable pageable);
+    Page<PlanIndexation> findBySupprimeFalseAndNomDuPlanContainingIgnoreCase(String search, Pageable pageable);
 
-    Page<PlanIndexation> findByDeletedTrueAndNomDuPlanContainingIgnoreCase(String search, Pageable pageable);
+    Page<PlanIndexation> findBySupprimeTrueAndNomDuPlanContainingIgnoreCase(String search, Pageable pageable);
 
     @EntityGraph(attributePaths = {"indices"})
     Optional<PlanIndexation> findWithIndicesById(UUID id);
 
-    List<PlanIndexation> findByIdInAndDeletedFalse(List<UUID> ids);
+    List<PlanIndexation> findByIdInAndSupprimeFalse(List<UUID> ids);
 
-    List<PlanIndexation> findByIdInAndDeletedTrue(List<UUID> ids);
+    List<PlanIndexation> findByIdInAndSupprimeTrue(List<UUID> ids);
 
-    List<PlanIndexation> findByDeletedFalseOrderByIdAsc();
+    List<PlanIndexation> findBySupprimeFalseOrderByIdAsc();
 
     boolean existsByCodeIgnoreCase(String code);
 

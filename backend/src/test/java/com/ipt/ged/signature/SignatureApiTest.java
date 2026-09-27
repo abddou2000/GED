@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
-import com.ipt.ged.security.CompteUtilisateurRepository;
-import com.ipt.ged.security.ServiceUtilisateurs;
 import com.ipt.ged.support.Comptes;
 import com.ipt.ged.typedocument.TypeDocument;
 import com.ipt.ged.typedocument.TypeDocumentRepository;
@@ -22,7 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,10 +48,9 @@ import java.util.UUID;
  * post-processeur {@link #enTantQue(String)} pour un acteur différent au sein
  * d'un même test.
  *
- * <p>Le compte de classe est le compte unique amorcé par {@code CompteSeeder}
- * (employé 1). Le second acteur — l'assigné de l'étape 2 — n'a pas d'accès
- * amorcé : le test lui en ouvre un ({@code Comptes.ouvrirCompte}), sans quoi la
- * séquence à deux étapes ne serait pas jouable de bout en bout.
+ * <p>L'identité de classe est l'Administrateur ({@code Comptes.ADMIN}) ; le
+ * second acteur — l'assigné de l'étape 2 — est une autre identité de l'annuaire
+ * simulé ({@code Comptes.SECOND_ACTEUR}), provisionnée à la demande.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -68,9 +65,7 @@ class SignatureApiTest {
     @Autowired private EmployeRepository employeRepository;
     @Autowired private WorkSpaceRepository workspaceRepository;
     @Autowired private TypeDocumentRepository typeRepository;
-    @Autowired private ServiceUtilisateurs utilisateurs;
-    @Autowired private CompteUtilisateurRepository compteRepository;
-    @Autowired private PasswordEncoder encodeur;
+    @Autowired private UserDetailsService utilisateurs;
 
     private UUID typeId;
 
@@ -83,19 +78,14 @@ class SignatureApiTest {
      * et {@code @AuthenticationPrincipal UtilisateurConnecte} recevrait
      * {@code null} — le test passerait à côté de ce qu'il prétend vérifier.
      */
-    private RequestPostProcessor enTantQue(String email) {
-        return user(utilisateurs.loadUserByUsername(email));
+    private RequestPostProcessor enTantQue(String identifiant) {
+        return user(utilisateurs.loadUserByUsername(identifiant));
     }
 
     @BeforeEach
     void setup() {
         Employe e1 = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         Employe e2 = employeRepository.findById(Comptes.idSecondActeur(employeRepository)).orElseThrow();
-
-        // L'amorçage n'ouvre qu'un compte (utilisateur unique) : l'assigné de
-        // l'étape 2 doit pouvoir s'authentifier pour que le circuit se déroule.
-        Comptes.ouvrirCompte(compteRepository, employeRepository, encodeur,
-                Comptes.idSecondActeur(employeRepository), Comptes.SECOND_ACTEUR, "test-only-password");
 
         WorkflowGed wf = new WorkflowGed("Circuit 2 étapes");
         wf.addStep(new WorkflowStep(e1, "Contrôle", 1));

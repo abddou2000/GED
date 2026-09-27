@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609281015_creation_table_role_permission.xml">
+
+    <!--
+        Composition des rôles (§12.2.1) : un rôle est un ensemble nommé de
+        permissions, composable depuis l'interface. Les quatre rôles système sont
+        livrés composés ; conformément à la règle du Maître d'Ouvrage (§12.3),
+        VOIR_PRIVE est portée par Agent d'archive, Administrateur et Direction
+        Générale, VOIR_CONFIDENTIEL par Administrateur et Direction Générale. La
+        Direction Générale n'a aucune permission d'administration technique ;
+        elle consulte le journal d'audit (CONSULTER_AUDIT, §7.4.3 : écran réservé
+        à l'Administrateur et à la Direction Générale).
+    -->
+    <changeSet id="202609281015-1" author="ged">
+        <comment>Association rôle / permission.</comment>
+        <createTable tableName="role_permission">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()"><constraints primaryKey="true" primaryKeyName="pk_role_permission" nullable="false"/></column>
+            <column name="role_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="permission_id" type="UUID"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_role_permission_role_id_permission_id" tableName="role_permission" columnNames="role_id, permission_id"/>
+        <addForeignKeyConstraint constraintName="fk_role_permission_role" baseTableName="role_permission" baseColumnNames="role_id"
+                                 referencedTableName="role" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_role_permission_permission" baseTableName="role_permission" baseColumnNames="permission_id"
+                                 referencedTableName="permission" referencedColumnNames="id"/>
+        <createIndex indexName="idx_role_permission_permission_id" tableName="role_permission">
+            <column name="permission_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="role_permission"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609281015-2" author="ged" labels="data-initial">
+        <comment>Composition des quatre rôles système.</comment>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000004"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000001"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000004"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000002"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000004"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000003"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000004"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000004"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000004"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000005"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000002"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000001"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000002"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000002"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000002"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000003"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000002"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000006"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000002"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000007"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000002"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000008"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000002"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000017"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000001"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000002"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000003"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000004"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000005"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000006"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000007"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000008"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000009"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000010"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000011"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000012"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000013"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000014"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000015"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000016"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000017"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000001"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000018"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000001"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000002"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000003"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000004"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000005"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000006"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000007"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000008"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000017"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000018"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000003"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000014"/>
+        </insert>
+        <rollback>
+            <delete tableName="role_permission"><where>role_id::text LIKE '0192a000-0000-7000-8000-%'</where></delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

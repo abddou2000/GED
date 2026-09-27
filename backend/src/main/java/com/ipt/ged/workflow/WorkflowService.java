@@ -44,7 +44,7 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResponse<WorkflowResponse> list(int page, int size, String search, String sortBy, String sortDir) {
         Page<WorkflowGed> result = workflowRepository
-                .findByDeletedFalseAndNameContainingIgnoreCase(search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
+                .findBySupprimeFalseAndNameContainingIgnoreCase(search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
         return PageResponse.of(result, WorkflowResponse::from);
     }
 
@@ -52,7 +52,7 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public PageResponse<WorkflowResponse> trashed(int page, int size, String search, String sortBy, String sortDir) {
         Page<WorkflowGed> result = workflowRepository
-                .findByDeletedTrueAndNameContainingIgnoreCase(search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
+                .findBySupprimeTrueAndNameContainingIgnoreCase(search, Tri.pageable(page, size, sortBy, sortDir, TRIS));
         return PageResponse.of(result, WorkflowResponse::from);
     }
 
@@ -93,12 +93,12 @@ public class WorkflowService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        workflowRepository.findByIdInAndDeletedFalse(ids).forEach(w -> w.mettreEnCorbeille(ActeurCourant.employeId()));
+        workflowRepository.findByIdInAndSupprimeFalse(ids).forEach(w -> w.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        workflowRepository.findByIdInAndDeletedTrue(ids).forEach(w -> w.restaurer());
+        workflowRepository.findByIdInAndSupprimeTrue(ids).forEach(w -> w.restaurer());
     }
 
     private WorkflowGed load(UUID id) {

@@ -79,6 +79,21 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Authentification par l'annuaire (dossier technique §3.3) : recherche
+             par compte de service puis liaison avec le DN trouvé (search-then-bind),
+             fournie par Spring Security LDAP. -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-ldap</artifactId>
+        </dependency>
+        <!-- Serveur LDAP embarqué UnboundID : simulateur d'Active Directory pour les
+             tests et le compte de démonstration du profil dev. Jamais démarré hors
+             des profils dev et test (garde dans AnnuaireEmbarque). -->
+        <dependency>
+            <groupId>com.unboundid</groupId>
+            <artifactId>unboundid-ldapsdk</artifactId>
+        </dependency>
+
         <!-- Jetons JWT signes (HMAC-SHA256) : jjwt 0.12, API/implementation/serialiseur
              separes comme le prevoit la bibliotheque. -->
         <dependency>

@@ -13,15 +13,15 @@ public interface IndexRepository extends JpaRepository<IndexField, UUID> {
        l'emporte sur le Sort du Pageable, ce qui rendait les en-têtes de colonne
        cliquables sans effet. */
 
-    Page<IndexField> findByDeletedFalseAndNomIndexContainingIgnoreCase(String search, Pageable pageable);
+    Page<IndexField> findBySupprimeFalseAndNomIndexContainingIgnoreCase(String search, Pageable pageable);
 
-    Page<IndexField> findByDeletedTrueAndNomIndexContainingIgnoreCase(String search, Pageable pageable);
+    Page<IndexField> findBySupprimeTrueAndNomIndexContainingIgnoreCase(String search, Pageable pageable);
 
-    List<IndexField> findByIdInAndDeletedFalse(List<UUID> ids);
+    List<IndexField> findByIdInAndSupprimeFalse(List<UUID> ids);
 
-    List<IndexField> findByIdInAndDeletedTrue(List<UUID> ids);
+    List<IndexField> findByIdInAndSupprimeTrue(List<UUID> ids);
 
-    List<IndexField> findByDeletedFalseOrderByIdAsc();
+    List<IndexField> findBySupprimeFalseOrderByIdAsc();
 
     boolean existsByCodeIgnoreCase(String code);
 

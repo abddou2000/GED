@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609281040_confidentialite_document.xml">
+
+    <!--
+        Confidentialité (§12.3) : colonne obligatoire du document, indépendante de
+        son emplacement (PUBLIC, PRIVE, CONFIDENTIEL) ; valeur par défaut
+        paramétrable par type de document ; personnes désignées d'un document
+        confidentiel dans `document_confidentiel_designe`.
+    -->
+    <changeSet id="202609281040-1" author="ged">
+        <comment>Niveau de confidentialité du document, défaut par type, personnes désignées.</comment>
+        <addColumn tableName="document">
+            <column name="confidentialite" type="VARCHAR(12)" defaultValue="PUBLIC"><constraints nullable="false"/></column>
+        </addColumn>
+        <addColumn tableName="type_document">
+            <column name="confidentialite_defaut" type="VARCHAR(12)" defaultValue="PUBLIC"><constraints nullable="false"/></column>
+        </addColumn>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_confidentialite CHECK (confidentialite IN ('PUBLIC', 'PRIVE', 'CONFIDENTIEL'))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.type_document ADD CONSTRAINT ck_type_document_confidentialite_defaut CHECK (confidentialite_defaut IN ('PUBLIC', 'PRIVE', 'CONFIDENTIEL'))</sql>
+        <createIndex indexName="idx_document_confidentialite" tableName="document"><column name="confidentialite"/></createIndex>
+        <createTable tableName="document_confidentiel_designe">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()"><constraints primaryKey="true" primaryKeyName="pk_document_confidentiel_designe" nullable="false"/></column>
+            <column name="document_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="utilisateur_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="cree_par" type="UUID"/>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_document_confidentiel_designe_document_id_utilisateur_id" tableName="document_confidentiel_designe" columnNames="document_id, utilisateur_id"/>
+        <addForeignKeyConstraint constraintName="fk_document_confidentiel_designe_document" baseTableName="document_confidentiel_designe" baseColumnNames="document_id"
+                                 referencedTableName="document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_document_confidentiel_designe_utilisateur" baseTableName="document_confidentiel_designe" baseColumnNames="utilisateur_id"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_document_confidentiel_designe_cree_par" baseTableName="document_confidentiel_designe" baseColumnNames="cree_par"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <createIndex indexName="idx_document_confidentiel_designe_utilisateur_id" tableName="document_confidentiel_designe"><column name="utilisateur_id"/></createIndex>
+        <rollback>
+            <dropTable tableName="document_confidentiel_designe"/>
+            <dropIndex tableName="document" indexName="idx_document_confidentialite"/>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.type_document DROP CONSTRAINT ck_type_document_confidentialite_defaut</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_confidentialite</sql>
+            <dropColumn tableName="type_document" columnName="confidentialite_defaut"/>
+            <dropColumn tableName="document" columnName="confidentialite"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

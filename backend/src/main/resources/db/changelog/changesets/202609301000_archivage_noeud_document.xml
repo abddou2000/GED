@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301000_archivage_noeud_document.xml">
+
+    <!--
+        Drapeau d'archivage (dossier technique §12.6, décision D10) sur le
+        DOCUMENT et sur le NŒUD : statut_conservation (ACTIF / ARCHIVE), date et
+        auteur de l'archivage. Le statut est porté par le document, donc
+        identique depuis tous ses emplacements ; le drapeau du nœud marque un
+        dossier archivé en entier (traitement de fond du lot cycle de vie, dev3,
+        par le contrat workspace.archivage.ArchivageNoeuds).
+        echeance_conservation (§12.9) est calculée à partir du type de document.
+    -->
+    <changeSet id="202609301000-1" author="ged">
+        <comment>Statut de conservation des nœuds et des documents, échéance de conservation.</comment>
+        <addColumn tableName="noeud">
+            <column name="statut_conservation" type="VARCHAR(10)" defaultValue="ACTIF"><constraints nullable="false"/></column>
+            <column name="archive_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="archive_par" type="UUID"/>
+        </addColumn>
+        <addColumn tableName="document">
+            <column name="statut_conservation" type="VARCHAR(10)" defaultValue="ACTIF"><constraints nullable="false"/></column>
+            <column name="archive_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="archive_par" type="UUID"/>
+            <column name="echeance_conservation" type="DATE"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_noeud_archive_par" baseTableName="noeud" baseColumnNames="archive_par"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint constraintName="fk_document_archive_par" baseTableName="document" baseColumnNames="archive_par"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud ADD CONSTRAINT ck_noeud_statut_conservation CHECK (statut_conservation IN ('ACTIF', 'ARCHIVE') AND ((statut_conservation = 'ARCHIVE') = (archive_le IS NOT NULL)))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_statut_conservation CHECK (statut_conservation IN ('ACTIF', 'ARCHIVE') AND ((statut_conservation = 'ARCHIVE') = (archive_le IS NOT NULL)))</sql>
+        <createIndex indexName="idx_noeud_statut_conservation" tableName="noeud"><column name="statut_conservation"/></createIndex>
+        <createIndex indexName="idx_document_statut_conservation" tableName="document"><column name="statut_conservation"/></createIndex>
+        <createIndex indexName="idx_document_echeance_conservation" tableName="document"><column name="echeance_conservation"/></createIndex>
+        <createIndex indexName="idx_noeud_archive_par" tableName="noeud"><column name="archive_par"/></createIndex>
+        <createIndex indexName="idx_document_archive_par" tableName="document"><column name="archive_par"/></createIndex>
+        <rollback>
+            <dropIndex tableName="document" indexName="idx_document_archive_par"/>
+            <dropIndex tableName="noeud" indexName="idx_noeud_archive_par"/>
+            <dropIndex tableName="document" indexName="idx_document_echeance_conservation"/>
+            <dropIndex tableName="document" indexName="idx_document_statut_conservation"/>
+            <dropIndex tableName="noeud" indexName="idx_noeud_statut_conservation"/>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_statut_conservation</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud DROP CONSTRAINT ck_noeud_statut_conservation</sql>
+            <dropForeignKeyConstraint baseTableName="document" constraintName="fk_document_archive_par"/>
+            <dropForeignKeyConstraint baseTableName="noeud" constraintName="fk_noeud_archive_par"/>
+            <dropColumn tableName="document">
+                <column name="echeance_conservation"/>
+                <column name="archive_par"/>
+                <column name="archive_le"/>
+                <column name="statut_conservation"/>
+            </dropColumn>
+            <dropColumn tableName="noeud">
+                <column name="archive_par"/>
+                <column name="archive_le"/>
+                <column name="statut_conservation"/>
+            </dropColumn>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

@@ -82,7 +82,7 @@ $rosette: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 .bp-content { position: relative; max-width: 520px; margin: 0 auto; text-align: center; }
 
 /* Entrée en cascade */
-.fc-head, .field-wrap, .row-forgot, .submit, .fc-note {
+.fc-head, .field-wrap, .aide-annuaire, .submit, .fc-note {
   /* `backwards` : après l'animation, l'élément retrouve son état normal (visible) */
   animation: rise .55s cubic-bezier(.2, .7, .3, 1) backwards;
   animation-delay: var(--d, 0ms);
@@ -184,17 +184,10 @@ $rosette: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
 .err { margin: 6px 2px 0; font-size: 12.5px; color: var(--danger); }
 
-/* La case a gauche, le lien a droite. `flex-end` seul les collait l'un contre
-   l'autre : on cochait « Se souvenir » en visant « Mot de passe oublie ». */
-.row-forgot {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap; margin: 2px 0 20px;
+/* Rappel : le mot de passe est celui du compte Windows (annuaire). */
+.aide-annuaire {
+  margin: 2px 0 20px; font-size: 13px; color: var(--ink-soft);
 }
-.forgot {
-  font-size: 13px; font-weight: 500; color: var(--primary);
-  cursor: pointer; text-decoration: none; border-radius: 4px;
-}
-.forgot:hover { text-decoration: underline; }
 
 /* ---------- Bouton ---------- */
 .submit {
@@ -223,7 +216,7 @@ $rosette: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 }
 .fc-note mat-icon { width: 15px; height: 15px; font-size: 15px; color: var(--vert); }
 
-.submit:focus-visible, .eye:focus-visible, .forgot:focus-visible {
+.submit:focus-visible, .eye:focus-visible {
   outline: 2px solid var(--primary); outline-offset: 3px;
 }
 
@@ -239,7 +232,7 @@ $rosette: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 @media (prefers-reduced-motion: reduce) {
   /* Décor : composition conservée, mais figée */
   .lantern, .rosette { animation: none; }
-  .fc-head, .field-wrap, .row-forgot, .submit, .fc-note { animation: none; }
+  .fc-head, .field-wrap, .aide-annuaire, .submit, .fc-note { animation: none; }
   /* Slogan : mot affiché d'emblée, sans rebond, sans lueur ni curseur */
   .bp-slogan { animation: none; }
   .bp-slogan .w { animation: none; }
@@ -266,17 +259,3 @@ $rosette: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
 .submit[disabled] { opacity: .65; cursor: progress; }
 
-/* « Se souvenir de moi » — a gauche, le lien d'oubli a droite : la case est un
-   reglage du formulaire, le lien une sortie. Les separer evite qu'on coche
-   l'un en visant l'autre. */
-.memoriser {
-  display: inline-flex; align-items: center; gap: 8px;
-  cursor: pointer; user-select: none;
-  font-size: 13px; color: var(--ink-soft);
-}
-.memoriser input {
-  width: 16px; height: 16px; flex: 0 0 16px; margin: 0;
-  accent-color: var(--primary); cursor: pointer;
-}
-.memoriser:hover span { color: var(--ink); }
-.memoriser input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

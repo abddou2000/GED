@@ -16,15 +16,15 @@ public interface WorkflowRepository extends JpaRepository<WorkflowGed, UUID> {
      * L'ordre n'est pas figé dans le nom de la méthode : il est porté par le
      * {@link Pageable}, faute de quoi tout tri demandé serait ignoré.
      */
-    Page<WorkflowGed> findByDeletedFalseAndNameContainingIgnoreCase(String name, Pageable pageable);
+    Page<WorkflowGed> findBySupprimeFalseAndNameContainingIgnoreCase(String name, Pageable pageable);
 
     /** Corbeille (éléments supprimés), filtrée par nom, paginée. */
-    Page<WorkflowGed> findByDeletedTrueAndNameContainingIgnoreCase(String name, Pageable pageable);
+    Page<WorkflowGed> findBySupprimeTrueAndNameContainingIgnoreCase(String name, Pageable pageable);
 
     @EntityGraph(attributePaths = {"steps", "steps.employe"})
     Optional<WorkflowGed> findWithStepsById(UUID id);
 
-    List<WorkflowGed> findByIdInAndDeletedFalse(List<UUID> ids);
+    List<WorkflowGed> findByIdInAndSupprimeFalse(List<UUID> ids);
 
-    List<WorkflowGed> findByIdInAndDeletedTrue(List<UUID> ids);
+    List<WorkflowGed> findByIdInAndSupprimeTrue(List<UUID> ids);
 }

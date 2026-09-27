@@ -39,11 +39,11 @@ public class TypeDocumentSeeder implements CommandLineRunner {
         if (repo.count() > 0) {
             return;
         }
-        List<WorkSpace> ws = workspaceRepo.findByDeletedFalseOrderByIdAsc();
+        List<WorkSpace> ws = workspaceRepo.findBySupprimeFalseOrderByIdAsc();
         if (ws.isEmpty()) {
             return;
         }
-        PlanIndexation plan = planRepo.findByDeletedFalseOrderByIdAsc().stream().findFirst().orElse(null);
+        PlanIndexation plan = planRepo.findBySupprimeFalseOrderByIdAsc().stream().findFirst().orElse(null);
 
         TypeDocument facture = new TypeDocument("TD-FACT", "Facture");
         facture.setDescription("Factures fournisseurs et clients");

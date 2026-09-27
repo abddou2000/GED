@@ -1,3 +1,4 @@
+import { AuthService } from '../../../core/auth.service';
 import { animate, style, transition, trigger } from '@angular/animations';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
@@ -86,6 +87,7 @@ export class WorkspaceList implements OnInit {
     this.modeSelection.set(actif);
     if (!actif) this.selection.clear();
   }
+  protected auth = inject(AuthService);
   private service = inject(WorkspaceService);
   private dialog = inject(MatDialog);
   private confirm = inject(ConfirmService);
