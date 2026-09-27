@@ -35,6 +35,12 @@ SMTP simulé dev1 3031, dev2 3032, dev3 3033, qa 3034, pm 3035. Noms de schémas
 homonymes désormais stables (tous préfixés quand le nom simple est ambigu), plus d'ordre
 d'apparition.
 
+**Fusion de `conformite-technique`** (a92c10d : T-040 et correctifs ANO-E7-001, ANO-E5-002
+de dev3, recette qa de la vague 4) : `POST /recherches` du contrat suit le canal du dépôt
+(critère `canal`, 400 hors des quatre valeurs ; colonne `canalDepot` avec ou sans plein
+texte ; `ContratApiTest.recherche`). Schéma et diagrammes de classes régénérés après fusion.
+Tests après fusion : `mvn test` **552 verts** (0 échec), `ng test` 18 verts, `ng build` vert.
+
 **Limites** : pgaudit, LUKS, filtrage systemd et TLS réel non exécutables sur le poste
 (vérifiés sur le papier) ; volumétrie estimée d'après les hypothèses du §6.6, à réévaluer sur
 l'échantillon réel.

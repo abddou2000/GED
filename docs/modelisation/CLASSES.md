@@ -740,7 +740,7 @@ classDiagram
     ApplicationEventPublisher evenements
     ArchivageNoeuds archivageNoeuds
     CopiesConservation copies
-    … 7 autres
+    … 9 autres
   }
   class DocumentSupprime {
     <<record>>
@@ -810,7 +810,7 @@ classDiagram
     String fileName
     String extension
     long sizeKo
-    … 14 autres
+    … 18 autres
   }
   class VerrouModifie {
     <<record>>
@@ -878,6 +878,11 @@ DTO : `DocumentRequest`, `DocumentResponse`.
 
 ```mermaid
 classDiagram
+  class CanalDepot {
+    <<enumeration>>
+  }
+  class ConfigurationSourceDepot {
+  }
   class DepotController {
     DepotService depot
   }
@@ -898,10 +903,21 @@ classDiagram
     TypeDocumentRepository types
     ObjectMapper json
   }
+  class ResolutionOrigineDepot {
+    SourceDepot source
+    Set~String~ bureauOrdre
+  }
+  class SourceDepot {
+    <<interface>>
+  }
+  class SourceDepotParDefaut {
+  }
   DepotController --> DepotService
   DepotService --> MetadonneesDepot
   DepotService --> IndexationAuDepot
   ErreurFichierException <|-- ErreurDepot
+  ResolutionOrigineDepot --> SourceDepot
+  SourceDepot <|.. SourceDepotParDefaut
 ```
 
 ## `fichier` — Stockage chiffré, contrôles, antivirus, aperçu (E5)
@@ -1032,11 +1048,16 @@ classDiagram
     AnalyseurAntivirus antivirus
     EnfilageOcr ocr
   }
+  class LectureControlee {
+    StockageChiffre stockage
+    ApplicationEventPublisher evenements
+  }
   class PrevisualisationController {
     ResolveurFichierVersion resolveur
     ControleAccesPrevisualisation controleAcces
     ServicePrevisualisation service
     ApplicationEventPublisher evenements
+    comiptgedfichierintegriteLectureControlee lectures
   }
   class ProprietesFichiers {
     String racine
@@ -1123,9 +1144,11 @@ classDiagram
   LanceurReprise --> StockageChiffre
   LanceurReprise --> DetecteurTypeReel
   LanceurReprise --> AnalyseurAntivirus
+  LectureControlee --> StockageChiffre
   PrevisualisationController --> ResolveurFichierVersion
   PrevisualisationController --> ControleAccesPrevisualisation
   PrevisualisationController --> ServicePrevisualisation
+  PrevisualisationController --> LectureControlee
   RepriseVersionsEnClair --> StockageChiffre
   RepriseVersionsEnClair --> DetecteurTypeReel
   RepriseVersionsEnClair --> AnalyseurAntivirus
@@ -1312,6 +1335,7 @@ classDiagram
     LocalDate deposeDu
     LocalDate deposeAu
     Archives archives
+    String canalDepot
   }
   class FragmentSql {
     <<record>>
@@ -1472,6 +1496,8 @@ classDiagram
     ApplicationEventPublisher evenements
     ProprietesCycleDeVie proprietes
     TransactionTemplate transaction
+    comiptgedautorisationControleAcces controle
+    comiptgedfichierintegriteLectureControlee lectures
   }
   class FabriquePdfA {
   }

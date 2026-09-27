@@ -1,6 +1,6 @@
 # Schéma de la base de données (P-05, DAT §4.5, §12.1)
 
-> Généré par `node outils/schema-base.mjs` depuis la base `ged_dev2_test`, schéma `ged`, migrée par Liquibase (81 changesets ; jalons : `socle-e1`, `identite-e2`, `autorisation-e3`, `audit-e4`, `api-e9-v3`, `notification-e8`, `api-e9-v4`, `fichiers-ocr-e5-e6`). Ne pas modifier à la main : régénérer après chaque changeset.
+> Généré par `node outils/schema-base.mjs` depuis la base `ged_dev2_test`, schéma `ged`, migrée par Liquibase (82 changesets ; jalons : `socle-e1`, `identite-e2`, `autorisation-e3`, `audit-e4`, `api-e9-v3`, `notification-e8`, `api-e9-v4`, `fichiers-ocr-e5-e6`). Ne pas modifier à la main : régénérer après chaque changeset.
 
 Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'audit : `bigint` séquentiel, ordre du scellement chaîné), clés étrangères `<table>_id`, préfixes `pk_`, `uk_`, `fk_`, `ck_`, `idx_`. Les partitions mensuelles `journal_audit_AAAAMM` ne sont pas listées.
 
@@ -25,7 +25,7 @@ Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'a
 | Identités et accès | `employe` | 6 | référentiel (< 10 000) | < 10 Mo | — |
 | Identités et accès | `session` | 12 | 5 000 | 1.2 Mo | sessions de 5 ans purgées ; ordre de grandeur |
 | Identités et accès | `utilisateur` | 7 | référentiel (< 10 000) | < 10 Mo | — |
-| Organisation documentaire | `document` | 30 | 450 000 | 437.4 Mo | reprise 150 000 + 60 000 / an |
+| Organisation documentaire | `document` | 34 | 450 000 | 454.5 Mo | reprise 150 000 + 60 000 / an |
 | Organisation documentaire | `document_confidentiel_designe` | 5 | référentiel (< 10 000) | < 10 Mo | — |
 | Organisation documentaire | `document_etiquette` | 3 | 225 000 | 16.2 Mo | une étiquette pour un document sur deux |
 | Organisation documentaire | `document_rattachement` | 5 | 45 000 | 4.3 Mo | un rattachement pour 10 % des documents |
@@ -262,6 +262,10 @@ erDiagram
     timestamp_with_time_zone verrou_le
     character_varying_500_ verrou_motif
     character_varying_16_ statut_indexation
+    character_varying_16_ canal_depot
+    uuid application_id
+    uuid deposant_utilisateur_id FK
+    boolean depot_delegue
   }
   document_confidentiel_designe {
     uuid id PK
@@ -315,6 +319,7 @@ erDiagram
   }
   utilisateur ||--o{ document : "archive_par"
   employe ||--o{ document : "created_by_employe_id"
+  utilisateur ||--o{ document : "deposant_utilisateur_id"
   noeud ||--o{ document : "noeud_principal_id"
   employe ||--o{ document : "supprime_par"
   type_document ||--o{ document : "type_document_id"
@@ -862,10 +867,16 @@ Index :
 | `verrou_le` | timestamp with time zone | oui |  |
 | `verrou_motif` | character varying(500) | oui |  |
 | `statut_indexation` | character varying(16) | non | `'A_INDEXER'::character varying` |
+| `canal_depot` | character varying(16) | non | `'INTERFACE'::character varying` |
+| `application_id` | uuid | oui |  |
+| `deposant_utilisateur_id` | uuid | oui |  |
+| `depot_delegue` | boolean | non | `false` |
 
 Contraintes :
 
+- `ck_document_canal_depot` (vérification) : `CHECK (((canal_depot)::text = ANY ((ARRAY['INTERFACE'::character varying, 'API'::character varying, 'BUREAU_ORDRE'::character varying, 'REPRISE'::character varying])::text[])))`
 - `ck_document_confidentialite` (vérification) : `CHECK (((confidentialite)::text = ANY ((ARRAY['PUBLIC'::character varying, 'PRIVE'::character varying, 'CONFIDENTIEL'::character varying])::text[])))`
+- `ck_document_depot_delegue` (vérification) : `CHECK (((NOT depot_delegue) OR (((canal_depot)::text = ANY ((ARRAY['API'::character varying, 'BUREAU_ORDRE'::character varying])::text[])) AND (deposant_utilisateur_id IS NOT NULL))))`
 - `ck_document_metadonnees` (vérification) : `CHECK ((jsonb_typeof(metadonnees) = 'object'::text))`
 - `ck_document_size_ko` (vérification) : `CHECK ((size_ko >= 0))`
 - `ck_document_statut_conservation` (vérification) : `CHECK ((((statut_conservation)::text = ANY ((ARRAY['ACTIF'::character varying, 'ARCHIVE'::character varying])::text[])) AND (((statut_conservation)::text = 'ARCHIVE'::text) = (archive_le IS NOT NULL))))`
@@ -874,6 +885,7 @@ Contraintes :
 - `ck_document_verrou` (vérification) : `CHECK ((is_locked = (verrou_le IS NOT NULL)))`
 - `fk_document_archive_par` (clé étrangère) : `FOREIGN KEY (archive_par) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
 - `fk_document_created_by_employe` (clé étrangère) : `FOREIGN KEY (created_by_employe_id) REFERENCES ged.employe(id)`
+- `fk_document_deposant_utilisateur` (clé étrangère) : `FOREIGN KEY (deposant_utilisateur_id) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
 - `fk_document_noeud_principal` (clé étrangère) : `FOREIGN KEY (noeud_principal_id) REFERENCES ged.noeud(id)`
 - `fk_document_supprime_par` (clé étrangère) : `FOREIGN KEY (supprime_par) REFERENCES ged.employe(id)`
 - `fk_document_type_document` (clé étrangère) : `FOREIGN KEY (type_document_id) REFERENCES ged.type_document(id)`
@@ -882,11 +894,14 @@ Contraintes :
 
 Index :
 
+- `idx_document_application_id` : `USING btree (application_id)`
 - `idx_document_archive_par` : `USING btree (archive_par)`
+- `idx_document_canal_depot` : `USING btree (canal_depot)`
 - `idx_document_confidentialite` : `USING btree (confidentialite)`
 - `idx_document_created_at` : `USING btree (created_at)`
 - `idx_document_created_by_employe_id` : `USING btree (created_by_employe_id)`
 - `idx_document_date_document` : `USING btree (date_document)`
+- `idx_document_deposant_utilisateur_id` : `USING btree (deposant_utilisateur_id)`
 - `idx_document_echeance_conservation` : `USING btree (echeance_conservation)`
 - `idx_document_expiration_date` : `USING btree (expiration_date)`
 - `idx_document_metadonnees` : `USING gin (metadonnees)`
