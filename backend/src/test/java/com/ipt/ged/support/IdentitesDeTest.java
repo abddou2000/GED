@@ -1,9 +1,11 @@
 package com.ipt.ged.support;
 
+import com.ipt.ged.autorisation.TypeSujet;
+import com.ipt.ged.autorisation.admin.ServiceHabilitations;
+import com.ipt.ged.autorisation.admin.dto.DemandeHabilitation;
 import com.ipt.ged.identite.Role;
 import com.ipt.ged.identite.RoleRepository;
 import com.ipt.ged.identite.ServiceIdentites;
-import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.identite.annuaire.Annuaire;
 import com.ipt.ged.identite.annuaire.FicheAnnuaire;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,9 +26,11 @@ import java.util.Map;
  * dans le simulateur d'annuaire (compte de service), puis provisionnée par
  * {@link ServiceIdentites} — rattachement à la fiche employé, rôle
  * Administrateur d'amorçage pour {@code sbennani}. Seule entorse assumée : les
- * acteurs secondaires reçoivent le rôle Utilisateur standard, qu'un
- * Administrateur leur donnerait par l'interface (lot E3), sans quoi ils
- * n'auraient accès à rien.
+ * acteurs secondaires reçoivent le rôle Utilisateur standard en portée globale,
+ * qu'un Administrateur leur donnerait par l'écran des habilitations, sans quoi
+ * ils n'auraient accès à rien. Les tests d'autorisation qui ont besoin d'un
+ * périmètre précis partent de {@code Comptes.SANS_ROLE} et posent leurs propres
+ * habilitations.
  */
 @Component
 public class IdentitesDeTest implements UserDetailsService {
@@ -38,15 +42,15 @@ public class IdentitesDeTest implements UserDetailsService {
 
     private final ServiceIdentites identites;
     private final Annuaire annuaire;
-    private final UtilisateurRepository utilisateurs;
     private final RoleRepository roles;
+    private final ServiceHabilitations habilitations;
 
-    public IdentitesDeTest(ServiceIdentites identites, Annuaire annuaire, UtilisateurRepository utilisateurs,
-                           RoleRepository roles) {
+    public IdentitesDeTest(ServiceIdentites identites, Annuaire annuaire, RoleRepository roles,
+                           ServiceHabilitations habilitations) {
         this.identites = identites;
         this.annuaire = annuaire;
-        this.utilisateurs = utilisateurs;
         this.roles = roles;
+        this.habilitations = habilitations;
     }
 
     @Override
@@ -62,8 +66,8 @@ public class IdentitesDeTest implements UserDetailsService {
         var u = identites.provisionner(fiche, false).utilisateur();
         String role = ROLES_DE_TEST.get(identifiant);
         if (role != null) {
-            roles.findByCode(role).ifPresent(r -> u.getRoles().add(r));
-            utilisateurs.save(u);
+            roles.findByCode(role).ifPresent(r -> habilitations.attribuer(
+                    new DemandeHabilitation(TypeSujet.UTILISATEUR, u.getId(), r.getId(), null, null, false), null));
         }
         return identites.principalParIdentifiant(identifiant).orElseThrow();
     }

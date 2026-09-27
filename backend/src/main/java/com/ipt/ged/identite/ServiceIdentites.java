@@ -1,5 +1,10 @@
 package com.ipt.ged.identite;
 
+import com.ipt.ged.autorisation.Habilitation;
+import com.ipt.ged.autorisation.HabilitationRepository;
+import com.ipt.ged.autorisation.TypeSujet;
+import com.ipt.ged.autorisation.admin.ServiceHabilitations;
+import com.ipt.ged.autorisation.admin.dto.DemandeHabilitation;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.identite.annuaire.FicheAnnuaire;
@@ -14,6 +19,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /**
@@ -25,8 +32,8 @@ import java.util.UUID;
  * personne voit une page d'accueil vide jusqu'à ce que l'Administrateur lui en
  * attribue un. Seule exception : les identifiants listés dans
  * {@code ged.identite.amorcage.administrateurs} reçoivent le rôle Administrateur
- * à leur première connexion, faute de quoi personne ne pourrait jamais attribuer
- * de rôle.
+ * en portée globale (habilitation sans cible) à leur première connexion, faute
+ * de quoi personne ne pourrait jamais attribuer de rôle.
  *
  * <h2>Rattachement à la personne métier</h2>
  * <p>L'identité est liée à un {@link Employe} : c'est lui que référencent
@@ -53,14 +60,19 @@ public class ServiceIdentites {
     private final RoleRepository roles;
     private final ServiceCacheAnnuaire cache;
     private final ProprietesIdentite proprietes;
+    private final HabilitationRepository habilitations;
+    private final ServiceHabilitations serviceHabilitations;
 
     public ServiceIdentites(UtilisateurRepository utilisateurs, EmployeRepository employes, RoleRepository roles,
-                            ServiceCacheAnnuaire cache, ProprietesIdentite proprietes) {
+                            ServiceCacheAnnuaire cache, ProprietesIdentite proprietes,
+                            HabilitationRepository habilitations, ServiceHabilitations serviceHabilitations) {
         this.utilisateurs = utilisateurs;
         this.employes = employes;
         this.roles = roles;
         this.cache = cache;
         this.proprietes = proprietes;
+        this.habilitations = habilitations;
+        this.serviceHabilitations = serviceHabilitations;
     }
 
     /**
@@ -88,22 +100,38 @@ public class ServiceIdentites {
         return new Provisionnement(u, existante.isEmpty());
     }
 
-    /** Principal de la requête, rôles relus en base. */
+    /** Principal de la requête, rôles relus en base (habilitations directes et par groupe). */
     @Transactional(readOnly = true)
     public Optional<UtilisateurConnecte> principal(UUID utilisateurId, UUID sessionId) {
-        return utilisateurs.findById(utilisateurId).map(u -> UtilisateurConnecte.depuis(u, sessionId));
+        return utilisateurs.findById(utilisateurId).map(u -> connecte(u, sessionId));
     }
 
     @Transactional(readOnly = true)
     public Optional<UtilisateurConnecte> principalParIdentifiant(String identifiant) {
-        return utilisateurs.findByIdentifiant(identifiant).map(u -> UtilisateurConnecte.depuis(u, null));
+        return utilisateurs.findByIdentifiant(identifiant).map(u -> connecte(u, null));
     }
 
     @Transactional(readOnly = true)
     public List<Utilisateur> toutes() {
-        List<Utilisateur> l = utilisateurs.findAll();
-        l.forEach(u -> u.getRoles().size());
-        return l;
+        return utilisateurs.findAll();
+    }
+
+    /** Rôles détenus par une identité : {@code [globaux, tous]}. */
+    @Transactional(readOnly = true)
+    public List<Set<String>> roles(Utilisateur u) {
+        Set<String> globaux = new TreeSet<>();
+        Set<String> tous = new TreeSet<>();
+        for (Habilitation h : habilitations.applicablesA(u.getId(), u.getEmploye().getId())) {
+            if (h.getRole() == null) continue;
+            tous.add(h.getRole().getCode());
+            if (h.globale()) globaux.add(h.getRole().getCode());
+        }
+        return List.of(globaux, tous);
+    }
+
+    private UtilisateurConnecte connecte(Utilisateur u, UUID sessionId) {
+        List<Set<String>> r = roles(u);
+        return UtilisateurConnecte.depuis(u, r.get(0), r.get(1), sessionId);
     }
 
     private Utilisateur creer(FicheAnnuaire fiche) {
@@ -115,11 +143,13 @@ public class ServiceIdentites {
         boolean administrateurInitial = proprietes.getAmorcage().getAdministrateurs().stream()
                 .anyMatch(a -> a != null && a.trim().equalsIgnoreCase(fiche.identifiant()));
         if (administrateurInitial) {
-            roles.findByCode(Role.ADMINISTRATEUR).ifPresent(r -> u.getRoles().add(r));
+            roles.findByCode(Role.ADMINISTRATEUR).ifPresent(r -> serviceHabilitations.attribuer(
+                    new DemandeHabilitation(TypeSujet.UTILISATEUR, u.getId(), r.getId(), null, null, false), null));
             log.warn("Rôle Administrateur attribué par amorçage à {} (ged.identite.amorcage.administrateurs).",
                     fiche.identifiant());
         }
-        log.info("Identité GED provisionnée pour {} ({} rôle(s)).", fiche.identifiant(), u.getRoles().size());
+        log.info("Identité GED provisionnée pour {}{}.", fiche.identifiant(),
+                administrateurInitial ? " (Administrateur d'amorçage)" : ", sans rôle");
         return u;
     }
 

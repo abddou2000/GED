@@ -4,12 +4,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface WorkSpaceRepository extends JpaRepository<WorkSpace, UUID> {
+public interface WorkSpaceRepository extends JpaRepository<WorkSpace, UUID>, JpaSpecificationExecutor<WorkSpace> {
 
     @EntityGraph(attributePaths = {"owner", "parent", "workflow"})
     Page<WorkSpace> findBySupprimeFalseAndNameContainingIgnoreCase(String search, Pageable pageable);
@@ -37,4 +38,7 @@ public interface WorkSpaceRepository extends JpaRepository<WorkSpace, UUID> {
     long countBySupprimeFalse();
 
     List<WorkSpace> findByParentIdAndSupprimeFalse(UUID parentId);
+
+    /** Sous-arborescence d'un nœud (lui exclu), par préfixe du chemin matérialisé. */
+    List<WorkSpace> findByCheminStartingWithAndIdNot(String chemin, UUID id);
 }

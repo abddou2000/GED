@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609281020_groupe_ged.xml">
+
+    <!--
+        Groupes internes à la GED (§12.2.1) : les groupes d'accès deviennent
+        `groupe_ged`, leurs membres `groupe_membre`. Un groupe est un sujet
+        d'habilitation ; son appartenance est gérée dans la GED, jamais déduite de
+        l'annuaire (P2). Le membre est la personne (employé), à laquelle
+        l'identité d'annuaire est rattachée une à une.
+    -->
+    <changeSet id="202609281020-1" author="ged">
+        <comment>Renommage des groupes d'accès en groupes GED.</comment>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.access_group RENAME TO groupe_ged</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.access_group_employe RENAME TO groupe_membre</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME COLUMN access_group_id TO groupe_ged_id</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.access_group_workspace RENAME COLUMN access_group_id TO groupe_ged_id</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT pk_access_group TO pk_groupe_ged</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT uk_access_group_code TO uk_groupe_ged_code</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT uk_access_group_name TO uk_groupe_ged_name</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT ck_access_group_suppression TO ck_groupe_ged_suppression</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT fk_access_group_supprime_par TO fk_groupe_ged_supprime_par</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME CONSTRAINT pk_access_group_employe TO pk_groupe_membre</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME CONSTRAINT uk_access_group_employe_access_group_id_employe_id TO uk_groupe_membre_groupe_ged_id_employe_id</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME CONSTRAINT fk_access_group_employe_access_group TO fk_groupe_membre_groupe_ged</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME CONSTRAINT fk_access_group_employe_employe TO fk_groupe_membre_employe</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.access_group_workspace RENAME CONSTRAINT fk_access_group_workspace_access_group TO fk_access_group_workspace_groupe_ged</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_access_group_supprime RENAME TO idx_groupe_ged_supprime</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_access_group_employe_employe_id RENAME TO idx_groupe_membre_employe_id</sql>
+        <rollback>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_groupe_membre_employe_id RENAME TO idx_access_group_employe_employe_id</sql>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_groupe_ged_supprime RENAME TO idx_access_group_supprime</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.access_group_workspace RENAME CONSTRAINT fk_access_group_workspace_groupe_ged TO fk_access_group_workspace_access_group</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME CONSTRAINT fk_groupe_membre_employe TO fk_access_group_employe_employe</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME CONSTRAINT fk_groupe_membre_groupe_ged TO fk_access_group_employe_access_group</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME CONSTRAINT uk_groupe_membre_groupe_ged_id_employe_id TO uk_access_group_employe_access_group_id_employe_id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME CONSTRAINT pk_groupe_membre TO pk_access_group_employe</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT fk_groupe_ged_supprime_par TO fk_access_group_supprime_par</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT ck_groupe_ged_suppression TO ck_access_group_suppression</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT uk_groupe_ged_name TO uk_access_group_name</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT uk_groupe_ged_code TO uk_access_group_code</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT pk_groupe_ged TO pk_access_group</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.access_group_workspace RENAME COLUMN groupe_ged_id TO access_group_id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME COLUMN groupe_ged_id TO access_group_id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_membre RENAME TO access_group_employe</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME TO access_group</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

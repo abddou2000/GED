@@ -1,5 +1,6 @@
 package com.ipt.ged.document;
 
+import com.ipt.ged.autorisation.Confidentialite;
 import com.ipt.ged.common.IdentifiantUuid;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.employe.Employe;
@@ -40,9 +41,22 @@ public class UploadDocument extends Supprimable {
     @Column(nullable = false)
     private String name;
 
+    /**
+     * Emplacement PRINCIPAL du document (§12.4, {@code noeud_principal_id}),
+     * déterminé par le type documentaire au dépôt. Les emplacements
+     * complémentaires sont dans {@code document_rattachement}.
+     */
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "workspace_id", nullable = false)
+    @JoinColumn(name = "noeud_principal_id", nullable = false)
     private WorkSpace workspace;
+
+    /**
+     * Niveau de confidentialité (§12.3), indépendant de l'emplacement ; fixé au
+     * dépôt d'après le type documentaire.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "confidentialite", nullable = false)
+    private Confidentialite confidentialite = Confidentialite.PUBLIC;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "type_document_id", nullable = false)

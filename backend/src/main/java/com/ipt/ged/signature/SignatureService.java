@@ -24,6 +24,10 @@ public class SignatureService {
 
     private final WorkflowSignatureRepository repo;
 
+    /** Point d'application unique des droits (lot E3), injecté sans modifier le constructeur. */
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ipt.ged.autorisation.ControleAcces controle;
+
     public SignatureService(WorkflowSignatureRepository repo) {
         this.repo = repo;
     }
@@ -70,6 +74,8 @@ public class SignatureService {
         return repo.findByEmployeIdAndStatusOrderByStepOrderAsc(employeId, SignatureStatus.PENDING).stream()
                 .filter(s -> s.getDocument() != null && !s.getDocument().isSupprime())
                 .filter(this::isActionable)
+                // Hors périmètre (P5) : ni listée ni comptée.
+                .filter(s -> controle == null || controle.documentLisible(s.getDocument().getId()))
                 .map(SignatureResponse::from)
                 .toList();
     }
@@ -92,6 +98,7 @@ public class SignatureService {
     /** Circuit complet d'un document (toutes les étapes, dans l'ordre). */
     @Transactional(readOnly = true)
     public List<SignatureResponse> documentCircuit(UUID documentId) {
+        if (controle != null) controle.exigerLectureDocument(documentId);
         return repo.findByDocumentIdOrderByStepOrderAsc(documentId).stream()
                 .map(SignatureResponse::from)
                 .toList();
@@ -105,6 +112,7 @@ public class SignatureService {
     @Transactional
     public SignatureResponse approve(UUID id, UUID actingEmployeId, String motif) {
         WorkflowSignature sig = load(id);
+        exigerValider(sig);
         checkAssignee(sig, actingEmployeId);
         checkDocumentVivant(sig);
         com.ipt.ged.common.Limites.controler(motif, "motif");
@@ -136,6 +144,7 @@ public class SignatureService {
         // la base refusait l'insertion et l'utilisateur recevait un 500 nu.
         com.ipt.ged.common.Limites.controler(motif, "motif");
         WorkflowSignature sig = load(id);
+        exigerValider(sig);
         checkAssignee(sig, actingEmployeId);
         checkDocumentVivant(sig);
         if (sig.getStatus() != SignatureStatus.PENDING) {
@@ -176,6 +185,9 @@ public class SignatureService {
      */
     @Transactional
     public List<SignatureResponse> relancer(UUID documentId) {
+        if (controle != null) {
+            controle.exigerSurDocument(com.ipt.ged.autorisation.CodePermission.MODIFIER, documentId);
+        }
         List<WorkflowSignature> circuit = repo.findByDocumentIdOrderByStepOrderAsc(documentId);
         if (circuit.isEmpty()) {
             throw new EntityNotFoundException("Aucun circuit de validation pour le document : " + documentId);
@@ -249,5 +261,16 @@ public class SignatureService {
                 .findFirst()
                 .map(prev -> prev.getStatus() == SignatureStatus.SIGNED)
                 .orElse(true);
+    }
+
+    /**
+     * Décider d'une étape exige la permission Valider sur le document (lot E3) :
+     * 404 s'il est hors périmètre, 403 si l'approbateur désigné ne détient plus
+     * ce droit.
+     */
+    private void exigerValider(WorkflowSignature sig) {
+        if (controle != null && sig.getDocument() != null) {
+            controle.exigerSurDocument(com.ipt.ged.autorisation.CodePermission.VALIDER, sig.getDocument().getId());
+        }
     }
 }

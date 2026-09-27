@@ -31,21 +31,11 @@ public record WorkSpaceResponse(
     public record Ref(UUID id, String label) {}
 
     /**
-     * Les groupes sont chargés paresseusement : hors transaction la collection
-     * n'est pas initialisée, et lever l'exception ici priverait la liste entière
-     * d'une réponse pour une information secondaire.
+     * @param childrenCount sous-dossiers VISIBLES de l'appelant (P5 : les
+     *                      compteurs ne portent que sur le périmètre autorisé)
+     * @param groupes       groupes GED habilités sur ce nœud
      */
-    private static List<Ref> groupes(WorkSpace w) {
-        try {
-            return w.getAccessGroups().stream()
-                    .map(g -> new Ref(g.getId(), g.getName()))
-                    .toList();
-        } catch (RuntimeException e) {
-            return List.of();
-        }
-    }
-
-    public static WorkSpaceResponse from(WorkSpace w, long childrenCount) {
+    public static WorkSpaceResponse from(WorkSpace w, long childrenCount, List<Ref> groupes) {
         return new WorkSpaceResponse(
                 w.getId(),
                 w.getName(),
@@ -57,7 +47,7 @@ public record WorkSpaceResponse(
                 w.getParent() != null ? new Ref(w.getParent().getId(), w.getParent().getName()) : null,
                 w.getWorkflow() != null ? new Ref(w.getWorkflow().getId(), w.getWorkflow().getName()) : null,
                 childrenCount,
-                groupes(w)
+                groupes
         );
     }
 }

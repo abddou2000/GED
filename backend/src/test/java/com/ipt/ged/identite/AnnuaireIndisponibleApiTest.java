@@ -49,7 +49,7 @@ class AnnuaireIndisponibleApiTest {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("ANNUAIRE_INDISPONIBLE"));
         assertEquals(1, evenements.stream(ConnexionEchouee.class)
-                .filter(e -> e.motif() == MotifEchecConnexion.ANNUAIRE_INDISPONIBLE).count());
+                .filter(e -> e.motifEchec() == MotifEchecConnexion.ANNUAIRE_INDISPONIBLE).count());
         assertEquals(Status.DOWN, sonde.health().getStatus());
     }
 }

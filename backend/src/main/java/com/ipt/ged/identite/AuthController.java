@@ -1,5 +1,7 @@
 package com.ipt.ged.identite;
 
+import com.ipt.ged.autorisation.AccessPredicate;
+import com.ipt.ged.autorisation.Sujet;
 import com.ipt.ged.identite.dto.DemandeConnexion;
 import com.ipt.ged.identite.dto.IdentiteResponse;
 import com.ipt.ged.identite.dto.ReponseConnexion;
@@ -47,9 +49,12 @@ public class AuthController {
     private final ServiceSessions sessions;
     private final ServiceCacheAnnuaire cache;
     private final ProprietesIdentite proprietes;
+    private final AccessPredicate droits;
 
     public AuthController(ServiceConnexion connexion, ServiceSessions sessions, ServiceCacheAnnuaire cache,
-                          ProprietesIdentite proprietes) {
+                          ProprietesIdentite proprietes,
+                          AccessPredicate droits) {
+        this.droits = droits;
         this.connexion = connexion;
         this.sessions = sessions;
         this.cache = cache;
@@ -115,7 +120,8 @@ public class AuthController {
         return new IdentiteResponse(u.getUtilisateurId(), u.getUsername(), u.getEmployeId(), u.getNomComplet(),
                 entree.map(EntreeCacheAnnuaire::getCourriel).orElse(null),
                 entree.map(EntreeCacheAnnuaire::getDirection).orElse(null),
-                List.copyOf(new java.util.TreeSet<>(u.getRoles())));
+                List.copyOf(new java.util.TreeSet<>(u.getRoles())),
+                droits.droits(Sujet.utilisateur(u)).permissionsExercees().stream().map(Enum::name).sorted().toList());
     }
 
     private ResponseCookie cookieRenouvellement(ServiceSessions.JetonRenouvellement r) {

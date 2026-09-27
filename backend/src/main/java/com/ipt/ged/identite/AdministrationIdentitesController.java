@@ -67,7 +67,7 @@ public class AdministrationIdentitesController {
                     EntreeCacheAnnuaire f = fiches.get(u.getId());
                     return new IdentiteAdmin(u.getId(), u.getIdentifiant(), u.getEmploye().getFullName(),
                             f != null ? f.getCourriel() : null, f != null ? f.getDirection() : null,
-                            u.getRoles().stream().map(Role::getCode).sorted().toList(),
+                            List.copyOf(identites.roles(u).get(1)),
                             u.getDerniereConnexionLe(), sessions.ouvertes(u.getId()).size());
                 })
                 .toList();

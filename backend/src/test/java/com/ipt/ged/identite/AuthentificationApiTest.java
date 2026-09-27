@@ -197,7 +197,7 @@ class AuthentificationApiTest {
             assertTrue(r.getResponse().getCookie(COOKIE) == null, "aucun cookie sur un refus");
         }
         assertEquals(3, evenements.stream(ConnexionEchouee.class)
-                .filter(e -> e.motif() == MotifEchecConnexion.IDENTIFIANTS_REFUSES).count());
+                .filter(e -> e.motifEchec() == MotifEchecConnexion.IDENTIFIANTS_REFUSES).count());
         // Un compte désactivé ne crée aucune identité.
         assertTrue(utilisateurs.findByIdentifiant(Comptes.DESACTIVE).isEmpty());
         // Le mot de passe n'est jamais journalisé.
@@ -284,7 +284,7 @@ class AuthentificationApiTest {
         mvc.perform(get("/api/v1/documents").header("Authorization", renouvelee.bearer()))
                 .andExpect(status().isUnauthorized());
         assertEquals(1, evenements.stream(SessionsRevoquees.class)
-                .filter(e -> e.motif() == MotifRevocation.REUTILISATION).count());
+                .filter(e -> e.motifRevocation() == MotifRevocation.REUTILISATION).count());
     }
 
     @Test
@@ -362,7 +362,7 @@ class AuthentificationApiTest {
         }
         mvc.perform(get("/api/v1/auth/me").header("Authorization", admin.bearer())).andExpect(status().isOk());
         assertTrue(evenements.stream(SessionsRevoquees.class).anyMatch(e ->
-                e.motif() == MotifRevocation.REVOCATION_ADMINISTRATEUR
+                e.motifRevocation() == MotifRevocation.REVOCATION_ADMINISTRATEUR
                         && e.parUtilisateurId().equals(admin.utilisateurId())));
 
         mvc.perform(delete("/api/v1/admin/utilisateurs/" + UUID.randomUUID() + "/sessions")
@@ -384,7 +384,7 @@ class AuthentificationApiTest {
         assertTrue(attente >= 1 && attente <= 60, "Retry-After = " + attente);
         assertEquals("TROP_DE_TENTATIVES", om.readTree(r.getResponse().getContentAsString()).get("code").asText());
         assertEquals(1, evenements.stream(ConnexionEchouee.class)
-                .filter(e -> e.motif() == MotifEchecConnexion.TROP_DE_TENTATIVES).count());
+                .filter(e -> e.motifEchec() == MotifEchecConnexion.TROP_DE_TENTATIVES).count());
     }
 
     @Test
@@ -410,7 +410,8 @@ class AuthentificationApiTest {
         Session s = ouvrir(Comptes.ADMIN);
         mvc.perform(get("/api/v1/documents").header("Authorization", s.bearer())).andExpect(status().isOk());
         em.flush();
-        jdbc.update("DELETE FROM utilisateur_role WHERE utilisateur_id = ?", s.utilisateurId());
+        jdbc.update("DELETE FROM habilitation WHERE utilisateur_id = ?", s.utilisateurId());
+        jdbc.update("UPDATE version_habilitations SET valeur = valeur + 1");
         em.clear();
         mvc.perform(get("/api/v1/documents").header("Authorization", s.bearer())).andExpect(status().isForbidden());
         assertTrue(Instant.now().isAfter(Instant.EPOCH));

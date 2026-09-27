@@ -41,8 +41,14 @@ public class AccessGroupTriParTaille {
         String ou = " from AccessGroup g where g.supprime = :supprimes"
                   + " and lower(g.name) like :motif";
 
+        // Les espaces couverts ne sont plus une collection du groupe mais ses
+        // habilitations sur des nœuds (lot E3) : on compte ces lignes.
+        String taille = "workspaces".equals(collection)
+                ? "(select count(distinct h.noeudId) from Habilitation h"
+                  + " where h.groupeGedId = g.id and h.noeudId is not null and h.role is not null)"
+                : "size(g.users)";
         TypedQuery<AccessGroup> q = em.createQuery(
-                "select g" + ou + " order by size(g." + collection + ") " + sens.name()
+                "select g" + ou + " order by " + taille + " " + sens.name()
                         // Départage les ex æquo : sans second critère, deux groupes
                         // ayant le même nombre d'espaces pourraient changer de place
                         // d'une page à l'autre et l'un d'eux disparaître.

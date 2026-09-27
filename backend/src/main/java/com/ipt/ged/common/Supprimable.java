@@ -41,9 +41,20 @@ public abstract class Supprimable extends Auditable {
      *               traitement technique sans acteur authentifié.
      */
     public void mettreEnCorbeille(UUID auteur) {
+        // Tronqué à la microseconde, précision de la colonne : deux objets
+        // supprimés ensemble gardent le même horodatage une fois relus.
+        mettreEnCorbeille(auteur, Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS));
+    }
+
+    /**
+     * Mise en corbeille à un instant donné : une suppression en cascade (nœud
+     * et sous-arborescence) date tous les objets emportés du même instant, ce
+     * qui permet de ne restaurer que ceux-là.
+     */
+    public void mettreEnCorbeille(UUID auteur, Instant le) {
         this.supprime = true;
         this.supprimePar = auteur;
-        this.supprimeLe = Instant.now();
+        this.supprimeLe = le;
     }
 
     /** Sort l'objet de la corbeille : l'auteur et la date de suppression sont effacés. */

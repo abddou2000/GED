@@ -1,5 +1,6 @@
 package com.ipt.ged.document;
 
+import com.ipt.ged.autorisation.Confidentialite;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.document.dto.DocumentRequest;
 import com.ipt.ged.document.dto.DocumentResponse;
@@ -74,10 +75,53 @@ public class DocumentController {
             @RequestParam("typeDocumentId") UUID typeDocumentId,
             @RequestParam(value = "expirationDate", required = false) String expirationDate,
             @RequestParam(value = "etiquetteIds", required = false) List<UUID> etiquetteIds,
+            @RequestParam(value = "confidentialite", required = false) Confidentialite confidentialite,
             @AuthenticationPrincipal UtilisateurConnecte principal) {
         UUID createdById = principal != null ? principal.getEmployeId() : null;
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(service.upload(file, name, typeDocumentId, expirationDate, createdById, etiquetteIds));
+                .body(service.upload(file, name, typeDocumentId, expirationDate, createdById, etiquetteIds,
+                        confidentialite));
+    }
+
+    /** Emplacements complémentaires visibles (§12.4). */
+    @GetMapping("/{id}/rattachements")
+    public List<DocumentResponse.Ref> rattachements(@PathVariable UUID id) {
+        return service.rattachements(id);
+    }
+
+    /** Rattache le document à un espace supplémentaire : body { "noeudId": ... }. */
+    @PostMapping("/{id}/rattachements")
+    public ResponseEntity<DocumentResponse> rattacher(@PathVariable UUID id, @RequestBody Map<String, UUID> body) {
+        UUID noeudId = body.get("noeudId");
+        if (noeudId == null) throw new IllegalArgumentException("L'espace de rattachement (noeudId) est obligatoire");
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.rattacher(id, noeudId));
+    }
+
+    /** Retire un rattachement : le document et ses autres emplacements sont intacts. */
+    @DeleteMapping("/{id}/rattachements/{noeudId}")
+    public ResponseEntity<Void> detacher(@PathVariable UUID id, @PathVariable UUID noeudId) {
+        service.detacher(id, noeudId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Personnes désignées d'un document confidentiel (§12.3). */
+    @GetMapping("/{id}/designes")
+    public List<DocumentResponse.Ref> designes(@PathVariable UUID id) {
+        return service.designes(id);
+    }
+
+    /** Désigne une personne : body { "utilisateurId": ... }. */
+    @PostMapping("/{id}/designes")
+    public List<DocumentResponse.Ref> designer(@PathVariable UUID id, @RequestBody Map<String, UUID> body) {
+        UUID utilisateurId = body.get("utilisateurId");
+        if (utilisateurId == null) throw new IllegalArgumentException("La personne (utilisateurId) est obligatoire");
+        return service.designer(id, utilisateurId);
+    }
+
+    @DeleteMapping("/{id}/designes/{utilisateurId}")
+    public ResponseEntity<Void> retirerDesignation(@PathVariable UUID id, @PathVariable UUID utilisateurId) {
+        service.retirerDesignation(id, utilisateurId);
+        return ResponseEntity.noContent().build();
     }
 
     /** Modifie la fiche (nom, type, date, etiquettes, archivage). */

@@ -55,12 +55,27 @@ class SchemaLiquibaseTest {
             "version_document", "document_etiquette", "document_index_valeur",
             "workflow_ged_signature");
 
-    /** Tables du modèle courant : E1, moins les comptes à mot de passe, plus l'identité (E2). */
-    private static final Set<String> TABLES_ATTENDUES;
+    /** Tables à l'issue du lot E2 (jalon identite-e2) : E1 moins les comptes à mot de passe, plus l'identité. */
+    private static final Set<String> TABLES_E2;
     static {
         Set<String> t = new TreeSet<>(TABLES_E1);
         t.remove("compte_utilisateur");
         t.addAll(Set.of("role", "utilisateur", "utilisateur_role", "cache_annuaire", "session"));
+        TABLES_E2 = Set.copyOf(t);
+    }
+
+    /**
+     * Tables du modèle courant (lot E3, §12.1) : les espaces deviennent des
+     * nœuds, les groupes d'accès des groupes GED ; les rôles globaux et les
+     * rattachements groupe / espace sont repris en habilitations.
+     */
+    private static final Set<String> TABLES_ATTENDUES;
+    static {
+        Set<String> t = new TreeSet<>(TABLES_E2);
+        t.removeAll(Set.of("workspace", "access_group", "access_group_workspace", "access_group_employe",
+                "utilisateur_role"));
+        t.addAll(Set.of("noeud", "groupe_ged", "groupe_membre", "permission", "role_permission", "habilitation",
+                "document_rattachement", "document_confidentiel_designe", "version_habilitations"));
         TABLES_ATTENDUES = Set.copyOf(t);
     }
 
@@ -72,7 +87,7 @@ class SchemaLiquibaseTest {
 
     /** Tables à corbeille : portent l'auteur et la date de suppression. */
     private static final Set<String> A_CORBEILLE = Set.of(
-            "workflow_ged", "workspace", "access_group", "etiquette", "index_def",
+            "workflow_ged", "noeud", "groupe_ged", "etiquette", "index_def",
             "plan_indexation", "type_document", "document");
 
     @Value("${spring.datasource.url}")
@@ -126,7 +141,7 @@ class SchemaLiquibaseTest {
     }
 
     @Test
-    @DisplayName("Retour arrière par jalon : identite-e2 puis socle-e1 (le lot E2 se défait, comptes E1 recréés)")
+    @DisplayName("Retour arrière par jalon : autorisation-e3, identite-e2 puis socle-e1")
     void retourArriereAuxJalons() throws Exception {
         String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
@@ -137,21 +152,29 @@ class SchemaLiquibaseTest {
                 assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
                 assertEquals(4, compter(c, "SELECT count(*) FROM " + schema + ".role WHERE systeme"),
                         "les quatre rôles système sont amorcés (data-initial)");
+                assertEquals(18, compter(c, "SELECT count(*) FROM " + schema + ".permission"),
+                        "neuf permissions élémentaires, sept d'administration, deux de confidentialité");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + schema + ".version_habilitations"));
 
-                // Rien n'est postérieur au jalon E2 : le schéma ne bouge pas.
-                liquibase.rollback("identite-e2", (String) null);
+                // Rien n'est postérieur au jalon E3 : le schéma ne bouge pas.
+                liquibase.rollback("autorisation-e3", (String) null);
                 assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
+
+                // Retour au jalon E2 : nœuds et groupes reprennent leurs noms,
+                // les tables d'association d'origine sont recréées.
+                liquibase.rollback("identite-e2", (String) null);
+                assertEquals(new TreeSet<>(TABLES_E2), tablesMetier(c, schema));
 
                 // Retour au jalon E1 : tout le lot E2 se défait, y compris la
                 // suppression de compte_utilisateur (structure recréée, vide).
                 liquibase.rollback("socle-e1", (String) null);
                 assertEquals(new TreeSet<>(TABLES_E1), tablesMetier(c, schema));
 
-                // Rejouer la montée repose les deux jalons.
+                // Rejouer la montée repose les trois jalons.
                 liquibase.update(new Contexts(), new LabelExpression());
                 assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
-                assertEquals(2, compter(c, "SELECT count(*) FROM " + schema
-                        + ".databasechangelog WHERE tag IN ('socle-e1', 'identite-e2')"));
+                assertEquals(3, compter(c, "SELECT count(*) FROM " + schema
+                        + ".databasechangelog WHERE tag IN ('socle-e1', 'identite-e2', 'autorisation-e3')"));
             } finally {
                 supprimerSchema(c, schema);
             }
@@ -216,7 +239,8 @@ class SchemaLiquibaseTest {
                   JOIN information_schema.constraint_column_usage ccu
                     ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
                  WHERE tc.table_schema = ? AND tc.constraint_type = 'FOREIGN KEY'
-                   AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'attribue_par')
+                   AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'attribue_par', 'cree_par',
+                                               'noeud_principal_id')
                    AND kcu.column_name NOT LIKE '%' || ccu.table_name || '_id'""", schema);
         assertEquals(List.of(), incoherentes, "clés étrangères dont le nom ne désigne pas la table visée");
     }

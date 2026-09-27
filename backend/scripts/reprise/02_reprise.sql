@@ -35,7 +35,7 @@ DECLARE
     n bigint;
 BEGIN
     FOREACH t IN ARRAY ARRAY['employe', 'utilisateur', 'workflow_ged', 'workflow_ged_etape',
-        'workspace', 'access_group', 'access_group_workspace', 'access_group_employe', 'etiquette',
+        'noeud', 'groupe_ged', 'habilitation', 'groupe_membre', 'etiquette',
         'index_def', 'plan_indexation', 'plan_index', 'type_document', 'document', 'version_document',
         'document_etiquette', 'document_index_valeur', 'workflow_ged_signature']
     LOOP
@@ -140,18 +140,46 @@ SELECT reprise_source.nouvel_id('workflow_ged_steps', s.id),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.workflow_ged_steps s;
 
--- Auto-référence (parent) : une seule instruction, les contrôles de clé
--- étrangère sont évalués en fin d'instruction, quel que soit l'ordre des lignes.
-INSERT INTO workspace (id, name, code, description, status, employe_id, parent_id, workflow_ged_id,
-                       supprime, created_at, updated_at)
+-- Nœuds (ex-work_spaces, lot E3) : le chemin matérialisé d'un nœud est
+-- calculé par la base à partir de celui de son parent (déclencheur
+-- trg_noeud_chemin) ; les parents sont donc insérés avant leurs enfants,
+-- niveau par niveau, quel que soit l'ordre des identifiants de la source.
+-- Un nœud dont le parent est introuvable n'est pas repris : le contrôle 5
+-- (lignes noeud) et le contrôle 21 le signalent.
+INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, workflow_ged_id,
+                   supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.description, s.status,
        reprise_source.nouvel_id('employes', s.employe_id),
        reprise_source.nouvel_id('work_spaces', s.parent_workspace_id),
        reprise_source.nouvel_id('workflow_ged', s.workflow_ged_id), coalesce(s.deleted, false),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
-  FROM reprise_source.work_spaces s;
+  FROM reprise_source.work_spaces s
+ WHERE s.parent_workspace_id IS NULL;
 
-INSERT INTO access_group (id, code, name, droit_access, droit_lecture, droit_modifier, droit_uploader,
+DO $$
+DECLARE
+    n bigint;
+BEGIN
+    LOOP
+        INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, workflow_ged_id,
+                           supprime, created_at, updated_at)
+        SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.description, s.status,
+               reprise_source.nouvel_id('employes', s.employe_id),
+               reprise_source.nouvel_id('work_spaces', s.parent_workspace_id),
+               reprise_source.nouvel_id('workflow_ged', s.workflow_ged_id), coalesce(s.deleted, false),
+               reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
+          FROM reprise_source.work_spaces s
+         WHERE s.parent_workspace_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM noeud x WHERE x.id = reprise_source.nouvel_id('work_spaces', s.id))
+           AND EXISTS (SELECT 1 FROM noeud p
+                        WHERE p.id = reprise_source.nouvel_id('work_spaces', s.parent_workspace_id));
+        GET DIAGNOSTICS n = ROW_COUNT;
+        EXIT WHEN n = 0;
+    END LOOP;
+END
+$$;
+
+INSERT INTO groupe_ged (id, code, name, droit_access, droit_lecture, droit_modifier, droit_uploader,
                           droit_supprimer, droit_deplacer, droit_ajouter_version,
                           droit_verrouiller_deverrouiller, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('access_groups', s.id), s.code, s.name,
@@ -162,12 +190,17 @@ SELECT reprise_source.nouvel_id('access_groups', s.id), s.code, s.name,
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.access_groups s;
 
-INSERT INTO access_group_workspace (access_group_id, workspace_id)
-SELECT reprise_source.nouvel_id('access_groups', s.access_group_id),
-       reprise_source.nouvel_id('work_spaces', s.workspace_id)
-  FROM reprise_source.pivot_workspace_groups s;
+-- Un groupe « couvrait » des espaces : c'est désormais une habilitation du
+-- groupe sur chaque nœud, avec le rôle Utilisateur standard (même sens que la
+-- reprise des rattachements existants, changeset 202609281030-2). Les
+-- colonnes droit_* de l'ancien modèle restent inertes.
+INSERT INTO habilitation (id, sujet_type, groupe_ged_id, role_id, noeud_id, rupture_heritage)
+SELECT uuid_v7(), 'GROUPE', x.groupe_ged_id, '0192a000-0000-7000-8000-000000000004'::uuid, x.noeud_id, false
+  FROM (SELECT DISTINCT reprise_source.nouvel_id('access_groups', s.access_group_id) AS groupe_ged_id,
+                        reprise_source.nouvel_id('work_spaces', s.workspace_id) AS noeud_id
+          FROM reprise_source.pivot_workspace_groups s) x;
 
-INSERT INTO access_group_employe (access_group_id, employe_id)
+INSERT INTO groupe_membre (groupe_ged_id, employe_id)
 SELECT reprise_source.nouvel_id('access_groups', s.access_group_id),
        reprise_source.nouvel_id('employes', s.employe_id)
   FROM reprise_source.pivot_employe_groups s;
@@ -217,7 +250,7 @@ SELECT reprise_source.nouvel_id('plan_d_indexations', s.plan_d_indexation_id),
        reprise_source.nouvel_id('indices', s.index_id), s.position
   FROM reprise_source.pivot_plan_d_indexation_indices s;
 
-INSERT INTO type_document (id, code, type_de_document, description, workspace_id, plan_indexation_id,
+INSERT INTO type_document (id, code, type_de_document, description, noeud_id, plan_indexation_id,
                            type_autorise, taille_max_mo, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('type_de_documents', s.id), s.code, s.type_de_document, s.description,
        reprise_source.nouvel_id('work_spaces', s.workspace_id),
@@ -226,7 +259,7 @@ SELECT reprise_source.nouvel_id('type_de_documents', s.id), s.code, s.type_de_do
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.type_de_documents s;
 
-INSERT INTO document (id, name, workspace_id, type_document_id, file_name, file_path, extension, size_ko,
+INSERT INTO document (id, name, noeud_principal_id, type_document_id, file_name, file_path, extension, size_ko,
                       expiration_date, reference, active, is_locked, created_by_employe_id, supprime,
                       created_at, updated_at)
 SELECT reprise_source.nouvel_id('documents_file', s.id), s.name,

@@ -13,7 +13,11 @@ import java.util.UUID;
  * @param identifiant {@code sAMAccountName}
  * @param employeId   personne métier (dépôts, dossiers, circuits)
  * @param email       courriel lu dans l'annuaire (cache), pour information
+ * @param roles       rôles détenus, toute portée confondue
+ * @param permissions permissions exercées quelque part (lot E3) : l'interface
+ *                    masque les menus et actions correspondants — confort
+ *                    seulement, le serveur décide à chaque requête
  */
 public record IdentiteResponse(UUID id, String identifiant, UUID employeId, String fullName, String email,
-                               String direction, List<String> roles) {
+                               String direction, List<String> roles, List<String> permissions) {
 }

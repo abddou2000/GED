@@ -2,6 +2,8 @@ package com.ipt.ged.employe;
 
 import com.ipt.ged.accessgroup.AccessGroup;
 import com.ipt.ged.accessgroup.AccessGroupRepository;
+import com.ipt.ged.autorisation.AccessPredicate;
+import com.ipt.ged.autorisation.CodePermission;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
 import com.ipt.ged.employe.dto.ProfilResponse;
@@ -14,7 +16,9 @@ import com.ipt.ged.signature.SignatureStatus;
 import com.ipt.ged.signature.WorkflowSignatureRepository;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,11 +42,13 @@ public class ProfilService {
     private final WorkflowSignatureRepository signatures;
     private final UtilisateurRepository utilisateurs;
     private final ServiceCacheAnnuaire annuaire;
+    private final AccessPredicate droits;
 
     public ProfilService(EmployeRepository employes, WorkSpaceRepository workspaces,
                          AccessGroupRepository groupes, UploadDocumentRepository documents,
                          WorkflowSignatureRepository signatures, UtilisateurRepository utilisateurs,
-                         ServiceCacheAnnuaire annuaire) {
+                         ServiceCacheAnnuaire annuaire, AccessPredicate droits) {
+        this.droits = droits;
         this.employes = employes;
         this.workspaces = workspaces;
         this.groupes = groupes;
@@ -64,8 +70,13 @@ public class ProfilService {
         String courriel = identite == null ? null
                 : annuaire.lire(identite.getId()).map(EntreeCacheAnnuaire::getCourriel).orElse(null);
 
+        // Périmètre de l'APPELANT (P5) : un dossier ou un dépôt qu'il ne peut
+        // pas voir n'est ni nommé ni compté, même sur la fiche d'un collègue.
+        var appelant = SecurityContextHolder.getContext().getAuthentication();
+        java.util.Set<UUID> visibles = droits.noeudsAccessibles(appelant, CodePermission.CONSULTER);
         List<ProfilResponse.Ref> dossiers = workspaces.findBySupprimeFalseOrderByIdAsc().stream()
                 .filter(w -> w.getOwner() != null && w.getOwner().getId().equals(employeId))
+                .filter(w -> visibles.contains(w.getId()))
                 .map(w -> new ProfilResponse.Ref(w.getId(), w.getName()))
                 .toList();
 
@@ -74,9 +85,10 @@ public class ProfilService {
                 .map(g -> new ProfilResponse.Ref(g.getId(), g.getName()))
                 .toList();
 
-        int deposes = (int) documents.findBySupprimeFalseOrderByIdDesc().stream()
-                .filter(d -> auteur(d, employeId))
-                .count();
+        Specification<UploadDocument> deposesVisibles = (r, q, cb) -> cb.and(cb.isFalse(r.get("supprime")),
+                cb.equal(r.join("createdBy").get("id"), employeId));
+        int deposes = (int) documents.count(deposesVisibles
+                .and(droits.documents(appelant, CodePermission.CONSULTER)));
 
         int enAttente = signatures
                 .findByEmployeIdAndStatusOrderByStepOrderAsc(employeId, SignatureStatus.PENDING).size();

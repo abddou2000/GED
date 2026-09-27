@@ -4,6 +4,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,8 +20,8 @@ public interface AccessGroupRepository extends JpaRepository<AccessGroup, UUID> 
 
     Page<AccessGroup> findBySupprimeTrueAndNameContainingIgnoreCase(String search, Pageable pageable);
 
-    /** Charge le groupe avec ses workspaces et ses membres (pour le détail / l'édition). */
-    @EntityGraph(attributePaths = {"workspaces", "users"})
+    /** Charge le groupe avec ses membres (pour le détail / l'édition). */
+    @EntityGraph(attributePaths = {"users"})
     Optional<AccessGroup> findWithRefsById(UUID id);
 
     List<AccessGroup> findByIdInAndSupprimeFalse(List<UUID> ids);
@@ -37,4 +39,8 @@ public interface AccessGroupRepository extends JpaRepository<AccessGroup, UUID> 
     boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);
 
     long countBySupprimeFalse();
+
+    /** Groupes vivants dont la personne est membre (tuile du tableau de bord). */
+    @Query("select count(g) from AccessGroup g join g.users m where m.id = :employeId and g.supprime = false")
+    long compterPourMembre(@Param("employeId") UUID employeId);
 }

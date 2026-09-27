@@ -48,6 +48,8 @@ public class IndexationService {
     private final ExtracteurValeurs valeurs;
     /** Le type porte le plan : l'apercu part du type, pas d'un document. */
     private final TypeDocumentRepository typeRepository;
+    /** Point d'application unique des droits (lot E3). */
+    private final com.ipt.ged.autorisation.AccessPredicate droits;
 
     /* ===================== Critères ===================== */
 
@@ -670,7 +672,14 @@ public class IndexationService {
      * <b>tous</b> les filtres renseignés (ET logique).
      */
     public List<GroupeResponse> rechercher(RechercheRequest requete) {
-        List<UploadDocument> candidats = documentRepository.findBySupprimeFalseOrderByIdDesc().stream()
+        // Filtre de droits À LA SOURCE (point d'application unique, P5) : un
+        // document hors périmètre n'entre ni dans les résultats ni dans les totaux.
+        List<UploadDocument> candidats = documentRepository.findAll(
+                        droits.documents(org.springframework.security.core.context.SecurityContextHolder
+                                .getContext().getAuthentication(), com.ipt.ged.autorisation.CodePermission.CONSULTER)
+                                .and((r, q, cb) -> cb.isFalse(r.get("supprime"))),
+                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"))
+                .stream()
                 .filter(d -> requete.workspaceId() == null
                         || (d.getWorkspace() != null && d.getWorkspace().getId().equals(requete.workspaceId())))
                 .filter(d -> requete.typeDocumentId() == null

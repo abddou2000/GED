@@ -77,5 +77,15 @@
     <include file="changesets/202609271040_ajout_cle_id_tables_association.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609271045_renommage_indicateur_suppression.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609271200_jalon_identite.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281000_noeud_chemin_materialise.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281010_creation_table_permission.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281015_creation_table_role_permission.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281020_groupe_ged.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281030_creation_table_habilitation.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281040_confidentialite_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281045_creation_table_document_rattachement.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281050_creation_table_version_habilitations.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281055_declencheurs_version_habilitations.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281200_jalon_autorisation.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
