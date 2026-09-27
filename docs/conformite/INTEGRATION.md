@@ -52,8 +52,21 @@ git commit -m "Fusionner ct/dev1 : E1 socle de données (vague 1)" \
            -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
 
-4. Mettre à jour `SUIVI.md` (statut « Livré » des lignes fusionnées, tableau de bord), commit
-   séparé.
+4. Mettre à jour `SUIVI.md`, commit séparé : changer à la main le statut (colonne 7) et la
+   preuve des lignes détaillées concernées, l'en-tête « Dernière mise à jour » et, si besoin,
+   la colonne « Anomalies qa » de la répartition par responsable ; puis régénérer le tableau
+   de bord (compteurs par statut, taux sur le périmètre, avancement par étape, répartition
+   par responsable) depuis les lignes détaillées, sans jamais recompter à la main :
+
+```bash
+node outils/suivi/regenerer-tableaux.mjs              # réécrit le tableau de bord de SUIVI.md
+node outils/suivi/regenerer-tableaux.mjs --verifier   # contrôle seul : code 1 si le tableau n'est plus à jour
+```
+
+   L'outil (Node, sans dépendance, décision D5 : pas de Python) refuse un statut hors de la
+   liste des statuts courants et une étape absente du tableau par étape ; il conserve les
+   colonnes rédigées à la main (Contenu, Vague, Anomalies qa). Lancer `--verifier` avant
+   chaque commit de `SUIVI.md`.
 5. En fin de vague, poser une étiquette locale : `git tag vague-1` (jamais poussée).
 
 Si un défaut n'apparaît qu'après le commit de fusion et que des membres ont déjà fusionné

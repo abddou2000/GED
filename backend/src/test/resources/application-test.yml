@@ -73,10 +73,11 @@ ged:
       administrateurs: sbennani
 
 spring:
-  # SMTP simulé des tests (GreenMail, port de test 3025, sans TLS).
+  # SMTP simulé des tests (GreenMail, sans TLS) : GED_SMTP_PORT_TEST, 3025 par défaut
+  # (un port par membre quand plusieurs suites tournent en même temps).
   mail:
     host: localhost
-    port: 3025
+    port: ${GED_SMTP_PORT_TEST:3025}
     properties:
       mail.smtp.starttls.enable: false
       mail.smtp.starttls.required: false

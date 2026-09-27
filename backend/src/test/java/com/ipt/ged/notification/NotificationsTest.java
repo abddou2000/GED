@@ -1,7 +1,7 @@
 package com.ipt.ged.notification;
 
 import com.icegreen.greenmail.junit5.GreenMailExtension;
-import com.icegreen.greenmail.util.ServerSetupTest;
+import com.icegreen.greenmail.util.ServerSetup;
 import com.ipt.ged.autorisation.evenement.HabilitationModifiee;
 import com.ipt.ged.accessgroup.AccessGroupService;
 import com.ipt.ged.accessgroup.dto.AccessGroupRequest;
@@ -56,9 +56,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WithUserDetails(Comptes.ADMIN)
 class NotificationsTest {
 
-    /** Port de test 3025, celui de application-test.yml ; boîtes vidées à chaque test. */
+    /**
+     * SMTP simulé sur le port de application-test.yml : GED_SMTP_PORT_TEST, 3025 par
+     * défaut ; un port par membre quand plusieurs suites tournent en même temps.
+     * Boîtes vidées à chaque test.
+     */
+    static final int PORT_SMTP = Integer.parseInt(System.getenv().getOrDefault("GED_SMTP_PORT_TEST", "3025"));
+
     @RegisterExtension
-    static GreenMailExtension smtp = new GreenMailExtension(ServerSetupTest.SMTP);
+    static GreenMailExtension smtp = new GreenMailExtension(new ServerSetup(PORT_SMTP, null, ServerSetup.PROTOCOL_SMTP));
 
     @Autowired private Notifications notifications;
     @Autowired private ExpediteurCourriels expediteur;

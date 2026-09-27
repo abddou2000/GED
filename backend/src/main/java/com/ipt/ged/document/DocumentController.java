@@ -161,7 +161,7 @@ public class DocumentController {
      * ({@code ConcurrentModificationException} observée en test, en-têtes
      * incohérents possibles en production).
      */
-    static ResponseEntity<Resource> servir(DocumentService.FichierTelecharge f) {
+    public static ResponseEntity<Resource> servir(DocumentService.FichierTelecharge f) {
         ResponseEntity.BodyBuilder r = ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(f.nom()))
                 .header("X-Content-Type-Options", "nosniff")

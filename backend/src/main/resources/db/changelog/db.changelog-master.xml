@@ -93,6 +93,8 @@
     <include file="changesets/202609281000_creation_cles_api.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609291000_creation_notifications.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202610011000_portee_cles_api_noeud.xml" relativeToChangelogFile="true"/>
+    <!-- ANO-E1-005 : clés UUID (préférence de notification, scellement). -->
+    <include file="changesets/202610021000_alignement_cles_uuid.xml" relativeToChangelogFile="true"/>
 
     <!-- Lots E5 (stockage chiffré) et E6 (OCR asynchrone, recherche plein texte) -->
     <include file="changesets/202609271200_creation_table_cle_fichier.xml" relativeToChangelogFile="true"/>

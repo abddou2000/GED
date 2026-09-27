@@ -75,7 +75,7 @@ public class CentreNotifications {
 
     @Transactional(readOnly = true)
     public PreferenceResponse preference() {
-        return new PreferenceResponse(preferences.findById(moi())
+        return new PreferenceResponse(preferences.findByUtilisateurId(moi())
                 .map(PreferenceNotification::isCourrielActif).orElse(true), true);
     }
 
@@ -83,7 +83,7 @@ public class CentreNotifications {
     @Transactional
     public PreferenceResponse definirPreference(boolean courrielActif) {
         UUID moi = moi();
-        PreferenceNotification p = preferences.findById(moi).orElseGet(() -> new PreferenceNotification(moi));
+        PreferenceNotification p = preferences.findByUtilisateurId(moi).orElseGet(() -> new PreferenceNotification(moi));
         boolean avant = p.isCourrielActif();
         p.setCourrielActif(courrielActif);
         p.setModifieLe(horloge.instant());

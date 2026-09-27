@@ -2,7 +2,50 @@
 
 Branche `ct/dev2`. Mise à jour : 27/09/2026.
 
-## Vague 4 — fusions E2/E3 (dev1) et E5-E7 (dev3), portée des clés et délégation, D4 : **LIVRÉ sur ct/dev2**
+## Dernière partie du périmètre — contrat d'API, finitions E10/E11, modélisation : **LIVRÉ sur ct/dev2**
+
+| Réf. | Exigence | Livré | Statut proposé |
+|---|---|---|---|
+| P-06, T-042 (§5.3.1) | chemins exacts du contrat | `contratapi` : `POST /noeuds/{id}/dossiers` (Déposer sur le parent, circuit hérité, code attribué, 201 + Location), `POST /recherches` (plein texte de `SearchIndexer` + critères d'index d'`IndexationService`, en ET, droits à la source, pagination 50 / 200, tri en liste blanche), `GET /documents/{id}/contenu?version=` (`DocumentService.telechargerVersion`, audité) ; `POST /documents`, `POST /documents/{id}/versions`, `POST /documents/{id}/rattachements` et `DELETE …/{noeudId}` vérifiés au chemin exact ; aucune règle réimplémentée ; Idempotency-Key, portée de clé, délégation et audit par les mécanismes communs ; anciens chemins conservés pour le front, leur description OpenAPI renvoie au chemin du contrat | Identique |
+| T-044 (§5.3.1) | consultation des droits | `GET /documents/{id}/droits`, `GET /noeuds/{id}/droits`, `pourUtilisateur` (identifiant ou UUID) : objet visible exigé (404 sinon), soi-même ou l'utilisateur délégué sans condition, un tiers avec `GERER_ROLES_HABILITATIONS` ; droits d'une clé d'API (sa portée) ou de la délégation ; `ServiceDroitsEffectifs.calculerPourAppelant` (même fonction de décision) | Identique |
+| T-065 (§6.2.1) | TLS | `securite.ControleTransportsChiffres` : démarrage refusé en uat/prod sans `sslmode=verify-full` et autorité lisible, avec une URL `ldap://` ou sans STARTTLS vers le SMTP ; tableau des liaisons dans `EXPLOITATION.md` §6 | Identique (contrôle éprouvé par test ; TLS réel vérifié sur le papier) |
+| P-16 (§7.4.2) | pgaudit | `deploiement/postgresql/pgaudit.conf.exemple`, `pgaudit-roles.sql` (postgres : tout, ged_owner : DDL / droits / écritures, ged_readonly : lectures, ged_app : rien), procédure et vérification `EXPLOITATION.md` §10 | Vérifié sur le papier (pgaudit absent du poste) |
+| P-10 | chiffrement du volume de la base | LUKS2 (aes-xts, argon2id) en prérequis d'installation, ouverture TPM ou Tang, séquestre des phrases, vérification : `EXPLOITATION.md` §11 | Vérifié sur le papier |
+| P-12 (A10) | revue SSRF | `docs/securite/REVUE-SSRF.md` (inventaire des 8 appels sortants, aucun client HTTP) ; `securite.AppelsSortantsTest` fige l'inventaire et interdit toute destination issue d'une requête ; filtrage systemd des sorties (`ged-backend.service.d/sorties.conf.exemple`, s'applique à LibreOffice et Tesseract) | Identique |
+| P-11 | modèle de menaces | `docs/securite/MODELE-DE-MENACES.md` : STRIDE par module (identité, autorisation, dépôt et stockage, recherche, cycle de vie, circuits, notifications, API, audit, exploitation, front) | Identique |
+| P-17 (§10.4) | plan de garantie | `docs/exploitation/GARANTIE.md` : expand / contract type avec retour arrière par étape, règles de changeset de données, déroulé UAT puis production, contournement sous 24 h par situation | Identique |
+| P-05 (§4.5, §12.1) | livrables de modélisation | `docs/modelisation/SCHEMA-BASE.md` généré depuis une base créée par Liquibase (42 tables, colonnes, contraintes, index, volumétrie à 5 ans §6.6, diagramme entité-association par groupe du §12.1) ; `CLASSES.md` (diagramme par module, généré depuis le code) ; `SEQUENCES.md` (dépôt en deux temps, OCR, recherche filtrée, délégation, archivage) ; scripts `outils/schema-base.mjs`, `outils/diagrammes-classes.mjs` | Identique |
+
+**Anomalies de recette corrigées** :
+- **ANO-E4-004** : `premier_numero` / `dernier_numero` du scellement calculés numériquement
+  (min / max). L'ordre des lignes dans la chaîne (identifiant en texte, colonne de sortie
+  `id::text`) est explicité (`ORDER BY 1`) et **conservé**, sinon les scellements déjà
+  produits ne se vérifieraient plus. Test : période de plus de 150 lignes
+  (`ScellementAuditTest.bornesNumeriques`).
+- **ANO-E1-005** : `preference_notification` (clé `id` UUID + `uk_preference_notification_utilisateur_id`)
+  et `journal_audit_scellement` (clé `id` UUID v7, la chaîne se suivant par période et non par
+  identifiant) alignés par `202610021000_alignement_cles_uuid.xml` avec retour arrière ; seule
+  exception déclarée dans `SchemaLiquibaseTest` : `journal_audit` (identifiant séquentiel exigé
+  par le §7.4.1). Le scellement en INSERT seul est migré par `ADD COLUMN … DEFAULT` (réécriture
+  sans UPDATE, aucun déclencheur contourné).
+
+**Aussi** : port du SMTP simulé des tests surchargeable (`GED_SMTP_PORT_TEST`, 3025 par
+défaut), documenté dans la règle 6 bis du brief :
+SMTP simulé dev1 3031, dev2 3032, dev3 3033, qa 3034, pm 3035. Noms de schémas OpenAPI
+homonymes désormais stables (tous préfixés quand le nom simple est ambigu), plus d'ordre
+d'apparition.
+
+**Fusion de `conformite-technique`** (a92c10d : T-040 et correctifs ANO-E7-001, ANO-E5-002
+de dev3, recette qa de la vague 4) : `POST /recherches` du contrat suit le canal du dépôt
+(critère `canal`, 400 hors des quatre valeurs ; colonne `canalDepot` avec ou sans plein
+texte ; `ContratApiTest.recherche`). Schéma et diagrammes de classes régénérés après fusion.
+Tests après fusion : `mvn test` **552 verts** (0 échec), `ng test` 18 verts, `ng build` vert.
+
+**Limites** : pgaudit, LUKS, filtrage systemd et TLS réel non exécutables sur le poste
+(vérifiés sur le papier) ; volumétrie estimée d'après les hypothèses du §6.6, à réévaluer sur
+l'échantillon réel.
+
+## Vague 4 — fusions E2/E3 (dev1) et E5-E7 (dev3), portée des clés et délégation, D4 : **acceptée** (439a08e)
 
 Fusions de `conformite-technique` : 4f41279 (E2, E3 de dev1) dans cbae4e4, puis e81ecc2
 (E5 à E7 de dev3). Références : matrice technique (MT) et fonctionnelle (MF), lignes

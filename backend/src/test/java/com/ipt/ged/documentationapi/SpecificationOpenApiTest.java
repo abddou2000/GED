@@ -240,17 +240,34 @@ class SpecificationOpenApiTest {
     static final class LotB { record Resultat(double pertinence) {} }
 
     @Test
-    @DisplayName("Homonymes : deux DTO de même nom simple ne sont jamais fusionnés en un schéma")
+    @DisplayName("Homonymes : deux DTO de même nom simple ne sont jamais fusionnés ; noms stables (tous préfixés)")
     void homonymesDistincts() {
         io.swagger.v3.core.converter.ModelConverters convertisseurs = new io.swagger.v3.core.converter.ModelConverters();
         convertisseurs.addConverter(new io.swagger.v3.core.jackson.ModelResolver(om, new NomsSchemasDistincts()));
         Map<String, io.swagger.v3.oas.models.media.Schema> a = convertisseurs.readAll(LotA.Resultat.class);
         Map<String, io.swagger.v3.oas.models.media.Schema> b = convertisseurs.readAll(LotB.Resultat.class);
-        assertThat(a).containsKey("Resultat");
+        assertThat(a).containsKey("LotAResultat");
         assertThat(b).containsKey("LotBResultat");
         assertThat(b.get("LotBResultat").getProperties()).containsKey("pertinence");
         // Les homonymes du modèle (Ref de chaque réponse) ont chacun leur schéma, décrit.
         assertThat(spec.get("components").get("schemas").get("DocumentResponseRef").get("description").asText())
                 .isNotBlank();
+    }
+
+    @Test
+    @DisplayName("Contrat §5.3.1 : chemins exacts documentés ; chemins historiques renvoyant au contrat")
+    void cheminsDuContrat() {
+        for (String[] op : new String[][]{{"post", "/api/v1/noeuds/{id}/dossiers"}, {"post", "/api/v1/documents"},
+                {"post", "/api/v1/recherches"}, {"get", "/api/v1/documents/{id}/contenu"},
+                {"post", "/api/v1/documents/{id}/versions"}, {"post", "/api/v1/documents/{id}/rattachements"},
+                {"delete", "/api/v1/documents/{id}/rattachements/{noeudId}"},
+                {"get", "/api/v1/documents/{id}/droits"}, {"get", "/api/v1/noeuds/{id}/droits"}}) {
+            assertThat(spec.get("paths").get(op[1])).as(op[1]).isNotNull();
+            assertThat(spec.get("paths").get(op[1]).get(op[0])).as(op[0] + " " + op[1]).isNotNull();
+        }
+        assertThat(noms(operation("POST", "/api/v1/noeuds/{id}/dossiers").get("parameters"), "$ref"))
+                .contains("#/components/parameters/IdempotencyKey", "#/components/parameters/XOnBehalfOf");
+        assertThat(operation("GET", "/api/v1/documents/{id}/download").get("description").asText())
+                .contains("/api/v1/documents/{id}/contenu");
     }
 }
