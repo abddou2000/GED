@@ -13,6 +13,8 @@
 #   --nettoyer           supprime (suppression douce) le document déposé en fin de test
 #   --junit FICHIER      écrit aussi un rapport JUnit XML (intégration continue)
 #   --delai-sante N      secondes d'attente maximale de la sonde de santé (défaut : 120)
+#   GED_URL_SANTE        URL du port de management interne portant /actuator/health (E10 :
+#                        GED_MANAGEMENT_PORT) ; défaut : l'URL de l'API
 # Identifiants : GED_RECETTE_IDENTIFIANT et GED_RECETTE_MOT_DE_PASSE (compte de test
 # dédié, jamais un compte nominatif), ou GED_RECETTE_JETON, ou GED_RECETTE_CLE_API.
 # Contrat d'API paramétrable : voir recette/lib/api.sh. GED_EXIGER_UUID=1 : l'identifiant
@@ -63,7 +65,11 @@ info "cible : $GED_URL — fichier : $(basename "$FICHIER") ($(wc -c < "$FICHIER
 # F01 — santé (la sonde peut mettre quelques secondes à passer UP après un redémarrage)
 fin=$(( $(date +%s) + DELAI_SANTE ))
 while :; do
-  api_appel GET /actuator/health
+  if [[ -n "${GED_URL_SANTE:-}" ]]; then  # sonde sur le port de management interne (DAT 6.7)
+    HTTP_CODE="$(curl -sS -o "$HTTP_CORPS" -w '%{http_code}' --max-time 10 "${GED_URL_SANTE%/}/actuator/health" 2>"$API_TMP/erreur")" || HTTP_CODE=000
+  else
+    api_appel GET /actuator/health
+  fi
   [[ "$HTTP_CODE" == 200 ]] && grep -q '"UP"' "$HTTP_CORPS" && break
   (( $(date +%s) >= fin )) && break
   sleep 3
