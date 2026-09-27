@@ -31,6 +31,16 @@ export interface DocumentItem {
   permissions?: string[] | null;
   /** Emplacements complémentaires visibles (fiche seulement). */
   rattachements?: Ref[] | null;
+  /** Socle commun (§12.7). */
+  objet?: string | null;
+  dateDocument?: string | null;
+  metadonnees?: Record<string, unknown>;
+  /** Conservation (§12.6, §12.9). */
+  statutConservation?: 'ACTIF' | 'ARCHIVE';
+  echeanceConservation?: string | null;
+  /** Verrou (§12.8). */
+  verrouMotif?: string | null;
+  verrouLe?: string | null;
 }
 
 export type Confidentialite = 'PUBLIC' | 'PRIVE' | 'CONFIDENTIEL';
@@ -57,6 +67,9 @@ export interface Version {
   principale: boolean;
   sizeLabel: string;
   createdAt: string;
+  /** Numéro de versement (1, 2, …) et empreinte SHA-256 (§12.8). */
+  numero?: number;
+  empreinte?: string | null;
 }
 
 /** Corps envoye pour modifier la fiche d'un document. */
@@ -67,6 +80,8 @@ export interface DocumentRequest {
   active?: boolean;
   etiquetteIds?: string[];
   confidentialite?: Confidentialite;
+  objet?: string | null;
+  dateDocument?: string | null;
 }
 
 export interface PageResult<T> {

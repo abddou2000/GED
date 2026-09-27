@@ -108,9 +108,11 @@ export class DocumentService {
     return this.http.put<DocumentItem>(`${this.url}/${id}`, body);
   }
 
-  /** Verrouille ou libere le document. */
-  verrou(id: string, verrouille: boolean): Observable<DocumentItem> {
-    return this.http.patch<DocumentItem>(`${this.url}/${id}/verrou`, {}, { params: { verrouille } });
+  /** Verrouille (avec un motif) ou libère le document — réservé à l'Administrateur (§12.8). */
+  verrou(id: string, verrouille: boolean, motif?: string | null): Observable<DocumentItem> {
+    const params: Record<string, string | boolean> = { verrouille };
+    if (motif) params['motif'] = motif;
+    return this.http.patch<DocumentItem>(`${this.url}/${id}/verrou`, {}, { params });
   }
 
   /** Depose une nouvelle version : l'ancienne reste consultable. */

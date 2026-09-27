@@ -13,7 +13,24 @@ export interface TypeDocument {
   planIndexation: Ref | null;
   typeAutorise: string[];
   tailleMaxMo: number;
+  /** Conservation (§12.9) : durée en mois, point de départ. */
+  dureeConservationMois?: number | null;
+  pointDepart?: PointDepart;
+  pointDepartIndexCode?: string | null;
+  confidentialiteDefaut?: string;
+  /** Un type utilisé ne se supprime pas, il se désactive (§12.7). */
+  actif?: boolean;
+  /** Version en vigueur du plan d'indexation. */
+  versionPlan?: number | null;
 }
+
+export type PointDepart = 'DATE_DOCUMENT' | 'DATE_DEPOT' | 'METADONNEE';
+
+export const POINTS_DEPART: { valeur: PointDepart; libelle: string }[] = [
+  { valeur: 'DATE_DOCUMENT', libelle: 'Date du document' },
+  { valeur: 'DATE_DEPOT', libelle: 'Date de dépôt' },
+  { valeur: 'METADONNEE', libelle: 'Une date du plan d\'indexation' },
+];
 
 /** Corps envoyé pour créer / modifier un type de document. */
 export interface TypeDocumentRequest {
@@ -24,6 +41,10 @@ export interface TypeDocumentRequest {
   planIndexationId?: string | null;
   typeAutorise: string[];
   tailleMaxMo: number;
+  dureeConservationMois?: number | null;
+  pointDepart?: PointDepart;
+  pointDepartIndexCode?: string | null;
+  confidentialiteDefaut?: string | null;
 }
 
 export interface PageResult<T> {

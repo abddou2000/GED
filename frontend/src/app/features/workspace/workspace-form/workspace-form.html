@@ -65,6 +65,18 @@
         </mat-form-field>
       }
 
+      <!-- Usage d'un ESPACE (R-03, D12) : dans un espace d'échange, les membres
+           habilités créent librement dossiers et sous-dossiers. -->
+      @if (!form.get('parentId')?.value) {
+        <mat-form-field appearance="outline">
+          <mat-label>Usage de l'espace</mat-label>
+          <mat-select formControlName="usageEspace">
+            <mat-option value="METIER">Métier</mat-option>
+            <mat-option value="ECHANGE">Échange (partage simple)</mat-option>
+          </mat-select>
+        </mat-form-field>
+      }
+
       <mat-form-field appearance="outline">
         <mat-label>Statut</mat-label>
         <mat-select formControlName="status">

@@ -18,6 +18,12 @@ export interface WorkSpace {
   childrenCount: number;
   /** Groupes d'accès couvrant le dossier — utilisateurs rattachés à ce dossier. */
   accessGroups?: Ref[];
+  /** ESPACE ou DOSSIER. */
+  nature?: string;
+  /** METIER ou ECHANGE (R-03, D12) ; celui de l'espace pour un dossier. */
+  usageEspace?: 'METIER' | 'ECHANGE';
+  /** Drapeau d'archivage du nœud (D10). */
+  statutConservation?: 'ACTIF' | 'ARCHIVE';
 }
 
 /** Corps envoyé pour créer / modifier un dossier. */
@@ -29,6 +35,8 @@ export interface WorkSpaceRequest {
   employeId: string;
   parentId?: string | null;
   workflowId: string;
+  /** Usage d'un espace (ignoré pour un dossier). */
+  usageEspace?: 'METIER' | 'ECHANGE';
 }
 
 /** Nœud de l'arborescence (vue Arbre). */

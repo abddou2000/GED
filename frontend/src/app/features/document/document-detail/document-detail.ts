@@ -1,3 +1,4 @@
+import { AuthService } from '../../../core/auth.service';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -55,6 +56,7 @@ export class DocumentDetail implements OnInit {
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
 
+  protected auth = inject(AuthService);
   id = signal<string | null>(null);
   doc = signal<DocumentItem | null>(null);
   etiquettes = signal<Etiquette[]>([]);
@@ -176,7 +178,10 @@ export class DocumentDetail implements OnInit {
     const id = this.id();
     const d = this.doc();
     if (id == null || !d) return;
-    this.service.verrou(id, !d.verrouille).subscribe({
+    // Le motif du verrou est conservé et affiché (§12.8).
+    const motif = d.verrouille ? null : window.prompt('Motif du verrou :', '');
+    if (!d.verrouille && motif === null) return;
+    this.service.verrou(id, !d.verrouille, motif).subscribe({
       next: maj => {
         this.doc.set(maj);
         this.appliquerVerrou(!this.modifiable);

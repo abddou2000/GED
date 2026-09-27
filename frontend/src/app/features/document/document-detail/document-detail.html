@@ -12,7 +12,8 @@
         <button mat-stroked-button (click)="telecharger()" [disabled]="telechargementEnCours()">
           <mat-icon svgIcon="download"></mat-icon> Télécharger
         </button>
-        @if (peut('MODIFIER')) {
+        <!-- Verrou : posé et levé par l'Administrateur (§12.8). -->
+        @if (auth.peut('GERER_ROLES_HABILITATIONS')) {
           <button mat-stroked-button (click)="basculerVerrou()"
                   [matTooltip]="d.verrouille ? 'Autoriser à nouveau les modifications' : 'Empêcher toute modification'">
             <mat-icon svgIcon="archive"></mat-icon>
@@ -38,7 +39,8 @@
     @if (d.verrouille) {
       <div class="bandeau-verrou">
         <mat-icon svgIcon="archive"></mat-icon>
-        <span>Document verrouillé — ni modification ni nouvelle version tant que le verrou tient.</span>
+        <span>Document verrouillé — ni modification ni nouvelle version tant que le verrou tient.
+          @if (d.verrouMotif) { Motif : {{ d.verrouMotif }}. }</span>
       </div>
     }
 
@@ -52,6 +54,16 @@
         <div class="cartouche"><span class="val">{{ d.createdBy || '—' }}</span><span class="lib">Créateur</span></div>
         <div class="cartouche"><span class="val">{{ dateCourte(d.createdAt) }}</span><span class="lib">Déposé le</span></div>
         <div class="cartouche"><span class="val">{{ d.confidentialite || 'PUBLIC' }}</span><span class="lib">Confidentialité</span></div>
+        @if (d.objet) {
+          <div class="cartouche"><span class="val">{{ d.objet }}</span><span class="lib">Objet</span></div>
+        }
+        <div class="cartouche"><span class="val">{{ d.dateDocument || '—' }}</span><span class="lib">Date du document</span></div>
+        @if (d.echeanceConservation) {
+          <div class="cartouche"><span class="val">{{ d.echeanceConservation }}</span><span class="lib">Échéance de conservation</span></div>
+        }
+        @if (d.statutConservation === 'ARCHIVE') {
+          <div class="cartouche"><span class="val">Archivé</span><span class="lib">Lecture seule</span></div>
+        }
         @if (d.rattachements?.length) {
           <div class="cartouche">
             <span class="val">@for (r of d.rattachements; track r.id) { {{ r.label }}@if (!$last) {, } }</span>
@@ -185,6 +197,7 @@
           <ng-container matColumnDef="fichier">
             <th mat-header-cell *matHeaderCellDef>Fichier</th>
             <td mat-cell *matCellDef="let v">
+              @if (v.numero) { <span class="muted">v{{ v.numero }}</span> }
               {{ v.fileName }}
               @if (v.principale) { <span class="courante">courante</span> }
             </td>
