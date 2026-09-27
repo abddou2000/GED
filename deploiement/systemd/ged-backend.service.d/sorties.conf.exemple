@@ -1,0 +1,29 @@
+# ============================================================
+#  Filtrage des connexions SORTANTES du service GED (P-12, OWASP A10)
+#  À installer en /etc/systemd/system/ged-backend.service.d/sorties.conf
+#  puis : systemctl daemon-reload && systemctl restart ged-backend
+#
+#  La GED n'appelle aucune URL fournie par un utilisateur (docs/securite/
+#  REVUE-SSRF.md). Ce filtre est la défense en profondeur : même un appel
+#  imprévu — par exemple une ressource externe référencée dans un document
+#  Office converti par LibreOffice, processus enfant du service — ne peut
+#  joindre que les destinations d'exploitation listées ici.
+#
+#  Remplacer les adresses par celles de l'environnement (une ligne par
+#  destination, adresse ou réseau CIDR). Les connexions ENTRANTES (NGINX vers
+#  8080, Prometheus vers 8081) sont des réponses : elles restent possibles.
+# ============================================================
+[Service]
+IPAddressDeny=any
+# Boucle locale (clamd local, sondes, JVM).
+IPAddressAllow=localhost
+# PostgreSQL (DB_HOST)
+IPAddressAllow=10.0.10.20
+# Contrôleurs de domaine (GED_LDAP_URLS, LDAPS 636)
+IPAddressAllow=10.0.1.10
+# Relais SMTP de MMED (GED_SMTP_HOTE)
+IPAddressAllow=10.0.1.25
+# Réseau de supervision (Prometheus, qui interroge le port de management)
+IPAddressAllow=10.0.20.0/24
+# NGINX (répartiteur) : réponses aux requêtes entrantes
+IPAddressAllow=10.0.30.10

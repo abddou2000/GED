@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610021000_alignement_cles_uuid.xml">
+
+    <!--
+        ANO-E1-005 (recette qa) : clé primaire « id » UUID sur toute table
+        (conventions §4.2.2, §12.1 « Les clés primaires sont des UUID »).
+
+        Seul journal_audit garde un identifiant séquentiel : le §7.4.1 l'exige
+        (« id, horodatage : identifiant séquentiel »). Le scellement, lui, n'a
+        pas besoin d'un numéro : la chaîne se suit par période (periode_debut),
+        jamais par identifiant ; il reçoit donc un UUID v7.
+
+        journal_audit_scellement est en INSERT seul (déclencheur BEFORE UPDATE /
+        DELETE / TRUNCATE) : la nouvelle colonne est remplie par un ADD COLUMN
+        avec valeur par défaut (réécriture de la table, sans UPDATE, donc sans
+        déclencheur) ; aucune ligne existante n'est modifiée autrement.
+    -->
+    <changeSet id="202610021000-1" author="ged">
+        <comment>preference_notification : clé id UUID, unicité sur utilisateur_id.</comment>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.preference_notification
+                 ADD COLUMN id uuid NOT NULL DEFAULT ${database.defaultSchemaName}.uuid_v7()</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.preference_notification DROP CONSTRAINT pk_preference_notification</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.preference_notification ALTER COLUMN id DROP DEFAULT</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.preference_notification ADD CONSTRAINT pk_preference_notification PRIMARY KEY (id)</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.preference_notification
+                 ADD CONSTRAINT uk_preference_notification_utilisateur_id UNIQUE (utilisateur_id)</sql>
+        <rollback>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.preference_notification DROP CONSTRAINT uk_preference_notification_utilisateur_id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.preference_notification DROP CONSTRAINT pk_preference_notification</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.preference_notification DROP COLUMN id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.preference_notification ADD CONSTRAINT pk_preference_notification PRIMARY KEY (utilisateur_id)</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202610021000-2" author="ged">
+        <comment>journal_audit_scellement : clé id UUID v7 à la place de l'identité bigint.</comment>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.journal_audit_scellement
+                 ADD COLUMN id_uuid uuid NOT NULL DEFAULT ${database.defaultSchemaName}.uuid_v7()</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.journal_audit_scellement DROP CONSTRAINT pk_journal_audit_scellement</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.journal_audit_scellement DROP COLUMN id</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.journal_audit_scellement RENAME COLUMN id_uuid TO id</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.journal_audit_scellement ADD CONSTRAINT pk_journal_audit_scellement PRIMARY KEY (id)</sql>
+        <rollback>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.journal_audit_scellement
+                     ADD COLUMN id_seq bigint GENERATED ALWAYS AS IDENTITY</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.journal_audit_scellement DROP CONSTRAINT pk_journal_audit_scellement</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.journal_audit_scellement DROP COLUMN id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.journal_audit_scellement RENAME COLUMN id_seq TO id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.journal_audit_scellement ADD CONSTRAINT pk_journal_audit_scellement PRIMARY KEY (id)</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

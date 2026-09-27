@@ -1,5 +1,6 @@
 package com.ipt.ged.notification;
 
+import com.ipt.ged.common.IdentifiantUuid;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -23,7 +24,11 @@ import java.util.UUID;
 public class PreferenceNotification {
 
     @Id
-    @Column(name = "utilisateur_id")
+    @IdentifiantUuid
+    private UUID id;
+
+    /** Une préférence par utilisateur (uk_preference_notification_utilisateur_id). */
+    @Column(name = "utilisateur_id", nullable = false, unique = true)
     private UUID utilisateurId;
 
     @Column(name = "courriel_actif", nullable = false)
