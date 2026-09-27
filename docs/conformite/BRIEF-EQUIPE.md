@@ -45,9 +45,43 @@ leurs lots (il n'y a pas de développeur front dans l'équipe).
 5. **Pas de Docker** sur ce poste : pas de Testcontainers. Les tests d'intégration visent
    la base PostgreSQL locale propre à chaque membre (profil `test`, URL surchargeable par
    variable d'environnement).
-6. **Ports** : ne jamais démarrer l'application sur 8080 ni 4301 (l'utilisateur les utilise).
-   Si un démarrage est indispensable, utiliser 18081 (dev1), 18082 (dev2), 18083 (dev3),
-   18084 (qa), et arrêter le processus ensuite.
+6. **Ports** : ne jamais démarrer l'application sur 8080, 8081 ni 4301, ni utiliser le port
+   d'annuaire 33389 ni la base `ged_demo` : ils servent à l'instance de tests manuels de
+   l'utilisateur, lancée depuis `C:\Users\abdou\ged-app` (ne jamais l'arrêter). Si un
+   démarrage est indispensable, utiliser 18081 (dev1), 18082 (dev2), 18083 (dev3),
+   18084 (qa), 18085 (pm), et arrêter le processus ensuite.
+6 bis. **Tests en parallèle** : les suites de plusieurs membres tournent en même temps sur le
+   même poste. Sans réglage, elles se bloquent : même port d'annuaire simulé (33390) et
+   saturation de PostgreSQL (`max_connections` = 100, un pool par contexte Spring gardé en
+   cache). Pour **toute** exécution de `mvn test`, exporter :
+
+   | Membre | `GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT` | `GED_IDENTITE_ANNUAIRE_URLS` |
+   |---|---|---|
+   | dev1 | 33391 | `ldap://localhost:33391` |
+   | dev2 | 33392 | `ldap://localhost:33392` |
+   | dev3 | 33393 | `ldap://localhost:33393` |
+   | qa | 33394 | `ldap://localhost:33394` |
+   | pm | 33395 | `ldap://localhost:33395` |
+   | instance manuelle de l'utilisateur | 33389 (ne pas utiliser) | — |
+
+   et `SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE=3`. Exemple (dev2, Git Bash) :
+   `DB_NAME=ged_dev2 GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT=33392 GED_IDENTITE_ANNUAIRE_URLS=ldap://localhost:33392 SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE=3 mvn -q test`.
+
+   Ces noms sont les **seuls à utiliser**. Spring les rattache d'office (liaison souple des
+   variables d'environnement) aux propriétés `ged.identite.annuaire.embarque.port`,
+   `ged.identite.annuaire.urls` et `spring.datasource.hikari.maximum-pool-size`, et une
+   variable d'environnement l'emporte sur `application-test.yml`. Aucune modification de la
+   configuration de test n'est donc nécessaire ; vérifié par pm (annuaire embarqué à l'écoute
+   sur 33395, suite complète verte). La variable `GED_TEST_ANNUAIRE_PORT` introduite par dev1
+   sur sa branche est inutile : ne pas l'utiliser, et la retirer au profit de ces deux noms
+   quand elle sera intégrée.
+
+   Limites connues :
+   - le SMTP simulé des tests de notification (GreenMail) écoute sur le port **3025, fixé
+     dans le code** (`ServerSetupTest.SMTP` dans `NotificationsTest`) : deux suites qui
+     l'exécutent en même temps se gênent tant que ce port n'est pas rendu paramétrable ;
+   - une erreur « remaining connection slots are reserved » signale une saturation de
+     PostgreSQL par les suites des autres membres : relancer, sans modifier le code.
 7. **Front** : `node_modules` n'existe que dans `C:\Users\abdou\ged-app\frontend`. Dans une
    copie de travail, créer une jonction avant de compiler :
    `cmd /c mklink /J frontend\node_modules C:\Users\abdou\ged-app\frontend\node_modules`
