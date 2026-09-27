@@ -101,8 +101,18 @@ public class ConfigurationChaineOcr {
     @ConditionalOnProperty(prefix = "ged.ocr.chaine", name = "actif", havingValue = "true")
     static class Activee {
 
+        /**
+         * File OCR pour la supervision. Après fusion du lot exploitation (dev2),
+         * {@link FileOcrSupervisee} implémente {@code FileDeTraitement} et ce bean
+         * suffit à l'inscrire dans la sonde {@code filesTraitement}.
+         */
         @Bean
-        public MetriquesOcr metriquesOcr(MeterRegistry registre, OcrJobQueue file, ProprietesChaineOcr p) {
+        public FileOcrSupervisee fileOcrSupervisee(OcrJobQueue file) {
+            return new FileOcrSupervisee(file, Clock.systemUTC());
+        }
+
+        @Bean
+        public MetriquesOcr metriquesOcr(MeterRegistry registre, FileOcrSupervisee file, ProprietesChaineOcr p) {
             return new MetriquesOcr(registre, file, p.getObjectifDisponibilite(), Clock.systemUTC());
         }
 

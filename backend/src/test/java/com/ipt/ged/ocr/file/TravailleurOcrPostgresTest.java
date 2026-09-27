@@ -81,7 +81,7 @@ class TravailleurOcrPostgresTest {
         file = new OcrJobQueuePostgres(jdbc, PolitiqueReprise.PAR_DEFAUT);
         indexer = new SearchIndexerPostgres(jdbc, new PredicatDroitsProvisoire());
         registre = new SimpleMeterRegistry();
-        metriques = new MetriquesOcr(registre, file, Duration.ofHours(24), Clock.systemUTC());
+        metriques = new MetriquesOcr(registre, new FileOcrSupervisee(file, Clock.systemUTC()), Duration.ofHours(24), Clock.systemUTC());
         tx = new TransactionTemplate(new DataSourceTransactionManager(base.source()));
     }
 
@@ -126,11 +126,11 @@ class TravailleurOcrPostgresTest {
         OcrJob j = file.trouver(d.job()).orElseThrow();
         assertEquals(StatutOcr.OCR_TERMINE, j.statut());
         assertEquals(1, j.nbPages());
-        assertEquals(1, registre.get("ocr_delai_disponibilite").timer().count());
-        double secondes = registre.get("ocr_delai_disponibilite").timer().totalTime(TimeUnit.SECONDS);
+        assertEquals(1, registre.get("ged.ocr.delai.disponibilite").timer().count());
+        double secondes = registre.get("ged.ocr.delai.disponibilite").timer().totalTime(TimeUnit.SECONDS);
         assertTrue(secondes >= 89 && secondes < 200, "délai mesuré depuis le dépôt : " + secondes);
-        assertEquals(0.0, registre.get("ocr_delai_objectif_depasse").counter().count());
-        assertEquals(86400.0, registre.get("ocr_delai_disponibilite_objectif_secondes").gauge().value());
+        assertEquals(0.0, registre.get("ged.ocr.delai.objectif.depasse").counter().count());
+        assertEquals(86400.0, registre.get("ged.ocr.objectif.disponibilite").gauge().value());
     }
 
     @Test
@@ -150,11 +150,11 @@ class TravailleurOcrPostgresTest {
     void objectifDepasse() {
         deposer("vieux courrier".getBytes(StandardCharsets.UTF_8), "text/plain", Instant.now().minus(Duration.ofHours(30)));
         deposer("courrier récent".getBytes(StandardCharsets.UTF_8), "text/plain", Instant.now());
-        assertEquals(2.0, registre.get("ocr_file_profondeur").gauge().value());
-        assertTrue(registre.get("ocr_file_age_plus_ancien_secondes").gauge().value() >= 30 * 3600 - 5);
+        assertEquals(2.0, registre.get("ged.file.profondeur").tag("file", "ocr").gauge().value());
+        assertTrue(registre.get("ged.file.age.plus.ancien").tag("file", "ocr").gauge().value() >= 30 * 3600 - 5);
         travailleur("w1", moteur).traiterUn(); // le plus ancien d'abord
-        assertEquals(1.0, registre.get("ocr_delai_objectif_depasse").counter().count());
-        assertEquals(1.0, registre.get("ocr_file_profondeur").gauge().value());
+        assertEquals(1.0, registre.get("ged.ocr.delai.objectif.depasse").counter().count());
+        assertEquals(1.0, registre.get("ged.file.profondeur").tag("file", "ocr").gauge().value());
     }
 
     @Test
@@ -173,7 +173,7 @@ class TravailleurOcrPostgresTest {
         OcrJob j = file.trouver(image.job()).orElseThrow();
         assertEquals(StatutOcr.EN_ATTENTE_OCR, j.statut());
         assertTrue(j.motifEchec().startsWith("MOTEUR_INDISPONIBLE"));
-        assertEquals(1.0, registre.get("ocr_jobs").tag("issue", "reprise").counter().count());
+        assertEquals(1.0, registre.get("ged.ocr.jobs").tag("issue", "reprise").counter().count());
 
         Depot zip = deposer(new byte[]{1}, "application/zip", Instant.now());
         travailleur("w1", moteur).traiterUn();
@@ -181,7 +181,7 @@ class TravailleurOcrPostgresTest {
         assertEquals(StatutOcr.OCR_ECHEC, z.statut());
         assertTrue(z.motifEchec().startsWith("FORMAT_NON_SUPPORTE"), z.motifEchec());
         assertTrue(indexer.versionsIndexees(java.util.List.of(zip.version())).isEmpty());
-        assertEquals(1.0, registre.get("ocr_jobs").tag("issue", "echec").counter().count());
+        assertEquals(1.0, registre.get("ged.ocr.jobs").tag("issue", "echec").counter().count());
     }
 
     @Test

@@ -111,6 +111,16 @@ public class ConfigurationFichiers {
                 a.getTailleBlocOctets());
     }
 
+    /*
+     * Sonde de santé « antivirus » du lot exploitation (dev2) : à la fusion de
+     * ce lot, déclarer ici
+     *
+     *   @Bean VerificationAntivirus verificationAntivirus(AnalyseurAntivirus a) { return a::disponible; }
+     *
+     * pour que la sonde teste exactement le client du dépôt (zPING sur le même
+     * hôte, port et délai). AnalyseurAntivirus.disponible() est prêt et testé.
+     */
+
     @Bean
     public ControleFichiers controleFichiers(DetecteurTypeReel detecteur, AnalyseurAntivirus antivirus,
                                              StockageChiffre stockage, ApplicationEventPublisher evenements,

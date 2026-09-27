@@ -3,6 +3,7 @@ package com.ipt.ged.ocr.file;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,26 +13,25 @@ import java.time.Duration;
 import java.time.Instant;
 
 /**
- * Métriques de la chaîne OCR (§4.3.4, §6.7), exposées par Micrometer :
+ * Métriques de la chaîne OCR (§4.3.4, §6.7), aux noms convenus avec le lot
+ * exploitation (dev2 : histogramme, seuils et alertes Prometheus) :
  *
  * <ul>
- *   <li>{@code ocr_delai_disponibilite} (timer) : délai constaté entre le dépôt
- *       d'une version et sa disponibilité en recherche, avec la borne
- *       d'objectif comme seuil d'histogramme (part des documents dans
- *       l'objectif) et le 95e centile ;</li>
- *   <li>{@code ocr_delai_disponibilite_objectif_secondes} (jauge) : l'objectif
- *       configuré — <b>24 h</b> (décision D6 de la revue, au lieu des 5 min
- *       du dossier V3), pour que la règle d'alerte le lise au lieu de le recopier ;</li>
- *   <li>{@code ocr_delai_objectif_depasse_total} (compteur) : documents rendus
+ *   <li>{@code ged.ocr.delai.disponibilite} (timer) : délai entre le dépôt
+ *       d'une version et sa disponibilité en recherche ; objectif
+ *       {@code GED_OCR_OBJECTIF_DISPONIBILITE}, <b>24 h</b> par défaut (décision
+ *       D6 de la revue, au lieu des 5 min du dossier V3) ;</li>
+ *   <li>{@code ged.ocr.delai.objectif.depasse} (compteur) : documents rendus
  *       interrogeables au-delà de l'objectif ;</li>
- *   <li>{@code ocr_file_profondeur} (jauge) : jobs en attente ou en cours ;</li>
- *   <li>{@code ocr_file_age_plus_ancien_secondes} (jauge) : ancienneté du plus
- *       vieux dépôt non traité — alerte <i>avant</i> que l'objectif soit
- *       dépassé ;</li>
- *   <li>{@code ocr_jobs_total{issue=termine|reprise|echec}} (compteur).</li>
+ *   <li>{@code ged.ocr.jobs{issue=termine|reprise|echec}} (compteur).</li>
  * </ul>
- * Les jauges interrogent la base à chaque collecte : elles ne sont
- * enregistrées que si la chaîne est active (la table doit exister).
+ *
+ * <p><b>En attendant la fusion du lot exploitation</b>, cette classe publie
+ * aussi, sous les noms que ce lot utilisera, la profondeur et l'âge de la file
+ * ({@code ged.file.profondeur{file="ocr"}}, {@code ged.file.age.plus.ancien})
+ * et l'objectif ({@code ged.ocr.objectif.disponibilite}). Après la fusion, ces
+ * trois jauges sont retirées d'ici : {@link FileOcrSupervisee} implémente
+ * {@code FileDeTraitement} et le lot exploitation les publie.
  */
 public class MetriquesOcr {
 
@@ -45,40 +45,43 @@ public class MetriquesOcr {
     private final Counter reprises;
     private final Counter echecs;
 
-    public MetriquesOcr(MeterRegistry registre, OcrJobQueue file, Duration objectif, Clock horloge) {
+    public MetriquesOcr(MeterRegistry registre, FileOcrSupervisee file, Duration objectif, Clock horloge) {
         this.objectif = objectif;
         this.horloge = horloge;
-        this.delai = Timer.builder("ocr_delai_disponibilite")
+        this.delai = Timer.builder("ged.ocr.delai.disponibilite")
                 .description("Délai entre le dépôt d'une version et sa disponibilité en recherche plein texte")
                 .serviceLevelObjectives(objectif)
                 .publishPercentiles(0.95)
-                .publishPercentileHistogram(false)
                 .maximumExpectedValue(objectif.multipliedBy(4))
                 .register(registre);
-        this.depassements = Counter.builder("ocr_delai_objectif_depasse")
+        this.depassements = Counter.builder("ged.ocr.delai.objectif.depasse")
                 .description("Documents rendus interrogeables au-delà de l'objectif de délai")
                 .register(registre);
         this.termines = compteur(registre, "termine");
         this.reprises = compteur(registre, "reprise");
         this.echecs = compteur(registre, "echec");
-        Gauge.builder("ocr_delai_disponibilite_objectif_secondes", () -> objectif.toSeconds())
+        // Jauges provisoires (voir la note de classe).
+        Gauge.builder("ged.ocr.objectif.disponibilite", objectif, d -> d.toMillis() / 1000.0)
+                .baseUnit("seconds")
                 .description("Objectif de délai dépôt → recherche (décision D6 : 24 h)")
                 .register(registre);
         if (file != null) {
-            Gauge.builder("ocr_file_profondeur", file, f -> f.profondeur())
-                    .description("Jobs OCR en attente ou en cours")
+            Tags tags = Tags.of("file", file.nom());
+            Gauge.builder("ged.file.profondeur", file, FileOcrSupervisee::profondeur)
+                    .tags(tags)
+                    .description("Traitements en attente ou en cours")
                     .register(registre);
-            Gauge.builder("ocr_file_age_plus_ancien_secondes", file,
-                            f -> f.plusAncienDepotEnAttente()
-                                    .map(t -> (double) Duration.between(t, horloge.instant()).toSeconds())
-                                    .orElse(0.0))
-                    .description("Ancienneté du plus ancien dépôt pas encore interrogeable")
+            Gauge.builder("ged.file.age.plus.ancien", file,
+                            f -> f.ageDuPlusAncien().map(d -> d.toMillis() / 1000.0).orElse(0.0))
+                    .tags(tags)
+                    .baseUnit("seconds")
+                    .description("Ancienneté du plus ancien traitement en attente")
                     .register(registre);
         }
     }
 
     private static Counter compteur(MeterRegistry registre, String issue) {
-        return Counter.builder("ocr_jobs").tag("issue", issue)
+        return Counter.builder("ged.ocr.jobs").tag("issue", issue)
                 .description("Issues des exécutions de jobs OCR").register(registre);
     }
 

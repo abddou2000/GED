@@ -278,13 +278,22 @@ indispensable.
   `socle-e1` avec des lots postérieurs. Ce test laissait aussi un schéma jetable par exécution
   (DROP non validé : Liquibase coupe l'autocommit) : corrigé.
 
-### Métriques (Micrometer)
+### Métriques (Micrometer) et supervision (lot exploitation, dev2)
 
-`ocr_delai_disponibilite` (timer, seuil d'histogramme à l'objectif, 95e centile),
-`ocr_delai_disponibilite_objectif_secondes` (86 400), `ocr_delai_objectif_depasse` (compteur),
-`ocr_file_profondeur`, `ocr_file_age_plus_ancien_secondes`, `ocr_jobs{issue}`. Règle d'alerte
-proposée à dev2 : `ocr_file_age_plus_ancien_secondes > 0.8 * ocr_delai_disponibilite_objectif_secondes`.
-Exposition : l'actuator ne publie aujourd'hui que `health` (dev2).
+Noms convenus avec dev2 : timer **`ged.ocr.delai.disponibilite`** (objectif
+`GED_OCR_OBJECTIF_DISPONIBILITE`, 24 h par défaut ; 95e centile, seuil à l'objectif ;
+histogramme et seuils 5m/1h/6h/24h posés par la configuration de dev2),
+`ged.ocr.delai.objectif.depasse`, `ged.ocr.jobs{issue}`.
+
+Adaptateurs prêts, à terminer au prochain `git merge conformite-technique` (branche de dev2
+pas encore intégrée) :
+- `FileOcrSupervisee` (nom `ocr`, `profondeur()`, `ageDuPlusAncien()`) : ajouter
+  `implements FileDeTraitement` ; retirer alors de `MetriquesOcr` les jauges provisoires
+  `ged.file.profondeur{file="ocr"}`, `ged.file.age.plus.ancien{file="ocr"}` et
+  `ged.ocr.objectif.disponibilite`, publiées d'ici en attendant sous les noms de dev2.
+- Sonde antivirus : déclarer dans `ConfigurationFichiers`
+  `@Bean VerificationAntivirus verificationAntivirus(AnalyseurAntivirus a) { return a::disponible; }`
+  (commentaire en place ; `ClientClamd.disponible()` fait un `zPING`, testé).
 
 ### Plan de branchement E6 (vague 2, avec E5)
 
@@ -320,7 +329,7 @@ interrogeable, métriques, objectif 24 h dépassé, échecs, bail perdu → rien
 workers), extraction (10, moteur simulé : PDF mixte, seuil, 40 pages, TIFF, natifs, motifs),
 Tesseract réel (7 : arabe, bilingue, PDF scanné, délai, langue), recherche (15 : normalisation,
 français, arabe, mixte, websearch, pertinence et pagination, extraits, droits, réindexations,
-800 pages). Suite complète : **307 tests, 0 échec** (`DB_NAME=ged_dev3 mvn test`).
+800 pages). Suite complète : **308 tests, 0 échec** (`DB_NAME=ged_dev3 mvn test`).
 
 ### Vérifié partiellement
 
@@ -330,6 +339,16 @@ français, arabe, mixte, websearch, pertinence et pagination, extraits, droits, 
 - **Débit et 24 h** : aucun essai de charge (800 pages scannées réelles) ; délai mesuré sur des
   dépôts simulés.
 - **Métriques** : vérifiées dans un `SimpleMeterRegistry`, pas dans Prometheus.
+
+### Anomalies traitées
+
+- **ANO-E5-001** (qa, sécurité) : keystore du profil dev créé en `./data/cles`, relatif au
+  répertoire de lancement, donc versionnable depuis la racine du dépôt. Défaut dev déplacé hors
+  du dépôt (`${user.home}/.ged-dev/cles/ged-kek.p12`), `.gitignore` défensif (`**/data/cles/`,
+  `*.p12`, `*.pfx`, `*.jks`), test de non-régression. Aucun `.p12` n'a jamais été versionné.
+- **`ara.traineddata` absent** (qa) : ajouté au commit `48cc65c` de `ct/dev3` (tessdata_best
+  officiel, SHA-256 `ab9d157d…5896`) ; il arrivera dans `conformite-technique` avec l'intégration
+  d'E6.
 
 ### Points bloquants
 

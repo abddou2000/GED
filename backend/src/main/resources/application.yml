@@ -176,7 +176,7 @@ ged:
       delais-reprise: 1m,5m,30m        # 3 reprises, puis OCR_ECHEC
       dpi: 300
       seuil-caracteres-par-page: 25    # sous ce seuil, la page PDF passe à l'OCR
-      objectif-disponibilite: 24h      # décision D6 (dossier V3 : 5 min)
+      objectif-disponibilite: ${GED_OCR_OBJECTIF_DISPONIBILITE:24h}  # décision D6 (dossier V3 : 5 min)
       langue-defaut: fra+ara
       langues-par-type: {}             # ex. TD-FACT: fra
       reindexation-lot: 500
