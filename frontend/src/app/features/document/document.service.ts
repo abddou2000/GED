@@ -153,7 +153,7 @@ export class DocumentService {
    * POURQUOI : les écrans ouvraient auparavant `downloadUrl()` dans un onglet
    * (`window.open`). Une navigation de ce type ne passe pas par `HttpClient`,
    * donc pas par les intercepteurs : aucun en-tête `Authorization` n'était
-   * posé. Le jeton vivant dans `sessionStorage` (et non dans un cookie envoyé
+   * posé. Le jeton vivant en mémoire (et non dans un cookie envoyé
    * d'office par le navigateur), le serveur répondait 401 et l'onglet restait
    * blanc, sans le moindre message. En mode démonstration c'était pire encore :
    * l'intercepteur qui simule le serveur était contourné lui aussi, et l'onglet

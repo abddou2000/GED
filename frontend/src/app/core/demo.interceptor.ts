@@ -71,6 +71,22 @@ export function demoInterceptor(
   };
 
   /**
+   * Connexion et renouvellement : identité de démonstration (Administrateur),
+   * jeton factice gardé en mémoire comme un vrai. Aucun mot de passe n'est
+   * vérifié : il n'y a pas d'annuaire derrière le mode démonstration.
+   */
+  if (req.method === 'POST' && /\/auth\/(login|refresh)$/.test(req.url.split('?')[0])) {
+    return ok({
+      token: 'demo', tokenType: 'Bearer', expiresIn: 900,
+      utilisateur: {
+        id: '01920000-0000-7000-8000-0000000000aa', identifiant: 'sbennani',
+        employeId: '01920000-0000-7000-8000-000000000001', fullName: 'Sara Bennani',
+        email: 'sara.bennani@marchica.ma', direction: null, roles: ['ADMINISTRATEUR'],
+      },
+    });
+  }
+
+  /**
    * Dépôt d'un document.
    *
    * <p>Le corps est un `FormData` : le renvoyer tel quel donnerait un objet sans

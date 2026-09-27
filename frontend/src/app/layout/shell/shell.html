@@ -60,6 +60,8 @@
     <a routerLink="/accueil" routerLinkActive="active" (click)="closeDrawer()" aria-label="Accueil">
       <mat-icon svgIcon="home"></mat-icon><span>Accueil</span>
     </a>
+    <!-- Identité sans rôle : seul l'accueil (vide) est proposé. -->
+    @if (!auth.sansRole()) {
     <a routerLink="/mes-workflow" routerLinkActive="active" (click)="closeDrawer()" aria-label="Mes workflow">
       <mat-icon svgIcon="nav-mesworkflow"></mat-icon><span>Mes workflow</span>
       @if (pendingCount() > 0) { <span class="nav-badge">{{ pendingCount() }}</span> }
@@ -88,6 +90,12 @@
     <a routerLink="/etiquette" routerLinkActive="active" (click)="closeDrawer()" aria-label="Étiquette">
       <mat-icon svgIcon="nav-tag"></mat-icon><span>Étiquette</span>
     </a>
+    }
+    @if (auth.administrateur()) {
+      <a routerLink="/administration/sessions" routerLinkActive="active" (click)="closeDrawer()" aria-label="Sessions">
+        <mat-icon svgIcon="nav-groups"></mat-icon><span>Sessions</span>
+      </a>
+    }
   </nav>
 
   <!-- ===== Contenu ===== -->

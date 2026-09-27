@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { administrateurGuard, authGuard, roleGuard } from './core/auth.guard';
 
 /**
  * Routing GED.
@@ -26,6 +26,12 @@ export const routes: Routes = [
         path: 'accueil',
         loadComponent: () => import('./features/home/dashboard/dashboard').then(m => m.Dashboard),
       },
+      {
+        // Tout le reste exige au moins un rôle GED (une identité sans rôle
+        // reste sur l'accueil vide, §3.4.2).
+        path: '',
+        canActivateChild: [roleGuard],
+        children: [
       {
         path: 'regles-de-workflow',
         loadComponent: () => import('./features/workflow/workflow-list/workflow-list').then(m => m.WorkflowList),
@@ -95,6 +101,14 @@ export const routes: Routes = [
       {
         path: 'mes-workflow',
         loadComponent: () => import('./features/signature/mes-workflow/mes-workflow').then(m => m.MesWorkflow),
+      },
+      {
+        // Administration : révocation des sessions d'un utilisateur (risque R26).
+        path: 'administration/sessions',
+        canActivate: [administrateurGuard],
+        loadComponent: () => import('./features/administration/sessions/sessions').then(m => m.SessionsAdmin),
+      },
+        ],
       },
     ],
   },
