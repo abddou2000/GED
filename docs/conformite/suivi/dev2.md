@@ -2,7 +2,43 @@
 
 Branche `ct/dev2`. Mise à jour : 27/09/2026.
 
-## Vague 3 — lot E9 socle API : **LIVRÉ sur ct/dev2** (commits 2218e40, 5d13b8d)
+## Après vague 3 — notifications (E8, partie reprise de dev3) et OpenAPI (T-053) : **LIVRÉ sur ct/dev2**
+
+Références : matrice technique (MT) et fonctionnelle (MF), lignes comptées à partir de 0.
+
+| Réf. | Exigence | Livré | Statut proposé |
+|---|---|---|---|
+| MT 8.18 / T-113 | §12.9 — boîte d'envoi, e-mail SMTP, pastille in-app | paquet `notification` : table `notification` écrite dans la transaction du déclencheur (API interne `Notifications.envoyer`), expédition asynchrone par Spring Mail (dès la validation de la transaction + relève 30 s, `FOR UPDATE SKIP LOCKED`, 3 tentatives espacées 1 puis 2 min, puis `ECHEC`), modèles français figés à la création, préférence e-mail (`preference_notification`, l'in-app subsiste), API `GET /api/v1/notifications` (+ `/compteur`, `/{id}/lecture`, `/lecture`, `/preferences`), audit `NOTIFICATION_ENVOYEE` / `NOTIFICATION_ECHEC` / `PREFERENCE_NOTIFICATION_MODIFIEE` sans adresse ni texte ; Angular : pastille dans la barre supérieure (relève 1 min) et écran « Notifications » | Identique pour le moteur ; relais SMTP de MMED **simulé** (GreenMail) |
+| MF 7.10 | §4.6.6 — trois cas exclusivement | énumération fermée `TypeNotification` + contrainte `ck_notification_type` | Identique |
+| MF 7.10 (accès) | attribution d'un accès à un espace, jamais le retrait | écoute de `HABILITATION_MODIFIEE` (contrat `EvenementAudit`, sans compiler contre dev1) : habilitation avec rôle sur un nœud (utilisateur ou membres du groupe) et membres ajoutés à un groupe (un avis par espace du groupe) ; retrait, document, rupture seule, auteur : rien | Identique dès la fusion d'E3 (dev1) ; éprouvé avec des événements de même forme |
+| MF 6.5 / MF 7.3 | §4.5.3 notification des validateurs et du déposant ; alerte d'échéance aux Agents d'archive | contrat `EvenementNotifiable` (une méthode `notification()`) pour les événements de workflow (dev1, E8) et d'échéance (dev3, E8), destinataires nommés ou par rôle | **Proche** : moteur et modèles prêts, les événements déclencheurs n'existent pas encore |
+| MT 4.13 / T-053 | §5.3 — spécification OpenAPI 3 complète | `documentationapi` : `OpenApiCustomizer` + dictionnaire `champs.yml` (72 schémas, tous les champs décrits avec exemple, paramètres et corps sans schéma nommé), erreurs problem+json par opération (codes et exemple chacune : 400, 401, 403, 404, 409, 413, 415, 422, 429, 500, 503 selon l'opération), sécurité (Bearer ou `X-API-Key`, connexion publique, routes réservées aux utilisateurs), en-têtes `Idempotency-Key`, `X-On-Behalf-Of`, `Retry-After`, `Idempotency-Replayed`, `Deprecation`/`Sunset`/`Link`, pagination 50/200 ; springdoc désactivé en profil prod (en plus du refus de `SecurityConfig`) | Identique |
+
+**Points d'extension (à brancher à la fusion, dev1)** : `AnnuaireDestinataires`
+(courriel lu dans `cache_annuaire`, membres des groupes, espaces d'un groupe,
+porteurs d'un rôle) — l'implémentation transitoire `AnnuaireDestinatairesLocal`
+lit `compte_utilisateur` et les groupes d'accès de cette branche ; `IdentiteDestinataire`
+(`ActeurCourant::employeId` ici, `ActeurCourant::utilisateurId` après E2). Les deux
+sont `@ConditionalOnMissingBean` : déclarer son bean suffit.
+
+**Pour dev1 et dev3** : un DTO ajouté ou modifié doit être décrit dans
+`backend/src/main/resources/documentationapi/champs.yml` ; sinon
+`SpecificationOpenApiTest` échoue et liste les entrées à ajouter. Aucune annotation
+dans les contrôleurs. Sous-arbre de configuration `ged.notification` repris de dev3
+(INTEGRATION.md § 3) ; `spring.mail` dans `notification.yml`.
+
+**Limites** : relais SMTP réel non éprouvé (simulateur) ; pas de rôle « Agent
+d'archive » avant E3 (une alerte d'échéance sans destinataire est journalisée, rien
+n'est envoyé au hasard) ; liens des e-mails vers les écrans actuels
+(`televerser/<id>`, `espaces-de-travail/<id>`), à ajuster si les routes changent ;
+écran vérifié par tests et construction, pas en navigateur (pas de backend dev lancé).
+
+**Tests** : `DB_NAME=ged_dev2 mvn -q test` vert, **369 tests**, 0 échec ; nouveaux : `NotificationsTest` 10,
+`ModelesNotificationTest` 3, `SpecificationOpenApiTest` 7 ; `SchemaLiquibaseTest`
+et `ClesApiTest` étendus. Front : `ng test` vert (17 tests, dont `NotificationsService` 4), `ng build` vert.
+Commits : b55c1cb (moteur), 1b096b3 (Angular), 1c029ec (OpenAPI).
+
+## Vague 3 — lot E9 socle API : **acceptée** (8731e55)
 
 Références de la matrice technique, section « Intégration et API (§5) », lignes
 comptées à partir de 0 (4.x), avec l'article du DAT.
