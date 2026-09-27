@@ -114,7 +114,7 @@ class DepotRobustesseApiTest {
                         .param("typeDocumentId", String.valueOf(typeId))
                         .param("expirationDate", "2026-13-45"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("AAAA-MM-JJ")));
+                .andExpect(jsonPath("$.detail", containsString("AAAA-MM-JJ")));
 
         assertEquals(avant, fichiersSurLeDisque(), "un fichier orphelin est resté sur le disque");
     }
@@ -152,8 +152,8 @@ class DepotRobustesseApiTest {
                         .param("name", trop)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("nom du document")))
-                .andExpect(jsonPath("$.message", containsString("255")));
+                .andExpect(jsonPath("$.detail", containsString("nom du document")))
+                .andExpect(jsonPath("$.detail", containsString("255")));
 
         // Et à la modification de la fiche
         String reponse = mvc.perform(multipart(BASE)
@@ -167,14 +167,14 @@ class DepotRobustesseApiTest {
         mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON)
                         .content(om.writeValueAsString(java.util.Map.of("name", trop))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("255")));
+                .andExpect(jsonPath("$.detail", containsString("255")));
 
         // Un nom de groupe trop UUID est refusé de la même façon (champ nommé
         // dans « errors »), au lieu du 500 nu que remontait la base.
         mvc.perform(post("/api/v1/access-groups").contentType(APPLICATION_JSON)
                         .content(om.writeValueAsString(java.util.Map.of("code", "G-LONG", "name", trop))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.name", containsString("255")));
+                .andExpect(jsonPath("$.erreurs.name", containsString("255")));
     }
 
     @Test
@@ -189,7 +189,7 @@ class DepotRobustesseApiTest {
                         .param("name", "Pièce orpheline")
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("corbeille")));
+                .andExpect(jsonPath("$.detail", containsString("corbeille")));
     }
 
     @Test
@@ -229,7 +229,7 @@ class DepotRobustesseApiTest {
         // Avant correction : 500 « Page offset exceeds Integer.MAX_VALUE ».
         mvc.perform(get(BASE).param("page", "2000000000").param("size", "10"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("hors limites")));
+                .andExpect(jsonPath("$.detail", containsString("hors limites")));
 
         mvc.perform(get(BASE).param("page", "-1"))
                 .andExpect(status().isBadRequest());

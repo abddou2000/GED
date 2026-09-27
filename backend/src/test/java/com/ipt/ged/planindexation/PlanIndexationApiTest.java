@@ -99,7 +99,7 @@ class PlanIndexationApiTest {
         create("PL-DUP", "Un", false, "-", "[]");
         mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(body("PL-DUP", "Deux", false, "-", "[]")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("déjà utilisé")));
+                .andExpect(jsonPath("$.detail", containsString("déjà utilisé")));
     }
 
     @Test
@@ -108,7 +108,7 @@ class PlanIndexationApiTest {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
                         .content("{\"code\":\"PL-X\",\"separateur\":\"-\",\"indexIds\":[]}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.nomDuPlan").exists());
+                .andExpect(jsonPath("$.erreurs.nomDuPlan").exists());
     }
 
     @Test

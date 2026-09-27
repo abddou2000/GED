@@ -61,9 +61,16 @@ public sealed interface EvenementDocument extends EvenementAudit permits Documen
         return documentId();
     }
 
+    /**
+     * {@code null} : le journal prend l'identité GED de la requête
+     * ({@code utilisateur.id}, lot E2 ; l'utilisateur délégué pour une application).
+     * {@link Acteur#employeId()} désigne la personne métier, pas l'identité :
+     * l'écrire ici mêlerait deux espaces d'identifiants dans
+     * {@code journal_audit.acteur_utilisateur_id}.
+     */
     @Override
     default UUID acteurUtilisateurId() {
-        return acteur() != null ? acteur().employeId() : null;
+        return null;
     }
 
     @Override

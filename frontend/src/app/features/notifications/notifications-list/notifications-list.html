@@ -1,0 +1,54 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Notifications</h1>
+      <p class="breadcrumb">Accueil - Circuits de validation, accès attribués, fins de conservation</p>
+    </div>
+    <div class="actions">
+      <button mat-stroked-button (click)="basculerFiltre()">
+        {{ seulementNonLues() ? 'Toutes les notifications' : 'Non lues seulement' }}
+      </button>
+      <button mat-flat-button color="primary" (click)="toutMarquerLu()" [disabled]="nonLues() === 0">
+        Tout marquer comme lu
+      </button>
+    </div>
+  </div>
+
+  <div class="card preference">
+    <mat-slide-toggle [checked]="courrielActif()" (change)="changerCourriel($event.checked)">
+      Recevoir aussi mes notifications par e-mail
+    </mat-slide-toggle>
+    <span class="aide">Les notifications restent toujours visibles ici.</span>
+  </div>
+
+  <div class="card">
+    @for (n of notifications(); track n.id) {
+      <div class="ligne" [class.non-lue]="!n.lue">
+        <span class="point" [class.actif]="!n.lue" [attr.aria-label]="n.lue ? 'Lue' : 'Non lue'"></span>
+        <div class="contenu">
+          <div class="entete">
+            <span class="famille">{{ familles[n.famille] }}</span>
+            <span class="date">{{ n.creeLe | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+          <p class="titre">{{ n.titre }}</p>
+          <p class="message">{{ n.message }}</p>
+        </div>
+        <div class="boutons">
+          @if (n.lien) { <button mat-button (click)="ouvrir(n)">Ouvrir</button> }
+          @if (!n.lue) { <button mat-button (click)="marquerLue(n)">Marquer comme lue</button> }
+        </div>
+      </div>
+    } @empty {
+      @if (!chargement()) {
+        <p class="vide">{{ seulementNonLues() ? 'Aucune notification non lue.' : 'Aucune notification.' }}</p>
+      }
+    }
+    @if (total() > 50) {
+      <div class="pagination">
+        <button mat-button (click)="pagePrecedente()" [disabled]="page() === 0">Précédentes</button>
+        <span>Page {{ page() + 1 }}</span>
+        <button mat-button (click)="pageSuivante()" [disabled]="(page() + 1) * 50 >= total()">Suivantes</button>
+      </div>
+    }
+  </div>
+</div>

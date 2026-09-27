@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610011000_portee_cles_api_noeud.xml">
+
+    <!--
+        Portée des clés d'API (dossier technique §5.4), vague 4 : le modèle des
+        nœuds du lot autorisation (E3) est en place, la portée peut donc viser
+        la table noeud par une clé étrangère. Un nœud n'est jamais supprimé
+        physiquement (corbeille) : pas de suppression en cascade.
+    -->
+    <changeSet id="202610011000-1" author="ged">
+        <comment>Portée des clés : clé étrangère vers le nœud visé.</comment>
+        <addForeignKeyConstraint baseTableName="cle_api_portee" baseColumnNames="noeud_id"
+                                 referencedTableName="noeud" referencedColumnNames="id"
+                                 constraintName="fk_cle_api_portee_noeud"/>
+        <createIndex tableName="cle_api_portee" indexName="idx_cle_api_portee_noeud_id">
+            <column name="noeud_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="cle_api_portee" indexName="idx_cle_api_portee_noeud_id"/>
+            <dropForeignKeyConstraint baseTableName="cle_api_portee" constraintName="fk_cle_api_portee_noeud"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202610011000-3" author="ged">
+        <comment>Habilitation de sujet APPLICATION : clé étrangère vers l'application (annoncée par le lot E3).</comment>
+        <addForeignKeyConstraint baseTableName="habilitation" baseColumnNames="application_id"
+                                 referencedTableName="application" referencedColumnNames="id"
+                                 constraintName="fk_habilitation_application"/>
+        <rollback>
+            <dropForeignKeyConstraint baseTableName="habilitation" constraintName="fk_habilitation_application"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Jalon : portée des clés et délégation (lot E9, vague 4). -->
+    <changeSet id="202610011000-2" author="ged">
+        <tagDatabase tag="api-e9-v4"/>
+    </changeSet>
+
+</databaseChangeLog>

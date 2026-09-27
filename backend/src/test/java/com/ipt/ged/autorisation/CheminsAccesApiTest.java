@@ -199,7 +199,10 @@ class CheminsAccesApiTest {
         for (UUID id : List.of(dB, inexistant)) {
             JsonNode corps = json(mvc.perform(get("/api/v1/documents/" + id).with(comme(U)))
                     .andExpect(status().isNotFound()));
-            assertEquals("Document introuvable : " + id, corps.get("message").asText());
+            // problem+json (contrat dev2) : même code et même libellé fixe pour un document
+            // hors périmètre et un document inexistant (P5).
+            assertEquals("RESSOURCE_INTROUVABLE", corps.get("code").asText());
+            assertEquals(com.ipt.ged.common.erreur.RessourceIntrouvableException.DETAIL, corps.get("detail").asText());
         }
         String b64 = dB.toString();
         mvc.perform(get("/api/v1/documents/" + b64 + "/download").with(comme(U))).andExpect(status().isNotFound());

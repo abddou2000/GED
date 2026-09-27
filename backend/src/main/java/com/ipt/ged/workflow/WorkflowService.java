@@ -1,5 +1,7 @@
 package com.ipt.ged.workflow;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.JournalAdministration;
 import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
@@ -29,13 +31,18 @@ import java.util.UUID;
 @Service
 public class WorkflowService {
 
+    /** Journal d'audit des opérations d'administration (DAT §7.4.1). */
+    private final JournalAdministration journal;
+
     /** Colonnes triables de cet écran. */
     private static final Set<String> TRIS = Set.of("id", "name");
 
     private final WorkflowRepository workflowRepository;
     private final EmployeRepository employeRepository;
 
-    public WorkflowService(WorkflowRepository workflowRepository, EmployeRepository employeRepository) {
+    public WorkflowService(WorkflowRepository workflowRepository, EmployeRepository employeRepository,
+                           JournalAdministration journal) {
+        this.journal = journal;
         this.workflowRepository = workflowRepository;
         this.employeRepository = employeRepository;
     }
@@ -65,16 +72,21 @@ public class WorkflowService {
     public WorkflowResponse create(WorkflowRequest request) {
         WorkflowGed workflow = new WorkflowGed(request.name());
         applySteps(workflow, request);
-        return WorkflowResponse.from(workflowRepository.save(workflow));
+        WorkflowResponse cree = WorkflowResponse.from(workflowRepository.save(workflow));
+        journal.cree(ActionAudit.WORKFLOW_CREE, "WORKFLOW", cree.id(), cree);
+        return cree;
     }
 
     @Transactional
     public WorkflowResponse update(UUID id, WorkflowRequest request) {
         WorkflowGed workflow = load(id);
+        WorkflowResponse avant = WorkflowResponse.from(workflow);
         workflow.setName(request.name());
         workflow.clearSteps();      // remplacement total (comme l'application d'origine)
         applySteps(workflow, request);
-        return WorkflowResponse.from(workflowRepository.save(workflow));
+        WorkflowResponse apres = WorkflowResponse.from(workflowRepository.save(workflow));
+        journal.modifie(ActionAudit.WORKFLOW_MODIFIE, "WORKFLOW", id, avant, apres);
+        return apres;
     }
 
     /** Suppression réversible (mise en corbeille). */
@@ -82,6 +94,7 @@ public class WorkflowService {
     public void softDelete(UUID id) {
         WorkflowGed workflow = load(id);
         workflow.mettreEnCorbeille(ActeurCourant.employeId());
+        journal.action(ActionAudit.WORKFLOW_SUPPRIME, "WORKFLOW", id);
     }
 
     /** Restauration depuis la corbeille. */
@@ -89,16 +102,23 @@ public class WorkflowService {
     public void restore(UUID id) {
         WorkflowGed workflow = load(id);
         workflow.restaurer();
+        journal.action(ActionAudit.WORKFLOW_RESTAURE, "WORKFLOW", id);
     }
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        workflowRepository.findByIdInAndSupprimeFalse(ids).forEach(w -> w.mettreEnCorbeille(ActeurCourant.employeId()));
+        workflowRepository.findByIdInAndSupprimeFalse(ids).forEach(w -> {
+            w.mettreEnCorbeille(ActeurCourant.employeId());
+            journal.action(ActionAudit.WORKFLOW_SUPPRIME, "WORKFLOW", w.getId());
+        });
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        workflowRepository.findByIdInAndSupprimeTrue(ids).forEach(w -> w.restaurer());
+        workflowRepository.findByIdInAndSupprimeTrue(ids).forEach(w -> {
+            w.restaurer();
+            journal.action(ActionAudit.WORKFLOW_RESTAURE, "WORKFLOW", w.getId());
+        });
     }
 
     private WorkflowGed load(UUID id) {

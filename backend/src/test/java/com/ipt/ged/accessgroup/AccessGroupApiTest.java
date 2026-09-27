@@ -119,7 +119,7 @@ class AccessGroupApiTest {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
                         .content(body("AG-DUP", "Deux", "[]", employes(1))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("déjà utilisé")));
+                .andExpect(jsonPath("$.detail", containsString("déjà utilisé")));
     }
 
     @Test
@@ -129,7 +129,7 @@ class AccessGroupApiTest {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
                         .content(body("AG-N2", "MemeNom", "[]", employes(1))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("déjà utilisé")));
+                .andExpect(jsonPath("$.detail", containsString("déjà utilisé")));
     }
 
     @Test
@@ -138,7 +138,7 @@ class AccessGroupApiTest {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
                         .content("{\"code\":\"AG-X\",\"workspaceIds\":[],\"userIds\":[]}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.name").exists());
+                .andExpect(jsonPath("$.erreurs.name").exists());
     }
 
     @Test

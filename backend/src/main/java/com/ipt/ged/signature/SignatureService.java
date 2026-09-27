@@ -1,5 +1,8 @@
 package com.ipt.ged.signature;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.AuditService;
+import com.ipt.ged.audit.EntreeAudit;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.signature.dto.SignatureResponse;
 import com.ipt.ged.workflow.WorkflowGed;
@@ -10,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,12 +29,25 @@ public class SignatureService {
 
     private final WorkflowSignatureRepository repo;
 
+    /** Journal d'audit : décisions de validation (DAT §7.4.1, dossier fonctionnel §4.9.4). */
+    private final AuditService audit;
+
     /** Point d'application unique des droits (lot E3), injecté sans modifier le constructeur. */
     @org.springframework.beans.factory.annotation.Autowired
     private com.ipt.ged.autorisation.ControleAcces controle;
 
-    public SignatureService(WorkflowSignatureRepository repo) {
+    public SignatureService(WorkflowSignatureRepository repo, AuditService audit) {
         this.repo = repo;
+        this.audit = audit;
+    }
+
+    private void tracerDecision(ActionAudit action, WorkflowSignature sig, String motif) {
+        Map<String, Object> decision = new LinkedHashMap<>();
+        decision.put("signatureId", sig.getId());
+        decision.put("etape", sig.getStepOrder());
+        decision.put("statut", sig.getStatus().name());
+        audit.enregistrer(EntreeAudit.de(action, "DOCUMENT", sig.getDocument().getId())
+                .avecApres(decision).avecMotif(motif));
     }
 
     /** Génère le circuit d'un document déposé (une signature par étape). */
@@ -131,6 +149,7 @@ public class SignatureService {
         if (sig.getStepOrder() == maxOrder) {
             sig.getDocument().setActive(true); // dernière étape → document validé
         }
+        tracerDecision(ActionAudit.VALIDATION_APPROUVEE, sig, motif);
         return SignatureResponse.from(sig);
     }
 
@@ -162,6 +181,7 @@ public class SignatureService {
             p.setSignedAt(null);
         });
         sig.getDocument().setActive(false);
+        tracerDecision(ActionAudit.VALIDATION_REJETEE, sig, motif);
         return SignatureResponse.from(sig);
     }
 
@@ -209,6 +229,8 @@ public class SignatureService {
         // Le document redevient « en cours de validation » tant qu'il n'est pas
         // signé de bout en bout.
         circuit.get(0).getDocument().setActive(false);
+        audit.enregistrer(EntreeAudit.de(ActionAudit.VALIDATION_RELANCEE, "DOCUMENT", documentId)
+                .avecApres(Map.of("etapesRelancees", refusees.stream().map(WorkflowSignature::getStepOrder).toList())));
         return circuit.stream().map(SignatureResponse::from).toList();
     }
 
