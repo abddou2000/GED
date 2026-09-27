@@ -80,6 +80,18 @@ public class EnrichissementOpenApi implements OpenApiCustomizer {
     private static final String REF_SCHEMAS = "#/components/schemas/";
     private static final DateTimeFormatter RFC_1123 = DateTimeFormatter.RFC_1123_DATE_TIME;
 
+    /**
+     * Chemins historiques de l'interface, conservés pour le front, et leur
+     * équivalent au contrat d'API (§5.3.1) : les intégrateurs sont orientés vers
+     * le chemin du contrat.
+     */
+    private static final Map<String, String> CHEMINS_DU_CONTRAT = Map.of(
+            "POST /api/v1/workspaces", "POST /api/v1/noeuds/{id}/dossiers",
+            "POST /api/v1/indexation/recherche", "POST /api/v1/recherches",
+            "GET /api/v1/recherche/plein-texte", "POST /api/v1/recherches",
+            "GET /api/v1/documents/{id}/download", "GET /api/v1/documents/{id}/contenu",
+            "GET /api/v1/admin/droits-effectifs", "GET /api/v1/documents/{id}/droits, GET /api/v1/noeuds/{id}/droits");
+
     /** Une erreur documentée : statut, code métier stable, exemple de détail. */
     record Erreur(int statut, String code, String detail) {}
 
@@ -265,6 +277,13 @@ public class EnrichissementOpenApi implements OpenApiCustomizer {
         boolean ecriture = methode != PathItem.HttpMethod.GET && methode != PathItem.HttpMethod.HEAD;
         boolean multipart = corpsDeType(op, "multipart/form-data");
         boolean corps = op.getRequestBody() != null;
+
+        String equivalent = CHEMINS_DU_CONTRAT.get(methode.name() + " " + chemin);
+        if (equivalent != null) {
+            op.setDescription((op.getDescription() == null ? "" : op.getDescription() + "\n\n")
+                    + "Chemin historique de l'interface. Intégrations : utiliser le chemin du contrat d'API (§5.3.1) "
+                    + equivalent + ".");
+        }
 
         // --- sécurité ---
         if (publique) {

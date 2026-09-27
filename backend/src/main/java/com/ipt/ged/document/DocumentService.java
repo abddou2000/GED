@@ -539,6 +539,28 @@ public class DocumentService {
         return new FichierTelecharge(nom, v.getTailleOctets() != null ? v.getTailleOctets() : -1, flux);
     }
 
+    /**
+     * Téléchargement d'une version donnée du document (contrat d'API §5.3.1,
+     * {@code GET /documents/{id}/contenu?version=}) ; sans version, la version
+     * courante ({@link #telecharger(UUID, boolean)}). Une version d'un autre
+     * document est « introuvable » (P5).
+     */
+    @Transactional(readOnly = true)
+    public FichierTelecharge telechargerVersion(UUID id, UUID versionId) {
+        if (versionId == null) return telecharger(id, false);
+        controle.exigerLectureDocument(id);
+        UploadDocument d = load(id);
+        DocumentVersion v = d.getVersions().stream().filter(x -> versionId.equals(x.getId())).findFirst()
+                .orElseThrow(() -> Refus.introuvable("version " + versionId));
+        if (v.getCleFichierId() == null) {
+            throw Refus.introuvable("version " + v.getId() + " non reprise dans le stockage chiffré");
+        }
+        InputStream flux = stockage.lire(v.getCleFichierId());
+        evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
+                v.getFileName()));
+        return new FichierTelecharge(v.getFileName(), v.getTailleOctets() != null ? v.getTailleOctets() : -1, flux);
+    }
+
     /** Fichier prêt à servir ; {@code taille} en octets, -1 si inconnue. */
     public record FichierTelecharge(String nom, long taille, InputStream flux) {
     }

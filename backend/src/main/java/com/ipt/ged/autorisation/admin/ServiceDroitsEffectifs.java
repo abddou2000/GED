@@ -69,7 +69,27 @@ public class ServiceDroitsEffectifs {
                 .orElseThrow(() -> new EntityNotFoundException("Identité introuvable : " + utilisateurId));
         Sujet sujet = new Sujet(TypeSujet.UTILISATEUR, u.getId(), u.getEmploye().getId(),
                 u.getEmploye().getFullName());
-        DroitsResolus d = predicat.droits(sujet);
+        return calculer(predicat.droits(sujet), u.getEmploye().getFullName() + " (" + u.getIdentifiant() + ")",
+                noeudId, documentId);
+    }
+
+    /**
+     * Droits effectifs de l'appelant de la requête (utilisateur, clé d'API ou
+     * délégation), par la même fonction de décision : contrat d'API §5.3.1,
+     * {@code GET /documents/{id}/droits} et {@code /noeuds/{id}/droits}.
+     */
+    @Transactional(readOnly = true)
+    public DroitsEffectifs calculerPourAppelant(org.springframework.security.core.Authentication appelant,
+                                                UUID noeudId, UUID documentId) {
+        DroitsResolus d = predicat.droits(appelant);
+        if (d.sujet() == null) throw new EntityNotFoundException("Appelant non reconnu");
+        return calculer(d, d.sujet().libelle(), noeudId, documentId);
+    }
+
+    private DroitsEffectifs calculer(DroitsResolus d, String libelleSujet, UUID noeudId, UUID documentId) {
+        if (noeudId != null && documentId != null) {
+            throw new IllegalArgumentException("Choisir un nœud OU un document");
+        }
         ArbreNoeuds arbre = predicat.arbre();
 
         String cible = "GLOBALE";
@@ -106,7 +126,7 @@ public class ServiceDroitsEffectifs {
                 }
             }
         }
-        return new DroitsEffectifs(u.getId(), u.getEmploye().getFullName() + " (" + u.getIdentifiant() + ")",
+        return new DroitsEffectifs(d.sujet().id(), libelleSujet,
                 cible, noeudId != null ? noeudId : documentId, libelle, perms, origines, emplacements, conf,
                 noms(d.administration()), List.copyOf(d.rolesGlobaux()), List.copyOf(d.roles()),
                 d.accesGlobal(), d.voirPrive(), d.voirConfidentiel());
