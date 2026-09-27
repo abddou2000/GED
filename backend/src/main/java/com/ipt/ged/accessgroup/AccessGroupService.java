@@ -1,5 +1,7 @@
 package com.ipt.ged.accessgroup;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.JournalAdministration;
 import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.accessgroup.dto.AccessGroupRequest;
 import com.ipt.ged.accessgroup.dto.AccessGroupResponse;
@@ -29,6 +31,9 @@ import java.util.UUID;
 @Service
 public class AccessGroupService {
 
+    /** Journal d'audit des opérations d'administration (DAT §7.4.1). */
+    private final JournalAdministration journal;
+
     /** Colonnes sur lesquelles le tri est accepté ; toute autre valeur est ignorée. */
     private static final Set<String> TRIS = Set.of("id", "code", "name");
 
@@ -38,7 +43,9 @@ public class AccessGroupService {
     private final AccessGroupTriParTaille triParTaille;
 
     public AccessGroupService(AccessGroupRepository repo, WorkSpaceRepository workspaceRepo,
-                              EmployeRepository employeRepo, AccessGroupTriParTaille triParTaille) {
+                              EmployeRepository employeRepo, AccessGroupTriParTaille triParTaille,
+                              JournalAdministration journal) {
+        this.journal = journal;
         this.repo = repo;
         this.workspaceRepo = workspaceRepo;
         this.employeRepo = employeRepo;
@@ -89,12 +96,15 @@ public class AccessGroupService {
         }
         AccessGroup g = new AccessGroup(req.code(), req.name());
         apply(g, req);
-        return AccessGroupResponse.from(repo.save(g));
+        AccessGroupResponse cree = AccessGroupResponse.from(repo.save(g));
+        journal.cree(ActionAudit.GROUPE_CREE, "GROUPE", cree.id(), cree);
+        return cree;
     }
 
     @Transactional
     public AccessGroupResponse update(UUID id, AccessGroupRequest req) {
         AccessGroup g = load(id);
+        AccessGroupResponse avant = AccessGroupResponse.from(g);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
         }
@@ -104,28 +114,38 @@ public class AccessGroupService {
         g.setCode(req.code());
         g.setName(req.name());
         apply(g, req);
-        return AccessGroupResponse.from(repo.save(g));
+        AccessGroupResponse apres = AccessGroupResponse.from(repo.save(g));
+        journal.modifie(ActionAudit.GROUPE_MODIFIE, "GROUPE", id, avant, apres);
+        return apres;
     }
 
     @Transactional
     public void softDelete(UUID id) {
         load(id).mettreEnCorbeille(ActeurCourant.employeId());
+        journal.action(ActionAudit.GROUPE_SUPPRIME, "GROUPE", id);
     }
 
     // Restauration = inverse de la mise en corbeille.
     @Transactional
     public void restore(UUID id) {
         load(id).restaurer();
+        journal.action(ActionAudit.GROUPE_RESTAURE, "GROUPE", id);
     }
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(g -> g.mettreEnCorbeille(ActeurCourant.employeId()));
+        repo.findByIdInAndDeletedFalse(ids).forEach(g -> {
+            g.mettreEnCorbeille(ActeurCourant.employeId());
+            journal.action(ActionAudit.GROUPE_SUPPRIME, "GROUPE", g.getId());
+        });
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(g -> g.restaurer());
+        repo.findByIdInAndDeletedTrue(ids).forEach(g -> {
+            g.restaurer();
+            journal.action(ActionAudit.GROUPE_RESTAURE, "GROUPE", g.getId());
+        });
     }
 
     /** Liste allégée {id, name} pour les sélecteurs. */

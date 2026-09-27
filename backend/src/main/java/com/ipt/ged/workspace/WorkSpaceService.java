@@ -1,5 +1,7 @@
 package com.ipt.ged.workspace;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.JournalAdministration;
 import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
@@ -31,6 +33,9 @@ import java.util.UUID;
 @Service
 public class WorkSpaceService {
 
+    /** Journal d'audit des opérations d'administration (DAT §7.4.1). */
+    private final JournalAdministration journal;
+
     /** Colonnes triables de l'écran « Espaces de travail ». */
     private static final Set<String> TRIS = Set.of("id", "code", "name", "status");
 
@@ -39,7 +44,9 @@ public class WorkSpaceService {
     private final WorkflowRepository workflowRepository;
 
     public WorkSpaceService(WorkSpaceRepository repo, EmployeRepository employeRepository,
-                            WorkflowRepository workflowRepository) {
+                            WorkflowRepository workflowRepository,
+                            JournalAdministration journal) {
+        this.journal = journal;
         this.repo = repo;
         this.employeRepository = employeRepository;
         this.workflowRepository = workflowRepository;
@@ -71,46 +78,60 @@ public class WorkSpaceService {
         }
         WorkSpace w = new WorkSpace(req.name(), req.code());
         apply(w, req);
-        return toResponse(repo.save(w));
+        WorkSpaceResponse cree = toResponse(repo.save(w));
+        journal.cree(ActionAudit.ESPACE_CREE, "ESPACE", cree.id(), cree);
+        return cree;
     }
 
     @Transactional
     public WorkSpaceResponse update(UUID id, WorkSpaceRequest req) {
         WorkSpace w = loadPourEcriture(id);
+        WorkSpaceResponse avant = toResponse(w);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
         }
         w.setName(req.name());
         w.setCode(req.code());
         apply(w, req);
-        return toResponse(repo.save(w));
+        WorkSpaceResponse apres = toResponse(repo.save(w));
+        journal.modifie(ActionAudit.ESPACE_MODIFIE, "ESPACE", id, avant, apres);
+        return apres;
     }
 
     @Transactional
     public void softDelete(UUID id) {
         load(id).mettreEnCorbeille(ActeurCourant.employeId());
+        journal.action(ActionAudit.ESPACE_SUPPRIME, "ESPACE", id);
     }
 
     // Restauration = inverse de la mise en corbeille.
     @Transactional
     public void restore(UUID id) {
         load(id).restaurer();
+        journal.action(ActionAudit.ESPACE_RESTAURE, "ESPACE", id);
     }
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(w -> w.mettreEnCorbeille(ActeurCourant.employeId()));
+        repo.findByIdInAndDeletedFalse(ids).forEach(w -> {
+            w.mettreEnCorbeille(ActeurCourant.employeId());
+            journal.action(ActionAudit.ESPACE_SUPPRIME, "ESPACE", w.getId());
+        });
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(w -> w.restaurer());
+        repo.findByIdInAndDeletedTrue(ids).forEach(w -> {
+            w.restaurer();
+            journal.action(ActionAudit.ESPACE_RESTAURE, "ESPACE", w.getId());
+        });
     }
 
     /** Déplace un dossier sous un nouveau parent (null = racine), en interdisant les cycles. */
     @Transactional
     public WorkSpaceResponse move(UUID id, UUID newParentId) {
         WorkSpace w = loadPourEcriture(id);
+        UUID ancienParent = w.getParent() != null ? w.getParent().getId() : null;
         if (newParentId != null) {
             if (newParentId.equals(id)) {
                 throw new IllegalArgumentException("Un dossier ne peut pas être son propre parent");
@@ -124,7 +145,11 @@ public class WorkSpaceService {
         } else {
             w.setParent(null);
         }
-        return toResponse(repo.save(w));
+        WorkSpaceResponse deplace = toResponse(repo.save(w));
+        journal.action(ActionAudit.ESPACE_DEPLACE, "ESPACE", id,
+                java.util.Collections.singletonMap("parentId", ancienParent),
+                java.util.Collections.singletonMap("parentId", newParentId));
+        return deplace;
     }
 
     /** Bascule ACTIF <-> ARCHIVE. */
@@ -132,7 +157,10 @@ public class WorkSpaceService {
     public WorkSpaceResponse archiveToggle(UUID id) {
         WorkSpace w = loadPourEcriture(id);
         w.setStatus(w.getStatus() == WorkspaceStatus.ARCHIVE ? WorkspaceStatus.ACTIF : WorkspaceStatus.ARCHIVE);
-        return toResponse(repo.save(w));
+        WorkSpaceResponse bascule = toResponse(repo.save(w));
+        journal.action(w.getStatus() == WorkspaceStatus.ARCHIVE ? ActionAudit.ESPACE_ARCHIVE : ActionAudit.ESPACE_DESARCHIVE,
+                "ESPACE", id);
+        return bascule;
     }
 
     /** Forêt de dossiers actifs (racines + enfants imbriqués). */

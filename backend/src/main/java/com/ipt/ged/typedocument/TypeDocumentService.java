@@ -1,5 +1,7 @@
 package com.ipt.ged.typedocument;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.JournalAdministration;
 import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
@@ -28,6 +30,9 @@ import java.util.UUID;
 @Service
 public class TypeDocumentService {
 
+    /** Journal d'audit des opérations d'administration (DAT §7.4.1). */
+    private final JournalAdministration journal;
+
     private final TypeDocumentRepository repo;
     private final WorkSpaceRepository workspaceRepo;
     /** Colonnes sur lesquelles le tri est accepté ; toute autre valeur est ignorée. */
@@ -40,7 +45,9 @@ public class TypeDocumentService {
     private final PlanIndexationRepository planRepo;
 
     public TypeDocumentService(TypeDocumentRepository repo, WorkSpaceRepository workspaceRepo,
-                               PlanIndexationRepository planRepo) {
+                               PlanIndexationRepository planRepo,
+                               JournalAdministration journal) {
+        this.journal = journal;
         this.repo = repo;
         this.workspaceRepo = workspaceRepo;
         this.planRepo = planRepo;
@@ -76,40 +83,53 @@ public class TypeDocumentService {
         }
         TypeDocument t = new TypeDocument(req.code(), req.typeDeDocument());
         apply(t, req);
-        return TypeDocumentResponse.from(repo.save(t));
+        TypeDocumentResponse cree = TypeDocumentResponse.from(repo.save(t));
+        journal.cree(ActionAudit.TYPE_DOCUMENT_CREE, "TYPE_DOCUMENT", cree.id(), cree);
+        return cree;
     }
 
     @Transactional
     public TypeDocumentResponse update(UUID id, TypeDocumentRequest req) {
         TypeDocument t = load(id);
+        TypeDocumentResponse avant = TypeDocumentResponse.from(t);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
         }
         t.setCode(req.code());
         t.setTypeDeDocument(req.typeDeDocument());
         apply(t, req);
-        return TypeDocumentResponse.from(repo.save(t));
+        TypeDocumentResponse apres = TypeDocumentResponse.from(repo.save(t));
+        journal.modifie(ActionAudit.TYPE_DOCUMENT_MODIFIE, "TYPE_DOCUMENT", id, avant, apres);
+        return apres;
     }
 
     @Transactional
     public void softDelete(UUID id) {
         load(id).mettreEnCorbeille(ActeurCourant.employeId());
+        journal.action(ActionAudit.TYPE_DOCUMENT_SUPPRIME, "TYPE_DOCUMENT", id);
     }
 
     // Restauration = inverse de la mise en corbeille.
     @Transactional
     public void restore(UUID id) {
         load(id).restaurer();
+        journal.action(ActionAudit.TYPE_DOCUMENT_RESTAURE, "TYPE_DOCUMENT", id);
     }
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(t -> t.mettreEnCorbeille(ActeurCourant.employeId()));
+        repo.findByIdInAndDeletedFalse(ids).forEach(t -> {
+            t.mettreEnCorbeille(ActeurCourant.employeId());
+            journal.action(ActionAudit.TYPE_DOCUMENT_SUPPRIME, "TYPE_DOCUMENT", t.getId());
+        });
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(t -> t.restaurer());
+        repo.findByIdInAndDeletedTrue(ids).forEach(t -> {
+            t.restaurer();
+            journal.action(ActionAudit.TYPE_DOCUMENT_RESTAURE, "TYPE_DOCUMENT", t.getId());
+        });
     }
 
     /** Liste allégée {id, name} pour les sélecteurs (upload). */
