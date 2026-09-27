@@ -10,9 +10,9 @@ de compilation, reconstruits par les commandes ci-dessous.
 
 **Aucune base n'est versionnée.** Le schéma est créé par Liquibase au premier
 démarrage, dans une base PostgreSQL préparée au préalable (voir « Démarrer »). En
-dev, les seeders reconstruisent un jeu de démonstration — à condition que
-`GED_MDP_INITIAL` soit défini, faute de quoi aucun compte n'est créé et
-**personne ne peut se connecter** (voir la table des variables plus bas).
+dev, les seeders reconstruisent un jeu de démonstration, et un annuaire de
+démonstration embarqué fournit les comptes de connexion (voir « Configuration
+sensible »).
 
 ## Démarrer
 
@@ -38,58 +38,44 @@ cd backend
 mvn spring-boot:run
 ```
 
-En dev, aucune variable d'environnement n'est nécessaire : la clé de signature
-JWT est tirée au sort au démarrage (un `WARN` le rappelle). Conséquence voulue :
-**les jetons ne survivent pas à un redémarrage**, il faut se reconnecter.
+En dev, aucune variable d'environnement n'est nécessaire : l'annuaire de
+démonstration démarre sur le port 33389 et une paire de clés RSA de signature
+des jetons est tirée au démarrage (un `WARN` le rappelle). Conséquence voulue :
+**les sessions ne survivent pas à un redémarrage**, il faut se reconnecter.
 
 ## Configuration sensible
 
 Aucun secret n'a de valeur par défaut dans un fichier versionné. Les variables
 attendues sont décrites dans `backend/.env.example` :
 
-| Variable | Rôle | Absente en dev | Absente en prod |
+| Variable | Rôle | Absente en dev | Absente en uat/prod |
 |---|---|---|---|
-| `GED_JWT_CLE` | Clé HMAC-SHA256 de signature des jetons (32 octets min.) | clé aléatoire tirée au démarrage, `WARN` | **refus de démarrer** |
-| `GED_MDP_INITIAL` | Mot de passe d'amorçage des comptes au 1er démarrage | valeur locale `dev-local-only` | aucun compte créé (`WARN`) |
+| `GED_LDAP_URLS` `GED_LDAP_BASE` | Contrôleurs de domaine (LDAPS) et base de recherche | annuaire de démonstration embarqué `ldap://localhost:33389` | **refus de démarrer** (`ldap://` aussi) |
+| `GED_LDAP_COMPTE_SERVICE` `GED_LDAP_MOT_DE_PASSE(_FICHIER)` | Compte de service en lecture seule | compte du simulateur | connexions impossibles |
+| `GED_LDAP_TRUSTSTORE(_MOT_DE_PASSE)` | Chaîne de certificats des contrôleurs | — | magasin de la JVM |
+| `GED_JWT_KEYSTORE` `GED_JWT_KEYSTORE_MOT_DE_PASSE` `GED_JWT_ALIAS` | Clé privée RSA de signature des jetons (RS256) | paire RSA tirée au démarrage, `WARN` | **refus de démarrer** |
+| `GED_SESSION_DUREE_ABSOLUE` | Durée absolue d'une session | `8h` | `8h` (4 h recommandées, risque R26) |
+| `GED_ADMINISTRATEURS` | sAMAccountName recevant le rôle Administrateur à leur 1re connexion | `sbennani` | aucun : personne ne peut attribuer de rôle |
 | `GED_ORIGINES` | Origines CORS autorisées | repli `localhost` | repli `localhost` + `WARN` |
-| `GED_EMAIL_ADMIN` | Adresse du compte administrateur unique | `sara.bennani@marchica.ma` (profil dev) | repli `admin@<domaine>` |
-| `GED_NOM_ADMIN` | Nom affiché de l'employé créé pour porter ce compte | `Administrateur GED` | `Administrateur GED` |
 | `DB_HOST` `DB_PORT` `DB_NAME` | Serveur et base PostgreSQL | `localhost:5432/ged_dev1` | `localhost:5432/ged` |
+| `DB_SSLMODE` | Chiffrement de la connexion à la base | `prefer` | `verify-full` |
 | `DB_USER` / `DB_PASSWORD` | Compte applicatif `ged_app` (DML seulement) | `ged_app`, sans mot de passe | `ged_app`, **mot de passe obligatoire** |
-| `DB_OWNER_USER` / `DB_OWNER_PASSWORD` | Compte `ged_owner`, utilisé par Liquibase seul | `ged_owner`, sans mot de passe | `ged_owner`, **mot de passe obligatoire** |
+| `DB_OWNER_USER` / `DB_OWNER_PASSWORD` | Compte `ged_owner`, utilisé par Liquibase seul | `ged_owner`, sans mot de passe | script de déploiement (Liquibase désactivé au démarrage) |
 
-**Se connecter la première fois, en dev** : `sara.bennani@marchica.ma` / `dev-local-only`
-(valeurs du profil `dev`, dans `application-dev.yml`). En production, ces deux valeurs
-viennent de `GED_EMAIL_ADMIN` et `GED_MDP_INITIAL` — sans elles, l'écran de connexion
-refuse tout le monde sans expliquer pourquoi : seul le journal du serveur le dit.
+**Se connecter en dev** : aucun mot de passe n'est stocké dans la GED ; la
+connexion passe par l'annuaire. Le profil `dev` démarre un **annuaire de
+démonstration** (simulateur UnboundID, `backend/src/main/resources/annuaire/annuaire-dev.ldif`),
+mot de passe `dev-local-only` pour tous :
 
-Générer une clé correcte :
+| Identifiant | Personne | Situation |
+|---|---|---|
+| `sbennani` | Sara Bennani | Administrateur (amorçage) |
+| `kelfassi`, `yalaoui` | Karim El Fassi, Yasmine Alaoui | provisionnés sans rôle |
+| `nidrissi` | Nadia Idrissi | sans fiche employé : fiche créée, sans rôle |
+| `otazi` | Omar Tazi | désactivé dans l'annuaire : connexion refusée |
 
-```bash
-openssl rand -base64 48
-```
-
-PowerShell, sans openssl :
-
-```powershell
-[Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Max 256 }))
-```
-
-Lancer en production :
-
-```bash
-export GED_JWT_CLE="$(openssl rand -base64 48)"
-export GED_ORIGINES="https://ged.example.ma"
-cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=prod
-```
-
-> **Aucune clé par défaut.** `GED_JWT_CLE` n'a de valeur dans aucun fichier
-> versionné, et l'historique git n'en a jamais contenu — vérifié sur l'intégralité
-> des objets du dépôt. Une clé de signature écrite dans un fichier suivi devient
-> publique dès que le dépôt circule, et le reste dans l'historique : c'est la raison
-> d'être de `.env.example`. En développement, faute de clé, une valeur aléatoire est
-> tirée à chaque démarrage — les jetons ne survivent donc pas à un redémarrage.
-
+Cet annuaire n'existe **que** dans les profils `dev` et `test` et refuse de
+démarrer avec `prod` ou `uat`.
 
 **Frontend** — port 4301 :
 
@@ -144,7 +130,7 @@ l'application s'y connecte avec `ged_app`. Elle comprend la montée du changelog
 sur un schéma vierge, le retour arrière de chaque changeset, le contrôle des
 droits de `ged_app` et la reprise des données sur un export d'essai.
 
-156 tests, tous verts.
+282 tests, tous verts (annuaire simulé par UnboundID).
 
 ## Points d'entrée
 
@@ -176,14 +162,19 @@ Réglages dans `application.yml`, section `ged.ocr` : `enabled`, `commande`, `la
 
 ## Sécurité — état
 
-`backend/src/main/java/com/ipt/ged/config/SecurityConfig.java` est en
-`anyRequest().authenticated()` : tout est fermé par défaut, seules la connexion,
-`/error`, la sonde de santé et Swagger restent ouverts. L'authentification se
-fait par jeton JWT (`security/ServiceJeton`, `security/FiltreJwt`), les rôles
-étant relus en base à chaque requête.
+**Authentification par l'annuaire** (dossier technique §3.3) : recherche du
+`sAMAccountName` par un compte de service en lecture seule, puis liaison avec le
+DN trouvé (Spring Security LDAP). La GED ne stocke **aucun mot de passe**. Une
+identité inconnue est provisionnée à la volée, clé `objectGUID`, **sans rôle**.
+Code : `backend/src/main/java/com/ipt/ged/identite/`.
 
-Vérifications appliquées à chaque jeton reçu : signature, expiration, émetteur
-(`ged.securite.jwt.emetteur`), et **borne haute sur la durée de vie** — un jeton
-dont `exp - iat` dépasse `validite-minutes` (plus la tolérance d'horloge) est
-refusé même s'il est correctement signé. Cela ferme la fabrication de jetons à
-très longue durée de vie.
+**Sessions** (§3.4.1) : jeton d'accès JWT **RS256** de 15 minutes (identité
+seule, jamais de permission), gardé en mémoire par Angular ; jeton de
+renouvellement opaque en cookie `HttpOnly; Secure; SameSite=Strict`, rotation à
+chaque usage, réutilisation = révocation de toute la session, inactivité 30 min,
+durée absolue 8 h ; déconnexion et révocation par l'Administrateur immédiates.
+Connexion limitée à 5 tentatives par minute par IP et par identifiant (429).
+
+`config/SecurityConfig.java` : tout est fermé par défaut ; une identité sans rôle
+n'accède qu'à `/api/v1/auth/me` (page d'accueil vide) ; `/api/v1/admin/**` exige
+le rôle Administrateur. Les rôles sont relus en base à chaque requête.
