@@ -109,8 +109,14 @@ public class ConfigurationFichiers {
     public AnalyseurAntivirus analyseurAntivirus(ProprietesFichiers p, Environment env) {
         ProprietesFichiers.Antivirus a = p.getAntivirus();
         if (!a.isActif()) {
-            if (env.acceptsProfiles(Profiles.of("prod"))) {
-                throw new IllegalStateException("L'antivirus ne peut pas être désactivé en production (§6.1.5).");
+            // Liste blanche plutôt que liste noire : seuls les postes de
+            // développement et les tests peuvent s'en passer. Le profil uat
+            // (qui importe la configuration de prod sans activer le profil
+            // prod) et tout profil inconnu refusent de démarrer.
+            if (!env.acceptsProfiles(Profiles.of("dev | test"))
+                    || env.acceptsProfiles(Profiles.of("prod | uat"))) {
+                throw new IllegalStateException("L'antivirus ne peut être désactivé qu'en développement ou en test "
+                        + "(profils actifs : " + String.join(",", env.getActiveProfiles()) + ", §6.1.5).");
             }
             log.warn("ANTIVIRUS DESACTIVE (ged.fichiers.antivirus.actif=false) : poste de développement uniquement.");
             return new AntivirusDesactive();

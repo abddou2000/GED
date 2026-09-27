@@ -7,8 +7,9 @@ import org.slf4j.LoggerFactory;
  * Antivirus neutralisé, pour un poste de développement sans ClamAV
  * ({@code ged.fichiers.antivirus.actif=false}).
  *
- * <p>Interdit en production : la configuration refuse de démarrer le profil
- * {@code prod} avec cet analyseur (voir {@code ConfigurationFichiers}). Chaque
+ * <p>Réservé aux profils {@code dev} et {@code test} : tout autre profil
+ * ({@code prod}, {@code uat}, inconnu) refuse de démarrer avec cet analyseur
+ * (voir {@code ConfigurationFichiers}). Chaque
  * fichier accepté sans analyse est signalé au journal, pour que l'état ne
  * passe jamais inaperçu.
  */

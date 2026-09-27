@@ -19,14 +19,25 @@ class ConfigurationFichiersTest {
     @TempDir Path dossier;
 
     @Test
-    @DisplayName("L'antivirus ne peut pas être désactivé en production")
+    @DisplayName("L'antivirus ne peut être désactivé qu'en dev et en test (prod, uat, profil inconnu : refus)")
     void antivirusObligatoireEnProd() {
         ProprietesFichiers p = new ProprietesFichiers();
         p.getAntivirus().setActif(false);
         MockEnvironment prod = new MockEnvironment();
         prod.setActiveProfiles("prod");
         assertThrows(IllegalStateException.class, () -> config.analyseurAntivirus(p, prod));
-        assertInstanceOf(AntivirusDesactive.class, config.analyseurAntivirus(p, new MockEnvironment()));
+        for (String[] profils : new String[][]{{"uat"}, {"uat", "dev"}, {"recette"}, {}}) {
+            MockEnvironment env = new MockEnvironment();
+            env.setActiveProfiles(profils);
+            assertThrows(IllegalStateException.class, () -> config.analyseurAntivirus(p, env),
+                    "antivirus désactivable sous " + String.join(",", profils));
+        }
+        MockEnvironment dev = new MockEnvironment();
+        dev.setActiveProfiles("dev");
+        assertInstanceOf(AntivirusDesactive.class, config.analyseurAntivirus(p, dev));
+        MockEnvironment test = new MockEnvironment();
+        test.setActiveProfiles("test");
+        assertInstanceOf(AntivirusDesactive.class, config.analyseurAntivirus(p, test));
         p.getAntivirus().setActif(true);
         assertInstanceOf(ClientClamd.class, config.analyseurAntivirus(p, prod));
     }
