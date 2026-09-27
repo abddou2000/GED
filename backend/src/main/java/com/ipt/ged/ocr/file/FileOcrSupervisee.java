@@ -1,5 +1,7 @@
 package com.ipt.ged.ocr.file;
 
+import com.ipt.ged.supervision.FileDeTraitement;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
@@ -8,15 +10,12 @@ import java.util.Optional;
  * La file {@code ocr_job} vue par la supervision (§6.7 : « profondeur de la
  * file OCR »).
  *
- * <p>Adaptateur prévu pour le point d'extension {@code FileDeTraitement} du lot
- * exploitation (dev2, {@code com.ipt.ged.supervision}) : mêmes méthodes, même
- * nom de file. Après la fusion de ce lot, il suffit d'ajouter
- * {@code implements FileDeTraitement} : la sonde {@code filesTraitement}, les
- * métriques {@code ged_file_profondeur{file="ocr"}} et les alertes de dev2 le
- * prennent alors en charge, et {@link MetriquesOcr} cesse de publier ses
- * propres jauges de file.
+ * <p>Déclarée comme {@link FileDeTraitement} (point d'extension du lot
+ * exploitation) : la sonde {@code filesTraitement}, les métriques
+ * {@code ged_file_profondeur{file="ocr"}} et {@code ged_file_age_plus_ancien_seconds}
+ * et les alertes Prometheus la prennent en charge sans autre code.
  */
-public class FileOcrSupervisee {
+public class FileOcrSupervisee implements FileDeTraitement {
 
     private final OcrJobQueue file;
     private final Clock horloge;
@@ -27,16 +26,19 @@ public class FileOcrSupervisee {
     }
 
     /** Étiquette de métrique stable. */
+    @Override
     public String nom() {
         return "ocr";
     }
 
     /** Jobs en attente ou en cours. */
+    @Override
     public long profondeur() {
         return file.profondeur();
     }
 
     /** Ancienneté du plus ancien dépôt pas encore interrogeable. */
+    @Override
     public Optional<Duration> ageDuPlusAncien() {
         return file.plusAncienDepotEnAttente().map(t -> {
             Duration d = Duration.between(t, horloge.instant());

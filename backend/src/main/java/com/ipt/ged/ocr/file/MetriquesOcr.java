@@ -1,9 +1,7 @@
 package com.ipt.ged.ocr.file;
 
 import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,12 +24,9 @@ import java.time.Instant;
  *   <li>{@code ged.ocr.jobs{issue=termine|reprise|echec}} (compteur).</li>
  * </ul>
  *
- * <p><b>En attendant la fusion du lot exploitation</b>, cette classe publie
- * aussi, sous les noms que ce lot utilisera, la profondeur et l'âge de la file
- * ({@code ged.file.profondeur{file="ocr"}}, {@code ged.file.age.plus.ancien})
- * et l'objectif ({@code ged.ocr.objectif.disponibilite}). Après la fusion, ces
- * trois jauges sont retirées d'ici : {@link FileOcrSupervisee} implémente
- * {@code FileDeTraitement} et le lot exploitation les publie.
+ * <p>La profondeur et l'âge de la file, et l'objectif lui-même, sont publiés
+ * par le lot exploitation ({@code MetriquesSupervision}) à partir de
+ * {@link FileOcrSupervisee} et de {@code ged.supervision.ocr.objectif-disponibilite}.
  */
 public class MetriquesOcr {
 
@@ -45,7 +40,7 @@ public class MetriquesOcr {
     private final Counter reprises;
     private final Counter echecs;
 
-    public MetriquesOcr(MeterRegistry registre, FileOcrSupervisee file, Duration objectif, Clock horloge) {
+    public MetriquesOcr(MeterRegistry registre, Duration objectif, Clock horloge) {
         this.objectif = objectif;
         this.horloge = horloge;
         this.delai = Timer.builder("ged.ocr.delai.disponibilite")
@@ -60,24 +55,6 @@ public class MetriquesOcr {
         this.termines = compteur(registre, "termine");
         this.reprises = compteur(registre, "reprise");
         this.echecs = compteur(registre, "echec");
-        // Jauges provisoires (voir la note de classe).
-        Gauge.builder("ged.ocr.objectif.disponibilite", objectif, d -> d.toMillis() / 1000.0)
-                .baseUnit("seconds")
-                .description("Objectif de délai dépôt → recherche (décision D6 : 24 h)")
-                .register(registre);
-        if (file != null) {
-            Tags tags = Tags.of("file", file.nom());
-            Gauge.builder("ged.file.profondeur", file, FileOcrSupervisee::profondeur)
-                    .tags(tags)
-                    .description("Traitements en attente ou en cours")
-                    .register(registre);
-            Gauge.builder("ged.file.age.plus.ancien", file,
-                            f -> f.ageDuPlusAncien().map(d -> d.toMillis() / 1000.0).orElse(0.0))
-                    .tags(tags)
-                    .baseUnit("seconds")
-                    .description("Ancienneté du plus ancien traitement en attente")
-                    .register(registre);
-        }
     }
 
     private static Counter compteur(MeterRegistry registre, String issue) {

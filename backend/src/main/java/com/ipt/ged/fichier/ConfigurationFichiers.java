@@ -20,6 +20,7 @@ import com.ipt.ged.fichier.previsualisation.ConvertisseurLibreOffice;
 import com.ipt.ged.fichier.previsualisation.ServicePrevisualisation;
 import com.ipt.ged.fichier.stockage.FileStore;
 import com.ipt.ged.fichier.stockage.FileStoreDisque;
+import com.ipt.ged.supervision.VerificationAntivirus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -111,15 +112,14 @@ public class ConfigurationFichiers {
                 a.getTailleBlocOctets());
     }
 
-    /*
-     * Sonde de santé « antivirus » du lot exploitation (dev2) : à la fusion de
-     * ce lot, déclarer ici
-     *
-     *   @Bean VerificationAntivirus verificationAntivirus(AnalyseurAntivirus a) { return a::disponible; }
-     *
-     * pour que la sonde teste exactement le client du dépôt (zPING sur le même
-     * hôte, port et délai). AnalyseurAntivirus.disponible() est prêt et testé.
+    /**
+     * Sonde de santé « antivirus » du lot exploitation : elle teste exactement
+     * le client du dépôt (zPING sur le même hôte, port et délai).
      */
+    @Bean
+    public VerificationAntivirus verificationAntivirus(AnalyseurAntivirus analyseur) {
+        return analyseur::disponible;
+    }
 
     @Bean
     public ControleFichiers controleFichiers(DetecteurTypeReel detecteur, AnalyseurAntivirus antivirus,

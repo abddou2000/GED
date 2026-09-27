@@ -81,7 +81,7 @@ class TravailleurOcrPostgresTest {
         file = new OcrJobQueuePostgres(jdbc, PolitiqueReprise.PAR_DEFAUT);
         indexer = new SearchIndexerPostgres(jdbc, new PredicatDroitsProvisoire());
         registre = new SimpleMeterRegistry();
-        metriques = new MetriquesOcr(registre, new FileOcrSupervisee(file, Clock.systemUTC()), Duration.ofHours(24), Clock.systemUTC());
+        metriques = new MetriquesOcr(registre, Duration.ofHours(24), Clock.systemUTC());
         tx = new TransactionTemplate(new DataSourceTransactionManager(base.source()));
     }
 
@@ -130,7 +130,6 @@ class TravailleurOcrPostgresTest {
         double secondes = registre.get("ged.ocr.delai.disponibilite").timer().totalTime(TimeUnit.SECONDS);
         assertTrue(secondes >= 89 && secondes < 200, "délai mesuré depuis le dépôt : " + secondes);
         assertEquals(0.0, registre.get("ged.ocr.delai.objectif.depasse").counter().count());
-        assertEquals(86400.0, registre.get("ged.ocr.objectif.disponibilite").gauge().value());
     }
 
     @Test
@@ -146,15 +145,17 @@ class TravailleurOcrPostgresTest {
     }
 
     @Test
-    @DisplayName("Objectif de 24 h dépassé : compteur incrémenté ; jauges de profondeur et d'âge de la file")
+    @DisplayName("Objectif de 24 h dépassé : compteur incrémenté ; file supervisée (profondeur, âge)")
     void objectifDepasse() {
         deposer("vieux courrier".getBytes(StandardCharsets.UTF_8), "text/plain", Instant.now().minus(Duration.ofHours(30)));
         deposer("courrier récent".getBytes(StandardCharsets.UTF_8), "text/plain", Instant.now());
-        assertEquals(2.0, registre.get("ged.file.profondeur").tag("file", "ocr").gauge().value());
-        assertTrue(registre.get("ged.file.age.plus.ancien").tag("file", "ocr").gauge().value() >= 30 * 3600 - 5);
+        FileOcrSupervisee supervisee = new FileOcrSupervisee(file, Clock.systemUTC());
+        assertEquals("ocr", supervisee.nom());
+        assertEquals(2, supervisee.profondeur());
+        assertTrue(supervisee.ageDuPlusAncien().orElseThrow().toHours() >= 29);
         travailleur("w1", moteur).traiterUn(); // le plus ancien d'abord
         assertEquals(1.0, registre.get("ged.ocr.delai.objectif.depasse").counter().count());
-        assertEquals(1.0, registre.get("ged.file.profondeur").tag("file", "ocr").gauge().value());
+        assertEquals(1, supervisee.profondeur());
     }
 
     @Test
