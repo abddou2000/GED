@@ -131,7 +131,7 @@ class CorbeilleApiTest {
         mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON)
                         .content("{\"name\":\"Renommé en douce\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("corbeille")));
+                .andExpect(jsonPath("$.detail", containsString("corbeille")));
 
         mvc.perform(patch(BASE + "/" + id + "/verrou").param("verrouille", "true"))
                 .andExpect(status().isBadRequest());
@@ -148,7 +148,7 @@ class CorbeilleApiTest {
         mvc.perform(patch("/api/v1/signatures/" + etape + "/approve")
                         .contentType(APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("corbeille")));
+                .andExpect(jsonPath("$.detail", containsString("corbeille")));
 
         // La restauration reste possible, et rouvre l'écriture.
         mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
@@ -170,7 +170,7 @@ class CorbeilleApiTest {
 
         mvc.perform(patch("/api/v1/workspaces/" + workspaceId + "/archive"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("corbeille")));
+                .andExpect(jsonPath("$.detail", containsString("corbeille")));
 
         mvc.perform(patch("/api/v1/workspaces/" + workspaceId + "/parent")
                         .contentType(APPLICATION_JSON).content("{\"parentId\":null}"))

@@ -264,7 +264,7 @@ class SignatureApiTest {
                         .with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("assignée")));
+                .andExpect(jsonPath("$.detail", containsString("assignée")));
     }
 
     @Test
@@ -275,7 +275,7 @@ class SignatureApiTest {
         mvc.perform(patch("/api/v1/signatures/" + s1 + "/reject").contentType(APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("motif")));
+                .andExpect(jsonPath("$.detail", containsString("motif")));
     }
 
     @Test
@@ -287,6 +287,6 @@ class SignatureApiTest {
                         .with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("précédente")));
+                .andExpect(jsonPath("$.detail", containsString("précédente")));
     }
 }

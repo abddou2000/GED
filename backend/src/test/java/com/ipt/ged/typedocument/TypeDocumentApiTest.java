@@ -106,7 +106,7 @@ class TypeDocumentApiTest {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
                         .content(body("TD-DUP", "Deux", workspaceId, planId, "[\"pdf\"]", 10)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("déjà utilisé")));
+                .andExpect(jsonPath("$.detail", containsString("déjà utilisé")));
     }
 
     @Test
@@ -115,7 +115,7 @@ class TypeDocumentApiTest {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
                         .content("{\"code\":\"TD-X\",\"typeDeDocument\":\"X\",\"description\":\"d\",\"typeAutorise\":[\"pdf\"],\"tailleMaxMo\":10}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.workspaceId").exists());
+                .andExpect(jsonPath("$.erreurs.workspaceId").exists());
     }
 
     @Test
@@ -124,7 +124,7 @@ class TypeDocumentApiTest {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
                         .content(body("TD-SM", "Petit", workspaceId, planId, "[\"pdf\"]", 3)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.tailleMaxMo").exists());
+                .andExpect(jsonPath("$.erreurs.tailleMaxMo").exists());
     }
 
     @Test
@@ -133,7 +133,7 @@ class TypeDocumentApiTest {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)
                         .content(body("TD-NF", "SansFormat", workspaceId, planId, "[]", 10)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.typeAutorise").exists());
+                .andExpect(jsonPath("$.erreurs.typeAutorise").exists());
     }
 
     @Test

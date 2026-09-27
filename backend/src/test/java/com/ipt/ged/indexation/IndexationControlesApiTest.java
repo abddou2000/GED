@@ -140,7 +140,7 @@ class IndexationControlesApiTest {
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON)
                         .content("{\"valeurs\":[]}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("obligatoire")));
+                .andExpect(jsonPath("$.detail", containsString("obligatoire")));
 
         org.junit.jupiter.api.Assertions.assertEquals("Facture intacte", nomDu(doc),
                 "le nom du document a été détruit par une requête refusée");
@@ -154,7 +154,7 @@ class IndexationControlesApiTest {
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON)
                         .content("{\"valeurs\":[{\"indexFieldId\":\"" + idFacultatif + "\",\"valeur\":\"une note\"}]}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("obligatoire")));
+                .andExpect(jsonPath("$.detail", containsString("obligatoire")));
 
         // Rien n'a été écrit : le refus est complet, pas partiel.
         mvc.perform(get(BASE + "/documents/" + doc)).andExpect(jsonPath("$", hasSize(0)));
@@ -176,7 +176,7 @@ class IndexationControlesApiTest {
                                 + "{\"indexFieldId\":\"" + idFournisseur + "\",\"valeur\":\"ACME\"},"
                                 + "{\"indexFieldId\":\"" + idMontant + "\",\"valeur\":\"100\"}]}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("errouill")));
+                .andExpect(jsonPath("$.detail", containsString("errouill")));
 
         org.junit.jupiter.api.Assertions.assertEquals("Facture verrouillée", nomDu(doc));
     }
@@ -196,7 +196,7 @@ class IndexationControlesApiTest {
                                 + "{\"indexFieldId\":\"" + idMontant + "\",\"valeur\":\"100\"},"
                                 + "{\"indexFieldId\":\"" + idHorsPlan + "\",\"valeur\":\"contrebande\"}]}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("plan d'indexation")));
+                .andExpect(jsonPath("$.detail", containsString("plan d'indexation")));
 
         mvc.perform(get(BASE + "/documents/" + doc)).andExpect(jsonPath("$", hasSize(0)));
         mvc.perform(post(BASE + "/recherche").contentType(APPLICATION_JSON).content("{}"))
@@ -212,14 +212,14 @@ class IndexationControlesApiTest {
                         .file(new MockMultipartFile("file", "charge.exe", "application/octet-stream", "MZ".getBytes()))
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("non autorisé")));
+                .andExpect(jsonPath("$.detail", containsString("non autorisé")));
 
         // Taille : 6 Mo pour un plafond de 5.
         mvc.perform(multipart(BASE + "/apercu")
                         .file(new MockMultipartFile("file", "enorme.pdf", "application/pdf", new byte[6 * 1024 * 1024]))
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("volumineux")));
+                .andExpect(jsonPath("$.detail", containsString("volumineux")));
 
         // Un fichier conforme passe toujours : la route reste utilisable.
         mvc.perform(multipart(BASE + "/apercu")

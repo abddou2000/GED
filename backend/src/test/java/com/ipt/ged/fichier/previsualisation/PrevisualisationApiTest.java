@@ -105,7 +105,7 @@ class PrevisualisationApiTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.code").value("FICHIER_INTROUVABLE"))
-                .andExpect(jsonPath("$.message").exists());
+                .andExpect(jsonPath("$.detail").exists());
     }
 
     @Test

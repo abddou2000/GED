@@ -114,7 +114,7 @@ class SocleDonneesTest {
 
         mvc.perform(get("/api/v1/documents/12"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("UUID")));
+                .andExpect(jsonPath("$.detail", containsString("UUID")));
         mvc.perform(get("/api/v1/documents/" + UUID.randomUUID()))
                 .andExpect(status().isNotFound());
     }

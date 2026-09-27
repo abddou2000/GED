@@ -102,7 +102,7 @@ class WorkflowApiTest {
     void createRejectsEmptyName() throws Exception {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(wf("", step(1, "X", 1))))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.name").exists());
+                .andExpect(jsonPath("$.erreurs.name").exists());
     }
 
     @Test
@@ -110,7 +110,7 @@ class WorkflowApiTest {
     void createRejectsNoSteps() throws Exception {
         mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(wf("Circuit vide")))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.steps").exists());
+                .andExpect(jsonPath("$.erreurs.steps").exists());
     }
 
     // ---------------------------------------------------------------- Lecture

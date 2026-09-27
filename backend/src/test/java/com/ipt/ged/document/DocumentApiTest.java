@@ -116,7 +116,7 @@ class DocumentApiTest {
                         .file(file("virus.exe", "x".getBytes()))
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("non autorisé")));
+                .andExpect(jsonPath("$.detail", containsString("non autorisé")));
     }
 
     @Test
@@ -127,7 +127,7 @@ class DocumentApiTest {
                         .file(file("gros.pdf", big))
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("volumineux")));
+                .andExpect(jsonPath("$.detail", containsString("volumineux")));
     }
 
     @Test
@@ -137,7 +137,7 @@ class DocumentApiTest {
                         .file(file("vide.pdf", new byte[0]))
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("obligatoire")));
+                .andExpect(jsonPath("$.detail", containsString("obligatoire")));
     }
 
     @Test
