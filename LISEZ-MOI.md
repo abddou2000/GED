@@ -69,7 +69,7 @@ mot de passe `dev-local-only` pour tous :
 
 | Identifiant | Personne | Situation |
 |---|---|---|
-| `sbennani` | Sara Bennani | Administrateur (amorçage) |
+| `sbennani` | Sara Bennani | Administrateur (amorçage, portée globale) |
 | `kelfassi`, `yalaoui` | Karim El Fassi, Yasmine Alaoui | provisionnés sans rôle |
 | `nidrissi` | Nadia Idrissi | sans fiche employé : fiche créée, sans rôle |
 | `otazi` | Omar Tazi | désactivé dans l'annuaire : connexion refusée |
@@ -178,3 +178,14 @@ Connexion limitée à 5 tentatives par minute par IP et par identifiant (429).
 `config/SecurityConfig.java` : tout est fermé par défaut ; une identité sans rôle
 n'accède qu'à `/api/v1/auth/me` (page d'accueil vide) ; `/api/v1/admin/**` exige
 le rôle Administrateur. Les rôles sont relus en base à chaque requête.
+
+**Autorisation** (lot E3, §12.2 à §12.4) : rôles composés de permissions
+(9 élémentaires, 7 d'administration, `VOIR_PRIVE`, `VOIR_CONFIDENTIEL`),
+habilitations d'un utilisateur ou d'un groupe GED sur la portée globale, un nœud
+(hérité en dessous, rupture d'héritage possible) ou un document. Point
+d'application unique : `autorisation/AccessPredicate` (nœuds accessibles,
+décision `peut`, filtres « à la source » en JPA et en SQL, cache par sujet
+invalidé par le compteur `version_habilitations`), façade `ControleAcces`
+(404 hors périmètre, 403 permission manquante). Confidentialité PUBLIC / PRIVE /
+CONFIDENTIEL et personnes désignées ; rattachement d'un document à plusieurs
+espaces (droits en union). Code : `backend/src/main/java/com/ipt/ged/autorisation/`.

@@ -188,9 +188,18 @@ Avec son identifiant Windows et son mot de passe d'annuaire. La personne dont le
 `sAMAccountName` figure dans `GED_ADMINISTRATEURS` reçoit le rôle Administrateur
 à sa **première** connexion ; toute autre personne est provisionnée **sans
 rôle** et voit une page d'accueil vide jusqu'à ce qu'un Administrateur lui en
-attribue un (lot E3 : écrans d'attribution). Les fiches employé reprises de
-l'ancienne base sont rattachées automatiquement quand le courriel de l'annuaire
-égale l'adresse dérivée « prénom.nom@domaine ».
+attribue un : menu **Habilitations**, qui signale les identités sans rôle ; un
+premier rôle est une habilitation de portée globale ou sur un espace. Les
+fiches employé reprises de l'ancienne base sont rattachées automatiquement
+quand le courriel de l'annuaire égale l'adresse dérivée « prénom.nom@domaine ».
+
+**Droits (lot E3).** Un rôle est une habilitation : un sujet (utilisateur ou
+groupe GED), un rôle, une cible (portée globale, espace ou dossier, document)
+et éventuellement une rupture d'héritage. L'attribution la plus spécifique
+prévaut : une habilitation posée sur un espace **remplace**, sur cet espace et
+en dessous, ce que la portée globale donnait. Menus **Rôles** (composition) et
+**Droits effectifs** (permissions d'une personne sur un objet, avec leur
+origine). Toute modification est effective immédiatement, sans reconnexion.
 
 ---
 
@@ -294,7 +303,24 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
   changement de type) suit le schéma **expand / contract** : ajout, bascule du
   code, suppression dans une version ultérieure — et elle est précédée d'une
   sauvegarde ciblée de la table.
-- Chaque lot livré pose un jalon (`tagDatabase`) : le lot E1 pose `socle-e1`.
+- Chaque lot livré pose un jalon (`tagDatabase`) : `socle-e1` (E1),
+  `identite-e2` (E2), `autorisation-e3` (E3).
+- **Passage au lot E3** (`autorisation-e3`) — à relire avant la montée :
+  - `workspace` devient `noeud` (chemin matérialisé et nature ESPACE / DOSSIER,
+    calculés pour l'existant et tenus ensuite par déclencheurs) ; `access_group`
+    et `access_group_employe` deviennent `groupe_ged` et `groupe_membre` ;
+  - les rôles globaux (`utilisateur_role`) deviennent des habilitations de portée
+    globale, et chaque rattachement groupe / espace (`access_group_workspace`)
+    une habilitation du groupe sur le nœud, **rôle Utilisateur standard** ; les
+    deux tables d'origine sont supprimées (le retour arrière les recrée) ;
+  - **conséquence à vérifier** : l'attribution la plus spécifique prévaut. Un
+    Administrateur membre d'un groupe repris sur un espace n'a plus, sur cet
+    espace, que les permissions d'Utilisateur standard (ni suppression, ni
+    purge). Après la montée, l'écran **Habilitations** permet de retirer ces
+    habilitations de groupe ou de leur donner le rôle voulu ;
+  - `version_habilitations` est tenu par des déclencheurs (séquence
+    `version_habilitations_seq`) : `ged_app` doit avoir `USAGE` sur les
+    séquences du schéma, ce que `preparer-base.sql` accorde déjà par défaut.
 - **Retour arrière** avec la Liquibase CLI 4.29 (compte `ged_owner`), depuis le
   dossier `backend/src/main/resources` ou le contenu `BOOT-INF/classes` du JAR :
   ```bash
@@ -319,8 +345,9 @@ Elles ne bloquent pas un démarrage, mais il faut les connaître :
 
 1. **Limitation de débit en mémoire** : propre à chaque instance ; à déplacer
    dans un cache partagé si la GED tourne un jour sur plusieurs nœuds.
-2. **Attribution des rôles** : en attendant les écrans du lot E3, seul
-   l'amorçage (`GED_ADMINISTRATEURS`) donne un rôle.
+2. **Portée des clés d'API** : les applications sont des sujets
+   d'habilitation prévus par le modèle (lot E3), mais leurs clés arrivent au
+   lot E9 ; aucune application ne peut encore appeler l'API.
 3. **L'OCR peut bloquer un thread** : la sortie d'erreur de Tesseract n'est pas
    drainée, et le délai de garde de 120 s n'est alors jamais atteint.
 4. **Aucun HTTPS n'est configuré ici** : à porter par le reverse-proxy.

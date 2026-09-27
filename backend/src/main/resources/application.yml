@@ -71,6 +71,16 @@ ged:
     origines: ${GED_ORIGINES:http://localhost:*,http://127.0.0.1:*}
 
   # ------------------------------------------------------------
+  #  Autorisation (lot E3, dossier technique §12.2.3)
+  # ------------------------------------------------------------
+  autorisation:
+    cache:
+      # Nombre de sujets dont les droits résolus restent en mémoire (le plus
+      # ancien usage est évincé). Invalidation par le compteur
+      # version_habilitations : aucune durée de vie à régler.
+      taille: ${GED_AUTORISATION_CACHE_TAILLE:1000}
+
+  # ------------------------------------------------------------
   #  Identité et sessions (lot E2, dossier technique §3 ; décisions D1 à D4)
   #  Valeurs par défaut = PRODUCTION, fermées : LDAPS exigé, clé JWT fournie
   #  exigée, cookie Secure. Voir backend/.env.example et DEPLOIEMENT.md.

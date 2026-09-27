@@ -1,6 +1,10 @@
 package com.ipt.ged.accessgroup;
 
+import com.ipt.ged.autorisation.TypeSujet;
 import com.ipt.ged.autorisation.admin.ServiceHabilitations;
+import com.ipt.ged.autorisation.admin.dto.DemandeHabilitation;
+import com.ipt.ged.identite.Role;
+import com.ipt.ged.identite.RoleRepository;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.workspace.WorkSpace;
@@ -11,6 +15,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Données de démonstration : deux groupes d'accès rattachant des utilisateurs à des
@@ -28,9 +33,11 @@ public class AccessGroupSeeder implements CommandLineRunner {
     private final WorkSpaceRepository workspaces;
     private final EmployeRepository employes;
     private final ServiceHabilitations habilitations;
+    private final RoleRepository roles;
 
     public AccessGroupSeeder(AccessGroupRepository repo, WorkSpaceRepository workspaces,
-                             EmployeRepository employes, ServiceHabilitations habilitations) {
+                             EmployeRepository employes, ServiceHabilitations habilitations, RoleRepository roles) {
+        this.roles = roles;
         this.repo = repo;
         this.workspaces = workspaces;
         this.employes = employes;
@@ -52,7 +59,13 @@ public class AccessGroupSeeder implements CommandLineRunner {
         AccessGroup admin = new AccessGroup("AG-ADMIN", "Administrateurs GED");
         admin.getUsers().add(users.get(0));
         repo.save(admin);
-        habilitations.couvrirEspaces(admin.getId(), allWs.stream().map(WorkSpace::getId).toList());
+        // Rôle Administrateur sur chaque espace racine (hérité en dessous) : une
+        // attribution plus spécifique REMPLACE l'héritage (§12.2.2) ; avec le
+        // seul rôle standard, ce groupe restreindrait ses membres
+        // administrateurs sur tous les espaces qu'il couvre.
+        UUID roleAdmin = roles.findByCode(Role.ADMINISTRATEUR).orElseThrow().getId();
+        allWs.stream().filter(w -> w.getParent() == null).forEach(w -> habilitations.attribuer(
+                new DemandeHabilitation(TypeSujet.GROUPE, admin.getId(), roleAdmin, w.getId(), null, false), null));
 
         // Lecteurs Comptabilité : premier espace
         AccessGroup lecteurs = new AccessGroup("AG-LECT", "Lecteurs Comptabilité");
