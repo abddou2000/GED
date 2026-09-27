@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609291000_ajout_statut_indexation_document.xml">
+
+    <!--
+        Lot E6, dépôt en deux temps (§12.11) : issue de l'indexation portée par
+        le document. INDEXE (métadonnées du plan enregistrées), SANS_PLAN (le
+        type n'a pas de plan), A_INDEXER (métadonnées absentes ou en échec :
+        le fichier est conservé, l'indexation est reprenable).
+
+        Documents existants : SANS_PLAN si le type n'a pas de plan ; INDEXE si au
+        moins une valeur est enregistrée et qu'aucun index obligatoire du plan
+        n'est vide ; A_INDEXER sinon. (L'indicateur de suppression des index
+        n'est pas lu : il est renommé par le socle, E1.)
+    -->
+    <changeSet id="202609291000-1" author="ged">
+        <comment>Issue de l'indexation du dépôt sur document (INDEXE, SANS_PLAN, A_INDEXER).</comment>
+        <addColumn tableName="document">
+            <column name="statut_indexation" type="VARCHAR(16)" defaultValue="A_INDEXER">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_statut_indexation
+            CHECK (statut_indexation IN ('INDEXE', 'SANS_PLAN', 'A_INDEXER'))</sql>
+        <sql>UPDATE ${database.defaultSchemaName}.document d SET statut_indexation = CASE
+                WHEN t.plan_indexation_id IS NULL THEN 'SANS_PLAN'
+                WHEN EXISTS (SELECT 1 FROM ${database.defaultSchemaName}.document_index_valeur v WHERE v.document_id = d.id)
+                 AND NOT EXISTS (
+                     SELECT 1 FROM ${database.defaultSchemaName}.plan_index pi
+                       JOIN ${database.defaultSchemaName}.index_def i ON i.id = pi.index_def_id
+                      WHERE pi.plan_indexation_id = t.plan_indexation_id AND i.obligatoire
+                        AND NOT EXISTS (SELECT 1 FROM ${database.defaultSchemaName}.document_index_valeur v
+                                         WHERE v.document_id = d.id AND v.index_def_id = i.id
+                                           AND btrim(coalesce(v.valeur, '')) &lt;&gt; ''))
+                THEN 'INDEXE'
+                ELSE 'A_INDEXER' END
+              FROM ${database.defaultSchemaName}.type_document t WHERE t.id = d.type_document_id</sql>
+        <createIndex indexName="idx_document_statut_indexation" tableName="document">
+            <column name="statut_indexation"/>
+        </createIndex>
+        <rollback>
+            <dropIndex indexName="idx_document_statut_indexation" tableName="document"/>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_statut_indexation</sql>
+            <dropColumn tableName="document" columnName="statut_indexation"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

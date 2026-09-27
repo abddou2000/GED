@@ -2,6 +2,9 @@ package com.ipt.ged.documentationapi;
 
 import com.ipt.ged.conventionsapi.ProprietesConventionsApi;
 import com.ipt.ged.idempotence.ProprietesIdempotence;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.core.converter.ModelConverter;
+import io.swagger.v3.core.jackson.ModelResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -25,5 +28,15 @@ public class ConfigurationDocumentationApi {
                                                        ProprietesIdempotence idempotence,
                                                        ProprietesConventionsApi conventions) {
         return new EnrichissementOpenApi(dictionnaire, idempotence, conventions);
+    }
+
+    /**
+     * Résolution des modèles avec des noms de schémas distincts
+     * ({@link NomsSchemasDistincts}) : deux DTO homonymes de lots différents ne
+     * sont plus fusionnés en un seul schéma.
+     */
+    @Bean
+    public ModelConverter resolveurNomsDistincts(ObjectMapper json) {
+        return new ModelResolver(json, new NomsSchemasDistincts());
     }
 }

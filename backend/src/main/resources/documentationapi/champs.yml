@@ -93,10 +93,55 @@ objets:
   PorteeCleRequest: Portée complète d'une clé d'API, remplacée d'un bloc (§5.4).
   PorteeRequest: Nœud (sous-arborescence comprise) et opérations permises à la clé.
   PorteeResponse: Ligne de portée d'une clé d'API.
+  Conservation: État de conservation d'un document et de la copie PDF/A de sa version courante (§6.1.4, §12.6).
+  Info: Copie de conservation PDF/A d'une version.
+  Resultat: Issue de l'archivage d'un document.
+  Job: Archivage d'un dossier en traitement de fond, avec sa progression.
+  Element: Ligne du rapport d'archivage d'un dossier.
+  Export: Export ZIP d'un dossier en traitement de fond (§12.10).
+  Texte: Texte extrait de la version courante d'un document et état de l'OCR (§4.3.4).
 
 champs:
   # --- Envoi multipart -------------------------------------------------------
   file: {description: "Fichier envoyé (multipart/form-data) ; type réel, taille et antivirus contrôlés.", exemple: null}
+
+  # --- Stockage, OCR et cycle de vie (lots E5 à E7, dev3) -------------------
+  metadonnees: {description: "Métadonnées du dépôt en un seul appel : objet JSON {CODE_INDEX: valeur} (64 Ko au plus).", exemple: "{\"NUM_MARCHE\":\"2026-014\"}"}
+  statutOcr: {description: "État OCR de la version courante : EN_ATTENTE_OCR, EN_COURS_OCR, OCR_TERMINE ou OCR_ECHEC ; nul si sans objet.", exemple: OCR_TERMINE}
+  statutIndexation: {description: "Issue de l'indexation (§12.11) : INDEXE, SANS_PLAN ou A_INDEXER.", exemple: INDEXE}
+  motifIndexation: {description: "Pourquoi l'indexation du dépôt n'a pas abouti ; nul sinon.", exemple: "Index NUM_MARCHE obligatoire manquant"}
+  statutConservation: {description: "ACTIF ou ARCHIVE (§12.6) : un document archivé est en lecture seule.", exemple: ACTIF}
+  archiveLe: {description: "Date d'archivage ; nulle pour un document actif.", exemple: "2026-09-30T08:00:00Z"}
+  archivePar: {description: "Identité GED qui a archivé.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  versionId: {description: "Identifiant de la version.", exemple: "0192f0a6-dddd-7d1e-9f20-3a4b5c6d7e8f"}
+  copie: {description: "Copie de conservation PDF/A de la version courante, si elle existe.", exemple: null}
+  empreinte: {description: "Empreinte SHA-256 (hexadécimal).", exemple: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"}
+  typeMime: {description: "Type réel du fichier, détecté au dépôt.", exemple: application/pdf}
+  methode: {description: "Méthode de production de la copie (conversion, original déjà PDF/A…).", exemple: CONVERSION}
+  format: {description: "Format de la copie de conservation.", exemple: PDF/A-2b}
+  tailleOctets: {description: "Taille en octets.", exemple: 482113}
+  issue: {description: "ARCHIVE (copie PDF/A validée) ou ANOMALIE (original seul, copie en échec, à reprendre).", exemple: ARCHIVE}
+  copieConservation: {description: "Statut de la copie de conservation produite.", exemple: VALIDE}
+  dossierId: {description: "Identifiant du dossier.", exemple: "0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f"}
+  dossierNom: {description: "Nom du dossier.", exemple: "Marchés 2026"}
+  demandeurId: {description: "Identité GED qui a demandé le traitement.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  archivisteUtilisateurId: {description: "Identité GED de l'archiviste.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  traites: {description: "Documents traités.", exemple: 120}
+  archives: {description: "Documents archivés.", exemple: 118}
+  echecs: {description: "Documents en échec.", exemple: 0}
+  annulationDemandee: {description: "Vrai si l'annulation du traitement est demandée.", exemple: false}
+  demarreLe: {description: "Début du traitement.", exemple: "2026-09-30T08:00:00Z"}
+  termineLe: {description: "Fin du traitement ; nulle s'il est en cours.", exemple: "2026-09-30T08:05:00Z"}
+  rang: {description: "Rang du document dans le traitement.", exemple: 1}
+  traiteLe: {description: "Date de traitement du document.", exemple: "2026-09-30T08:01:00Z"}
+  nbDocuments: {description: "Nombre de documents du dossier exporté.", exemple: 640}
+  tailleEstimee: {description: "Taille estimée de l'archive, en octets.", exemple: 2147483648}
+  moteurDisponible: {description: "Vrai si le moteur OCR (Tesseract) répond.", exemple: true}
+  languesInstallees: {description: "Langues OCR installées.", exemple: [fra, ara]}
+  langueDefaut: {description: "Langue OCR par défaut.", exemple: fra+ara}
+  langue: {description: "Langue de reconnaissance appliquée.", exemple: fra}
+  indexeLe: {description: "Date d'entrée du texte dans l'index plein texte.", exemple: "2026-09-27T09:31:00Z"}
+  interrogeable: {description: "Vrai si le texte de la version courante est dans l'index plein texte.", exemple: true}
 
   # --- Identité, droits et portée des clés (lots E2, E3, E9 vague 4) --------
   supprime: {description: "Vrai si l'objet est dans la corbeille (suppression douce).", exemple: false}
@@ -422,6 +467,13 @@ surcharges:
   DocumentResponse.permissions: {description: "Permissions de l'appelant sur le document (nul dans les listes).", exemple: [CONSULTER, MODIFIER]}
   DemandeRole.permissions: {description: "Codes des permissions du rôle.", exemple: [CONSULTER, DEPOSER]}
   ConfidentialiteVue.motif: {description: "Raison de la décision.", exemple: "Déposant du document"}
+  RechercheRequest.archives: {description: "Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6).", exemple: INCLURE}
+  Job.archives: {description: "Documents archivés.", exemple: 118}
+  Element.resultat: {description: "Issue pour ce document (ARCHIVE, ANOMALIE, ECHEC…).", exemple: ARCHIVE}
+  Export.etat: {description: "État de l'export (EN_ATTENTE, EN_COURS, TERMINE, ECHEC, EXPIRE…).", exemple: TERMINE}
+  Job.etat: {description: "État du traitement (EN_ATTENTE, EN_COURS, TERMINE, ANNULE…).", exemple: EN_COURS}
+  Info.statut: {description: "Statut de la copie (VALIDE, ECHEC…).", exemple: VALIDE}
+  Texte.provenance: {description: "Origine du texte : COUCHE_TEXTE, OCR ou AUCUNE.", exemple: OCR}
 
 
 # Paramètres de chemin et de requête, par nom.
@@ -461,6 +513,9 @@ parametres:
   sujetId: Identifiant du sujet (identité, groupe ou application).
   sujetType: "Nature du sujet : UTILISATEUR, GROUPE ou APPLICATION."
   utilisateurId: Identifiant de l'identité GED.
+  dossierId: Identifiant du dossier.
+  limite: "Nombre maximal de traitements listés (50 par défaut)."
+  original: "Vrai pour télécharger l'original plutôt que la copie de conservation (document archivé)."
 
 # Corps sans schéma nommé (Map côté contrôleur), reconnus par la fin du chemin.
 corps:
@@ -482,6 +537,9 @@ corps:
   /designes:
     description: Désigner une identité autorisée à voir le document confidentiel.
     exemple: {utilisateurId: 0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f}
+  /purge:
+    description: "Identifiants des documents à purger définitivement de la corbeille (§12.5)."
+    exemple: {ids: [0192f0a6-9999-7d1e-9f20-3a4b5c6d7e8f]}
   /reject:
     description: Refus d'une étape ; le motif explique le refus.
     exemple: {motif: Pièces justificatives manquantes}

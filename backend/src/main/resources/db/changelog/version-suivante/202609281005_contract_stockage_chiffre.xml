@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609281005_contract_stockage_chiffre.xml">
+
+    <!--
+        Lot E5, vague 2 (« contract », §4.2.2) : toutes les versions sont dans le
+        stockage chiffré ; les chemins en clair disparaissent, les colonnes de
+        chiffrement deviennent obligatoires.
+
+        NE PAS INCLURE dans le changelog de la version qui livre le branchement :
+        sur une base neuve, il s'appliquerait AVANT la reprise des données
+        (scripts/reprise, lot E1), qui écrit encore file_path. À ajouter au
+        changelog maître (dans changesets/, même nom) de la version suivante,
+        une fois la reprise des fichiers faite en production.
+
+        Précondition onFail="CONTINUE" : tant qu'une version n'a pas été reprise
+        (cle_fichier_id vide), le changeset est SAUTÉ sans être enregistré, et
+        retenté à la montée suivante. Sauvegarder la base avant : le retour
+        arrière recrée les colonnes vides.
+    -->
+    <changeSet id="202609281005-1" author="ged">
+        <preConditions onFail="CONTINUE" onFailMessage="Des versions ne sont pas encore reprises dans le stockage chiffré : contract reporté.">
+            <sqlCheck expectedResult="0">SELECT count(*) FROM ${database.defaultSchemaName}.version_document WHERE cle_fichier_id IS NULL</sqlCheck>
+        </preConditions>
+        <comment>Stockage chiffré obligatoire, chemins en clair retirés.</comment>
+        <addNotNullConstraint tableName="version_document" columnName="cle_fichier_id" columnDataType="UUID"/>
+        <addNotNullConstraint tableName="version_document" columnName="empreinte" columnDataType="CHAR(64)"/>
+        <addNotNullConstraint tableName="version_document" columnName="taille_octets" columnDataType="BIGINT"/>
+        <dropColumn tableName="version_document" columnName="file_path"/>
+        <dropColumn tableName="document" columnName="file_path"/>
+        <rollback>
+            <addColumn tableName="document">
+                <column name="file_path" type="VARCHAR(255)"/>
+            </addColumn>
+            <addColumn tableName="version_document">
+                <column name="file_path" type="VARCHAR(255)"/>
+            </addColumn>
+            <dropNotNullConstraint tableName="version_document" columnName="taille_octets" columnDataType="BIGINT"/>
+            <dropNotNullConstraint tableName="version_document" columnName="empreinte" columnDataType="CHAR(64)"/>
+            <dropNotNullConstraint tableName="version_document" columnName="cle_fichier_id" columnDataType="UUID"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

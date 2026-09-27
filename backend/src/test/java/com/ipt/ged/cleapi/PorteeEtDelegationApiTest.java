@@ -183,7 +183,9 @@ class PorteeEtDelegationApiTest {
         Cle c = cle(true);
         portee(c, Map.of(espaceA, List.of("CONSULTATION")));
         assertThat(lire(c, documentA, null)).isEqualTo(200);
-        // Le délégué n'a aucun droit sur A : l'intersection est vide.
+        // Le délégué n'a aucun droit sur A (rupture d'héritage : quels que soient ses droits
+        // hérités posés par d'autres tests sur la même base) : l'intersection est vide.
+        jeu.rupture(Comptes.SECOND_ACTEUR, espaceA);
         assertThat(lire(c, documentA, Comptes.SECOND_ACTEUR)).isEqualTo(404);
         // Habilité sur A et sur B : A seulement (B est hors portée de la clé).
         jeu.habiliter(Comptes.SECOND_ACTEUR, "UTILISATEUR_STANDARD", espaceA, null);

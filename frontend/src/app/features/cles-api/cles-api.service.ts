@@ -44,6 +44,20 @@ export interface ApplicationRequest {
   quotaJour: number;
 }
 
+/** Opérations qu'une portée de clé peut permettre (DAT §5.4 ; circuits : contrat E8-API, D8). */
+export const OPERATIONS_API = [
+  'CONSULTATION', 'RECHERCHE', 'DEPOT', 'CREATION_DOSSIER', 'VERSEMENT', 'RATTACHEMENT',
+  'CONSULTATION_DROITS', 'WORKFLOW_PILOTAGE', 'WORKFLOW_DECISION',
+] as const;
+export type OperationApi = typeof OPERATIONS_API[number];
+
+/** Ligne de portée : un nœud (sous-arborescence comprise) et ses opérations. */
+export interface LignePortee {
+  noeudId: string;
+  noeud?: string | null;
+  operations: OperationApi[];
+}
+
 /** Réponse d'une génération : `cle` n'est affichée qu'une fois (DAT §5.4). */
 export interface CleGeneree {
   cle: string;
@@ -80,5 +94,19 @@ export class ClesApiService {
 
   revoquer(cleId: string, motif: string): Observable<CleApi> {
     return this.http.post<CleApi>(`${API_BASE}/cles-api/${cleId}/revocation`, { motif });
+  }
+
+  portee(cleId: string): Observable<LignePortee[]> {
+    return this.http.get<LignePortee[]>(`${API_BASE}/cles-api/${cleId}/portee`);
+  }
+
+  definirPortee(cleId: string, portee: LignePortee[]): Observable<LignePortee[]> {
+    return this.http.put<LignePortee[]>(`${API_BASE}/cles-api/${cleId}/portee`,
+      { portee: portee.map(l => ({ noeudId: l.noeudId, operations: l.operations })) });
+  }
+
+  /** Espaces et dossiers proposés dans l'éditeur de portée. */
+  noeuds(): Observable<{ id: string; name: string }[]> {
+    return this.http.get<{ id: string; name: string }[]>(`${API_BASE}/workspaces/for-select`);
   }
 }

@@ -2,7 +2,52 @@
 
 Branche `ct/dev2`. Mise à jour : 27/09/2026.
 
-## Après vague 3 — notifications (E8, partie reprise de dev3) et OpenAPI (T-053) : **LIVRÉ sur ct/dev2**
+## Vague 4 — fusions E2/E3 (dev1) et E5-E7 (dev3), portée des clés et délégation, D4 : **LIVRÉ sur ct/dev2**
+
+Fusions de `conformite-technique` : 4f41279 (E2, E3 de dev1) dans cbae4e4, puis e81ecc2
+(E5 à E7 de dev3). Références : matrice technique (MT) et fonctionnelle (MF), lignes
+comptées à partir de 0.
+
+| Réf. | Exigence | Livré | Statut proposé |
+|---|---|---|---|
+| MT 4.14 | §5.4 — portée des clés | `SourceHabilitationsApplications` : la clé est un sujet (`Sujet.id` = la clé, cache des droits par clé), `cle_api_portee` (nœud + opérations) traduite en attributions et décidée par le même `AccessPredicate` que les utilisateurs ; `OperationApi` → permissions (CONSULTATION, RECHERCHE → Consulter ; DEPOT, CREATION_DOSSIER → Déposer ; VERSEMENT → Consulter + Modifier ; RATTACHEMENT → Consulter + Modifier + Déposer ; WORKFLOW_PILOTAGE → Consulter + Modifier ; WORKFLOW_DECISION → Consulter + Valider, contrat E8-API de dev1) ; habilitations de sujet APPLICATION servies aussi (élémentaires seulement) ; API `GET/PUT /api/v1/cles-api/{id}/portee` (audit `CLE_API_PORTEE_MODIFIEE`, effet immédiat par `version_habilitations`), portée recopiée à la régénération ; `ControlePorteeApplication` branché sur `ControleAcces` ; FK `cle_api_portee → noeud` et `habilitation → application` ; éditeur de portée dans l'écran « Clés d'API » | Identique |
+| MT 4.1 | §5.2 — applications au même modèle | sujet d'autorisation, audit, portée : oui ; routes réservées aux utilisateurs refusées aux clés (applications, clés, audit, auth, notifications, admin, groupes) | Identique |
+| MT 4.15 | §5.5 — délégation `X-On-Behalf-Of` | `ResolveurDelegationAnnuaire` : attribut « délégation » de la clé (403 sinon), adresses sources obligatoires (403 `DELEGATION_SANS_ADRESSES`), identifiant (`sAMAccountName` ou objectGUID) résolu par les identités GED puis l'annuaire (provisionnement sans rôle), inconnu → 422 `IDENTITE_DELEGUEE_INVALIDE`, annuaire injoignable → 503 ; écriture : droits de la clé, l'utilisateur délégué est l'auteur (déposant) ; lecture (GET/HEAD) : **intersection** nœud par nœud des droits de la clé et de l'utilisateur ; double identité au journal (`acteur_utilisateur_id` = délégué, `acteur_application_id`) | **Proche** : rejet d'un compte **désactivé** en attente (QR9, D1) — option `ged.api.delegation.verifier-compte-annuaire` (existence dans l'annuaire), faux par défaut |
+| P-02 / D4 | sonde annuaire par contrôleur | `identite.annuaire.SondeAnnuaire` (dev1) : un contrôleur = liaison par la source principale, comme avant ; N contrôleurs = liaison de chacun (mêmes réglages, `ConfigurationAnnuaire.construire`), `UP` / `DEGRADE` (un sur N) / `DOWN`, cache 30 s conservé ; jauge `ged_annuaire_controleur{controleur}`, alerte `GedAnnuaireControleurIndisponible` ; `DEGRADE` = 200 et compté disponible dans `ged_sante` | Identique (N contrôleurs éprouvés par test unitaire, un seul contrôleur réel) |
+| MT 7.4 | §8.3 — registre des dépendances | veraPDF (double licence, **MPL-2.0 retenue** pour tout le groupe `org.verapdf`), xmpbox (Apache-2.0), Saxon-HE et rhino (MPL-2.0, transitives de veraPDF), jaxb-api (CDDL-1.1 retenue), stax-utils (BSD-4-Clause) arbitrés dans `outils/registre-dependances.mjs` ; usages de spring-boot-starter-mail, spring-security-ldap, unboundid, tika-core documentés ; `docs/DEPENDANCES.md` régénéré, aucune licence sans arbitrage | Identique |
+
+**Branchements sur E2/E3** : acteur du journal = identité GED (`ActeurCourant.utilisateurId()`) ;
+destinataires des notifications depuis `cache_annuaire`, `groupe_membre`, habilitations
+(`AnnuaireDestinatairesIdentite`) ; écoute directe de `HabilitationModifiee` ; journal sous
+`CONSULTER_AUDIT` (garde de dev1) ; administration des clés sous `GERER_CLES_API`. Tests :
+`EvenementsLotsAuditTest` (connexions, habilitations au journal),
+`EvenementsDocumentsJournalTest` (les 15 événements documents de dev3 au journal, lectures
+en transaction en lecture seule comprises), `NotificationsTest.chaineReelleAutorisation`.
+
+**Arbitrages de fusion à connaître (dev1, dev3)** :
+- `GestionErreursAutorisation` supprimé et `ConflitAutorisationException` devenue une
+  `ConflitException` (problem+json), comme annoncé par dev1 ; `CheminsAccesApiTest` lit
+  `code`/`detail` (404 au libellé fixe, P5).
+- dev3 : `EvenementDocument.acteurUtilisateurId()` rend `null` — le journal prend l'identité
+  GED de la requête (l'employé n'est pas l'identité) ; `EvenementsAuditTest` et
+  `ArchivageApiTest` ajustés. Les tests de dev3 qui lisaient `$.message` lisent `$.detail`
+  (contrat problem+json) ; statuts 413/415 de dev3 conservés.
+- `AuditService` : un événement publié dans une transaction en **lecture seule**
+  (téléchargement, aperçu) est écrit dans sa propre transaction (sinon 500).
+- Spécification OpenAPI : `NomsSchemasDistincts` — deux DTO homonymes (les `Ref`, les
+  `Resultat`) ne sont plus fusionnés en un seul schéma ; dictionnaire complété pour E2, E3,
+  E5 à E7.
+- Workflow API de dev1 (bd83262, pas encore dans `conformite-technique`) : `AccesApiWorkflow`
+  sera branché (`@Primary`) quand il y sera ; la portée prévoit déjà WORKFLOW_PILOTAGE et
+  WORKFLOW_DECISION.
+
+**Exploitation des tests en parallèle (pour pm)** : les suites de plusieurs membres lancées en
+même temps se gênent — même port d'annuaire simulé (33390) et saturation de PostgreSQL
+(`max_connections` = 100, contextes Spring de test en cache). Mes exécutions :
+`GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT=33392 GED_IDENTITE_ANNUAIRE_URLS=ldap://localhost:33392
+SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE=3`.
+
+## Après vague 3 — notifications (E8, partie reprise de dev3) et OpenAPI (T-053) : **acceptés** (93cbc7d)
 
 Références : matrice technique (MT) et fonctionnelle (MF), lignes comptées à partir de 0.
 

@@ -84,7 +84,7 @@ class CorbeilleApiTest {
 
     private UUID deposer(String nom) throws Exception {
         String reponse = mvc.perform(multipart(BASE)
-                        .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("name", nom)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
@@ -137,7 +137,7 @@ class CorbeilleApiTest {
                 .andExpect(status().isBadRequest());
 
         mvc.perform(multipart(BASE + "/" + id + "/versions")
-                        .file(new MockMultipartFile("file", "v2.pdf", "application/pdf", "x".getBytes())))
+                        .file(new MockMultipartFile("file", "v2.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf())))
                 .andExpect(status().isBadRequest());
 
         mvc.perform(put("/api/v1/indexation/documents/" + id).contentType(APPLICATION_JSON)

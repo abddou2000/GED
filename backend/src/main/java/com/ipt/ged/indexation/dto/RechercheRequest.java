@@ -15,7 +15,9 @@ public record RechercheRequest(
     UUID workspaceId,
     UUID typeDocumentId,
     List<FiltreIndex> criteres,
-    UUID grouperPar
+    UUID grouperPar,
+    /** Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6). */
+    String archives
 ) {
     /**
      * Un filtre sur un index.

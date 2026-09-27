@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271200_creation_table_cle_fichier.xml">
+
+    <!--
+        Lot E5 — clés de données des fichiers chiffrés (§6.1.2).
+        Une ligne par fichier chiffré (version de document, aperçu en cache) :
+        sa DEK AES-256, enveloppée par la clé maîtresse (KEK) identifiée par
+        kek_identifiant ; la DEK n'est jamais stockée en clair. id = identifiant du
+        fichier (nom aa/bb/<id>.enc). Supprimer la ligne = destruction
+        cryptographique du fichier (§12.5).
+    -->
+    <changeSet id="202609271200-1" author="ged">
+        <comment>Clés de données enveloppées des fichiers chiffrés (AES-256-GCM).</comment>
+        <createTable tableName="cle_fichier">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_cle_fichier" nullable="false"/>
+            </column>
+            <column name="dek_enveloppee" type="BYTEA">
+                <constraints nullable="false"/>
+            </column>
+            <column name="kek_identifiant" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="algorithme" type="VARCHAR(32)" defaultValue="AES-256-GCM">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="modifie_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <!-- La rotation parcourt les DEK qui ne sont pas sous la KEK active. -->
+        <createIndex indexName="idx_cle_fichier_kek_identifiant" tableName="cle_fichier">
+            <column name="kek_identifiant"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.cle_fichier ADD CONSTRAINT ck_cle_fichier_algorithme CHECK (algorithme IN ('AES-256-GCM'))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.cle_fichier ADD CONSTRAINT ck_cle_fichier_dek_enveloppee CHECK (octet_length(dek_enveloppee) BETWEEN 28 AND 1024)</sql>
+        <rollback>
+            <dropTable tableName="cle_fichier"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

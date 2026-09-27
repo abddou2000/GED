@@ -36,7 +36,28 @@ public final class FauxSoffice {
                 .replaceAll("[^A-Za-z0-9 ]", "_");
         String nom = source.getFileName().toString();
         String base = nom.contains(".") ? nom.substring(0, nom.lastIndexOf('.')) : nom;
-        String pdf = "%PDF-1.4\n% converti par FauxSoffice : " + extrait + "\n%%EOF\n";
+        String cible = a.get(a.indexOf("--convert-to") + 1);
+        if (cible.contains("SelectPdfVersion")) {
+            // Export PDF/A-2 demandé : un vrai PDF/A-2B (page d'image, sans
+            // police à incorporer), que veraPDF validera réellement.
+            java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(600, 200,
+                    java.awt.image.BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D g = image.createGraphics();
+            g.setColor(java.awt.Color.WHITE);
+            g.fillRect(0, 0, 600, 200);
+            g.setColor(java.awt.Color.BLACK);
+            for (int i = 0; i < extrait.length(); i++) {
+                g.fillRect(10 + i * 14, 90, 10, 2 + (extrait.charAt(i) % 20));
+            }
+            g.dispose();
+            Path png = sortie.resolve(base + "-rendu.png");
+            javax.imageio.ImageIO.write(image, "png", png.toFile());
+            com.ipt.ged.cycledevie.conservation.FabriquePdfA.depuisImages(png, "image/png", base,
+                    sortie.resolve(base + ".pdf"));
+            Files.delete(png);
+            return;
+        }
+        String pdf ="%PDF-1.4\n% converti par FauxSoffice : " + extrait + "\n%%EOF\n";
         Files.writeString(sortie.resolve(base + ".pdf"), pdf, StandardCharsets.ISO_8859_1);
     }
 

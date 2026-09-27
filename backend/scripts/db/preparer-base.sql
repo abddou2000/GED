@@ -78,6 +78,13 @@ SELECT format('REVOKE CREATE ON DATABASE %I FROM ged_owner', :'base') \gexec
 -- (déjà le cas par défaut depuis PostgreSQL 15, réaffirmé ici).
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 
+-- ---------- Extensions ----------
+-- `unaccent` (recherche plein texte, lot E6, §4.4) : l'insensibilité aux
+-- accents de la configuration french. Créée ici, par le superutilisateur,
+-- parce que ged_owner n'a ni le droit de créer une extension ni celui de
+-- créer dans `public` ; le changelog vérifie sa présence et s'arrête sinon.
+CREATE EXTENSION IF NOT EXISTS unaccent SCHEMA public;
+
 -- ---------- Schémas ----------
 
 CREATE SCHEMA IF NOT EXISTS ged AUTHORIZATION ged_owner;

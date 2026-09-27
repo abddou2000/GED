@@ -42,4 +42,14 @@ describe('ClesApiService', () => {
     expect(req.request.body).toEqual({ active: false });
     req.flush({});
   });
+
+  it("lit et remplace la portée d'une clé (nœuds et opérations)", () => {
+    service.portee('c-1').subscribe();
+    serveur.expectOne(`${API_BASE}/cles-api/c-1/portee`).flush([]);
+    service.definirPortee('c-1', [{ noeudId: 'n-1', noeud: 'Marchés', operations: ['CONSULTATION', 'DEPOT'] }]).subscribe();
+    const req = serveur.expectOne(`${API_BASE}/cles-api/c-1/portee`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ portee: [{ noeudId: 'n-1', operations: ['CONSULTATION', 'DEPOT'] }] });
+    req.flush([]);
+  });
 });

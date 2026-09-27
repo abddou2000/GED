@@ -93,10 +93,19 @@ class SchemaLiquibaseTest {
     /** Notifications (DAT §12.9) : boîte d'envoi et préférence (clé : l'utilisateur). */
     private static final Set<String> TABLES_NOTIFICATION = Set.of("notification", "preference_notification");
 
-    /** Tables du modèle courant : E3 plus les lots postérieurs de dev2 (audit, API, notifications). */
+    /** Tables ajoutées par les lots E5 (stockage chiffré) et E6 (OCR, recherche plein texte). */
+    private static final Set<String> TABLES_E5_E6 = Set.of("cle_fichier", "ocr_job", "document_texte");
+
+    /** Lot E7, cycle de vie (dev3) : copies de conservation, jobs d'archivage et d'export. */
+    private static final Set<String> TABLES_E7_CYCLE_DE_VIE = Set.of(
+            "copie_conservation", "job_archivage", "job_archivage_element", "job_export", "job_export_element");
+
+    /** Toutes les tables du changelog maître : E3, lots de dev3 (E5 à E7) et de dev2 (audit, API, notifications). */
     private static final Set<String> TABLES_ATTENDUES;
     static {
         Set<String> t = new TreeSet<>(TABLES_E3);
+        t.addAll(TABLES_E5_E6);
+        t.addAll(TABLES_E7_CYCLE_DE_VIE);
         t.addAll(TABLES_AUDIT);
         t.addAll(TABLES_API);
         t.addAll(TABLES_NOTIFICATION);
@@ -184,8 +193,8 @@ class SchemaLiquibaseTest {
                         "neuf permissions élémentaires, sept d'administration, deux de confidentialité");
                 assertEquals(1, compter(c, "SELECT count(*) FROM " + schema + ".version_habilitations"));
 
-                // Retour au jalon E3 : les lots postérieurs (journal d'audit, API
-                // d'intégration, notifications) se défont, le modèle E3 reste.
+                // Retour au jalon E3 : les lots postérieurs (E5, E6, E7 cycle de vie, journal
+                // d'audit, API d'intégration, notifications) se défont, le modèle E3 reste.
                 liquibase.rollback("autorisation-e3", (String) null);
                 assertEquals(new TreeSet<>(TABLES_E3), tablesMetier(c, schema));
 
@@ -268,8 +277,11 @@ class SchemaLiquibaseTest {
                   JOIN information_schema.constraint_column_usage ccu
                     ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
                  WHERE tc.table_schema = ? AND tc.constraint_type = 'FOREIGN KEY'
+                   -- version_id : nom imposé par le dossier (document_texte, ocr_job, §4.4),
+                   -- vise version_document.
                    AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'attribue_par', 'cree_par',
-                                               'noeud_principal_id', 'archive_par', 'verrou_par', 'auteur_id')
+                                               'noeud_principal_id', 'archive_par', 'verrou_par', 'auteur_id',
+                                               'version_id')
                    AND kcu.column_name NOT LIKE '%' || ccu.table_name || '_id'""", schema);
         assertEquals(List.of(), incoherentes, "clés étrangères dont le nom ne désigne pas la table visée");
     }

@@ -48,6 +48,12 @@ const USAGES = {
   'org.flywaydb:flyway-mysql': 'Migrations de schéma MySQL (socle historique)',
   'org.liquibase:liquibase-core': 'Migrations de schéma (DAT 4.2)',
   'org.springdoc:springdoc-openapi-starter-webmvc-ui': 'Spécification OpenAPI 3 et Swagger UI (DAT 5.3)',
+  'org.springframework.boot:spring-boot-starter-mail': 'Canal e-mail des notifications, relais SMTP de MMED (DAT 12.9)',
+  'org.springframework.security:spring-security-ldap': 'Authentification par l\'annuaire (search-then-bind, DAT 3.2)',
+  'com.unboundid:unboundid-ldapsdk': 'Annuaire simulé des profils dev et test (jamais en production)',
+  'org.apache.tika:tika-core': 'Détection du type réel des fichiers par signature (DAT 6.1.5)',
+  'org.apache.pdfbox:xmpbox': 'Métadonnées XMP d\'identification PDF/A des copies de conservation (DAT 6.1.4)',
+  'org.verapdf:validation-model-jakarta': 'Validation PDF/A-2 des copies de conservation (veraPDF, DAT 6.1.4, 12.6)',
   // Front-end
   '@angular:animations': 'Animations Angular',
   '@angular:cdk': 'Composants de base Angular (CDK)',
@@ -84,6 +90,12 @@ const LICENCES_VERIFIEES = {
   ':primeicons': 'MIT',
 };
 
+/* Double licence dont l'option est retenue pour tout un groupe (préfixe « groupe: »). */
+const LICENCES_RETENUES_GROUPES = {
+  // veraPDF : GPL-3.0-or-later OU MPL-2.0-or-later ; MPL-2.0 retenue (lot E7, dev3).
+  'org.verapdf:': 'MPL-2.0',
+};
+
 // --- Classement des licences (DAT 11.2) ------------------------------------
 const PERMISSIVES = new Set(['Apache-2.0', 'MIT', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC', '0BSD',
   'OFL-1.1', 'CC0-1.0', 'Unicode-3.0', 'Unicode-DFS-2016', 'EDL-1.0', 'Bouncy-Castle', 'MIT-0',
@@ -118,6 +130,8 @@ const LIBELLE_CLASSE = {
    favorable, et on l'indique. */
 function licencesDe(composant, cle) {
   if (LICENCES_VERIFIEES[cle]) return { ids: [LICENCES_VERIFIEES[cle]], verifiee: true };
+  const groupe = Object.keys(LICENCES_RETENUES_GROUPES).find(p => cle.startsWith(p));
+  if (groupe) return { ids: [LICENCES_RETENUES_GROUPES[groupe]], verifiee: true };
   const ids = (composant.licenses || []).map(l =>
     l.expression ? l.expression : normaliser(l.license?.id || l.license?.name)).filter(Boolean);
   return { ids, verifiee: false };
@@ -199,7 +213,19 @@ const ARBITRAGES = {
   'jakarta.annotation:jakarta.annotation-api': 'EPL-2.0 ou GPL-2.0 avec exception Classpath : EPL-2.0 retenue, API non modifiée.',
   'jakarta.transaction:jakarta.transaction-api': 'Idem jakarta.annotation-api.',
   'org.aspectj:aspectjweaver': 'EPL-2.0 : copyleft au niveau du fichier, bibliothèque non modifiée (tirée par spring-boot-starter-data-jpa).',
+  'org.verapdf:': 'veraPDF (validation PDF/A des copies de conservation) : double licence GPL-3.0-or-later ou MPL-2.0-or-later ; **MPL-2.0 retenue**, copyleft au niveau du fichier, bibliothèque non modifiée, livrée dans son JAR d\'origine. Obligation : fournir le source des fichiers MPL s\'ils étaient modifiés (ils ne le sont pas). Aucun code GPL n\'est retenu.',
+  'net.sf.saxon:Saxon-HE': 'MPL-2.0 (édition Home, libre), tirée par veraPDF pour ses règles de validation XSLT : copyleft au niveau du fichier, bibliothèque non modifiée. Les éditions PE/EE (commerciales) ne sont pas utilisées.',
+  'javax.xml.bind:jaxb-api': 'Double licence CDDL-1.1 ou GPL-2.0 avec exception Classpath : CDDL-1.1 retenue, API non modifiée (tirée par liquibase-core).',
+  'net.java.dev.stax-utils:stax-utils': 'BSD-4-Clause (tirée par veraPDF) : licence permissive, compatible avec la cession ; la clause de publicité impose de citer le détenteur dans toute publicité qui mentionnerait cette fonctionnalité — aucune n\'est prévue. Bibliothèque non modifiée.',
+  'org.mozilla:rhino': 'MPL-2.0, moteur JavaScript tiré par veraPDF (évaluation de règles) : copyleft au niveau du fichier, bibliothèque non modifiée. Aucun script de l\'application n\'y est exécuté.',
 };
+
+/** Arbitrage d'un composant : clé exacte, sinon celui de son groupe (clé « groupe: »). */
+function arbitrage(cle) {
+  if (ARBITRAGES[cle]) return ARBITRAGES[cle];
+  const groupe = Object.keys(ARBITRAGES).find(p => p.endsWith(':') && cle.startsWith(p));
+  return groupe ? ARBITRAGES[groupe] : null;
+}
 
 function generer() {
   const back = lire(SBOM_BACK, 'maven');
@@ -234,7 +260,7 @@ function generer() {
   md.push('- **Copyleft fort** (GPL, AGPL) ou licence absente : **à examiner**, bloquant pour la mise en production.', '');
   md.push('## Points d\'attention et arbitrages', '');
   for (const l of sensibles) {
-    const arb = ARBITRAGES[l.cle] || '_Arbitrage à rédiger._';
+    const arb = arbitrage(l.cle) || '_Arbitrage à rédiger._';
     md.push(`- **${l.nom} ${l.version}** (${l.licences.join(' ou ') || 'licence non déclarée'}) — ${arb}`);
   }
   md.push('');
@@ -246,7 +272,7 @@ function generer() {
   md.push('## Front-end — dépendances directes livrées', '', tableau(front.filter(l => l.direct)), '');
   md.push('## Back-end — dépendances transitives', '', tableau(back.filter(l => !l.direct)), '');
   md.push('## Front-end — dépendances transitives livrées', '', tableau(front.filter(l => !l.direct)), '');
-  return { texte: md.join('\n'), nonArbitres: sensibles.filter(l => !ARBITRAGES[l.cle]) };
+  return { texte: md.join('\n'), nonArbitres: sensibles.filter(l => !arbitrage(l.cle)) };
 }
 
 const { texte, nonArbitres } = generer();

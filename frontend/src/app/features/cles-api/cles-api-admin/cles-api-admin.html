@@ -77,6 +77,9 @@
               <td>{{ c.derniereUtilisation ? (c.derniereUtilisation | date:'dd/MM/yyyy HH:mm') : '—' }}</td>
               <td>{{ c.appelsDuJour }}</td>
               <td class="actions-cle">
+                @if (c.etat === 'ACTIVE' || c.etat === 'EN_CHEVAUCHEMENT') {
+                  <button mat-button (click)="ouvrirPortee(c)">Portée</button>
+                }
                 @if (c.etat === 'ACTIVE') {
                   <button mat-button (click)="regenerer(a, c)" matTooltip="Nouvelle clé ; celle-ci reste valide pendant le chevauchement">Régénérer</button>
                 }
@@ -86,6 +89,36 @@
                 }
               </td>
             </tr>
+            @if (porteeOuverte() === c.id) {
+              <tr class="portee">
+                <td colspan="8">
+                  <p class="aide">Espaces ou dossiers accessibles à cette clé (sous-arborescence comprise) et
+                    opérations permises. Sans portée, la clé n'accède à rien.</p>
+                  @for (l of portee(); track l.noeudId) {
+                    <div class="ligne-portee">
+                      <span class="noeud">{{ l.noeud || l.noeudId }}</span>
+                      <span class="ops">
+                        @for (op of operations; track op) {
+                          <label><input type="checkbox" [checked]="l.operations.includes(op)"
+                                        (change)="basculerOperation(l, op)" /> {{ libellesOperations[op] }}</label>
+                        }
+                      </span>
+                      <button mat-button (click)="retirerNoeud(l.noeudId)">Retirer</button>
+                    </div>
+                  } @empty {
+                    <p class="vide">Aucun espace : la clé n'accède à rien.</p>
+                  }
+                  <div class="ajout-portee">
+                    <select [(ngModel)]="noeudAjoute" [name]="'noeud-' + c.id">
+                      <option value="">Ajouter un espace ou un dossier…</option>
+                      @for (n of noeuds(); track n.id) { <option [value]="n.id">{{ n.name }}</option> }
+                    </select>
+                    <button mat-stroked-button (click)="ajouterNoeud()" [disabled]="!noeudAjoute">Ajouter</button>
+                    <button mat-flat-button color="primary" (click)="enregistrerPortee(c.id)">Enregistrer la portée</button>
+                  </div>
+                </td>
+              </tr>
+            }
           } @empty {
             <tr><td colspan="8" class="vide">Aucune clé.</td></tr>
           }

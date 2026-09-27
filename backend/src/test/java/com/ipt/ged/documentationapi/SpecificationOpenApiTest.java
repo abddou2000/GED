@@ -234,4 +234,23 @@ class SpecificationOpenApiTest {
         }
         assertThat(trouve).isTrue();
     }
+
+    /** Deux charges utiles homonymes de lots différents. */
+    static final class LotA { record Resultat(String issue) {} }
+    static final class LotB { record Resultat(double pertinence) {} }
+
+    @Test
+    @DisplayName("Homonymes : deux DTO de même nom simple ne sont jamais fusionnés en un schéma")
+    void homonymesDistincts() {
+        io.swagger.v3.core.converter.ModelConverters convertisseurs = new io.swagger.v3.core.converter.ModelConverters();
+        convertisseurs.addConverter(new io.swagger.v3.core.jackson.ModelResolver(om, new NomsSchemasDistincts()));
+        Map<String, io.swagger.v3.oas.models.media.Schema> a = convertisseurs.readAll(LotA.Resultat.class);
+        Map<String, io.swagger.v3.oas.models.media.Schema> b = convertisseurs.readAll(LotB.Resultat.class);
+        assertThat(a).containsKey("Resultat");
+        assertThat(b).containsKey("LotBResultat");
+        assertThat(b.get("LotBResultat").getProperties()).containsKey("pertinence");
+        // Les homonymes du modèle (Ref de chaque réponse) ont chacun leur schéma, décrit.
+        assertThat(spec.get("components").get("schemas").get("DocumentResponseRef").get("description").asText())
+                .isNotBlank();
+    }
 }

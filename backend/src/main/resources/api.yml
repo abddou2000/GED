@@ -19,6 +19,14 @@ ged:
       quota-jour: 100000
       # Persistance des compteurs de quotas tenus en mémoire.
       persistance-compteurs: 1m
+    delegation:
+      # X-On-Behalf-Of (DAT §5.5) : une identité de l'annuaire jamais connectée est
+      # provisionnée sans rôle ; faux = refusée (422 IDENTITE_DELEGUEE_INVALIDE).
+      provisionner-inconnus: true
+      # Relire l'annuaire à chaque délégation et refuser une identité qui n'y figure
+      # plus. Le rejet d'un compte DÉSACTIVÉ reste en question (QR9, décision D1) :
+      # la GED ne lit pas l'état du compte (D1, D3). Existence seule par défaut.
+      verifier-compte-annuaire: false
     idempotence:
       # Réponse d'une création mémorisée 24 heures par appelant.
       duree: 24h

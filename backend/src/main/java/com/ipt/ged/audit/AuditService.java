@@ -15,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -85,7 +86,12 @@ public class AuditService {
      * une transaction propre pour un refus ou un échec.
      */
     public void enregistrer(EvenementAudit evenement) {
-        if (evenement.resultat() == ResultatAudit.SUCCES) {
+        // Une lecture (téléchargement, consultation) publie dans une transaction en
+        // lecture seule : l'écriture de l'audit y est impossible, elle prend alors
+        // sa propre transaction. Une écriture reste auditée dans la sienne (tout ou rien).
+        boolean lectureSeule = TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isCurrentTransactionReadOnly();
+        if (evenement.resultat() == ResultatAudit.SUCCES && !lectureSeule) {
             ecrire(evenement);
         } else {
             enregistrerHorsTransaction(evenement);

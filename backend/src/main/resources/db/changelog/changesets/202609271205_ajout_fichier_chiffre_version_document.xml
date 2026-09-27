@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271205_ajout_fichier_chiffre_version_document.xml">
+
+    <!--
+        Lot E5 — rattachement des versions au stockage chiffré (§6.1.1, §6.1.4,
+        §6.1.5). Schéma « expand » : colonnes nullables tant que la reprise des
+        fichiers en clair n'a pas renseigné toutes les versions ; le changeset
+        « contract » (NOT NULL, retrait de file_path) suivra la reprise.
+    -->
+    <changeSet id="202609271205-1" author="ged">
+        <comment>Fichier chiffré, empreinte SHA-256, type réel et taille de chaque version.</comment>
+        <addColumn tableName="version_document">
+            <column name="cle_fichier_id" type="UUID"/>
+            <column name="empreinte" type="CHAR(64)"/>
+            <column name="type_mime" type="VARCHAR(127)"/>
+            <column name="taille_octets" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_version_document_cle_fichier"
+                                 baseTableName="version_document" baseColumnNames="cle_fichier_id"
+                                 referencedTableName="cle_fichier" referencedColumnNames="id"/>
+        <addUniqueConstraint constraintName="uk_version_document_cle_fichier_id"
+                             tableName="version_document" columnNames="cle_fichier_id"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.version_document ADD CONSTRAINT ck_version_document_empreinte CHECK (empreinte ~ '^[0-9a-f]{64}$')</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.version_document ADD CONSTRAINT ck_version_document_taille_octets CHECK (taille_octets &gt;= 0)</sql>
+        <rollback>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.version_document DROP CONSTRAINT ck_version_document_taille_octets</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.version_document DROP CONSTRAINT ck_version_document_empreinte</sql>
+            <dropUniqueConstraint tableName="version_document" constraintName="uk_version_document_cle_fichier_id"/>
+            <dropForeignKeyConstraint baseTableName="version_document" constraintName="fk_version_document_cle_fichier"/>
+            <dropColumn tableName="version_document">
+                <column name="taille_octets"/>
+                <column name="type_mime"/>
+                <column name="empreinte"/>
+                <column name="cle_fichier_id"/>
+            </dropColumn>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

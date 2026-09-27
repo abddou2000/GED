@@ -55,10 +55,12 @@ class DepotRobustesseApiTest {
     @Autowired private EmployeRepository employeRepository;
     @Autowired private WorkSpaceRepository workspaceRepository;
     @Autowired private TypeDocumentRepository typeRepository;
-    @Autowired private StorageService storage;
     @Autowired private UploadDocumentRepository documentRepository;
+    @Autowired private DocumentService documentService;
+    @Autowired private org.springframework.transaction.PlatformTransactionManager transactions;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
-    @Value("${ged.storage.root}") private String racineStockage;
+    @Value("${ged.fichiers.racine}") private String racineStockage;
 
     private static final String BASE = "/api/v1/documents";
     private UUID typeId, workspaceId;
@@ -68,13 +70,13 @@ class DepotRobustesseApiTest {
         Employe e = employeRepository.findById(Comptes.idAdmin(employeRepository)).orElseThrow();
         WorkflowGed wf = workflowRepository.save(new WorkflowGed("WF robustesse"));
 
-        WorkSpace w = new WorkSpace("Robustesse", "WS-ROB");
+        WorkSpace w = new WorkSpace("Robustesse", "WS-ROB-" + UUID.randomUUID().toString().substring(0, 8));
         w.setStatus(WorkspaceStatus.ACTIF);
         w.setOwner(e);
         w.setWorkflow(wf);
         workspaceId = workspaceRepository.save(w).getId();
 
-        TypeDocument type = new TypeDocument("TD-ROB", "Facture");
+        TypeDocument type = new TypeDocument("TD-ROB-" + UUID.randomUUID().toString().substring(0, 8), "Facture");
         type.setDescription("desc");
         type.setWorkspace(w);
         type.setTypeAutorise("pdf");
@@ -83,15 +85,15 @@ class DepotRobustesseApiTest {
     }
 
     private MockMultipartFile fichier(String nom) {
-        return new MockMultipartFile("file", nom, "application/pdf", "contenu".getBytes(StandardCharsets.UTF_8));
+        return new MockMultipartFile("file", nom, "application/pdf", com.ipt.ged.support.Pdfs.pdf());
     }
 
-    /** Nombre de fichiers présents sur le disque pour le dossier de ce test. */
+    /** Nombre de fichiers chiffrés publiés dans le référentiel ({@code aa/bb/<uuid>.enc}). */
     private long fichiersSurLeDisque() {
-        Path dossier = Paths.get(racineStockage).toAbsolutePath().normalize().resolve(String.valueOf(workspaceId));
-        if (!Files.isDirectory(dossier)) return 0;
-        try (Stream<Path> s = Files.list(dossier)) {
-            return s.count();
+        Path racine = Paths.get(racineStockage).toAbsolutePath().normalize();
+        if (!Files.isDirectory(racine)) return 0;
+        try (Stream<Path> s = Files.walk(racine)) {
+            return s.filter(p -> p.getFileName().toString().endsWith(".enc")).count();
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
@@ -118,28 +120,25 @@ class DepotRobustesseApiTest {
     }
 
     @Test
-    @DisplayName("4b. La compensation existe : StorageService sait supprimer un fichier, et refuse un chemin hors du stockage")
-    void suppressionDeFichier() throws Exception {
-        // Le dépôt réussi écrit un fichier ; il est bien là.
-        String reponse = mvc.perform(multipart(BASE)
-                        .file(fichier("a-supprimer.pdf"))
-                        .param("name", "À supprimer")
-                        .param("typeDocumentId", String.valueOf(typeId)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        UUID id = UUID.fromString(om.readTree(reponse).get("id").asText());
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    @DisplayName("4b. Compensation : si la transaction du dépôt est annulée, le fichier chiffré et sa clé sont détruits")
+    void compensationSiAnnulation() {
+        long fichiersAvant = fichiersSurLeDisque();
+        Long clesAvant = jdbc.queryForObject("SELECT count(*) FROM cle_fichier", Long.class);
 
-        String chemin = documentRepository.findById(id).orElseThrow().getFilePath();
-        assertNotNull(chemin);
-        assertTrue(Files.exists(storage.chemin(chemin)));
+        // Transaction propre (REQUIRES_NEW), annulée après un dépôt réussi : le
+        // fichier a bien été écrit, puis la base a tout rejeté.
+        org.springframework.transaction.support.TransactionTemplate tx =
+                new org.springframework.transaction.support.TransactionTemplate(transactions);
+        tx.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        tx.executeWithoutResult(statut -> {
+            documentService.upload(fichier("annule.pdf"), "Annulé", typeId, null, null, null);
+            assertEquals(fichiersAvant + 1, fichiersSurLeDisque(), "le fichier chiffré est écrit avant la validation");
+            statut.setRollbackOnly();
+        });
 
-        // La suppression, seule compensation d'une transaction annulée, fonctionne…
-        assertTrue(storage.supprimer(chemin));
-        assertFalse(Files.exists(storage.chemin(chemin)));
-        // …et est idempotente.
-        assertFalse(storage.supprimer(chemin));
-        // …et ne sort jamais de la racine de stockage.
-        assertFalse(storage.supprimer("../../evade.txt"));
+        assertEquals(fichiersAvant, fichiersSurLeDisque(), "fichier chiffré orphelin après annulation");
+        assertEquals(clesAvant, jdbc.queryForObject("SELECT count(*) FROM cle_fichier", Long.class));
     }
 
     @Test

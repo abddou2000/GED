@@ -57,8 +57,18 @@ public class DictionnaireDocumentation {
         });
     }
 
+    /**
+     * Description d'un schéma ; un homonyme renommé par {@link NomsSchemasDistincts}
+     * ({@code DocumentResponseRef}) reprend celle de son nom simple ({@code Ref}).
+     */
     public Optional<String> objet(String schema) {
-        return Optional.ofNullable(objets.get(schema));
+        String d = objets.get(schema);
+        if (d != null) return Optional.of(d);
+        return objets.entrySet().stream()
+                .filter(e -> schema.endsWith(e.getKey()) && schema.length() > e.getKey().length()
+                        && Character.isUpperCase(e.getKey().charAt(0)))
+                .max(java.util.Comparator.comparingInt(e -> e.getKey().length()))
+                .map(Map.Entry::getValue);
     }
 
     /** Surcharge « Schema.champ » d'abord, puis l'entrée commune du nom de champ. */

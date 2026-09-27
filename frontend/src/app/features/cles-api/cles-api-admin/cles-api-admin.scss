@@ -52,3 +52,17 @@ table.cles {
   &.en_chevauchement, &.bientot { background: #b26a00; }
   &.expiree, &.revoquee, &.inactive { background: #b3261e; }
 }
+
+/* Éditeur de portée (vague 4) */
+tr.portee td { background: rgba(0, 0, 0, .02); }
+.portee .aide { margin: 0 0 8px; font-size: 12.5px; color: var(--ink-soft); }
+.ligne-portee {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 6px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, .06);
+  .noeud { min-width: 180px; font-weight: 600; }
+  .ops { display: flex; flex-wrap: wrap; gap: 4px 12px; flex: 1; font-size: 12.5px; }
+}
+.ajout-portee {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px;
+  select { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid rgba(0, 0, 0, .15); border-radius: 6px; }
+}

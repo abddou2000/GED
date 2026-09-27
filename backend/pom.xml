@@ -53,6 +53,21 @@
             <version>3.0.8</version>
         </dependency>
 
+        <!-- Copie de conservation PDF/A-2 (DAT 6.1.4, 12.6) : métadonnées XMP
+             d'identification PDF/A (PDFBox) et validation par veraPDF.
+             veraPDF : double licence GPL-3.0+ ou MPL-2.0+, MPL-2.0 retenue
+             (copyleft faible au niveau du fichier, bibliothèque non modifiée). -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>xmpbox</artifactId>
+            <version>3.0.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.verapdf</groupId>
+            <artifactId>validation-model-jakarta</artifactId>
+            <version>1.30.2</version>
+        </dependency>
+
         <!-- Persistence (JPA / Hibernate) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

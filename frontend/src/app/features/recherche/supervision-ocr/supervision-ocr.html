@@ -1,0 +1,83 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Traitements OCR</h1>
+      <p class="breadcrumb">Accueil - Supervision de l'OCR et de l'index plein texte</p>
+    </div>
+    <button mat-stroked-button (click)="reindexer()" [disabled]="reindexation()?.etat === 'EN_COURS'"
+            matTooltip="Recalcule l'index de tous les documents à partir du texte déjà extrait, sans refaire l'OCR">
+      <mat-icon svgIcon="refresh"></mat-icon> Réindexation complète
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="etat">
+      @if (etat(); as e) {
+        <span>Chaîne {{ e.actif ? 'active' : 'désactivée' }}</span>
+        <span>Moteur {{ e.moteurDisponible ? 'disponible' : 'indisponible' }}</span>
+        <span>Langues : {{ e.languesInstallees.join(', ') }} (défaut {{ e.langueDefaut }})</span>
+      }
+      @if (reindexation(); as p) {
+        @if (p.etat !== 'INACTIVE') {
+          <span class="reindex">
+            Réindexation {{ p.etat === 'EN_COURS' ? 'en cours' : p.etat === 'TERMINEE' ? 'terminée' : 'échouée' }} :
+            {{ p.traites }} / {{ p.total }} ({{ pourcentage(p) }} %)
+            @if (p.erreur) { — {{ p.erreur }} }
+          </span>
+        }
+      }
+    </div>
+
+    <div class="toolbar">
+      <div class="left onglets" role="tablist">
+        @for (s of STATUTS; track s.valeur) {
+          <button type="button" role="tab" [class.actif]="statut() === s.valeur" [attr.aria-selected]="statut() === s.valeur"
+                  (click)="choisir(s.valeur)">
+            {{ s.libelle }} <span class="compte">{{ compteurs()?.[s.valeur] ?? 0 }}</span>
+          </button>
+        }
+      </div>
+      <div class="right">
+        <button mat-icon-button (click)="rafraichir()" matTooltip="Rafraîchir" aria-label="Rafraîchir">
+          <mat-icon svgIcon="refresh"></mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="jobs">
+        <thead>
+          <tr>
+            <th>Document</th><th>Déposé le</th><th>Type</th><th>Langue</th><th>Tentatives</th>
+            <th>Pages</th><th>Motif / prochaine tentative</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (j of jobs(); track j.id) {
+            <tr>
+              <td><a [routerLink]="['/televerser', j.documentId]">Ouvrir la fiche</a></td>
+              <td>{{ j.deposeLe | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ j.typeMime ?? '—' }}</td>
+              <td>{{ j.langue }}</td>
+              <td class="num">{{ j.tentatives }}</td>
+              <td class="num">{{ j.nbPages ?? '—' }}</td>
+              <td class="motif">
+                @if (j.motifEchec) { {{ j.motifEchec }} }
+                @if (j.statut === 'EN_ATTENTE_OCR' && j.prochaineTentativeLe) {
+                  <span class="muted"> — prochaine tentative {{ j.prochaineTentativeLe | date: 'dd/MM HH:mm' }}</span>
+                }
+              </td>
+              <td class="act">
+                @if (j.statut === 'OCR_ECHEC') {
+                  <button mat-stroked-button (click)="relancer(j)">Relancer</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8" class="muted">Aucun traitement dans cet état.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

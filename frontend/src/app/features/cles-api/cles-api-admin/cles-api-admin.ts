@@ -6,12 +6,17 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NotifyService } from '../../../core/notify.service';
 import { erreursParChamp, messageErreur } from '../../../core/probleme';
-import { ApplicationApi, ApplicationRequest, CleApi, ClesApiService } from '../cles-api.service';
+import {
+  ApplicationApi, ApplicationRequest, CleApi, ClesApiService, LignePortee, OPERATIONS_API, OperationApi,
+} from '../cles-api.service';
 
 /**
  * Écran « Applications et clés d'API » (DAT §5.4) : applications clientes,
  * adresses autorisées, quotas ; génération, régénération (chevauchement) et
  * révocation des clés ; clés proches de l'expiration signalées.
+ *
+ * <p>Portée d'une clé (vague 4) : espaces ou dossiers, sous-arborescence
+ * comprise, et opérations permises ; sans portée, la clé n'accède à rien.
  *
  * <p>La valeur complète d'une clé n'est montrée qu'une fois, juste après sa
  * génération : elle n'est ni conservée par le serveur ni relisible ensuite.
@@ -37,6 +42,18 @@ export class ClesApiAdmin implements OnInit {
   saisie = { code: '', nom: '', description: '', adresses: '', quotaMinute: 600, quotaJour: 100000 };
   delegation: Record<string, boolean> = {};
   motifs: Record<string, string> = {};
+
+  readonly operations = OPERATIONS_API;
+  readonly libellesOperations: Record<OperationApi, string> = {
+    CONSULTATION: 'Consultation', RECHERCHE: 'Recherche', DEPOT: 'Dépôt', CREATION_DOSSIER: 'Création de dossier',
+    VERSEMENT: 'Versement', RATTACHEMENT: 'Rattachement', CONSULTATION_DROITS: 'Consultation des droits',
+    WORKFLOW_PILOTAGE: 'Pilotage des circuits', WORKFLOW_DECISION: 'Décision de validation',
+  };
+  /** Clé dont la portée est en cours d'édition, et sa portée de travail. */
+  porteeOuverte = signal<string | null>(null);
+  portee = signal<LignePortee[]>([]);
+  noeuds = signal<{ id: string; name: string }[]>([]);
+  noeudAjoute = '';
 
   ngOnInit(): void {
     this.charger();
@@ -125,6 +142,50 @@ export class ClesApiAdmin implements OnInit {
     this.service.revoquer(c.id, motif).subscribe({
       next: () => { this.notify.success('Clé révoquée : elle est refusée dès maintenant.'); this.charger(); },
       error: err => this.notify.error(messageErreur(err, 'Révocation impossible.')),
+    });
+  }
+
+  ouvrirPortee(c: CleApi): void {
+    if (this.porteeOuverte() === c.id) {
+      this.porteeOuverte.set(null);
+      return;
+    }
+    this.porteeOuverte.set(c.id);
+    this.portee.set([]);
+    if (this.noeuds().length === 0) {
+      this.service.noeuds().subscribe({ next: n => this.noeuds.set(n ?? []), error: () => { /* liste vide */ } });
+    }
+    this.service.portee(c.id).subscribe({
+      next: p => this.portee.set(p ?? []),
+      error: err => this.notify.error(messageErreur(err, 'Portée illisible.')),
+    });
+  }
+
+  ajouterNoeud(): void {
+    const n = this.noeuds().find(x => x.id === this.noeudAjoute);
+    if (!n || this.portee().some(l => l.noeudId === n.id)) return;
+    this.portee.update(p => [...p, { noeudId: n.id, noeud: n.name, operations: ['CONSULTATION'] }]);
+    this.noeudAjoute = '';
+  }
+
+  retirerNoeud(noeudId: string): void {
+    this.portee.update(p => p.filter(l => l.noeudId !== noeudId));
+  }
+
+  basculerOperation(ligne: LignePortee, op: OperationApi): void {
+    this.portee.update(p => p.map(l => l.noeudId !== ligne.noeudId ? l : {
+      ...l, operations: l.operations.includes(op) ? l.operations.filter(o => o !== op) : [...l.operations, op],
+    }));
+  }
+
+  enregistrerPortee(cleId: string): void {
+    if (this.portee().some(l => l.operations.length === 0)) {
+      this.notify.error('Chaque espace de la portée doit permettre au moins une opération.');
+      return;
+    }
+    this.service.definirPortee(cleId, this.portee()).subscribe({
+      next: p => { this.portee.set(p); this.notify.success('Portée enregistrée : effet immédiat.'); },
+      error: err => this.notify.error(messageErreur(err, 'Portée non enregistrée.')),
     });
   }
 
