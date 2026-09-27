@@ -98,6 +98,31 @@ public class VerificationIntegrite {
      * Événement d'anomalie d'intégrité : à journaliser dans l'audit (lot
      * traçabilité) et à remonter en alerte de supervision.
      */
-    public record AnomalieIntegrite(UUID fichierId, String reference, Statut statut, Instant detecteeLe) {
+    public record AnomalieIntegrite(UUID fichierId, String reference, Statut statut, Instant detecteeLe)
+            implements com.ipt.ged.audit.EvenementAudit {
+        @Override
+        public String action() {
+            return "INTEGRITE_ANOMALIE";
+        }
+
+        @Override
+        public String objetType() {
+            return "FICHIER";
+        }
+
+        @Override
+        public UUID objetId() {
+            return fichierId;
+        }
+
+        @Override
+        public com.ipt.ged.audit.ResultatAudit resultat() {
+            return com.ipt.ged.audit.ResultatAudit.ECHEC;
+        }
+
+        @Override
+        public String motif() {
+            return statut + " (" + reference + ")";
+        }
     }
 }

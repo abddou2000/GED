@@ -209,7 +209,7 @@ class CheminsAccesApiTest {
         mvc.perform(patch("/api/v1/documents/" + b64 + "/verrou").param("verrouille", "true").with(comme(U)))
                 .andExpect(status().isNotFound());
         mvc.perform(multipart("/api/v1/documents/" + b64 + "/versions")
-                        .file(new MockMultipartFile("file", "v.pdf", "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", "v.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .with(comme(U)))
                 .andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/documents/" + b64 + "/rattachements").with(comme(U)))
@@ -317,7 +317,7 @@ class CheminsAccesApiTest {
     void prive() throws Exception {
         standardSur(a);
         String cree = mvc.perform(multipart("/api/v1/documents")
-                        .file(new MockMultipartFile("file", "note.pdf", "application/pdf", "pdf".getBytes()))
+                        .file(new MockMultipartFile("file", "note.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("typeDocumentId", tA.toString()).param("confidentialite", "PRIVE")
                         .with(comme(U)))
                 .andExpect(status().isCreated())
@@ -350,7 +350,7 @@ class CheminsAccesApiTest {
 
         // Dépôt confidentiel : le déposant est désigné, il garde l'accès à son dépôt.
         String cree = mvc.perform(multipart("/api/v1/documents")
-                        .file(new MockMultipartFile("file", "secret.pdf", "application/pdf", "pdf".getBytes()))
+                        .file(new MockMultipartFile("file", "secret.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("typeDocumentId", tA.toString()).param("confidentialite", "CONFIDENTIEL")
                         .with(comme(U)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
@@ -365,7 +365,7 @@ class CheminsAccesApiTest {
     void niveauParDefautEtChangement() throws Exception {
         UUID tConf = jeu.type(a, CONFIDENTIEL);
         String cree = mvc.perform(multipart("/api/v1/documents")
-                        .file(new MockMultipartFile("file", "d.pdf", "application/pdf", "pdf".getBytes()))
+                        .file(new MockMultipartFile("file", "d.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("typeDocumentId", tConf.toString()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.confidentialite").value("CONFIDENTIEL"))
@@ -577,12 +577,12 @@ class CheminsAccesApiTest {
         standardSur(a);
         Authentication u = authentification(U);
         ResolveurFichierVersion.FichierVersion horsPerimetre = new ResolveurFichierVersion.FichierVersion(
-                "v1", dB.toString(), UUID.randomUUID(), "application/pdf", "b.pdf");
+                UUID.randomUUID(), dB, UUID.randomUUID(), "application/pdf", "b.pdf");
         ErreurFichierException ex = assertThrows(ErreurFichierException.class,
                 () -> controlePrevisualisation.verifierLecture(horsPerimetre, u));
         assertEquals(404, ex.statut().value());
         assertDoesNotThrow(() -> controlePrevisualisation.verifierLecture(new ResolveurFichierVersion.FichierVersion(
-                "v2", dA.toString(), UUID.randomUUID(), "application/pdf", "a.pdf"), u));
+                UUID.randomUUID(), dA, UUID.randomUUID(), "application/pdf", "a.pdf"), u));
     }
 
     @Test

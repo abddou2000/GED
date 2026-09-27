@@ -1,0 +1,46 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Mes exports</h1>
+      <p class="breadcrumb">Exports de dossier volumineux, préparés en arrière-plan et conservés 7 jours.</p>
+    </div>
+    <div class="tete-actions">
+      <button mat-stroked-button (click)="charger()"><mat-icon svgIcon="refresh"></mat-icon> Actualiser</button>
+    </div>
+  </div>
+
+  <div class="card">
+    @if (chargement()) {
+      <p class="etat">Chargement…</p>
+    } @else if (!exports().length) {
+      <div class="empty-state">
+        <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
+        <span class="empty-title">Aucun export</span>
+        <span class="empty-sub">Un export de plus de 500 documents ou de 2 Go apparaît ici quand il est prêt.</span>
+      </div>
+    } @else {
+      <table class="exports">
+        <thead>
+          <tr><th>Dossier</th><th>Demandé le</th><th>Documents</th><th>Taille</th><th>État</th><th>Expire le</th><th></th></tr>
+        </thead>
+        <tbody>
+          @for (e of exports(); track e.id) {
+            <tr>
+              <td>{{ e.dossierNom }}</td>
+              <td>{{ date(e.creeLe) }}</td>
+              <td>{{ e.nbDocuments }}</td>
+              <td>{{ taille(e.tailleOctets ?? e.tailleEstimee) }}</td>
+              <td [class.alerte]="e.etat === 'ECHEC'">{{ libelle(e.etat) }}</td>
+              <td>{{ e.expireLe ? date(e.expireLe) : '—' }}</td>
+              <td>
+                @if (e.etat === 'TERMINE') {
+                  <button mat-stroked-button (click)="telecharger(e)"><mat-icon svgIcon="download"></mat-icon> Télécharger</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

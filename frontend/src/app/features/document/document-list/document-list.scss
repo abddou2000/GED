@@ -85,3 +85,9 @@
    libelle et sa fleche des que la place manque. On le remet en ligne. */
 .doc-table th .mat-sort-header-container { align-items: center; }
 .doc-table th .mat-sort-header-content { white-space: nowrap; }
+
+.badge-archive {
+  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid var(--line); color: var(--ink);
+}

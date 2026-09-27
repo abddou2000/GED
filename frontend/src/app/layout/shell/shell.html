@@ -72,6 +72,9 @@
     <a routerLink="/televerser" routerLinkActive="active" (click)="closeDrawer()" aria-label="Documents déposés">
       <mat-icon svgIcon="nav-upload"></mat-icon><span>Documents</span>
     </a>
+    <a routerLink="/recherche" routerLinkActive="active" (click)="closeDrawer()" aria-label="Recherche plein texte">
+      <mat-icon svgIcon="search"></mat-icon><span>Recherche</span>
+    </a>
     <!-- Référentiels : visibles de qui les administre (GERER_REFERENTIELS). -->
     @if (auth.peut('GERER_REFERENTIELS')) {
     <a routerLink="/regles-de-workflow" routerLinkActive="active" (click)="closeDrawer()" aria-label="Règles de Workflow">
@@ -97,6 +100,15 @@
       <mat-icon svgIcon="nav-tag"></mat-icon><span>Étiquette</span>
     </a>
     }
+    }
+    <a routerLink="/mes-exports" routerLinkActive="active" (click)="closeDrawer()" aria-label="Mes exports">
+      <mat-icon svgIcon="download"></mat-icon><span>Mes exports</span>
+    </a>
+    <!-- Supervision des traitements OCR : SUPERVISER_TRAITEMENTS. -->
+    @if (auth.peut('SUPERVISER_TRAITEMENTS')) {
+      <a routerLink="/traitements-ocr" routerLinkActive="active" (click)="closeDrawer()" aria-label="Traitements OCR">
+        <mat-icon svgIcon="refresh"></mat-icon><span>Traitements OCR</span>
+      </a>
     }
     @if (auth.administrateur()) {
       <a routerLink="/administration/habilitations" routerLinkActive="active" (click)="closeDrawer()" aria-label="Habilitations">

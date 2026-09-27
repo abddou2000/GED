@@ -1,0 +1,5 @@
+.exports { width: 100%; border-collapse: collapse; font-size: 13px; }
+.exports th, .exports td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+.exports th { font-size: 11.5px; font-weight: 600; letter-spacing: .03em; color: var(--ink-3, #6b7280); }
+.alerte { color: var(--cramoisi); }
+.etat { font-size: 13px; }

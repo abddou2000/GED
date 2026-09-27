@@ -11,15 +11,16 @@ import com.ipt.ged.fichier.controle.ClientClamd;
 import com.ipt.ged.fichier.controle.ControleFichiers;
 import com.ipt.ged.fichier.controle.DetecteurTypeReel;
 import com.ipt.ged.fichier.integrite.SourceEmpreintes;
+import com.ipt.ged.fichier.integrite.SourceEmpreintesVersions;
 import com.ipt.ged.fichier.integrite.VerificationIntegrite;
 import com.ipt.ged.fichier.integrite.VerificationPeriodique;
 import com.ipt.ged.fichier.previsualisation.ControleAccesPrevisualisation;
-import com.ipt.ged.fichier.previsualisation.ControleAccesPrevisualisationProvisoire;
 import com.ipt.ged.fichier.previsualisation.ConvertisseurBureautique;
 import com.ipt.ged.fichier.previsualisation.ConvertisseurLibreOffice;
 import com.ipt.ged.fichier.previsualisation.ServicePrevisualisation;
 import com.ipt.ged.fichier.stockage.FileStore;
 import com.ipt.ged.fichier.stockage.FileStoreDisque;
+import com.ipt.ged.supervision.VerificationAntivirus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -92,6 +93,12 @@ public class ConfigurationFichiers {
         return new VerificationIntegrite(stockage, evenements);
     }
 
+    /** Empreintes à vérifier : toutes les versions chiffrées (vérification mensuelle, §6.1.4). */
+    @Bean
+    public SourceEmpreintes sourceEmpreintes(JdbcTemplate jdbc) {
+        return new SourceEmpreintesVersions(jdbc);
+    }
+
     @Bean
     public DetecteurTypeReel detecteurTypeReel() {
         return new DetecteurTypeReel();
@@ -101,14 +108,29 @@ public class ConfigurationFichiers {
     public AnalyseurAntivirus analyseurAntivirus(ProprietesFichiers p, Environment env) {
         ProprietesFichiers.Antivirus a = p.getAntivirus();
         if (!a.isActif()) {
-            if (env.acceptsProfiles(Profiles.of("prod"))) {
-                throw new IllegalStateException("L'antivirus ne peut pas être désactivé en production (§6.1.5).");
+            // Liste blanche plutôt que liste noire : seuls les postes de
+            // développement et les tests peuvent s'en passer. Le profil uat
+            // (qui importe la configuration de prod sans activer le profil
+            // prod) et tout profil inconnu refusent de démarrer.
+            if (!env.acceptsProfiles(Profiles.of("dev | test"))
+                    || env.acceptsProfiles(Profiles.of("prod | uat"))) {
+                throw new IllegalStateException("L'antivirus ne peut être désactivé qu'en développement ou en test "
+                        + "(profils actifs : " + String.join(",", env.getActiveProfiles()) + ", §6.1.5).");
             }
             log.warn("ANTIVIRUS DESACTIVE (ged.fichiers.antivirus.actif=false) : poste de développement uniquement.");
             return new AntivirusDesactive();
         }
         return new ClientClamd(a.getHote(), a.getPort(), a.getDelaiConnexionMs(), a.getDelaiLectureMs(),
                 a.getTailleBlocOctets());
+    }
+
+    /**
+     * Sonde de santé « antivirus » du lot exploitation : elle teste exactement
+     * le client du dépôt (zPING sur le même hôte, port et délai).
+     */
+    @Bean
+    public VerificationAntivirus verificationAntivirus(AnalyseurAntivirus analyseur) {
+        return analyseur::disponible;
     }
 
     @Bean
@@ -137,13 +159,10 @@ public class ConfigurationFichiers {
                 Path.of(p.getPrevisualisation().getRepertoireTravail()), p.getPlafondPlateformeMo() * MO);
     }
 
-    /** Point d'extension du lot autorisation : à remplacer par le point unique de droits. */
-    @Bean
-    public ControleAccesPrevisualisation controleAccesPrevisualisation() {
-        return new ControleAccesPrevisualisationProvisoire();
-    }
+    /* ControleAccesPrevisualisation : fourni par le lot autorisation
+       (ConfigurationAutorisation), même décision que le téléchargement. */
 
-    /** Vérification mensuelle d'intégrité : exige une {@link SourceEmpreintes} branchée sur les versions. */
+    /** Vérification mensuelle d'intégrité de toutes les versions chiffrées. */
     @Configuration
     @EnableScheduling
     @ConditionalOnProperty(prefix = "ged.fichiers.integrite", name = "verification-planifiee", havingValue = "true")

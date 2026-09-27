@@ -82,6 +82,11 @@ public class ConvertisseurLibreOffice implements ConvertisseurBureautique {
 
     @Override
     public Path convertirEnPdf(Path source, Path dossierSortie) {
+        return convertir(source, dossierSortie, "pdf");
+    }
+
+    @Override
+    public Path convertir(Path source, Path dossierSortie, String cibleConversion) {
         if (!disponible()) {
             throw Refus.conversionIndisponible("LibreOffice n'est pas installé sur le serveur.", null);
         }
@@ -92,7 +97,7 @@ public class ConvertisseurLibreOffice implements ConvertisseurBureautique {
             List<String> cmd = new ArrayList<>(commande);
             cmd.addAll(List.of("--headless", "--norestore", "--nolockcheck", "--nodefault", "--nologo",
                     "-env:UserInstallation=" + profil.toUri(),
-                    "--convert-to", "pdf", "--outdir", dossierSortie.toString(), source.toString()));
+                    "--convert-to", cibleConversion, "--outdir", dossierSortie.toString(), source.toString()));
             p = new ProcessBuilder(cmd).redirectErrorStream(true)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
             if (!p.waitFor(delai.toMillis(), TimeUnit.MILLISECONDS)) {

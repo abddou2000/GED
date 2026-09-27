@@ -1,13 +1,12 @@
 package com.ipt.ged.document;
 
-import com.ipt.ged.autorisation.Confidentialite;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.document.dto.DocumentRequest;
 import com.ipt.ged.document.dto.DocumentResponse;
+import org.springframework.http.CacheControl;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
-import com.ipt.ged.security.UtilisateurConnecte;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -58,29 +57,17 @@ public class DocumentController {
         return service.get(id);
     }
 
+    /* Le dépôt (POST /api/v1/documents) est servi par le paquet depot
+       (DepotController) : dépôt en deux temps et métadonnées (§5.3, §12.11). */
+
     /**
-     * Dépose un document.
-     *
-     * <p>Le créateur n'est plus un paramètre de la requête mais l'utilisateur
-     * AUTHENTIFIÉ. Auparavant le navigateur l'annonçait : n'importe qui pouvait
-     * déposer une pièce au nom d'un collègue, et la colonne « Créateur » — qui
-     * sert de trace de responsabilité — devenait déclarative. Un paramètre
-     * {@code createdById} résiduel est ignoré plutôt que refusé, pour ne pas
-     * casser un appel ancien sur un champ qui n'a jamais eu autorité.</p>
+     * 202 Accepted quand le contenu part à l'OCR (le document est reçu mais pas
+     * encore interrogeable, état {@code EN_ATTENTE_OCR} dans la réponse),
+     * 201 Created sinon (§4.3.4, §12.11).
      */
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<DocumentResponse> upload(
-            @RequestPart("file") MultipartFile file,
-            @RequestParam(value = "name", required = false) String name,
-            @RequestParam("typeDocumentId") UUID typeDocumentId,
-            @RequestParam(value = "expirationDate", required = false) String expirationDate,
-            @RequestParam(value = "etiquetteIds", required = false) List<UUID> etiquetteIds,
-            @RequestParam(value = "confidentialite", required = false) Confidentialite confidentialite,
-            @AuthenticationPrincipal UtilisateurConnecte principal) {
-        UUID createdById = principal != null ? principal.getEmployeId() : null;
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(service.upload(file, name, typeDocumentId, expirationDate, createdById, etiquetteIds,
-                        confidentialite));
+    static ResponseEntity<DocumentResponse> creation(DocumentResponse r) {
+        HttpStatus statut = "EN_ATTENTE_OCR".equals(r.statutOcr()) ? HttpStatus.ACCEPTED : HttpStatus.CREATED;
+        return ResponseEntity.status(statut).body(r);
     }
 
     /** Emplacements complémentaires visibles (§12.4). */
@@ -138,11 +125,11 @@ public class DocumentController {
 
     /** Depose une nouvelle version du fichier. */
     @PostMapping(value = "/{id}/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public DocumentResponse ajouterVersion(
+    public ResponseEntity<DocumentResponse> ajouterVersion(
             @PathVariable UUID id,
             @RequestPart("file") MultipartFile file,
             @RequestParam(value = "observation", required = false) String observation) {
-        return service.ajouterVersion(id, file, observation);
+        return creation(service.ajouterVersion(id, file, observation));
     }
 
     /** Rend une version anterieure courante. */
@@ -151,16 +138,37 @@ public class DocumentController {
         return service.restaurerVersion(id, versionId);
     }
 
+    /**
+     * Téléchargement de la version courante, déchiffrée à la volée en flux
+     * (§6.1.2) : ni copie en clair sur disque, ni fichier entier en mémoire.
+     */
     @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> download(@PathVariable UUID id) {
-        UploadDocument doc = service.loadForDownload(id);
-        Resource resource = service.storage().load(doc.getFilePath());
-        String downloadName = doc.getName() + (doc.getExtension() != null && !doc.getExtension().isBlank()
-                ? "." + doc.getExtension() : "");
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(downloadName))
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(resource);
+    public ResponseEntity<Resource> download(@PathVariable UUID id,
+                                                          @RequestParam(defaultValue = "false") boolean original) {
+        return servir(service.telecharger(id, original));
+    }
+
+    /**
+     * Sert le fichier déchiffré en flux, <b>dans le fil de la requête</b>
+     * ({@link InputStreamResource}, copié par morceaux sans être chargé en
+     * mémoire ni écrit en clair sur disque).
+     *
+     * <p>Pas de {@code StreamingResponseBody} : son écriture, dans un autre fil,
+     * engageait la réponse pendant que le filtre d'en-têtes de sécurité
+     * ({@code HeaderWriterFilter}, qui écrit ses en-têtes à l'engagement de la
+     * réponse ou en sortie de chaîne) les écrivait aussi dans le fil de la
+     * requête : deux fils modifiaient la même table d'en-têtes
+     * ({@code ConcurrentModificationException} observée en test, en-têtes
+     * incohérents possibles en production).
+     */
+    static ResponseEntity<Resource> servir(DocumentService.FichierTelecharge f) {
+        ResponseEntity.BodyBuilder r = ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(f.nom()))
+                .header("X-Content-Type-Options", "nosniff")
+                .cacheControl(CacheControl.noStore())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM);
+        if (f.taille() >= 0) r.contentLength(f.taille());
+        return r.body(new InputStreamResource(f.flux()));
     }
 
     /**

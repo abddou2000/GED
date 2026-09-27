@@ -108,7 +108,7 @@ class SignatureApiTest {
 
     private UUID upload(String name) throws Exception {
         String res = mvc.perform(multipart("/api/v1/documents")
-                        .file(new MockMultipartFile("file", name + ".pdf", "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", name + ".pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("name", name)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
