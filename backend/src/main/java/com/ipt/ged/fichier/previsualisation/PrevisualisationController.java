@@ -1,5 +1,7 @@
 package com.ipt.ged.fichier.previsualisation;
 
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import com.ipt.ged.document.evenement.Acteur;
 import com.ipt.ged.document.evenement.ApercuConsulte;
 import com.ipt.ged.fichier.Refus;
@@ -15,9 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
@@ -49,7 +49,7 @@ public class PrevisualisationController {
     }
 
     @GetMapping("/{versionId}/apercu")
-    public ResponseEntity<StreamingResponseBody> apercu(@PathVariable UUID versionId, Authentication utilisateur) {
+    public ResponseEntity<Resource> apercu(@PathVariable UUID versionId, Authentication utilisateur) {
         ResolveurFichierVersion.FichierVersion version = resolveur.resoudre(versionId)
                 .orElseThrow(() -> Refus.introuvable("version " + versionId));
         // Droits d'abord : un refus ne doit rien déchiffrer ni convertir.
@@ -70,11 +70,7 @@ public class PrevisualisationController {
         entetes.set("X-Content-Type-Options", "nosniff");
         if (apercu.taille() >= 0) entetes.setContentLength(apercu.taille());
 
-        StreamingResponseBody corps = sortie -> {
-            try (InputStream in = apercu.flux()) {
-                in.transferTo(sortie);
-            }
-        };
-        return ResponseEntity.ok().headers(entetes).body(corps);
+        // Flux servi dans le fil de la requête (voir DocumentController#servir).
+        return ResponseEntity.ok().headers(entetes).body(new InputStreamResource(apercu.flux()));
     }
 }

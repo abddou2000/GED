@@ -119,9 +119,8 @@ class ApercuTelechargementApiTest {
     void telechargement() throws Exception {
         byte[] pdf = Echantillons.pdf();
         UUID[] ids = deposer("rapport.pdf", pdf);
-        MvcResult asynchrone = mvc.perform(get("/api/v1/documents/" + ids[0] + "/download"))
-                .andExpect(request().asyncStarted()).andReturn();
-        MvcResult r = mvc.perform(asyncDispatch(asynchrone))
+        MvcResult r = mvc.perform(get("/api/v1/documents/" + ids[0] + "/download"))
+                .andExpect(request().asyncNotStarted())
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Length", String.valueOf(pdf.length)))
                 .andExpect(header().string("Cache-Control", containsString("no-store")))
@@ -138,9 +137,10 @@ class ApercuTelechargementApiTest {
     void apercuPdf() throws Exception {
         byte[] pdf = Echantillons.pdf();
         UUID[] ids = deposer("plan.pdf", pdf);
-        MvcResult asynchrone = mvc.perform(get("/api/v1/versions/{id}/apercu", ids[1]))
-                .andExpect(request().asyncStarted()).andReturn();
-        MvcResult r = mvc.perform(asyncDispatch(asynchrone))
+        MvcResult r = mvc.perform(get("/api/v1/versions/{id}/apercu", ids[1]))
+                // Servi dans le fil de la requête : aucune écriture concurrente
+                // des en-têtes (HeaderWriterFilter), cf. DocumentController#servir.
+                .andExpect(request().asyncNotStarted())
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/pdf"))
                 .andExpect(header().string("Content-Length", String.valueOf(pdf.length)))
@@ -159,9 +159,7 @@ class ApercuTelechargementApiTest {
     void apercuImage() throws Exception {
         byte[] png = Echantillons.image("png");
         UUID[] ids = deposer("scan.png", png);
-        MvcResult asynchrone = mvc.perform(get("/api/v1/versions/{id}/apercu", ids[1]))
-                .andExpect(request().asyncStarted()).andReturn();
-        assertArrayEquals(png, mvc.perform(asyncDispatch(asynchrone)).andExpect(status().isOk())
+        assertArrayEquals(png, mvc.perform(get("/api/v1/versions/{id}/apercu", ids[1])).andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "image/png"))
                 .andReturn().getResponse().getContentAsByteArray());
     }

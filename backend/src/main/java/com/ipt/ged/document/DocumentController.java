@@ -4,7 +4,8 @@ import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.document.dto.DocumentRequest;
 import com.ipt.ged.document.dto.DocumentResponse;
 import org.springframework.http.CacheControl;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -12,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -102,20 +102,31 @@ public class DocumentController {
      * (§6.1.2) : ni copie en clair sur disque, ni fichier entier en mémoire.
      */
     @GetMapping("/{id}/download")
-    public ResponseEntity<StreamingResponseBody> download(@PathVariable UUID id) {
-        DocumentService.FichierTelecharge f = service.telecharger(id);
+    public ResponseEntity<Resource> download(@PathVariable UUID id) {
+        return servir(service.telecharger(id));
+    }
+
+    /**
+     * Sert le fichier déchiffré en flux, <b>dans le fil de la requête</b>
+     * ({@link InputStreamResource}, copié par morceaux sans être chargé en
+     * mémoire ni écrit en clair sur disque).
+     *
+     * <p>Pas de {@code StreamingResponseBody} : son écriture, dans un autre fil,
+     * engageait la réponse pendant que le filtre d'en-têtes de sécurité
+     * ({@code HeaderWriterFilter}, qui écrit ses en-têtes à l'engagement de la
+     * réponse ou en sortie de chaîne) les écrivait aussi dans le fil de la
+     * requête : deux fils modifiaient la même table d'en-têtes
+     * ({@code ConcurrentModificationException} observée en test, en-têtes
+     * incohérents possibles en production).
+     */
+    static ResponseEntity<Resource> servir(DocumentService.FichierTelecharge f) {
         ResponseEntity.BodyBuilder r = ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(f.nom()))
                 .header("X-Content-Type-Options", "nosniff")
                 .cacheControl(CacheControl.noStore())
                 .contentType(MediaType.APPLICATION_OCTET_STREAM);
         if (f.taille() >= 0) r.contentLength(f.taille());
-        StreamingResponseBody corps = sortie -> {
-            try (InputStream in = f.flux()) {
-                in.transferTo(sortie);
-            }
-        };
-        return r.body(corps);
+        return r.body(new InputStreamResource(f.flux()));
     }
 
     /**

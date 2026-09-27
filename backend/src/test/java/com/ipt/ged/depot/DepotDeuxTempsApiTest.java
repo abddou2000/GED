@@ -210,9 +210,7 @@ class DepotDeuxTempsApiTest {
                 String.class, id));
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM document_index_valeur WHERE document_id = ?",
                 Integer.class, id));
-        var asynchrone = mvc.perform(get("/api/v1/documents/" + id + "/download"))
-                .andExpect(request().asyncStarted()).andReturn();
-        byte[] contenu = mvc.perform(asyncDispatch(asynchrone))
+        byte[] contenu = mvc.perform(get("/api/v1/documents/" + id + "/download"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
         assertArrayEquals(Pdfs.pdf(), contenu);
 
