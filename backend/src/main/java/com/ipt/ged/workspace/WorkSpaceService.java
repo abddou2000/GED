@@ -1,5 +1,7 @@
 package com.ipt.ged.workspace;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.JournalAdministration;
 import com.ipt.ged.autorisation.AccessPredicate;
 import com.ipt.ged.autorisation.CodePermission;
 import com.ipt.ged.autorisation.ControleAcces;
@@ -67,6 +69,9 @@ import java.util.stream.Collectors;
 @Service
 public class WorkSpaceService {
 
+    /** Journal d'audit des opérations d'administration (DAT §7.4.1). */
+    private final JournalAdministration journal;
+
     /** Colonnes triables de l'écran « Espaces de travail ». */
     private static final Set<String> TRIS = Set.of("id", "code", "name", "status");
 
@@ -78,11 +83,17 @@ public class WorkSpaceService {
     private final VersionHabilitations version;
     private final HabilitationRepository habilitations;
     private final AccessGroupRepository groupes;
+    /** Portée des clés d'API (lot intégration), résolue à l'usage. */
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.ipt.ged.cleapi.ControlePorteeApplication>
+            porteeApplications;
 
     public WorkSpaceService(WorkSpaceRepository repo, EmployeRepository employeRepository,
                             WorkflowRepository workflowRepository, AccessPredicate droits, ControleAcces controle,
                             VersionHabilitations version, HabilitationRepository habilitations,
-                            AccessGroupRepository groupes) {
+                            AccessGroupRepository groupes,
+                            JournalAdministration journal) {
+        this.journal = journal;
         this.repo = repo;
         this.employeRepository = employeRepository;
         this.workflowRepository = workflowRepository;
@@ -135,7 +146,7 @@ public class WorkSpaceService {
             WorkSpace parent = repo.findById(req.parentId())
                     .orElseThrow(() -> new EntityNotFoundException("Dossier parent introuvable : " + req.parentId()));
             controle.exigerSurNoeud(CodePermission.DEPOSER, parent.getId());
-            if (parent.getUsageEspace() != UsageEspace.ECHANGE) {
+            if (parent.getUsageEspace() != UsageEspace.ECHANGE && !creationParApplication(parent.getId())) {
                 // Espace métier : son organisation relève de la gestion des espaces.
                 controle.exigerAdministration(CodePermission.GERER_ESPACES);
             }
@@ -148,13 +159,16 @@ public class WorkSpaceService {
         apply(w, req);
         WorkSpace cree = repo.saveAndFlush(w);
         version.incrementer();
-        return reponses(List.of(cree)).get(cree);
+        WorkSpaceResponse reponse = reponses(List.of(cree)).get(cree);
+        journal.cree(ActionAudit.ESPACE_CREE, "ESPACE", reponse.id(), reponse);
+        return reponse;
     }
 
     @Transactional
     public WorkSpaceResponse update(UUID id, WorkSpaceRequest req) {
         WorkSpace w = loadPourEcriture(id);
         exiger(CodePermission.MODIFIER, id);
+        WorkSpaceResponse avant = reponses(List.of(w)).get(w);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
         }
@@ -171,7 +185,9 @@ public class WorkSpaceService {
         apply(w, req);
         WorkSpace maj = repo.saveAndFlush(w);
         version.incrementer();
-        return reponses(List.of(maj)).get(maj);
+        WorkSpaceResponse apres = reponses(List.of(maj)).get(maj);
+        journal.modifie(ActionAudit.ESPACE_MODIFIE, "ESPACE", id, avant, apres);
+        return apres;
     }
 
     @Transactional
@@ -179,6 +195,7 @@ public class WorkSpaceService {
         WorkSpace w = load(id);
         exiger(CodePermission.SUPPRIMER, id);
         mettreEnCorbeille(w);
+        journal.action(ActionAudit.ESPACE_SUPPRIME, "ESPACE", id);
     }
 
     // Restauration = inverse de la mise en corbeille.
@@ -187,6 +204,7 @@ public class WorkSpaceService {
         WorkSpace w = load(id);
         exiger(CodePermission.SUPPRIMER, id);
         restaurer(w);
+        journal.action(ActionAudit.ESPACE_RESTAURE, "ESPACE", id);
     }
 
     @Transactional
@@ -194,6 +212,7 @@ public class WorkSpaceService {
         List<WorkSpace> l = repo.findByIdInAndSupprimeFalse(ids);
         l.forEach(w -> exiger(CodePermission.SUPPRIMER, w.getId()));
         l.forEach(this::mettreEnCorbeille);
+        l.forEach(w -> journal.action(ActionAudit.ESPACE_SUPPRIME, "ESPACE", w.getId()));
     }
 
     @Transactional
@@ -201,6 +220,7 @@ public class WorkSpaceService {
         List<WorkSpace> l = repo.findByIdInAndSupprimeTrue(ids);
         l.forEach(w -> exiger(CodePermission.SUPPRIMER, w.getId()));
         l.forEach(this::restaurer);
+        l.forEach(w -> journal.action(ActionAudit.ESPACE_RESTAURE, "ESPACE", w.getId()));
     }
 
     /**
@@ -235,6 +255,7 @@ public class WorkSpaceService {
     public WorkSpaceResponse move(UUID id, UUID newParentId) {
         WorkSpace w = loadPourEcriture(id);
         verifierDeplacement(id, newParentId);
+        UUID ancienParent = w.getParent() != null ? w.getParent().getId() : null;
         if (newParentId != null) {
             if (newParentId.equals(id)) {
                 throw new IllegalArgumentException("Un dossier ne peut pas être son propre parent");
@@ -253,6 +274,9 @@ public class WorkSpaceService {
         // Le chemin de toute la sous-arborescence est recalculé par la base.
         WorkSpace deplace = repo.saveAndFlush(w);
         version.incrementer();
+        journal.action(ActionAudit.ESPACE_DEPLACE, "ESPACE", id,
+                java.util.Collections.singletonMap("parentId", ancienParent),
+                java.util.Collections.singletonMap("parentId", newParentId));
         return reponses(List.of(deplace)).get(deplace);
     }
 
@@ -274,6 +298,8 @@ public class WorkSpaceService {
         exiger(CodePermission.ARCHIVER, id);
         w.setStatus(w.getStatus() == WorkspaceStatus.ARCHIVE ? WorkspaceStatus.ACTIF : WorkspaceStatus.ARCHIVE);
         WorkSpace maj = repo.save(w);
+        journal.action(w.getStatus() == WorkspaceStatus.ARCHIVE ? ActionAudit.ESPACE_ARCHIVE : ActionAudit.ESPACE_DESARCHIVE,
+                "ESPACE", id);
         return reponses(List.of(maj)).get(maj);
     }
 
@@ -331,6 +357,24 @@ public class WorkSpaceService {
         return controle.administre(CodePermission.GERER_ESPACES);
     }
 
+    /**
+     * Une application dont la clé porte l'opération {@code CREATION_DOSSIER} sur
+     * le parent (portée posée par l'Administrateur, DAT §5.4) crée des dossiers
+     * dans un espace métier : cette portée est la décision de gestion des
+     * espaces pour l'intégration. Seule la portée de la clé est lue ici ; les
+     * droits (ceux de la personne déléguée compris) ont déjà été exigés par
+     * {@code AccessPredicate} (Déposer sur le parent).
+     */
+    private boolean creationParApplication(UUID parentId) {
+        if (!(SecurityContextHolder.getContext().getAuthentication()
+                instanceof com.ipt.ged.cleapi.ApplicationAuthentifiee application)) return false;
+        com.ipt.ged.cleapi.ControlePorteeApplication portee =
+                porteeApplications != null ? porteeApplications.getIfAvailable() : null;
+        if (portee == null) return false;
+        portee.verifier(application, com.ipt.ged.cleapi.OperationApi.CREATION_DOSSIER, parentId);
+        return true;
+    }
+
     /** Nœuds où l'appelant détient au moins une permission. */
     private Set<UUID> couverts() {
         return droits.noeudsVisibles(SecurityContextHolder.getContext().getAuthentication()).entrySet().stream()
@@ -339,7 +383,7 @@ public class WorkSpaceService {
 
     private void exigerCouvert(UUID id) {
         if (!gestionnaire() && !couverts().contains(id)) {
-            throw new HorsPerimetreException("Espace de travail introuvable : " + id);
+            throw controle.horsPerimetre("NOEUD", id, "Espace de travail introuvable : " + id);
         }
     }
 

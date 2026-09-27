@@ -80,7 +80,8 @@ public class ServiceRetypage {
 
     public ServiceRetypage(JobRetypageRepository jobs, TypeDocumentRepository types, UploadDocumentRepository documents,
                            ServiceModeleDocument modele, GardeEcriture garde, ControleAcces controle, JdbcTemplate jdbc,
-                           ApplicationEventPublisher evenements, TaskExecutor executeur,
+                           ApplicationEventPublisher evenements,
+                           @org.springframework.beans.factory.annotation.Qualifier("applicationTaskExecutor") TaskExecutor executeur,
                            PlatformTransactionManager transactions) {
         this.jobs = jobs;
         this.types = types;

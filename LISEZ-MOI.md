@@ -130,9 +130,10 @@ l'application s'y connecte avec `ged_app`. Elle comprend la montée du changelog
 sur un schéma vierge, le retour arrière de chaque changeset, le contrôle des
 droits de `ged_app` et la reprise des données sur un export d'essai.
 
-337 tests, tous verts (annuaire simulé par UnboundID). Le simulateur des tests
-écoute sur le port `GED_TEST_ANNUAIRE_PORT` (33390 par défaut) : deux copies de
-travail qui lancent leurs tests en même temps doivent en choisir deux différents.
+561 tests, tous verts (annuaire simulé par UnboundID). Le simulateur des tests
+écoute sur le port 33390 par défaut : deux copies de travail qui lancent leurs
+tests en même temps en choisissent deux différents par
+`GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT` et `GED_IDENTITE_ANNUAIRE_URLS`.
 
 ## Points d'entrée
 

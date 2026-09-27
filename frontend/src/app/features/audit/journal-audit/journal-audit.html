@@ -1,0 +1,82 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Journal d'audit</h1>
+      <p class="breadcrumb">Accueil - Traçabilité des actions (lecture seule)</p>
+    </div>
+    <div class="actions-tete">
+      <button mat-stroked-button (click)="verifier()" matTooltip="Recalcule la chaîne de scellement">
+        <mat-icon svgIcon="nav-audit"></mat-icon> Vérifier le scellement
+      </button>
+      <button mat-stroked-button (click)="exporter('csv')">Exporter CSV</button>
+      <button mat-stroked-button (click)="exporter('json')">Exporter JSON</button>
+    </div>
+  </div>
+
+  @if (verification()) {
+    <p class="verification" role="status">{{ verification() }}</p>
+  }
+
+  <div class="card">
+    <form class="filtres" (ngSubmit)="rechercher()">
+      <label>Du <input type="datetime-local" name="du" [(ngModel)]="criteres.du" /></label>
+      <label>Au <input type="datetime-local" name="au" [(ngModel)]="criteres.au" /></label>
+      <label>Action <input name="action" placeholder="DOCUMENT_TELECHARGE" [(ngModel)]="criteres.action" /></label>
+      <label>Type d'objet <input name="objetType" placeholder="DOCUMENT" [(ngModel)]="criteres.objetType" /></label>
+      <label>Objet <input name="objetId" placeholder="identifiant" [(ngModel)]="criteres.objetId" /></label>
+      <label>Utilisateur <input name="utilisateur" placeholder="identifiant" [(ngModel)]="criteres.utilisateur" /></label>
+      <label>Application <input name="application" placeholder="identifiant" [(ngModel)]="criteres.application" /></label>
+      <label>Résultat
+        <select name="resultat" [(ngModel)]="criteres.resultat">
+          @for (r of RESULTATS; track r.valeur) { <option [value]="r.valeur">{{ r.libelle }}</option> }
+        </select>
+      </label>
+      <div class="boutons">
+        <button mat-flat-button color="primary" type="submit">Rechercher</button>
+        <button mat-button type="button" (click)="reinitialiser()">Réinitialiser</button>
+      </div>
+    </form>
+
+    <div class="table-wrap">
+      @if (chargement() && lignes().length === 0) {
+        <app-skeleton-table [cols]="7"></app-skeleton-table>
+      } @else {
+        <table class="journal">
+          <thead>
+            <tr>
+              <th>N°</th><th>Horodatage</th><th>Acteur</th><th>Action</th><th>Objet</th><th>Résultat</th><th>Adresse</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (l of lignes(); track l.id) {
+              <tr (click)="basculer(l.id)" class="ligne" [class.ouverte]="ouverte() === l.id">
+                <td class="num">{{ l.id }}</td>
+                <td>{{ l.horodatage | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                <td>{{ l.acteurNom ?? (l.acteurApplicationId ? 'application' : 'système') }}</td>
+                <td class="code">{{ l.action }}</td>
+                <td>{{ l.objetType ?? '' }} <span class="id">{{ l.objetId ? l.objetId.slice(0, 8) : '' }}</span></td>
+                <td><span [class]="'point ' + l.resultat.toLowerCase()"></span>{{ l.resultat }}</td>
+                <td class="code">{{ l.adresseIp ?? '' }}</td>
+              </tr>
+              @if (ouverte() === l.id) {
+                <tr class="detail">
+                  <td colspan="7">
+                    @if (l.motif) { <p><strong>Motif :</strong> {{ l.motif }}</p> }
+                    <p class="code">Objet {{ l.objetId ?? '—' }} · trace {{ l.traceId ?? '—' }}</p>
+                    @if (l.avant) { <p><strong>Avant</strong></p><pre>{{ l.avant | json }}</pre> }
+                    @if (l.apres) { <p><strong>Après</strong></p><pre>{{ l.apres | json }}</pre> }
+                  </td>
+                </tr>
+              }
+            } @empty {
+              <tr><td colspan="7" class="vide">Aucun enregistrement pour ces critères.</td></tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+
+    <mat-paginator [length]="total()" [pageIndex]="page()" [pageSize]="taille()"
+                   [pageSizeOptions]="[25, 50, 100, 200]" (page)="changerPage($event)"></mat-paginator>
+  </div>
+</div>

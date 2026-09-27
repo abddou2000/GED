@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271000_creation_journal_audit.xml">
+
+    <!--
+        Journal d'audit fonctionnel (dossier technique §7.4, dossier fonctionnel
+        §4.9.4, revue technique D11).
+
+        - journal_audit : un enregistrement par action (structure du §7.4.1),
+          partitionné par mois (§7.4.3). Identifiant SÉQUENTIEL (bigint), comme le
+          prescrit le §7.4.1 : c'est l'ordre du scellement chaîné. Exception
+          assumée à la règle des clés UUID (§12.1).
+        - Aucune clé étrangère vers les acteurs ni vers les objets : le journal
+          doit survivre à la purge de ce qu'il décrit, et une contrainte
+          l'empêcherait.
+        - objet_id et trace_id sont des uuid : tous les objets du modèle sont
+          identifiés par UUID, et un traceId W3C (128 bits) en est un.
+
+        Garanties de non-modification (§7.4.2), y compris pour l'Administrateur :
+        1. ged_app ne garde que INSERT et SELECT (les privilèges par défaut de la
+           base lui accordent UPDATE et DELETE : ils sont retirés ici, et à chaque
+           partition créée) ;
+        2. un déclencheur BEFORE UPDATE OR DELETE OR TRUNCATE lève une exception
+           sur la table mère et sur chaque partition ;
+        3. le scellement horaire chaîné (journal_audit_scellement) détecte ce
+           qu'un superutilisateur aurait pu contourner.
+
+        Les partitions mensuelles sont créées d'avance par la fonction
+        journal_audit_creer_partition (SECURITY DEFINER : ged_app n'a aucun droit
+        DDL, il ne peut qu'appeler cette fonction au code figé). Elles ne sont
+        jamais supprimées automatiquement (§7.4.3, P4).
+    -->
+    <changeSet id="202609271000-1" author="ged">
+        <comment>Déclencheur de refus des modifications, commun aux tables d'audit.</comment>
+        <sql splitStatements="false">
+CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.journal_audit_refuser_modification()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'Journal d''audit en ajout seul : % refusé sur %', TG_OP, TG_TABLE_NAME
+        USING ERRCODE = 'insufficient_privilege',
+              HINT = 'Les tables d''audit n''acceptent que INSERT (dossier technique §7.4.2).';
+END
+$$
+        </sql>
+        <rollback>
+            <sql>DROP FUNCTION IF EXISTS ${database.defaultSchemaName}.journal_audit_refuser_modification()</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609271000-2" author="ged">
+        <comment>Table journal_audit, partitionnée par mois.</comment>
+        <sql>CREATE SEQUENCE ${database.defaultSchemaName}.journal_audit_id_seq AS bigint</sql>
+        <sql>
+CREATE TABLE ${database.defaultSchemaName}.journal_audit (
+    id                    bigint       NOT NULL DEFAULT nextval('${database.defaultSchemaName}.journal_audit_id_seq'),
+    horodatage            timestamptz  NOT NULL DEFAULT clock_timestamp(),
+    acteur_utilisateur_id uuid,
+    acteur_application_id uuid,
+    acteur_nom            varchar(255),
+    adresse_ip            varchar(45),
+    action                varchar(64)  NOT NULL,
+    objet_type            varchar(64),
+    objet_id              uuid,
+    avant                 jsonb,
+    apres                 jsonb,
+    resultat              varchar(8)   NOT NULL,
+    motif                 varchar(1000),
+    trace_id              uuid,
+    CONSTRAINT pk_journal_audit PRIMARY KEY (id, horodatage),
+    CONSTRAINT ck_journal_audit_resultat CHECK (resultat IN ('SUCCES', 'REFUS', 'ECHEC')),
+    CONSTRAINT ck_journal_audit_action CHECK (action ~ '^[A-Z][A-Z0-9_]{1,63}$'),
+    CONSTRAINT ck_journal_audit_objet CHECK (objet_id IS NULL OR objet_type IS NOT NULL)
+) PARTITION BY RANGE (horodatage)
+        </sql>
+        <sql>ALTER SEQUENCE ${database.defaultSchemaName}.journal_audit_id_seq OWNED BY ${database.defaultSchemaName}.journal_audit.id</sql>
+        <sql>CREATE INDEX idx_journal_audit_horodatage ON ${database.defaultSchemaName}.journal_audit (horodatage)</sql>
+        <sql>CREATE INDEX idx_journal_audit_acteur ON ${database.defaultSchemaName}.journal_audit (acteur_utilisateur_id, horodatage)</sql>
+        <sql>CREATE INDEX idx_journal_audit_application ON ${database.defaultSchemaName}.journal_audit (acteur_application_id, horodatage)</sql>
+        <sql>CREATE INDEX idx_journal_audit_action ON ${database.defaultSchemaName}.journal_audit (action, horodatage)</sql>
+        <sql>CREATE INDEX idx_journal_audit_objet ON ${database.defaultSchemaName}.journal_audit (objet_type, objet_id)</sql>
+        <sql>
+CREATE TRIGGER trg_journal_audit_ajout_seul
+    BEFORE UPDATE OR DELETE OR TRUNCATE ON ${database.defaultSchemaName}.journal_audit
+    FOR EACH STATEMENT EXECUTE FUNCTION ${database.defaultSchemaName}.journal_audit_refuser_modification()
+        </sql>
+        <sql splitStatements="false">
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ged_app') THEN
+        REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+            ON ${database.defaultSchemaName}.journal_audit FROM ged_app;
+        GRANT SELECT, INSERT ON ${database.defaultSchemaName}.journal_audit TO ged_app;
+        GRANT USAGE ON SEQUENCE ${database.defaultSchemaName}.journal_audit_id_seq TO ged_app;
+        REVOKE UPDATE ON SEQUENCE ${database.defaultSchemaName}.journal_audit_id_seq FROM ged_app;
+    END IF;
+END
+$$
+        </sql>
+        <rollback>
+            <sql>DROP TABLE IF EXISTS ${database.defaultSchemaName}.journal_audit CASCADE</sql>
+            <sql>DROP SEQUENCE IF EXISTS ${database.defaultSchemaName}.journal_audit_id_seq</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609271000-3" author="ged">
+        <comment>Création idempotente d'une partition mensuelle, appelable par ged_app.</comment>
+        <!--
+            Mois en UTC. Les index des partitions sont renommés selon la convention
+            (préfixe de l'index parent, suffixe AAAAMM) : PostgreSQL leur donnerait
+            sinon des noms hors convention (§4.2.2).
+        -->
+        <sql splitStatements="false">
+CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.journal_audit_creer_partition(p_instant timestamptz)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+    schema_audit constant text := '${database.defaultSchemaName}';
+    debut  timestamp := date_trunc('month', p_instant AT TIME ZONE 'UTC');
+    fin    timestamp := debut + interval '1 month';
+    suffixe text := to_char(debut, 'YYYYMM');
+    nom    text := 'journal_audit_' || suffixe;
+    idx    record;
+BEGIN
+    IF to_regclass(format('%I.%I', schema_audit, nom)) IS NOT NULL THEN
+        RETURN nom;
+    END IF;
+    -- Deux appels concurrents pour le même mois : le second attend le premier.
+    PERFORM pg_advisory_xact_lock(hashtext('journal_audit_partition'), to_char(debut, 'YYYYMM')::int);
+    IF to_regclass(format('%I.%I', schema_audit, nom)) IS NOT NULL THEN
+        RETURN nom;
+    END IF;
+    EXECUTE format('CREATE TABLE %I.%I PARTITION OF %I.journal_audit FOR VALUES FROM (%L) TO (%L)',
+                   schema_audit, nom, schema_audit,
+                   (debut AT TIME ZONE 'UTC'), (fin AT TIME ZONE 'UTC'));
+    FOR idx IN
+        SELECT enfant.relname AS nom_enfant, parent.relname AS nom_parent
+          FROM pg_inherits h
+          JOIN pg_class enfant ON enfant.oid = h.inhrelid
+          JOIN pg_class parent ON parent.oid = h.inhparent
+          JOIN pg_index i ON i.indexrelid = enfant.oid
+         WHERE i.indrelid = format('%I.%I', schema_audit, nom)::regclass
+    LOOP
+        EXECUTE format('ALTER INDEX %I.%I RENAME TO %I',
+                       schema_audit, idx.nom_enfant, idx.nom_parent || '_' || suffixe);
+    END LOOP;
+    EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE OR TRUNCATE ON %I.%I '
+                   'FOR EACH STATEMENT EXECUTE FUNCTION %I.journal_audit_refuser_modification()',
+                   'trg_' || nom || '_ajout_seul', schema_audit, nom, schema_audit);
+    EXECUTE format('REVOKE ALL ON %I.%I FROM PUBLIC', schema_audit, nom);
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ged_app') THEN
+        EXECUTE format('REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON %I.%I FROM ged_app',
+                       schema_audit, nom);
+        EXECUTE format('GRANT SELECT, INSERT ON %I.%I TO ged_app', schema_audit, nom);
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ged_readonly') THEN
+        EXECUTE format('GRANT SELECT ON %I.%I TO ged_readonly', schema_audit, nom);
+    END IF;
+    RETURN nom;
+END
+$$
+        </sql>
+        <sql splitStatements="false">
+DO $$
+BEGIN
+    REVOKE ALL ON FUNCTION ${database.defaultSchemaName}.journal_audit_creer_partition(timestamptz) FROM PUBLIC;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ged_app') THEN
+        GRANT EXECUTE ON FUNCTION ${database.defaultSchemaName}.journal_audit_creer_partition(timestamptz) TO ged_app;
+    END IF;
+END
+$$
+        </sql>
+        <!-- Partitions du mois précédent à douze mois après la migration ;
+             l'application crée ensuite les suivantes d'avance. -->
+        <sql splitStatements="false">
+DO $$
+DECLARE
+    m int;
+BEGIN
+    FOR m IN -1..12 LOOP
+        PERFORM ${database.defaultSchemaName}.journal_audit_creer_partition(now() + make_interval(months => m));
+    END LOOP;
+END
+$$
+        </sql>
+        <rollback>
+            <sql>DROP FUNCTION IF EXISTS ${database.defaultSchemaName}.journal_audit_creer_partition(timestamptz)</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609271000-4" author="ged">
+        <comment>Scellement horaire chaîné du journal (SHA-256), en ajout seul.</comment>
+        <sql>
+CREATE TABLE ${database.defaultSchemaName}.journal_audit_scellement (
+    id                   bigint       GENERATED ALWAYS AS IDENTITY,
+    periode_debut        timestamptz  NOT NULL,
+    periode_fin          timestamptz  NOT NULL,
+    nombre               bigint       NOT NULL,
+    premier_numero       bigint,
+    dernier_numero       bigint,
+    empreinte_precedente char(64)     NOT NULL,
+    empreinte            char(64)     NOT NULL,
+    scelle_le            timestamptz  NOT NULL DEFAULT clock_timestamp(),
+    CONSTRAINT pk_journal_audit_scellement PRIMARY KEY (id),
+    CONSTRAINT uk_journal_audit_scellement_periode_debut UNIQUE (periode_debut),
+    CONSTRAINT ck_journal_audit_scellement_periode CHECK (periode_fin > periode_debut),
+    CONSTRAINT ck_journal_audit_scellement_nombre CHECK (nombre >= 0),
+    CONSTRAINT ck_journal_audit_scellement_empreinte CHECK (empreinte ~ '^[0-9a-f]{64}$'
+                                                            AND empreinte_precedente ~ '^[0-9a-f]{64}$')
+)
+        </sql>
+        <sql>
+CREATE TRIGGER trg_journal_audit_scellement_ajout_seul
+    BEFORE UPDATE OR DELETE OR TRUNCATE ON ${database.defaultSchemaName}.journal_audit_scellement
+    FOR EACH STATEMENT EXECUTE FUNCTION ${database.defaultSchemaName}.journal_audit_refuser_modification()
+        </sql>
+        <sql splitStatements="false">
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ged_app') THEN
+        REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+            ON ${database.defaultSchemaName}.journal_audit_scellement FROM ged_app;
+        GRANT SELECT, INSERT ON ${database.defaultSchemaName}.journal_audit_scellement TO ged_app;
+    END IF;
+END
+$$
+        </sql>
+        <rollback>
+            <sql>DROP TABLE IF EXISTS ${database.defaultSchemaName}.journal_audit_scellement</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- Jalon de fin du lot E4 (journal d'audit) : retour arrière possible jusqu'à ce point. -->
+    <changeSet id="202609271000-5" author="ged">
+        <tagDatabase tag="audit-e4"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -11,7 +11,6 @@ public class AnnuaireIndisponibleException extends ErreurIdentite {
     public AnnuaireIndisponibleException(Throwable cause) {
         super(HttpStatus.SERVICE_UNAVAILABLE, "ANNUAIRE_INDISPONIBLE",
                 "L'annuaire de l'entreprise ne répond pas : connexion impossible pour le moment. "
-                        + "Les sessions déjà ouvertes ne sont pas affectées.");
-        initCause(cause);
+                        + "Les sessions déjà ouvertes ne sont pas affectées.", cause);
     }
 }

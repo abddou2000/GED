@@ -1,0 +1,66 @@
+# ============================================================
+#  API d'intégration (DAT §5) : clés d'API, idempotence, conventions.
+#  Importé par application.yml (spring.config.import).
+# ============================================================
+ged:
+  api:
+    cles:
+      # Préfixe des clés émises : ged_<env>_<identifiant>_<secret>. Une clé
+      # d'un autre environnement est refusée.
+      environnement: ${GED_ENVIRONNEMENT:dev}
+      # Validité par défaut d'une clé (12 mois) et chevauchement après
+      # régénération (7 jours), DAT §5.4.
+      validite: 365d
+      chevauchement: 7d
+      # Clés signalées dans l'écran d'administration avant leur expiration.
+      alerte-expiration: 30d
+      # Quotas par défaut d'une nouvelle application, par clé.
+      quota-minute: 600
+      quota-jour: 100000
+      # Persistance des compteurs de quotas tenus en mémoire.
+      persistance-compteurs: 1m
+    delegation:
+      # X-On-Behalf-Of (DAT §5.5) : une identité de l'annuaire jamais connectée est
+      # provisionnée sans rôle ; faux = refusée (422 IDENTITE_DELEGUEE_INVALIDE).
+      provisionner-inconnus: true
+      # Relire l'annuaire à chaque délégation et refuser une identité qui n'y figure
+      # plus. Le rejet d'un compte DÉSACTIVÉ reste en question (QR9, décision D1) :
+      # la GED ne lit pas l'état du compte (D1, D3). Existence seule par défaut.
+      verifier-compte-annuaire: false
+    idempotence:
+      # Réponse d'une création mémorisée 24 heures par appelant.
+      duree: 24h
+      purge-cron: "0 15 * * * *"
+      # Créations soumises à Idempotency-Key (DAT §5.3.2) : dépôt, versement,
+      # création de dossier, rattachement. Une ligne par point d'entrée.
+      routes:
+        - POST /api/v1/documents
+        - POST /api/v1/documents/*/versions
+        - POST /api/v1/documents/*/rattachements
+        - POST /api/v1/workspaces
+        - POST /api/v1/noeuds/*/dossiers
+    conventions:
+      # 64 Ko de métadonnées par requête (DAT §5.3.2).
+      metadonnees-max: 65536
+      # Annonces de dépréciation (rupture = /api/v2, v1 maintenue 12 mois) :
+      # depreciations:
+      #   - prefixe: /api/v1/
+      #     annonce: 2027-01-01
+      #     retrait: 2028-01-01
+      #     successeur: /api/v2/
+
+# ------------------------------------------------------------
+# Production : spécification OpenAPI et Swagger UI désactivés (T-053, DAT
+# §5.3 : documentation fermée en production), en plus du refus de ces routes
+# par la chaîne de sécurité. Le profil uat reste documenté pour la recette.
+# ------------------------------------------------------------
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

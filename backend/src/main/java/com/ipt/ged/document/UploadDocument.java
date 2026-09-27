@@ -1,6 +1,7 @@
 package com.ipt.ged.document;
 
 import com.ipt.ged.autorisation.Confidentialite;
+import com.ipt.ged.depot.IssueIndexation;
 import com.ipt.ged.common.IdentifiantUuid;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.employe.Employe;
@@ -95,13 +96,9 @@ public class UploadDocument extends Supprimable {
     @JoinColumn(name = "type_document_id", nullable = false)
     private TypeDocument typeDocument;
 
-    /** Nom du fichier stocké sur disque (unique). */
+    /** Nom d'origine du fichier de la version courante (le fichier lui-même est chiffré, cf. version). */
     @Column(name = "file_name")
     private String fileName;
-
-    /** Chemin relatif du fichier sur le disque. */
-    @Column(name = "file_path")
-    private String filePath;
 
     private String extension;
 
@@ -202,6 +199,19 @@ public class UploadDocument extends Supprimable {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadonnees", nullable = false)
     private Map<String, Object> metadonnees = new HashMap<>();
+
+    /**
+     * Issue de l'indexation au dépôt (§12.11) : {@code INDEXE}, {@code SANS_PLAN}
+     * ou {@code A_INDEXER} (indexation reprenable).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "statut_indexation", nullable = false, length = 16)
+    private IssueIndexation statutIndexation = IssueIndexation.A_INDEXER;
+
+    /** Document archivé : lecture seule totale (§12.6), désarchivage excepté. */
+    public boolean estArchive() {
+        return statutConservation == com.ipt.ged.common.StatutConservation.ARCHIVE;
+    }
 
     public UploadDocument(String name) {
         this.name = name;

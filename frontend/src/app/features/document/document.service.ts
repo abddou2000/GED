@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { API_BASE } from '../../core/api';
 import { DocumentItem, DocumentRequest, PageResult } from './document.model';
@@ -135,11 +135,18 @@ export class DocumentService {
    * dépôt.
    */
   upload(file: File, typeDocumentId: string, name: string, expirationDate: string | null,
-         etiquetteIds: string[] = [], confidentialite: string | null = null): Observable<DocumentItem> {
+         etiquetteIds: string[] = [], confidentialite: string | null = null,
+         metadonnees?: Record<string, string | null>): Observable<DocumentItem> {
     const fd = new FormData();
     // Absent : le serveur applique le niveau par défaut du type (§12.3).
     if (confidentialite) fd.append('confidentialite', confidentialite);
     fd.append('file', file);
+    /* Dépôt avec métadonnées en une seule opération (§5.3) : validées contre le
+       plan AVANT toute écriture (400 sinon, rien n'est déposé), enregistrées
+       dans le second temps du dépôt (§12.11). Clés : identifiants d'index. */
+    if (metadonnees && Object.keys(metadonnees).length) {
+      fd.append('metadonnees', new Blob([JSON.stringify(metadonnees)], { type: 'application/json' }));
+    }
     fd.append('typeDocumentId', String(typeDocumentId));
     if (name) fd.append('name', name);
     if (expirationDate) fd.append('expirationDate', expirationDate);
@@ -167,8 +174,20 @@ export class DocumentService {
    * la chaîne d'intercepteurs : le jeton est posé s'il y a un vrai serveur, et
    * la démonstration peut répondre s'il n'y en a pas.
    */
-  telecharger(id: string): Observable<Blob> {
-    return this.http.get(`${this.url}/${id}/download`, { responseType: 'blob' });
+  telecharger(id: string, original = false): Observable<Blob> {
+    /* Document archivé : la copie de conservation PDF/A est servie par défaut
+       (§6.1.4) ; `original` demande le fichier déposé. */
+    const params = original ? new HttpParams().set('original', 'true') : undefined;
+    return this.http.get(`${this.url}/${id}/download`, { responseType: 'blob', params });
+  }
+
+  /**
+   * Aperçu d'une version (§6.1.6) : PDF ou image déchiffrés à la volée,
+   * bureautique convertie en PDF. Même raison que le téléchargement pour
+   * passer par HttpClient : le jeton doit accompagner la requête.
+   */
+  apercu(versionId: string): Observable<Blob> {
+    return this.http.get(`${API_BASE}/versions/${versionId}/apercu`, { responseType: 'blob' });
   }
 
   /**

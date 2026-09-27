@@ -12,15 +12,11 @@ ged:
   base:
     nom: ${DB_NAME_TEST:${DB_NAME:ged_dev1}_test}
 
-  # Stockage des fichiers en test : dossier build jetable
-  storage:
-    root: ./target/test-storage
-    temp: ./target/test-temp
-
   # Stockage sécurisé : keystore jetable recréé sous target/. La phrase
   # secrète n'est pas un secret (même statut que la clé JWT de test ci-dessous).
-  # L'antivirus pointe sur un port où rien n'écoute : les tests qui l'exercent
-  # démarrent leur propre faux clamd et construisent leur client.
+  # Antivirus neutralisé pour les tests d'API (aucun ClamAV sur le poste) ;
+  # les tests qui l'exercent démarrent leur propre faux clamd (ClientClamdTest,
+  # ControleFichiersTest, DepotAntivirusApiTest).
   fichiers:
     racine: ./target/test-coffre
     racine-cache-apercu: ./target/test-cache-apercu
@@ -29,27 +25,47 @@ ged:
       mot-de-passe: test-only-keystore-password
       creer-si-absent: true
     antivirus:
-      port: 1
-      delai-connexion-ms: 500
+      actif: false
+    integrite:
+      verification-planifiee: false
     previsualisation:
       repertoire-travail: ./target/test-apercu-travail
+  ocr:
+    chaine:
+      # Chaîne inactive par défaut dans les tests d'API (dépôt en 201) ; les
+      # tests qui l'exercent l'activent (OcrApiTest, RechercheApiTest : 202, job
+      # enfilé). Jamais de worker dans le contexte Spring de test : la chaîne
+      # de traitement est testée à part (TravailleurOcrPostgresTest).
+      actif: false
+      workers: 0
+  cycledevie:
+    # Aucun travailleur de fond : les tests déclenchent eux-mêmes les jobs
+    # (ArchivageDossiers.traiterUnJob, ExportDossiers.traiterUnJob).
+    travailleur:
+      actif: false
+    archivage:
+      repertoire-travail: ./target/test-conservation-travail
+
+  # Notifications : pas d'expédition automatique, les tests la déclenchent
+  # eux-mêmes (ExpediteurCourriels.expedier) vers un SMTP simulé (GreenMail).
+  notification:
+    expedition-auto: false
+    url-application: http://localhost:4200
+    expediteur: ged-test@localhost
 
   # Identité : simulateur d'annuaire embarqué (UnboundID) chargé du LDIF de
   # test ; comptes à mot de passe « test-only-password », jetables, qui
   # n'existent que dans ce simulateur. Clé JWT : paire RSA tirée par exécution.
-  # Port du simulateur réglable (GED_TEST_ANNUAIRE_PORT) : deux copies de
-  # travail qui lancent leurs tests en même temps sur un poste ne se
-  # disputent plus le port 33390.
   identite:
     annuaire:
-      urls: ldap://localhost:${GED_TEST_ANNUAIRE_PORT:33390}
+      urls: ldap://localhost:33390
       base: DC=marchicamed,DC=ma
       compte-service: CN=svc-ged-ldap,OU=Services,DC=marchicamed,DC=ma
       mot-de-passe-service: test-only-password
       exiger-ldaps: false
       pool: false
       embarque:
-        port: ${GED_TEST_ANNUAIRE_PORT:33390}
+        port: 33390
         ldif: classpath:annuaire/annuaire-test.ldif
     jeton:
       cle-ephemere-autorisee: true
@@ -57,6 +73,13 @@ ged:
       administrateurs: sbennani
 
 spring:
+  # SMTP simulé des tests (GreenMail, port de test 3025, sans TLS).
+  mail:
+    host: localhost
+    port: 3025
+    properties:
+      mail.smtp.starttls.enable: false
+      mail.smtp.starttls.required: false
   liquibase:
     # Schéma vidé puis entièrement recréé par Liquibase au démarrage de la
     # suite : chaque exécution part d'une base vierge, comme une installation

@@ -1,5 +1,7 @@
 package com.ipt.ged.index;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.JournalAdministration;
 import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
@@ -24,6 +26,9 @@ import java.util.UUID;
 @Service
 public class IndexService {
 
+    /** Journal d'audit des opérations d'administration (DAT §7.4.1). */
+    private final JournalAdministration journal;
+
     /** Colonnes sur lesquelles le tri est accepté ; toute autre valeur est ignorée. */
     private static final Set<String> TRIS = Set.of(
             "id", "code", "nomIndex", "fieldType",
@@ -38,7 +43,9 @@ public class IndexService {
     /** Versions figées des plans qui contiennent l'index (§12.7). */
     private final com.ipt.ged.planindexation.metamodele.ServiceVersionsPlan versions;
 
-    public IndexService(IndexRepository repo, com.ipt.ged.planindexation.metamodele.ServiceVersionsPlan versions) {
+    public IndexService(IndexRepository repo, JournalAdministration journal,
+                        com.ipt.ged.planindexation.metamodele.ServiceVersionsPlan versions) {
+        this.journal = journal;
         this.repo = repo;
         this.versions = versions;
     }
@@ -71,12 +78,15 @@ public class IndexService {
         }
         IndexField x = new IndexField(req.code(), req.nomIndex());
         apply(x, req);
-        return IndexResponse.from(repo.save(x));
+        IndexResponse cree = IndexResponse.from(repo.save(x));
+        journal.cree(ActionAudit.INDEX_CREE, "INDEX", cree.id(), cree);
+        return cree;
     }
 
     @Transactional
     public IndexResponse update(UUID id, IndexRequest req) {
         IndexField x = load(id);
+        IndexResponse avant = IndexResponse.from(x);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
         }
@@ -86,28 +96,38 @@ public class IndexService {
         // Modifier un index (nature, obligatoire, valeurs) modifie les plans qui
         // l'emploient : chacun reçoit une nouvelle version.
         versions.versionnerPlansDeLIndex(enregistre.getId());
-        return IndexResponse.from(enregistre);
+        IndexResponse apres = IndexResponse.from(enregistre);
+        journal.modifie(ActionAudit.INDEX_MODIFIE, "INDEX", id, avant, apres);
+        return apres;
     }
 
     @Transactional
     public void softDelete(UUID id) {
         load(id).mettreEnCorbeille(ActeurCourant.employeId());
+        journal.action(ActionAudit.INDEX_SUPPRIME, "INDEX", id);
     }
 
     // Restauration = inverse de la mise en corbeille.
     @Transactional
     public void restore(UUID id) {
         load(id).restaurer();
+        journal.action(ActionAudit.INDEX_RESTAURE, "INDEX", id);
     }
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndSupprimeFalse(ids).forEach(x -> x.mettreEnCorbeille(ActeurCourant.employeId()));
+        repo.findByIdInAndSupprimeFalse(ids).forEach(x -> {
+            x.mettreEnCorbeille(ActeurCourant.employeId());
+            journal.action(ActionAudit.INDEX_SUPPRIME, "INDEX", x.getId());
+        });
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndSupprimeTrue(ids).forEach(x -> x.restaurer());
+        repo.findByIdInAndSupprimeTrue(ids).forEach(x -> {
+            x.restaurer();
+            journal.action(ActionAudit.INDEX_RESTAURE, "INDEX", x.getId());
+        });
     }
 
     /** Liste allégée {id, name} pour les sélecteurs (plans d'indexation). */

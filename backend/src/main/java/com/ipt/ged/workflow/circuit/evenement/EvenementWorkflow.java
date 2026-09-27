@@ -21,8 +21,8 @@ import java.util.UUID;
  * (double identité dans l'audit).
  *
  * @param action       code d'audit ({@code CIRCUIT_OUVERT}, {@code VALIDATION_APPROUVEE}…)
- * @param objetId      circuit concerné (objet {@code CIRCUIT}) ou document (diffusion)
- * @param objetType    {@code CIRCUIT} ou {@code DOCUMENT}
+ * @param objetId      document concerné (le circuit figure dans l'après), nœud ou type (règle)
+ * @param objetType    {@code DOCUMENT}, {@code NOEUD} ou {@code TYPE_DOCUMENT}
  * @param avant        état avant (champs modifiés), ou {@code null}
  * @param apres        état après, ou valeurs créées
  * @param motifAction  motif saisi (refus, annulation, réaffectation)

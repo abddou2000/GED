@@ -113,7 +113,7 @@ class IndexationControlesApiTest {
 
     private UUID deposer(String nom) throws Exception {
         String reponse = mvc.perform(multipart("/api/v1/documents")
-                        .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("name", nom)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
@@ -140,7 +140,7 @@ class IndexationControlesApiTest {
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON)
                         .content("{\"valeurs\":[]}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("obligatoire")));
+                .andExpect(jsonPath("$.detail", containsString("obligatoire")));
 
         org.junit.jupiter.api.Assertions.assertEquals("Facture intacte", nomDu(doc),
                 "le nom du document a été détruit par une requête refusée");
@@ -154,7 +154,7 @@ class IndexationControlesApiTest {
         mvc.perform(put(BASE + "/documents/" + doc).contentType(APPLICATION_JSON)
                         .content("{\"valeurs\":[{\"indexFieldId\":\"" + idFacultatif + "\",\"valeur\":\"une note\"}]}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("obligatoire")));
+                .andExpect(jsonPath("$.detail", containsString("obligatoire")));
 
         // Rien n'a été écrit : le refus est complet, pas partiel.
         mvc.perform(get(BASE + "/documents/" + doc)).andExpect(jsonPath("$", hasSize(0)));
@@ -197,7 +197,7 @@ class IndexationControlesApiTest {
                                 + "{\"indexFieldId\":\"" + idMontant + "\",\"valeur\":\"100\"},"
                                 + "{\"indexFieldId\":\"" + idHorsPlan + "\",\"valeur\":\"contrebande\"}]}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("plan d'indexation")));
+                .andExpect(jsonPath("$.detail", containsString("plan d'indexation")));
 
         mvc.perform(get(BASE + "/documents/" + doc)).andExpect(jsonPath("$", hasSize(0)));
         mvc.perform(post(BASE + "/recherche").contentType(APPLICATION_JSON).content("{}"))
@@ -213,18 +213,24 @@ class IndexationControlesApiTest {
                         .file(new MockMultipartFile("file", "charge.exe", "application/octet-stream", "MZ".getBytes()))
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("non autorisé")));
+                .andExpect(jsonPath("$.detail", containsString("non autorisé")));
 
         // Taille : 6 Mo pour un plafond de 5.
         mvc.perform(multipart(BASE + "/apercu")
                         .file(new MockMultipartFile("file", "enorme.pdf", "application/pdf", new byte[6 * 1024 * 1024]))
                         .param("typeDocumentId", String.valueOf(typeId)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("volumineux")));
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.detail", containsString("volumineux")));
+
+        // Type réel : un « .pdf » qui n'est que du texte est refusé comme au dépôt.
+        mvc.perform(multipart(BASE + "/apercu")
+                        .file(new MockMultipartFile("file", "faux.pdf", "application/pdf", "pas un pdf".getBytes()))
+                        .param("typeDocumentId", String.valueOf(typeId)))
+                .andExpect(status().isUnsupportedMediaType());
 
         // Un fichier conforme passe toujours : la route reste utilisable.
         mvc.perform(multipart(BASE + "/apercu")
-                        .file(new MockMultipartFile("file", "ACME_100.pdf", "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", "ACME_100.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isOk());
     }

@@ -94,7 +94,7 @@ public class GardeDroitsRequetes implements HandlerInterceptor {
                     // Réindexation : refusée sur un document verrouillé ou archivé (409, §12.8).
                     garde.exigerModifiable(id);
                 } else if (!controle.documentLisible(id)) {
-                    throw new HorsPerimetreException("Document introuvable : " + id);
+                    throw controle.horsPerimetre("DOCUMENT", id, "Document introuvable : " + id);
                 }
                 break;
             }

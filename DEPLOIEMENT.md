@@ -80,6 +80,9 @@ appliquent les mêmes contrôles (le profil `uat` importe `application-prod.yml`
 | `DB_SSLMODE` `DB_SSLROOTCERT` | non | Défaut `verify-full` et `/etc/ged/pki/postgresql-ca.crt`. |
 | `DB_USER` `DB_PASSWORD` | **oui** | Compte applicatif `ged_app`. |
 | `DB_OWNER_USER` `DB_OWNER_PASSWORD` | pour le déploiement | Compte `ged_owner`, utilisé par le script de migration. |
+| `GED_SMTP_HOTE` `GED_SMTP_PORT` | oui (e-mails) | Relais SMTP de MMED pour les notifications (DAT §12.9). Défaut `localhost:25` ; injoignable = trois tentatives puis état `ECHEC`, la notification restant visible dans l'application. |
+| `GED_SMTP_STARTTLS` `GED_SMTP_AUTH` `GED_SMTP_UTILISATEUR` `GED_SMTP_MOT_DE_PASSE` | non | TLS exigé par défaut ; authentification seulement si le relais l'impose. |
+| `GED_NOTIFICATION_EXPEDITEUR` `GED_URL_APPLICATION` | recommandé | Adresse d'expédition et adresse publique du front (lien « Ouvrir dans la GED » des e-mails). |
 
 ### 2.1 Annuaire (LDAPS)
 
@@ -208,7 +211,9 @@ origine). Toute modification est effective immédiatement, sans reconnexion.
 **Sauvegarde.** Deux choses à sauvegarder, et les deux ensemble :
 
 - la base PostgreSQL (`pg_dump -Fc`, schémas `ged` et `ged_liquibase`),
-- le dossier de stockage (`ged.storage.root`), qui contient les fichiers.
+- le référentiel de fichiers chiffrés (`ged.fichiers.racine`, variable
+  `GED_STOCKAGE_RACINE`), et à part ses clés (keystore `GED_KEYSTORE_CHEMIN`,
+  table `cle_fichier`) : voir `docs/exploitation/RESTAURATION.md`.
 
 L'un sans l'autre ne permet pas de restaurer : la base porte les métadonnées,
 le disque porte les documents.

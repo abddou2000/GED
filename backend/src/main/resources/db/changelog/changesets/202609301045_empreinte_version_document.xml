@@ -22,10 +22,14 @@
             <column name="empreinte" type="CHAR(64)"/>
         </addColumn>
         <sql>ALTER TABLE ${database.defaultSchemaName}.version_document ADD CONSTRAINT ck_version_document_empreinte CHECK (empreinte ~ '^[0-9a-f]{64}$')</sql>
-        <rollback>
-            <sql>ALTER TABLE ${database.defaultSchemaName}.version_document DROP CONSTRAINT ck_version_document_empreinte</sql>
-            <dropColumn tableName="version_document" columnName="empreinte"/>
-        </rollback>
+        <!--
+            Retour arrière vide, voulu : dans le changelog fusionné, 202609271205
+            (lot stockage) précède toujours ce changeset, qui est donc marqué
+            exécuté sans rien faire (MARK_RAN). La colonne et sa contrainte
+            appartiennent à 202609271205, dont le retour arrière les retire ;
+            les retirer ici ferait échouer ce dernier.
+        -->
+        <rollback/>
     </changeSet>
 
 </databaseChangeLog>

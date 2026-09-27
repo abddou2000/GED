@@ -59,7 +59,7 @@ public class CircuitController {
     public ResponseEntity<Void> regleDuType(@PathVariable UUID typeId,
                                             @RequestBody VuesWorkflow.DemandeRattachement corps,
                                             Authentication auth, HttpServletRequest requete) {
-        ActeurWorkflow a = pilotage(auth, requete, null);
+        ActeurWorkflow a = pilotage(auth, requete, service.noeudDuType(typeId));
         rattachements.rattacherType(typeId, corps.regleId(), a);
         return ResponseEntity.noContent().build();
     }

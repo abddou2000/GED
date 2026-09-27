@@ -78,13 +78,10 @@ public class ServiceModeleDocument {
     @Transactional(propagation = Propagation.MANDATORY)
     public void modifierMetadonnees(UploadDocument d, Map<String, ?> metadonnees) {
         DefinitionPlan plan = planDuDocument(d);
-        Map<String, Object> avant = new LinkedHashMap<>(d.getMetadonnees());
         Map<String, Object> apres = ValidateurMetadonnees.valider(plan, metadonnees);
-        if (!avant.equals(apres)) {
-            d.setMetadonnees(new HashMap<>(apres));
-            evenements.publishEvent(EvenementModeleDocument.succes(EvenementModeleDocument.METADONNEES_MODIFIEES,
-                    d.getId(), avant, new LinkedHashMap<>(apres), null, ActeurCourant.utilisateurId()));
-        }
+        // Pas d'événement ici : l'action qui appelle (modification de la fiche)
+        // publie une seule trace avant / après (MetadonneesModifiees).
+        if (!new LinkedHashMap<>(d.getMetadonnees()).equals(apres)) d.setMetadonnees(new HashMap<>(apres));
     }
 
     /**
@@ -103,6 +100,29 @@ public class ServiceModeleDocument {
         d.setMetadonnees(new HashMap<>(ValidateurMetadonnees.valider(plan, source, metadonnees != null)));
         d.setPlanIndexationVersionId(version.map(PlanIndexationVersion::getId).orElse(null));
         d.setTypeDocument(nouveau);
+    }
+
+    /**
+     * Miroir JSON des valeurs d'index déjà validées par l'indexation
+     * ({@code ValidationPlan}, lot dépôt) : seule la normalisation par nature
+     * s'applique ici, pas une seconde validation. Une valeur que la version de
+     * plan du document ne connaît plus reste dans les index sans être copiée.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void synchroniser(UploadDocument d, Map<String, ?> valeursParCode) {
+        DefinitionPlan plan = planDuDocument(d);
+        Map<String, Object> retenues = new LinkedHashMap<>();
+        valeursParCode.forEach((code, valeur) -> {
+            if (code != null && plan.champ(code).isPresent()) retenues.put(code, valeur);
+        });
+        try {
+            d.setMetadonnees(new HashMap<>(ValidateurMetadonnees.valider(plan, retenues, false)));
+        } catch (com.ipt.ged.planindexation.metamodele.MetadonneesInvalidesException e) {
+            // Règles des deux lots alignées : ne devrait pas arriver. Les index
+            // font foi ; le miroir garde son état précédent.
+            org.slf4j.LoggerFactory.getLogger(ServiceModeleDocument.class)
+                    .warn("Miroir JSON des métadonnées non mis à jour pour {} : {}", d.getId(), e.getMessage());
+        }
     }
 
     /** Définition du plan applicable au document. */
@@ -132,27 +152,23 @@ public class ServiceModeleDocument {
             throw new ConflitAutorisationException(NOM_DEJA_UTILISE,
                     "Un document « " + nouveau + " » existe déjà dans ce dossier.");
         }
-        String ancien = d.getName();
+        // Tracé par l'action appelante (une seule publication par action).
         d.setName(nouveau);
-        evenements.publishEvent(EvenementModeleDocument.succes(EvenementModeleDocument.DOCUMENT_RENOMME, d.getId(),
-                Map.of("nom", ancien), Map.of("nom", nouveau), null, ActeurCourant.utilisateurId()));
     }
 
     /**
      * Déplacement de l'emplacement principal (§12.4, §12.5) : les rattachements
      * complémentaires ne bougent pas, sauf celui qui visait la destination
-     * (il ferait doublon avec le principal). Audité avec origine et destination.
+     * (il ferait doublon avec le principal). L'appelant trace l'action.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void deplacer(UploadDocument d, WorkSpace destination) {
         WorkSpace origine = d.getWorkspace();
         if (origine.getId().equals(destination.getId())) return;
         rattachements.findByDocumentIdAndNoeudId(d.getId(), destination.getId()).ifPresent(rattachements::delete);
+        // Tracé par l'action appelante : déplacement explicite (DOCUMENT_DEPLACE),
+        // modification de la fiche ou re-typologisation.
         d.setWorkspace(destination);
-        evenements.publishEvent(EvenementModeleDocument.succes(EvenementModeleDocument.DOCUMENT_DEPLACE, d.getId(),
-                Map.of("noeudId", origine.getId(), "noeud", origine.getName()),
-                Map.of("noeudId", destination.getId(), "noeud", destination.getName()), null,
-                ActeurCourant.utilisateurId()));
     }
 
     private static String objet(String objet) {

@@ -193,7 +193,7 @@ class AuthentificationApiTest {
             assertEquals(401, r.getResponse().getStatus(), identifiant);
             JsonNode corps = om.readTree(r.getResponse().getContentAsString());
             assertEquals("IDENTIFIANTS_REFUSES", corps.get("code").asText());
-            assertEquals("Identifiant ou mot de passe incorrect.", corps.get("message").asText());
+            assertEquals("Identifiant ou mot de passe incorrect.", corps.get("detail").asText());
             assertTrue(r.getResponse().getCookie(COOKIE) == null, "aucun cookie sur un refus");
         }
         assertEquals(3, evenements.stream(ConnexionEchouee.class)
@@ -324,6 +324,10 @@ class AuthentificationApiTest {
         assertTrue(r.getResponse().getHeader("Set-Cookie").contains("Max-Age=0"));
         mvc.perform(get("/api/v1/documents").header("Authorization", s.bearer())).andExpect(status().isUnauthorized());
         assertEquals(401, renouveler(s.renouvellement()).getResponse().getStatus());
+        // ANO-E4-003 : la déconnexion est tracée comme telle (code DECONNEXION du catalogue).
+        assertTrue(evenements.stream(SessionsRevoquees.class).anyMatch(e ->
+                e.motifRevocation() == MotifRevocation.DECONNEXION && "DECONNEXION".equals(e.action())
+                        && com.ipt.ged.audit.ActionAudit.DECONNEXION.code().equals(e.action())));
 
         // Déconnexion par cookie sans l'en-tête personnalisé : refusée (CSRF).
         Session autre = ouvrir(Comptes.ADMIN);
@@ -399,7 +403,7 @@ class AuthentificationApiTest {
                         .content("{\"identifiant\":\"sbennani\",\"motDePasse\":\"" + Comptes.MOT_DE_PASSE + "\"}"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().exists("Retry-After"))
-                .andExpect(jsonPath("$.message", containsString("Réessayez")));
+                .andExpect(jsonPath("$.detail", containsString("Réessayez")));
         // Une autre adresse n'est pas concernée.
         assertEquals(200, connexion(Comptes.ADMIN, Comptes.MOT_DE_PASSE, "10.30.0.2").getResponse().getStatus());
     }

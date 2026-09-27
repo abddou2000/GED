@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { administrateurGuard, authGuard, roleGuard } from './core/auth.guard';
+import { administrateurGuard, authGuard, permissionGuard, roleGuard } from './core/auth.guard';
 
 /**
  * Routing GED.
@@ -85,6 +85,24 @@ export const routes: Routes = [
         loadComponent: () => import('./features/etiquette/etiquette-list/etiquette-list').then(m => m.EtiquetteList),
       },
       {
+        // Journal d'audit (DAT §7.4.3), lecture seule. Garde par permission
+        // CONSULTER_AUDIT à brancher avec le lot autorisation (E3).
+        path: 'journal-audit',
+        loadComponent: () => import('./features/audit/journal-audit/journal-audit').then(m => m.JournalAudit),
+      },
+      {
+        // Applications clientes et clés d'API (DAT §5.4). Le serveur refuse
+        // l'accès aux applications elles-mêmes ; garde par permission
+        // d'administration à brancher avec le lot autorisation (E3).
+        path: 'cles-api',
+        loadComponent: () => import('./features/cles-api/cles-api-admin/cles-api-admin').then(m => m.ClesApiAdmin),
+      },
+      {
+        // Centre de notifications de l'utilisateur (DAT §12.9).
+        path: 'notifications',
+        loadComponent: () => import('./features/notifications/notifications-list/notifications-list').then(m => m.NotificationsList),
+      },
+      {
         path: 'televerser',
         loadComponent: () => import('./features/document/document-list/document-list').then(m => m.DocumentList),
       },
@@ -92,6 +110,22 @@ export const routes: Routes = [
         // Fiche d'un document : métadonnées, étiquettes, index, versions.
         path: 'televerser/:id',
         loadComponent: () => import('./features/document/document-detail/document-detail').then(m => m.DocumentDetail),
+      },
+      {
+        // Recherche dans le contenu des documents (§4.4).
+        path: 'recherche',
+        loadComponent: () => import('./features/recherche/recherche-plein-texte/recherche-plein-texte').then(m => m.RecherchePleinTexte),
+      },
+      {
+        // Exports de dossier préparés en arrière-plan (§12.10).
+        path: 'mes-exports',
+        loadComponent: () => import('./features/cycle-de-vie/mes-exports/mes-exports').then(m => m.MesExports),
+      },
+      {
+        // Supervision des traitements OCR et réindexation (§4.3.4, §4.4.1).
+        path: 'traitements-ocr',
+        canActivate: [permissionGuard('SUPERVISER_TRAITEMENTS')],
+        loadComponent: () => import('./features/recherche/supervision-ocr/supervision-ocr').then(m => m.SupervisionOcr),
       },
       {
         // Fiche de l'utilisateur : identité, droits, activité.

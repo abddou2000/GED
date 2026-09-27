@@ -12,12 +12,28 @@
         <button mat-stroked-button (click)="telecharger()" [disabled]="telechargementEnCours()">
           <mat-icon svgIcon="download"></mat-icon> Télécharger
         </button>
-        <!-- Verrou : posé et levé par l'Administrateur (§12.8). -->
-        @if (auth.peut('GERER_ROLES_HABILITATIONS')) {
+        @if (archive) {
+          <button mat-stroked-button (click)="telechargerOriginal()" [disabled]="telechargementEnCours()"
+                  matTooltip="Le téléchargement sert la copie de conservation PDF/A ; ceci sert le fichier déposé">
+            <mat-icon svgIcon="download"></mat-icon> Original
+          </button>
+          @if (peut('ARCHIVER')) {
+            <button mat-stroked-button (click)="desarchiver()" matTooltip="Réservé à l'Agent d'archive et à l'Administrateur">
+              <mat-icon svgIcon="archive"></mat-icon> Désarchiver
+            </button>
+          }
+        } @else if (auth.peut('GERER_ROLES_HABILITATIONS')) {
+          <!-- Verrou : posé et levé par l'Administrateur (§12.8). -->
           <button mat-stroked-button (click)="basculerVerrou()"
                   [matTooltip]="d.verrouille ? 'Autoriser à nouveau les modifications' : 'Empêcher toute modification'">
             <mat-icon svgIcon="archive"></mat-icon>
             {{ d.verrouille ? 'Déverrouiller' : 'Verrouiller' }}
+          </button>
+        }
+        @if (!archive && !d.verrouille && !d.supprime && peut('ARCHIVER')) {
+          <button mat-stroked-button (click)="archiver()" [disabled]="archivageEnCours()"
+                  matTooltip="Lecture seule définitive (désarchivage réservé) et copie de conservation PDF/A">
+            <mat-icon svgIcon="archive"></mat-icon> {{ archivageEnCours() ? 'Archivage…' : 'Archiver' }}
           </button>
         }
       </div>
@@ -35,6 +51,30 @@
       </div>
     </div>
   } @else if (doc(); as d) {
+
+    @if (libelleOcr(d.statutOcr); as msg) {
+      <div class="bandeau-ocr" [class.echec]="d.statutOcr === 'OCR_ECHEC'">
+        <mat-icon svgIcon="search"></mat-icon>
+        <span>{{ msg }}</span>
+      </div>
+    }
+
+    @if (archive) {
+      <div class="bandeau-verrou archive">
+        <mat-icon svgIcon="archive"></mat-icon>
+        <span>
+          <span class="badge-archive">Archivé</span>
+          le {{ dateCourte(d.archiveLe ?? '') }} — lecture seule pour tous.
+          @if (conservation()?.copie; as c) {
+            @if (c.statut === 'VALIDE') {
+              Copie de conservation {{ c.format }} servie au téléchargement ; l'original est conservé.
+            } @else {
+              Copie PDF/A non produite ({{ c.motif }}) : seul l'original est conservé, anomalie signalée pour reprise.
+            }
+          }
+        </span>
+      </div>
+    }
 
     @if (d.verrouille) {
       <div class="bandeau-verrou">
@@ -60,9 +100,6 @@
         <div class="cartouche"><span class="val">{{ d.dateDocument || '—' }}</span><span class="lib">Date du document</span></div>
         @if (d.echeanceConservation) {
           <div class="cartouche"><span class="val">{{ d.echeanceConservation }}</span><span class="lib">Échéance de conservation</span></div>
-        }
-        @if (d.statutConservation === 'ARCHIVE') {
-          <div class="cartouche"><span class="val">Archivé</span><span class="lib">Lecture seule</span></div>
         }
         @if (d.rattachements?.length) {
           <div class="cartouche">
@@ -226,6 +263,9 @@
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef class="c-act">Actions</th>
             <td mat-cell *matCellDef="let v" class="c-act">
+              <button mat-icon-button (click)="apercu(v)" matTooltip="Aperçu" aria-label="Aperçu de la version">
+                <mat-icon svgIcon="fullscreen"></mat-icon>
+              </button>
               @if (!v.principale && modifiable) {
                 <button mat-icon-button (click)="restaurerVersion(v)"
                         matTooltip="Rendre courante" aria-label="Rendre courante">

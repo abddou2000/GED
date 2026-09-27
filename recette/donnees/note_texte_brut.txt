@@ -1,0 +1,2 @@
+Note interne de recette (zarkolinet-txt).
+Format texte brut autorisé par défaut (6.1.5).

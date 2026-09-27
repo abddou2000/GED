@@ -22,6 +22,24 @@ export interface DocumentItem {
   etiquettes: Tag[];
   versions: Version[];
   createdAt: string;
+  /**
+   * Traitement OCR de la version courante : EN_ATTENTE_OCR / EN_COURS_OCR
+   * (contenu pas encore interrogeable), OCR_TERMINE, OCR_ECHEC (« contenu non
+   * interrogeable ») ; null si le format n'a pas de contenu textuel.
+   */
+  statutOcr?: 'EN_ATTENTE_OCR' | 'EN_COURS_OCR' | 'OCR_TERMINE' | 'OCR_ECHEC' | null;
+  /**
+   * Issue de l'indexation (dépôt en deux temps, §12.11) : INDEXE, SANS_PLAN, ou
+   * A_INDEXER (métadonnées à saisir ou à reprendre).
+   */
+  statutIndexation?: 'INDEXE' | 'SANS_PLAN' | 'A_INDEXER' | null;
+  /** Pourquoi le dépôt n'a pas pu enregistrer les métadonnées (réponse du dépôt seulement). */
+  motifIndexation?: string | null;
+  /** ACTIF, ou ARCHIVE : lecture seule totale (§12.6). */
+  statutConservation?: 'ACTIF' | 'ARCHIVE' | null;
+  archiveLe?: string | null;
+  /** En corbeille. */
+  supprime?: boolean;
   /** Niveau de confidentialité (§12.3). */
   confidentialite?: Confidentialite;
   /**
@@ -35,8 +53,7 @@ export interface DocumentItem {
   objet?: string | null;
   dateDocument?: string | null;
   metadonnees?: Record<string, unknown>;
-  /** Conservation (§12.6, §12.9). */
-  statutConservation?: 'ACTIF' | 'ARCHIVE';
+  /** Échéance de conservation (§12.9), calculée par la base. */
   echeanceConservation?: string | null;
   /** Verrou (§12.8). */
   verrouMotif?: string | null;
@@ -67,8 +84,11 @@ export interface Version {
   principale: boolean;
   sizeLabel: string;
   createdAt: string;
-  /** Numéro de versement (1, 2, …) et empreinte SHA-256 (§12.8). */
+  /** Numéro de versement (1, 2, …) (§12.8). */
   numero?: number;
+  /** Type réel détecté au dépôt (Tika). */
+  typeMime?: string | null;
+  /** SHA-256 du contenu, vérifié chaque mois. */
   empreinte?: string | null;
 }
 

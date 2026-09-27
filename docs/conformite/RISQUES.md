@@ -2,7 +2,7 @@
 
 Tenu par **pm**. Revu à chaque fin de vague. Probabilité et impact : Faible, Moyen, Élevé.
 Intègre la revue technique client (`DECISIONS-REVUE-TECHNIQUE.md`) : risques R26 et R27,
-questions QR1 à QR8, réponses reportées sur Q02, Q10 et Q20.
+questions QR1 à QR9, réponses reportées sur Q02, Q10 et Q20.
 
 ## 1. Constat préalable sur le dossier V3
 
@@ -53,6 +53,7 @@ Autre incohérence du PDF à signaler : le §1.1 cite le « CPS-07/AO/MM/25 » d
 | R25 | **Coût des tests sur PostgreSQL** : plus de 120 tests, bientôt plusieurs centaines, sur base réelle ; temps de build en hausse. | Moyen | Faible | Nettoyage par transaction annulée, base recréée une fois par exécution. | dev2 |
 | R26 | **Revue client, R1 de la synthèse (D1)** : sans relecture de l'état du compte AD, un utilisateur désactivé dans l'annuaire **garde l'accès jusqu'à l'expiration de son jeton de renouvellement** (durée absolue de 8 h au V3), car le renouvellement ne repasse pas par l'annuaire. L'exposition réelle est bornée par l'inactivité de 30 minutes : seule une session active en continu atteint 8 h. | Moyen | Élevé | À présenter au client : durée absolue de session réduite et paramétrable (proposition 4 h) ; révocation manuelle de toutes les sessions d'un utilisateur par l'Administrateur (table `session`) ; procédure de départ qui inclut cette révocation. | dev1, pm |
 | R27 | **Validateurs partis (D1)** : la GED ne détecte plus un compte désactivé ; le signalement automatique des validations en attente d'un validateur désactivé (V3 §3.4.2 et §12.8) n'a plus de déclencheur, et un circuit parallèle peut rester bloqué. | Élevé | Moyen | Réaffectation explicite d'un validateur en attente par l'Administrateur, auditée (T-111) ; tableau de bord des circuits en attente depuis plus de N jours ; confirmation client (QR1). | dev1 |
+| R28 | **Délégation vers un compte désactivé (QR9)** : D1 retire la lecture de l'état AD, alors que le §5.5 exige le rejet d'une identité déléguée désactivée ; une application habilitée à déléguer pourrait déposer ou valider au nom d'un agent parti. | Moyen | Élevé | Question QR9 à MMED ; en attendant, recherche annuaire obligatoire, restriction d'adresses des clés de délégation, audit à double identité. | dev2, pm |
 
 ## 3. Informations à obtenir de Marchica Med
 
@@ -100,11 +101,12 @@ mécanisme du dossier V3 s'applique.
 | QR6 | **Version courante désignable.** D9 archive automatiquement l'ancienne version au versement ; le V3 (§12.8) et le dossier fonctionnel (§4.6.4) permettent de redésigner une version antérieure comme courante. Cette possibilité est-elle maintenue ? | Revue §4 | Maintenue (V3) ; la bascule automatique au versement s'applique. | E7 | Non |
 | QR7 | **Archivage de dossier (D10).** Un nouveau dépôt dans un dossier archivé est-il refusé ou crée-t-il un document actif ? La copie PDF « essentiellement une image » évoquée en réunion convient-elle, ou faut-il conserver une couche texte (PDF/A-2 depuis LibreOffice pour la bureautique, image pour les scans) ? | Revue §4, §5 | Dépôt refusé dans un dossier archivé (lecture seule) ; PDF/A-2 avec couche texte quand la source en a une. | E7 | Non |
 | QR8 | **Protocole OCR sans Python (D5).** Le protocole du §4.3.2 compare Tesseract à PaddleOCR et EasyOCR, qui exigent Python : la comparaison est-elle abandonnée au profit d'une simple mesure de Tesseract contre les seuils ? | Revue §2, §10 | Mesure de Tesseract seul contre les seuils, outillage Java. | E6 | Non |
+| QR9 | **Délégation d'identité et compte désactivé** (relevé par qa). Le §5.5 impose de rejeter (422 `IDENTITE_DELEGUEE_INVALIDE`) un en-tête `X-On-Behalf-Of` désignant un compte désactivé. Avec D1, la GED ne lit plus l'état du compte AD ; l'identité déléguée n'est vérifiée que par une recherche annuaire avec le compte de service, et un compte désactivé reste trouvable : le rejet n'est plus garanti. Faut-il lire `userAccountControl` pour ce seul cas (lecture ponctuelle, sans tâche périodique), ou MMED accepte-t-elle qu'une application habilitée à déléguer puisse agir pour un compte désactivé ? | Revue D1, §5.5 | Recherche annuaire obligatoire (identité inconnue = 422) ; le cas du compte désactivé reste ouvert et est signalé comme non conforme au §5.5 tant que MMED n'a pas tranché. | E9 (vague 4) | Non (bloque la conformité de T-055) |
 
 ## 4. Suivi
 
 - Les questions Q02, Q03, Q05, Q15 bloquent l'UAT, pas le développement : à envoyer dès cette
-  semaine, avec QR1 à QR8 et la présentation du risque R26.
+  semaine, avec QR1 à QR9 et la présentation du risque R26.
 - R-04 (validateur restreint à un type) : obtenir la confirmation écrite du hors périmètre, le
   compte rendu disant « probablement trop détaillé ».
 - Les réponses sont reportées ici avec leur date et leur source, puis dans la configuration de

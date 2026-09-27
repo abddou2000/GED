@@ -6,6 +6,9 @@
 spring:
   application:
     name: ged
+  # Journalisation, supervision et sondes : fichier dédié (DAT 6.7, 7.3).
+  config:
+    import: classpath:exploitation.yml,classpath:api.yml,classpath:notification.yml
   profiles:
     active: dev
   servlet:
@@ -135,11 +138,6 @@ ged:
     # Rapprochement d'une identité avec une fiche employé reprise (prenom.nom@domaine).
     domaine-courriel: ${GED_DOMAINE_COURRIEL:marchica.ma}
 
-# Emplacement de stockage des fichiers de la GED
-  storage:
-    root: ./storage/ged        # dossier racine des documents
-    temp: ./storage/temp       # pages rendues en image avant OCR, purgées après lecture
-
   # ------------------------------------------------------------
   #  Stockage sécurisé des fichiers (lot E5, §6.1)
   # ------------------------------------------------------------
@@ -168,51 +166,65 @@ ged:
       delai-lecture-ms: 120000
       taille-bloc-octets: 65536
     integrite:
-      verification-planifiee: false  # à activer une fois les empreintes en base
+      verification-planifiee: true   # toutes les versions chiffrées, mensuellement
       cron: "0 0 3 1 * *"            # le 1er de chaque mois à 3 h
     previsualisation:
-      api-active: false              # à activer une fois le résolveur de versions branché
+      api-active: true               # GET /api/v1/versions/{id}/apercu
       libreoffice-commande: ${GED_LIBREOFFICE:soffice}
       delai-conversion-s: 120
       # tmpfs en production : la conversion y dépose une copie en clair éphémère
       repertoire-travail: ${GED_APERCU_TRAVAIL:${java.io.tmpdir}/ged-apercu}
 
-  # Chaîne d'OCRisation. Étage 1 (couche texte des PDF natifs) : toujours actif,
-  # aucune installation requise. Étage 2 (Tesseract) : utilisé seulement si le
-  # binaire répond, sinon simplement ignoré.
+  # ------------------------------------------------------------
+  #  OCR asynchrone et recherche plein texte (lot E6, §4.3, §4.4)
+  # ------------------------------------------------------------
+  # Le texte extrait n'alimente AUCUN champ d'index (§4.3.3) : il ne sert qu'à
+  # la recherche plein texte.
   ocr:
-    enabled: true
-    commande: C:/Program Files/Tesseract-OCR/tesseract.exe
-    tessdata: ./tessdata       # modèles LSTM livrés avec l'application
-    langue: fra+eng
+    # Binaire Tesseract 5 (appelé depuis Java, décision D5) et modèles fra/ara.
+    commande: ${GED_TESSERACT:C:/Program Files/Tesseract-OCR/tesseract.exe}
+    tessdata: ${GED_TESSDATA:./tessdata}
     oem: 1                     # 1 = moteur LSTM seul, le plus précis
     psm: 3                     # 3 = page entière, segmentation automatique
-    dpi: 300                   # rendu des pages PDF avant reconnaissance
-    pages-max: 5               # bride le coût sur les documents volumineux
+    chaine:
+      actif: true                      # enfilage au dépôt (HTTP 202), workers, API recherche et supervision
+      workers: 2                       # workers OCR de cette instance
+      scrutation: 5s
+      bail: 10m                        # prolongé à chaque page
+      delai-par-page: 60s
+      delais-reprise: 1m,5m,30m        # 3 reprises, puis OCR_ECHEC
+      dpi: 300
+      seuil-caracteres-par-page: 25    # sous ce seuil, la page PDF passe à l'OCR
+      objectif-disponibilite: ${ged.supervision.ocr.objectif-disponibilite:${GED_OCR_OBJECTIF_DISPONIBILITE:24h}}  # D6 ; même source que la supervision
+      langue-defaut: fra+ara
+      langues-par-type: {}             # ex. TD-FACT: fra
+      reindexation-lot: 500
+      reindexation-pause: 200ms
+
+  # ------------------------------------------------------------
+  #  Cycle de vie (lot E7) : purge (§12.5), archivage et copie PDF/A-2
+  #  (§12.6, §6.1.4, revue client D10), export de dossier (§12.10).
+  #  Aucune purge ni aucun archivage automatique (P4, D10).
+  # ------------------------------------------------------------
+  cycledevie:
+    travailleur:
+      actif: true                    # jobs d'archivage de dossier et exports de fond
+      intervalle: 5s
+      bail: 15m                      # prolongé à chaque tranche ; au-delà, repris ailleurs
+    archivage:
+      tranche: 100                   # documents par transaction (§12.6)
+      # tmpfs en production : la conversion PDF/A y dépose une copie en clair éphémère
+      repertoire-travail: ${GED_CONSERVATION_TRAVAIL:${java.io.tmpdir}/ged-conservation}
+    export:
+      seuil-documents: 500           # au-delà : traitement de fond (§12.10)
+      seuil-octets: 2147483648       # 2 Go
+      retention: 7d                  # puis destruction de l'archive produite
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
 # ---------------------------------------------------------------
-# Sonde de vie
+# Sondes de santé et métriques : voir exploitation.yml (port de
+# management séparé, réservé au réseau interne, DAT 6.7).
 # ---------------------------------------------------------------
-# On n'expose QUE `health`, et sans son detail : les autres points de
-# l'actuator (env, beans, mappings, heapdump) racontent l'interieur de
-# l'application a qui sait demander. Une supervision n'a besoin que de
-# savoir si le service repond.
-management:
-  health:
-    # L'annuaire a sa propre sonde (« annuaire », identite.annuaire.SondeAnnuaire) ;
-    # celle de Spring Boot ferait une seconde liaison à chaque interrogation.
-    ldap:
-      enabled: false
-  endpoints:
-    web:
-      exposure:
-        include: health
-  endpoint:
-    health:
-      show-details: never
-      probes:
-        enabled: true

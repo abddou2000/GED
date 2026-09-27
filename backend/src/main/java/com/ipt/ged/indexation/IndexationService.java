@@ -1,16 +1,18 @@
 package com.ipt.ged.indexation;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.AuditService;
+import com.ipt.ged.audit.EntreeAudit;
 import com.ipt.ged.common.Limites;
 import com.ipt.ged.document.ContraintesDepot;
+import com.ipt.ged.fichier.controle.ControleFichiers;
+import com.ipt.ged.fichier.controle.SourceFichier;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
 import com.ipt.ged.index.IndexField;
 import com.ipt.ged.index.IndexFieldType;
 import com.ipt.ged.index.IndexRepository;
 import com.ipt.ged.indexation.dto.*;
-import com.ipt.ged.ocr.ExtracteurValeurs;
-import com.ipt.ged.ocr.OcrService;
-import com.ipt.ged.ocr.TexteExtrait;
 import com.ipt.ged.planindexation.CharteNommage;
 import com.ipt.ged.typedocument.TypeDocument;
 import com.ipt.ged.typedocument.TypeDocumentRepository;
@@ -41,13 +43,29 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class IndexationService {
 
+    /**
+     * Provenance du texte des propositions : toujours « aucune » depuis le
+     * cloisonnement §4.3.3 (seul le nom de fichier propose des valeurs). Le
+     * champ reste dans les réponses pour la compatibilité de l'écran.
+     */
+    private static final String PROVENANCE_AUCUNE = "AUCUNE";
+
     private final IndexRepository indexRepository;
     private final UploadDocumentRepository documentRepository;
+
+    /** Écritures refusées sur un document verrouillé ou archivé (lot modèle, 409). */
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ipt.ged.document.GardeEcriture garde;
+
+    /** Miroir JSON des métadonnées du document (lot E7, §12.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ipt.ged.document.modele.ServiceModeleDocument modele;
     private final DocumentIndexRepository valeurRepository;
-    private final OcrService ocr;
-    private final ExtracteurValeurs valeurs;
     /** Le type porte le plan : l'apercu part du type, pas d'un document. */
     private final TypeDocumentRepository typeRepository;
+    /** Journal d'audit : indexation enregistrée, valeurs avant et après (DAT §7.4.1). */
+    private final AuditService audit;
+    private final ControleFichiers controleFichiers;
     /** Point d'application unique des droits (lot E3). */
     private final com.ipt.ged.autorisation.AccessPredicate droits;
 
@@ -124,9 +142,9 @@ public class IndexationService {
         if (doc.isSupprime()) {
             throw new IllegalArgumentException("Document en corbeille : indexation impossible. Restaurez-le d'abord.");
         }
-        if (doc.isVerrouille()) {
-            throw new IllegalArgumentException("Document verrouille : indexation impossible");
-        }
+        // Verrouillé ou archivé (§12.6, §12.8) : 409 DOCUMENT_VERROUILLE /
+        // DOCUMENT_ARCHIVE, comme toute écriture sur le document.
+        garde.exigerModifiable(documentId);
 
         // Le plan du type fait autorité : il dit ce qu'on a le droit d'écrire ET
         // ce qu'on est tenu de renseigner.
@@ -164,6 +182,20 @@ public class IndexationService {
             }
         }
 
+        // Valeurs avant et après, par nom d'index, pour le journal d'audit.
+        Map<String, Object> avant = new LinkedHashMap<>();
+        Map<String, Object> apres = new LinkedHashMap<>();
+        for (Map.Entry<UUID, String> ligne : recues.entrySet()) {
+            DocumentIndex ancienne = existantes.get(ligne.getKey());
+            String valeurAvant = ancienne != null ? ancienne.getValeur() : null;
+            String valeurApres = ligne.getValue() == null || ligne.getValue().isEmpty() ? null : ligne.getValue();
+            if (!java.util.Objects.equals(valeurAvant, valeurApres)) {
+                String nom = autorises.get(ligne.getKey()).getNomIndex();
+                avant.put(nom, valeurAvant);
+                apres.put(nom, valeurApres);
+            }
+        }
+
         // Seconde passe : écriture, plus rien ne peut être refusé ici.
         for (Map.Entry<UUID, String> ligne : recues.entrySet()) {
             IndexField champ = autorises.get(ligne.getKey());
@@ -180,6 +212,19 @@ public class IndexationService {
                 valeurRepository.save(cible);
             }
         }
+        // Miroir JSON (§12.7) : les métadonnées du document, normalisées par
+        // nature, suivent les valeurs d'index — recherche par critères et fiche.
+        if (!recues.isEmpty()) {
+            Map<String, Object> parCode = new LinkedHashMap<>();
+            valeurRepository.findByDocumentIdOrderByIdAsc(documentId)
+                    .forEach(v -> parCode.put(v.getIndexField().getCode(), v.getValeur()));
+            modele.synchroniser(doc, parCode);
+        }
+        // Plan satisfait (obligatoires compris) : issue INDEXE, y compris
+        // pour la reprise d'un dépôt resté A_INDEXER (§12.11).
+        if (doc.getTypeDocument() != null && doc.getTypeDocument().getPlanIndexation() != null) {
+            doc.setStatutIndexation(com.ipt.ged.depot.IssueIndexation.INDEXE);
+        }
 
         /* La confirmation de l'opérateur vaut validation : c'est ici, et nulle
            part avant, que la référence du document est composée depuis le plan.
@@ -188,7 +233,16 @@ public class IndexationService {
            système suivis d'interrogations — « 260811_105301_?_? » — c'est-à-dire
            détruisait le nom sans qu'aucune donnée n'ait été fournie. */
         if (!recues.isEmpty()) {
+            String nomAvant = doc.getName();
             recomposerReference(doc);
+            if (!java.util.Objects.equals(nomAvant, doc.getName())) {
+                avant.put("nom du document", nomAvant);
+                apres.put("nom du document", doc.getName());
+            }
+        }
+        if (!avant.isEmpty() || !apres.isEmpty()) {
+            audit.enregistrer(EntreeAudit.de(ActionAudit.INDEXATION_ENREGISTREE, "DOCUMENT", documentId)
+                    .avecAvantApres(avant, apres));
         }
         return valeurs(documentId);
     }
@@ -254,32 +308,9 @@ public class IndexationService {
 
     /** Refuse une valeur incompatible avec le type de l'index. */
     private void controlerType(IndexField champ, String valeur) {
-        if (valeur == null || valeur.isEmpty()) return;
-        switch (champ.getFieldType()) {
-            case NOMBRE -> {
-                if (nombre(valeur) == null) {
-                    throw new IllegalArgumentException("« " + champ.getNomIndex() + " » attend un nombre.");
-                }
-            }
-            case DATE -> {
-                if (!valeur.matches("\\d{4}-\\d{2}-\\d{2}")) {
-                    throw new IllegalArgumentException("« " + champ.getNomIndex() + " » attend une date (AAAA-MM-JJ).");
-                }
-            }
-            case LISTE -> {
-                List<String> options = versCritere(champ).options();
-                if (!options.isEmpty() && options.stream().noneMatch(o -> o.equalsIgnoreCase(valeur))) {
-                    throw new IllegalArgumentException(
-                            "« " + valeur + " » ne fait pas partie des valeurs de « " + champ.getNomIndex() + " ».");
-                }
-            }
-            case BOOLEEN -> {
-                if (com.ipt.ged.planindexation.metamodele.ValeursMetadonnees.booleen(valeur) == null) {
-                    throw new IllegalArgumentException("« " + champ.getNomIndex() + " » attend oui / non.");
-                }
-            }
-            case TEXTE -> { /* aucune contrainte */ }
-        }
+        // Règle partagée avec le dépôt avec métadonnées (§5.3), qui valide
+        // avant toute écriture.
+        ValidationPlan.controlerType(champ, valeur);
     }
 
     /* ===================== Indexation automatique ===================== */
@@ -320,7 +351,12 @@ public class IndexationService {
            décide, et il est toujours là. */
         ContraintesDepot.validerTypeVivant(type);
         ContraintesDepot.validerFormat(type, ContraintesDepot.extension(nomFichier));
-        ContraintesDepot.valider(type, fichier);
+        // Même refus que le dépôt qu'il précède (taille 413, type réel 415) ;
+        // pas d'antivirus : le fichier n'est ni conservé ni ouvert ici.
+        if (fichier != null && !fichier.isEmpty()) {
+            controleFichiers.verifierTailleEtType(SourceFichier.de(fichier),
+                    controleFichiers.regles(type.getTailleMaxMo(), type.formatsAutorises()));
+        }
 
         PlanIndexation plan = type.getPlanIndexation();
         if (plan == null) return ApercuResponse.sansPlan();
@@ -331,13 +367,10 @@ public class IndexationService {
         String sep = plan.getSeparateur() == null || plan.getSeparateur().isEmpty() ? "_" : plan.getSeparateur();
         List<String> segments = decouper(nomFichier, sep);
 
-        /* Le contenu n'est lu que si le nom de fichier ne suffit pas : ouvrir un
-           PDF — a fortiori l'OCRiser — coûte cher, et l'opérateur attend devant
-           son formulaire. */
-        TexteExtrait texte = (fichier != null && !fichier.isEmpty() && manqueUnChamp(champs, segments))
-                ? lireSansDeposer(fichier)
-                : TexteExtrait.aucune("Contenu non sollicité.");
-
+        /* Cloisonnement du §4.3.3 : « les champs d'indexation du formulaire de
+           dépôt ne sont en aucun cas alimentés par le contenu extrait de
+           l'OCR ». Seul le nom de fichier, saisi par l'opérateur, propose des
+           valeurs ; le contenu ne sert qu'à la recherche plein texte (lot E6). */
         List<AnalyseResponse.Proposition> propositions = new ArrayList<>();
         for (int i = 0; i < champs.size(); i++) {
             IndexField champ = champs.get(i);
@@ -345,18 +378,6 @@ public class IndexationService {
             String motif = motifDeRejet(champ, segment, segments.size(), i);
             String valeur = motif == null ? segment : null;
             String source = valeur != null ? "NOM_FICHIER" : null;
-
-            // Le nom n'a rien donné : on tente le contenu, contrôlé comme le
-            // reste — la lecture automatique n'a aucun passe-droit.
-            if (valeur == null && texte.exploitable()) {
-                String duContenu = valeurs.deduire(champ, texte.texte(),
-                        versCritere(champ).options(), texte.mots());
-                if (duContenu != null && motifDeRejet(champ, duContenu, 1, 0) == null) {
-                    valeur = duContenu;
-                    source = "CONTENU";
-                    motif = null;
-                }
-            }
 
             propositions.add(new AnalyseResponse.Proposition(
                     champ.getId(), champ.getCode(), champ.getNomIndex(), champ.getFieldType().name(),
@@ -386,7 +407,7 @@ public class IndexationService {
         String avertissement = avertissementDeLecture(reconnus, champs, sep);
 
         return new ApercuResponse(plan.getNomDuPlan(), sep, propositions, reconnus, champs.size(),
-                nomPropose, avertissement, texte.provenance().name());
+                nomPropose, avertissement, PROVENANCE_AUCUNE);
     }
 
     /**
@@ -405,36 +426,6 @@ public class IndexationService {
         }
         return (champs.size() - reconnus)
                 + " champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.";
-    }
-
-    /**
-     * Lit le contenu d'un fichier qui n'est pas encore déposé.
-     *
-     * <p>Il est recopié dans un fichier temporaire : les extracteurs travaillent
-     * sur un chemin, et un flux de requête ne se relit pas — plusieurs
-     * extracteurs peuvent être essayés à la suite. Le temporaire est supprimé
-     * quoi qu'il arrive : ce fichier n'a pas été confié à la GED, il ne doit
-     * rien laisser derrière lui.</p>
-     */
-    private TexteExtrait lireSansDeposer(MultipartFile fichier) {
-        String nom = fichier.getOriginalFilename() != null ? fichier.getOriginalFilename() : "document";
-        int point = nom.lastIndexOf('.');
-        String extension = point >= 0 && point < nom.length() - 1 ? nom.substring(point + 1) : "";
-
-        java.nio.file.Path temporaire = null;
-        try {
-            temporaire = java.nio.file.Files.createTempFile("ged-apercu-", "." + extension);
-            fichier.transferTo(temporaire.toFile());
-            return ocr.lire(temporaire, extension);
-        } catch (Exception e) {
-            // Un aperçu qui échoue ne doit pas empêcher le dépôt : les champs
-            // seront proposés après, quand le document sera sur le serveur.
-            return TexteExtrait.aucune("Lecture du contenu impossible avant dépôt.");
-        } finally {
-            if (temporaire != null) {
-                try { java.nio.file.Files.deleteIfExists(temporaire); } catch (Exception ignore) { /* rien à faire */ }
-            }
-        }
     }
 
     public AnalyseResponse analyser(UUID documentId) {
@@ -460,13 +451,7 @@ public class IndexationService {
         String sep = plan.getSeparateur() == null || plan.getSeparateur().isEmpty() ? "_" : plan.getSeparateur();
         List<String> segments = decouper(fichier, sep);
 
-        // Second recours : le contenu du document, lu par la chaîne d'OCRisation.
-        // Il n'est sollicité que si le nom de fichier ne suffit pas — la lecture
-        // d'un scan coûte cher, on ne la déclenche pas pour rien.
-        TexteExtrait texte = manqueUnChamp(champs, segments)
-                ? ocr.lire(doc.getId())
-                : TexteExtrait.aucune("Nom de fichier suffisant : contenu non sollicité.");
-
+        // Cloisonnement du §4.3.3 : aucune valeur d'index n'est déduite du contenu.
         List<AnalyseResponse.Proposition> propositions = new ArrayList<>();
         for (int i = 0; i < champs.size(); i++) {
             IndexField champ = champs.get(i);
@@ -475,18 +460,6 @@ public class IndexationService {
 
             String valeur = motif == null ? segment : null;
             String source = valeur != null ? "NOM_FICHIER" : null;
-
-            // Le nom n'a rien donné : on tente le contenu, puis on le contrôle
-            // comme n'importe quelle saisie — l'OCR n'a aucun passe-droit.
-            if (valeur == null && texte.exploitable()) {
-                String duContenu = valeurs.deduire(champ, texte.texte(),
-                        versCritere(champ).options(), texte.mots());
-                if (duContenu != null && motifDeRejet(champ, duContenu, 1, 0) == null) {
-                    valeur = duContenu;
-                    source = "CONTENU";
-                    motif = null;
-                }
-            }
 
             propositions.add(new AnalyseResponse.Proposition(
                     champ.getId(), champ.getCode(), champ.getNomIndex(), champ.getFieldType().name(),
@@ -506,16 +479,8 @@ public class IndexationService {
         return new AnalyseResponse(doc.getId(), fichier, plan.getNomDuPlan(), sep, plan.isMajuscule(),
                 plan.isModeIndexation(), segments, propositions, reference,
                 reconnus, champs.size(), avertissement,
-                texte.provenance().name(), texte.detail());
-    }
-
-    /** Le nom de fichier laisse-t-il au moins un champ sans valeur exploitable ? */
-    private boolean manqueUnChamp(List<IndexField> champs, List<String> segments) {
-        for (int i = 0; i < champs.size(); i++) {
-            if (motifDeRejet(champs.get(i), segmentPour(champs.get(i), segments, i),
-                             segments.size(), i) != null) return true;
-        }
-        return false;
+                PROVENANCE_AUCUNE,
+                "Le contenu du document n'alimente aucun champ d'index (dossier technique §4.3.3).");
     }
 
     /**
@@ -587,7 +552,7 @@ public class IndexationService {
     private AnalyseResponse vide(UploadDocument doc, String fichier, String avertissement) {
         return new AnalyseResponse(doc.getId(), fichier, null, "_", false, false,
                 List.of(), List.of(), null, 0, 0, avertissement,
-                TexteExtrait.Provenance.AUCUNE.name(), null);
+                PROVENANCE_AUCUNE, null);
     }
 
     /** Retire l'extension puis découpe sur le séparateur du plan. */
@@ -689,6 +654,9 @@ public class IndexationService {
                         || (d.getWorkspace() != null && d.getWorkspace().getId().equals(requete.workspaceId())))
                 .filter(d -> requete.typeDocumentId() == null
                         || (d.getTypeDocument() != null && d.getTypeDocument().getId().equals(requete.typeDocumentId())))
+                // Archivés inclus par défaut, filtre pour les exclure ou ne garder qu'eux (§12.6).
+                .filter(d -> !"EXCLURE".equals(requete.archives()) || !d.estArchive())
+                .filter(d -> !"SEULEMENT".equals(requete.archives()) || d.estArchive())
                 .toList();
         if (candidats.isEmpty()) return List.of();
 
@@ -793,7 +761,8 @@ public class IndexationService {
                 d.getTypeDocument() != null ? d.getTypeDocument().getTypeDeDocument() : null,
                 d.getExpirationDate() != null ? d.getExpirationDate().toString() : null,
                 d.getReference(),
-                valeurs);
+                valeurs,
+                d.getStatutConservation() != null ? d.getStatutConservation().name() : null);
     }
 
     private static ResultatResponse.ValeurResponse versValeur(DocumentIndex v) {

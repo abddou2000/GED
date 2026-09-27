@@ -17,7 +17,6 @@ import com.ipt.ged.document.DocumentVersion;
 import com.ipt.ged.document.DocumentVersionRepository;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
-import com.ipt.ged.document.modele.EvenementModeleDocument;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.identite.Role;
@@ -98,6 +97,10 @@ public class ServiceCircuits {
     private final ServiceHabilitations serviceHabilitations;
     private final AccessPredicate predicat;
     private final ReglesApplicables regles;
+
+    /** Refus hors périmètre tracés au journal (ANO-E4-002). */
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ipt.ged.autorisation.ControleAcces controle;
     private final JdbcTemplate jdbc;
     private final ApplicationEventPublisher evenements;
     private final Duration inactivite;
@@ -199,7 +202,7 @@ public class ServiceCircuits {
                 "DOCUMENT", doc.getId(), Map.of("document", doc.getName(),
                         "auteur", acteur != null ? acteur.libelle() : nomUtilisateur(c.getInitiateurId(), new HashMap<>())),
                 lien(doc));
-        publier(action, c.getId(), null, apres, null, acteur, n);
+        publier(action, c, null, apres, null, acteur, n);
     }
 
     /* ============================================================ décisions */
@@ -281,7 +284,7 @@ public class ServiceCircuits {
         DemandeNotification n = c.getInitiateurId() == null ? null : DemandeNotification.a(
                 TypeNotification.CIRCUIT_DECISION, List.of(c.getInitiateurId()), "DOCUMENT", doc.getId(),
                 variables, lien(doc));
-        publier(action, c.getId(), Map.of("statut", avant.name()), apres, motif, acteur, n);
+        publier(action, c, Map.of("statut", avant.name()), apres, motif, acteur, n);
         return reponse(c, acteur, d);
     }
 
@@ -314,16 +317,21 @@ public class ServiceCircuits {
     /**
      * Versement ou désignation d'une autre version courante : les décisions
      * antérieures deviennent caduques, le statut est recalculé dans la
-     * transaction du versement (l'événement est publié par ServiceVersions,
-     * de façon synchrone).
+     * transaction du versement (événements du lot stockage, publiés de façon
+     * synchrone par DocumentService).
      */
     @EventListener
-    public void versionChangee(EvenementModeleDocument e) {
-        if (!EvenementModeleDocument.VERSION_AJOUTEE.equals(e.action())
-                && !EvenementModeleDocument.VERSION_RESTAUREE.equals(e.action())) {
-            return;
-        }
-        circuits.findFirstByDocumentIdAndStatutNot(e.documentId(), Circuit.Statut.ANNULE).ifPresent(this::recalculer);
+    public void versionAjoutee(com.ipt.ged.document.evenement.VersionAjoutee e) {
+        recalculerDocument(e.documentId());
+    }
+
+    @EventListener
+    public void versionRestauree(com.ipt.ged.document.evenement.VersionRestauree e) {
+        recalculerDocument(e.documentId());
+    }
+
+    private void recalculerDocument(UUID documentId) {
+        circuits.findFirstByDocumentIdAndStatutNot(documentId, Circuit.Statut.ANNULE).ifPresent(this::recalculer);
     }
 
     /**
@@ -384,7 +392,7 @@ public class ServiceCircuits {
         DemandeNotification n = DemandeNotification.a(TypeNotification.CIRCUIT_ANNULE, dest, "DOCUMENT",
                 c.getDocument().getId(), Map.of("document", c.getDocument().getName(), "motif", m,
                         "auteur", acteur.libelle()), lien(c.getDocument()));
-        publier(EvenementWorkflow.CIRCUIT_ANNULE, c.getId(), Map.of("statut", avant),
+        publier(EvenementWorkflow.CIRCUIT_ANNULE, c, Map.of("statut", avant),
                 Map.of("statut", Circuit.Statut.ANNULE.name()), m, acteur, n);
         return reponse(c, acteur, d);
     }
@@ -440,7 +448,7 @@ public class ServiceCircuits {
         DemandeNotification n = dest.isEmpty() ? null : DemandeNotification.a(TypeNotification.CIRCUIT_OUVERT, dest,
                 "DOCUMENT", c.getDocument().getId(), Map.of("document", c.getDocument().getName(),
                         "auteur", acteur.libelle()), lien(c.getDocument()));
-        publier(EvenementWorkflow.VALIDATEUR_REAFFECTE, c.getId(), avant, apres, m, acteur, n);
+        publier(EvenementWorkflow.VALIDATEUR_REAFFECTE, c, avant, apres, m, acteur, n);
         return reponse(c, acteur, d);
     }
 
@@ -718,6 +726,12 @@ public class ServiceCircuits {
                 .stream().findFirst().orElse(null);
     }
 
+    /** Nœud d'un type de document : la portée d'une clé s'y applique pour sa règle. */
+    public UUID noeudDuType(UUID typeId) {
+        return jdbc.queryForList("SELECT noeud_id FROM type_document WHERE id = ?", UUID.class, typeId)
+                .stream().findFirst().orElse(null);
+    }
+
     public UUID noeudDuCircuit(UUID circuitId) {
         return jdbc.queryForList("""
                 SELECT d.noeud_principal_id FROM circuit c JOIN document d ON d.id = c.document_id
@@ -748,7 +762,7 @@ public class ServiceCircuits {
     private Set<CodePermission> exigerLecture(DroitsResolus d, UUID documentId) {
         Set<CodePermission> perms = predicat.permissionsSurDocument(d, documentId);
         if (!perms.contains(CodePermission.CONSULTER)) {
-            throw new HorsPerimetreException("Document introuvable : " + documentId);
+            throw controle.horsPerimetre("DOCUMENT", documentId, "Document introuvable : " + documentId);
         }
         return perms;
     }
@@ -805,9 +819,16 @@ public class ServiceCircuits {
         return "documents/" + doc.getId();
     }
 
-    private void publier(String action, UUID circuitId, Map<String, Object> avant, Map<String, Object> apres,
+    /**
+     * Trace d'une action sur un circuit : l'objet audité est le DOCUMENT (le
+     * journal se consulte par document, §4.9.4), le circuit figure dans l'après.
+     */
+    private void publier(String action, Circuit c, Map<String, Object> avant, Map<String, Object> apres,
                          String motif, ActeurWorkflow acteur, DemandeNotification n) {
-        publier(action, circuitId, "CIRCUIT", avant, apres, motif, acteur, n);
+        Map<String, Object> ap = new LinkedHashMap<>();
+        ap.put("circuitId", c.getId());
+        if (apres != null) ap.putAll(apres);
+        publier(action, c.getDocument().getId(), "DOCUMENT", avant, ap, motif, acteur, n);
     }
 
     private void publier(String action, UUID objetId, String objetType, Map<String, Object> avant,

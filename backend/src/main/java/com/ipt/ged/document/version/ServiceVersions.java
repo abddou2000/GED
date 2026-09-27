@@ -4,18 +4,14 @@ import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.document.DocumentVersion;
 import com.ipt.ged.document.DocumentVersionRepository;
 import com.ipt.ged.document.UploadDocument;
-import com.ipt.ged.document.modele.EvenementModeleDocument;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -34,46 +30,40 @@ import java.util.UUID;
  * démise et la démission ÉCRITE en base avant que la nouvelle ne soit promue
  * (Hibernate exécuterait sinon l'insertion avant la mise à jour).
  *
- * <p>Contrat pour le dépôt chiffré de dev3 : appeler {@link #verser} avec la
- * version construite (fichier, empreinte), le document ayant été chargé avec
- * son verrou d'écriture ({@code findByIdPourEcriture}).
+ * <p><b>Aucun événement n'est publié ici</b> : l'action appelante
+ * ({@code DocumentService}) publie la sienne ({@code VersionAjoutee},
+ * {@code VersionRestauree}, {@code DocumentDepose}), avec la clé du fichier
+ * chiffré et l'état OCR qu'elle seule connaît — une publication par action.
+ * Le document doit avoir été chargé avec son verrou d'écriture
+ * ({@code findByIdPourEcriture}).
  */
 @Service
 public class ServiceVersions {
 
     private final DocumentVersionRepository versions;
     private final JdbcTemplate jdbc;
-    private final ApplicationEventPublisher evenements;
 
     @PersistenceContext
     private EntityManager em;
 
-    public ServiceVersions(DocumentVersionRepository versions, JdbcTemplate jdbc, ApplicationEventPublisher evenements) {
+    public ServiceVersions(DocumentVersionRepository versions, JdbcTemplate jdbc) {
         this.versions = versions;
         this.jdbc = jdbc;
-        this.evenements = evenements;
     }
 
-    /**
-     * Enregistre une version comme COURANTE (versement, D9). La première
-     * version d'un document (dépôt) n'est pas un événement de versement.
-     */
+    /** Enregistre une version comme COURANTE, numérotée, avec son auteur (versement, D9). */
     @Transactional(propagation = Propagation.MANDATORY)
     public DocumentVersion verser(UploadDocument d, DocumentVersion v) {
         Integer max = jdbc.queryForObject("SELECT max(numero) FROM version_document WHERE document_id = ?",
                 Integer.class, d.getId());
-        int numero = max == null ? 1 : max + 1;
-        Map<String, Object> avant = courante(d.getId());
         demettre(d.getId());
-        v.setNumero(numero);
+        v.setNumero(max == null ? 1 : max + 1);
         v.setAuteurId(ActeurCourant.utilisateurId());
         v.setPrincipale(true);
         DocumentVersion enregistree = versions.saveAndFlush(v);
+        // Reportée en tête de la collection en mémoire : la réponse, et la
+        // version courante vue par la suite de la transaction, en dépendent.
         d.getVersions().add(0, enregistree);
-        if (numero > 1) {
-            evenements.publishEvent(EvenementModeleDocument.succes(EvenementModeleDocument.VERSION_AJOUTEE, d.getId(),
-                    avant, instantane(enregistree), enregistree.getObservation(), ActeurCourant.utilisateurId()));
-        }
         return enregistree;
     }
 
@@ -86,32 +76,14 @@ public class ServiceVersions {
             throw new IllegalArgumentException("Cette version n'appartient pas au document");
         }
         if (cible.isPrincipale()) return cible;
-        Map<String, Object> avant = courante(d.getId());
         demettre(d.getId());
         cible.setPrincipale(true);
-        versions.saveAndFlush(cible);
-        evenements.publishEvent(EvenementModeleDocument.succes(EvenementModeleDocument.VERSION_RESTAUREE, d.getId(),
-                avant, instantane(cible), null, ActeurCourant.utilisateurId()));
-        return cible;
+        return versions.saveAndFlush(cible);
     }
 
     /** Démet la version courante, et écrit la démission avant toute promotion. */
     private void demettre(UUID documentId) {
         versions.findByDocumentIdAndPrincipaleTrueOrderByIdDesc(documentId).forEach(x -> x.setPrincipale(false));
         em.flush();
-    }
-
-    private Map<String, Object> courante(UUID documentId) {
-        return versions.findByDocumentIdAndPrincipaleTrueOrderByIdDesc(documentId).stream().findFirst()
-                .map(ServiceVersions::instantane).orElse(null);
-    }
-
-    private static Map<String, Object> instantane(DocumentVersion v) {
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("versionId", v.getId());
-        m.put("numero", v.getNumero());
-        m.put("fichier", v.getFileName());
-        m.put("empreinte", v.getEmpreinte());
-        return m;
     }
 }

@@ -84,11 +84,72 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
-**E8 — workflow de validation (vague 5)** : terminé côté développement,
-branche `ct/dev1`. **Fusion de `conformite-technique` (e81ecc2) non faite** :
-la commande `git merge` a été refusée par le contrôle des permissions de la
-session ; la réconciliation avec dev3 reste à faire dès qu'elle sera autorisée.
-E7 modèle : accepté (b739ed3). E2/E3 : fusionnés (4f41279). E1 : fusionné.
+**Fusion de `conformite-technique` (e8a75d9 : dev3 E5-E7, dev2 vagues 2 à 4)
+dans `ct/dev1`, réconciliation et correctifs de recette** : faite (commit de
+fusion ci-dessous). E8 workflow : terminé (0a6a33e). E7 modèle : accepté
+(b739ed3). E2/E3 : fusionnés (4f41279). E1 : fusionné.
+
+### Réconciliation (fusion de e8a75d9)
+
+- **Dépôt et fichier** : base dev3 (`DepotController` → `DepotService` en deux
+  temps, `ControleFichiers`, stockage chiffré, OCR) + contrôles E3 (Déposer sur
+  le nœud du type, dossier archivé refusé). `objet` et `dateDocument` ajoutés au
+  dépôt. `ServiceModeleDocument.appliquerAuDepot` au temps 1 (version du plan en
+  vigueur, objet, date) ; `ServiceVersions.verser` au dépôt et au versement
+  (numéro, auteur, courante unique, empreinte de dev3).
+- **Validation des métadonnées, une seule fois** : `ValidationPlan` (dev3) au
+  dépôt (`MetadonneesDepot`) et à l'indexation ; le miroir JSONB
+  `document.metadonnees` est tenu par `ServiceModeleDocument.synchroniser`
+  (normalisation par nature de `ValidateurMetadonnees`, sans revalidation) ;
+  la modification de fiche et le changement de type passent par
+  `ValidateurMetadonnees` (version de plan du document). Nature BOOLEEN ajoutée
+  à `ValidationPlan`. Refus unique : `MetadonneesInvalidesException` (400
+  `METADONNEES_INVALIDES` + `erreurs`), y compris au dépôt (`ErreurDepot.invalides`
+  la rend : le gestionnaire des erreurs de fichier ne portait pas `erreurs`).
+- **Une publication par action** : événements `document.evenement` de dev3 pour
+  dépôt, versions (`VersionAjoutee`, `VersionRestauree`), verrou (`VerrouModifie`,
+  avec motif), fiche (`MetadonneesModifiees`) ; `EvenementModeleDocument` pour
+  le déplacement, la re-typologisation et le renommage seul (`DOCUMENT_RENOMME`).
+  Les circuits écoutent `VersionAjoutee` / `VersionRestauree`.
+- **Changesets** : ordre de l'intégration conservé, lots E7/E8 de dev1 ajoutés
+  après (`202609301020_conservation…` à `202610021200_jalon_workflow`) ;
+  `202609301045` (empreinte) MARK_RAN après `202609271205`, retour arrière vide
+  (la colonne appartient à dev3). Jalons et retour arrière complet verts.
+- **dev2** : `ErreurIdentite` → `ExceptionMetier` (`TropDeTentativesException`
+  dérive de `TropDeRequetesException` : `Retry-After` par le gestionnaire
+  commun) ; `GestionErreursIdentite`, `GestionErreursAutorisation`,
+  `GestionErreursWorkflow`, `GestionErreursMetamodele` supprimés ;
+  `ConflitAutorisationException` → `ConflitException` ;
+  `ReponsesSecuriteProblem` branché dans `SecurityConfig` ; `AccesApiWorkflowCles`
+  (`@Primary`) : délégation obligatoire pour une application (403
+  `DELEGATION_REQUISE`), portée `WORKFLOW_PILOTAGE` / `WORKFLOW_DECISION` ;
+  `EvenementWorkflow` implémente les vraies interfaces `EvenementAudit` et
+  `EvenementNotifiable` (audit et notifications) ; codes E8 au catalogue
+  `ActionAudit`. Dictionnaire OpenAPI (`champs.yml`) complété pour E7/E8.
+- **Espace métier et clés d'API** : créer un dossier dans un espace métier
+  reste réservé à la gestion des espaces (D12), sauf pour une application dont
+  la clé porte `CREATION_DOSSIER` sur le parent (décision de l'Administrateur,
+  §5.4) ; droits de la personne déléguée toujours exigés.
+- Tests adaptés à la fusion : dépôt de métadonnées en partie JSON, `detail`
+  au lieu de `message` (problem+json), versement 201, déclencheur de lecture
+  seule des versions (falsification simulée en le désactivant), numéro de
+  version dans les insertions SQL de dev3.
+
+### Correctifs de recette inclus
+
+| Anomalie | Correction | Test |
+|---|---|---|
+| ANO-E7-002 (majeure) | `GardeEcriture.exigerModifiable` (409 `DOCUMENT_VERROUILLE` / `DOCUMENT_ARCHIVE`) sur rattacher, détacher, désigner, retirer une désignation | `AnomaliesAuditRecetteTest.archiveEnLectureSeule`, `.verrouille` |
+| ANO-E4-001 (majeure) | `DocumentConsulte` (`DOCUMENT_CONSULTE`) publié à la lecture de la fiche (`GET /documents/{id}`), pas pour une relecture interne | `.consultationTracee` |
+| ANO-E4-002 | `ControleAcces.horsPerimetre` : 404 inchangé pour le client, `ACCES_HORS_PERIMETRE` (REFUS, transaction propre) au journal si l'objet existe ; identifiant inexistant non tracé | `.horsPerimetreTrace` |
+| ANO-E4-003 | Déconnexion tracée `DECONNEXION` ; `DESIGNATION_AJOUTEE`, `DESIGNATION_RETIREE`, `CONFIDENTIALITE_MODIFIEE`, `ACCES_HORS_PERIMETRE`, `DOCUMENT_RETYPE` et codes E8 au catalogue | `.designationAuCatalogue`, `AuthentificationApiTest.deconnexion` |
+
+Tests : voir « Tests de la fusion » plus bas. Point d'attention : la base de
+développement `ged_dev1` a exécuté `202609301045` (empreinte) avant l'existence
+de `202609271205` ; ce dernier y échouera (colonne déjà présente). La recréer
+depuis la reprise, ou y marquer `202609271205-1` exécuté après avoir ajouté à
+la main les colonnes manquantes (`cle_fichier_id`, `type_mime`, `taille_octets`).
+Aucune autre base n'est concernée (les lots E7/E8 de dev1 n'étaient pas intégrés).
 
 ## E8 — exigences traitées (§12.8 ; MATRICE-FONCTIONNELLE §4.5 ; MATRICE-TECHNIQUE 12.8)
 
@@ -152,9 +213,11 @@ lot modèle (versions et verrou sont à dev1) : n'en garder qu'une publication p
 action. Changeset `202609301045` (empreinte) : `MARK_RAN` une fois `202609271205`
 présent — ne jamais réordonner ces deux fichiers.
 
-Tests en parallèle : le simulateur d'annuaire des tests écoute sur
-`GED_TEST_ANNUAIRE_PORT` (défaut 33390) ; deux copies de travail qui testent en
-même temps doivent prendre des ports différents (dev1 : 33391).
+Tests en parallèle : le simulateur d'annuaire des tests écoute sur 33390 par
+défaut ; deux copies de travail qui testent en même temps prennent des ports
+différents par `GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT` et
+`GED_IDENTITE_ANNUAIRE_URLS` (dev1 : 33391 ; l'ancienne variable
+`GED_TEST_ANNUAIRE_PORT` est retirée à la fusion).
 
 **Point 9 — TRANCHÉ par le coordinateur (recommandation adoptée), livré en
 325716f** : changeset `202610011000` (rapport `reprise_lien_groupe_espace`,

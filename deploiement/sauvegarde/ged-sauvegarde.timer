@@ -1,0 +1,12 @@
+# Déclenchement quotidien à 1 h 30, hors activité ; rattrapage au démarrage
+# si le serveur était arrêté à l'heure prévue.
+[Unit]
+Description=GED Marchica Med - declenchement de la sauvegarde quotidienne
+
+[Timer]
+OnCalendar=*-*-* 01:30:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

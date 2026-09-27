@@ -27,6 +27,11 @@
             <mat-icon [svgIcon]="archiveView() ? 'restore' : 'delete'"></mat-icon>
             {{ archiveView() ? 'Restaurer' : 'Supprimer' }} ({{ selection.selected.length }})
           </button>
+          @if (archiveView()) {
+            <button mat-stroked-button class="bulk danger" (click)="purgerSelection()">
+              <mat-icon svgIcon="delete"></mat-icon> Purger définitivement ({{ selection.selected.length }})
+            </button>
+          }
         }
         <app-selection-toggle #selToggle (change)="basculerSelection($event)"></app-selection-toggle>
         <app-column-picker [titre]="ECRAN" [colonnes]="COLONNES"
@@ -73,6 +78,9 @@
                    cartouche « Fichier ». -->
               <a class="d-name lien-dossier" [routerLink]="['/televerser', d.id]"
                  [matTooltip]="d.fileName">{{ d.name }}<span class="ext">.{{ d.extension }}</span></a>
+              @if (d.statutConservation === 'ARCHIVE') {
+                <span class="badge-archive" matTooltip="Archivé : lecture seule">Archivé</span>
+              }
             </div>
           </td>
         </ng-container>
@@ -152,7 +160,10 @@
           <th mat-header-cell *matHeaderCellDef class="c-act">Actions</th>
           <td mat-cell *matCellDef="let d" class="c-act">
             @if (archiveView()) {
-              <button mat-icon-button (click)="restoreOne(d.id)" matTooltip="Restaurer" aria-label="Restaurer"><mat-icon svgIcon="restore"></mat-icon></button>
+              <span class="act-row">
+                <button mat-icon-button (click)="restoreOne(d.id)" matTooltip="Restaurer" aria-label="Restaurer"><mat-icon svgIcon="restore"></mat-icon></button>
+                <button mat-icon-button class="danger" (click)="purger(d)" matTooltip="Purger définitivement (irréversible)" aria-label="Purger définitivement"><mat-icon svgIcon="delete"></mat-icon></button>
+              </span>
             } @else {
               <span class="act-row">
                 <button mat-icon-button (click)="ouvrir(d.id)" matTooltip="Ouvrir la fiche" aria-label="Ouvrir la fiche"><mat-icon svgIcon="folder-open"></mat-icon></button>

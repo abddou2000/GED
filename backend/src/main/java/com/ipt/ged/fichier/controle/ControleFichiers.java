@@ -93,6 +93,25 @@ public class ControleFichiers {
         return type;
     }
 
+    /**
+     * Taille et type réel seulement, sans antivirus : pour un fichier qui n'est
+     * ni conservé ni ouvert (aperçu d'indexation, qui ne lit que son nom depuis
+     * le cloisonnement §4.3.3) mais qui doit être refusé comme le dépôt le
+     * refuserait.
+     *
+     * @return le type réel détecté.
+     */
+    public String verifierTailleEtType(SourceFichier source, ReglesDepot regles) {
+        if (source.taille() > regles.tailleMaxOctets()) {
+            throw Refus.tropVolumineux(regles.tailleMaxOctets());
+        }
+        String type = detecteur.detecter(source);
+        if (!regles.admet(type)) {
+            throw Refus.formatNonAutorise(type);
+        }
+        return type;
+    }
+
     /** Contrôles puis écriture chiffrée ; rien n'est écrit si un contrôle refuse. */
     public Depot deposer(SourceFichier source, ReglesDepot regles) {
         String type = controler(source, regles);
@@ -107,7 +126,35 @@ public class ControleFichiers {
     public record Depot(StockageChiffre.ResultatStockage stockage, String typeMime) {
     }
 
-    /** Événement d'audit : fichier infecté refusé (§6.1.5). */
-    public record FichierInfecte(String nomOrigine, String detail, Instant refuseLe) {
+    /**
+     * Événement d'audit : fichier infecté refusé (§6.1.5). Résultat {@code REFUS} ;
+     * l'acteur et l'adresse sont ceux de la requête (complétés par le journal).
+     */
+    public record FichierInfecte(String nomOrigine, String detail, Instant refuseLe)
+            implements com.ipt.ged.audit.EvenementAudit {
+        @Override
+        public String action() {
+            return "FICHIER_INFECTE";
+        }
+
+        @Override
+        public String objetType() {
+            return "FICHIER";
+        }
+
+        @Override
+        public com.ipt.ged.audit.ResultatAudit resultat() {
+            return com.ipt.ged.audit.ResultatAudit.REFUS;
+        }
+
+        @Override
+        public String motif() {
+            return detail;
+        }
+
+        @Override
+        public java.util.Map<String, Object> apres() {
+            return java.util.Map.of("fichier", nomOrigine == null ? "" : nomOrigine);
+        }
     }
 }

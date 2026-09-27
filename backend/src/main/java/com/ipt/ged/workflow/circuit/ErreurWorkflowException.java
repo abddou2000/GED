@@ -4,13 +4,11 @@ import org.springframework.http.HttpStatus;
 
 /**
  * Refus métier du workflow, rendu avec un code stable (contrat d'API E8, D8) :
- * les applications de l'intranet réagissent au code, pas au libellé.
- *
- * <p>Provisoire, comme {@code ConflitAutorisationException} : à la fusion du
- * contrat d'erreurs de dev2 (problem+json), elle deviendra une sous-classe
- * d'{@code ExceptionMetier} et {@link GestionErreursWorkflow} disparaîtra.
+ * les applications de l'intranet réagissent au code, pas au libellé. Une
+ * {@link com.ipt.ged.common.erreur.ExceptionMetier} : le gestionnaire commun
+ * (dev2) la rend en problem+json ({@code code}, {@code detail}).
  */
-public class ErreurWorkflowException extends RuntimeException {
+public class ErreurWorkflowException extends com.ipt.ged.common.erreur.ExceptionMetier {
 
     public static final String MOTIF_OBLIGATOIRE = "MOTIF_OBLIGATOIRE";
     public static final String PAS_VALIDATEUR = "PAS_VALIDATEUR";
@@ -23,13 +21,8 @@ public class ErreurWorkflowException extends RuntimeException {
     public static final String DOCUMENT_EN_CORBEILLE = "DOCUMENT_EN_CORBEILLE";
     public static final String NON_AUTORISE = "NON_AUTORISE";
 
-    private final HttpStatus statut;
-    private final String code;
-
     public ErreurWorkflowException(HttpStatus statut, String code, String message) {
-        super(message);
-        this.statut = statut;
-        this.code = code;
+        super(statut, code, message);
     }
 
     public static ErreurWorkflowException conflit(String code, String message) {
@@ -42,13 +35,5 @@ public class ErreurWorkflowException extends RuntimeException {
 
     public static ErreurWorkflowException interdit(String code, String message) {
         return new ErreurWorkflowException(HttpStatus.FORBIDDEN, code, message);
-    }
-
-    public HttpStatus statut() {
-        return statut;
-    }
-
-    public String code() {
-        return code;
     }
 }

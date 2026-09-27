@@ -2,6 +2,7 @@
 backend/target/
 backend/data/
 backend/storage/
+backend/audit/
 backend/.mvn/
 *.class
 
@@ -32,6 +33,13 @@ dist-zip/
 # Le motif large couvre les cles a venir : on n'oublie pas une ligne, on
 # oublie de l'ajouter.
 backend/.dev-*
+# Clés maîtresses du stockage chiffré (lot E5) : un keystore ne se versionne
+# jamais, quel que soit le répertoire d'où l'application a été lancée
+# (ANO-E5-001).
+**/data/cles/
+*.p12
+*.pfx
+*.jks
 .env
 *.env
 !*.env.example

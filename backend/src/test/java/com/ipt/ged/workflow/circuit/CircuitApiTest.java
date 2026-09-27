@@ -118,15 +118,15 @@ class CircuitApiTest {
     private UUID deposer(String nom) throws Exception {
         return UUID.fromString(json(mvc.perform(multipart("/api/v1/documents")
                         .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf",
-                                ("contenu " + nom + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8)))
+                                com.ipt.ged.support.Pdfs.pdf(nom + UUID.randomUUID())))
                         .param("name", nom).param("typeDocumentId", type.toString()))
-                .andExpect(status().isCreated())).get("id").asText());
+                .andExpect(status().is2xxSuccessful())).get("id").asText());
     }
 
     private void verser(UUID doc) throws Exception {
         mvc.perform(multipart("/api/v1/documents/" + doc + "/versions")
                         .file(new MockMultipartFile("file", "v2.pdf", "application/pdf",
-                                ("v2 " + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8))))
+                                com.ipt.ged.support.Pdfs.pdf("v2 " + UUID.randomUUID()))))
                 .andExpect(status().is2xxSuccessful());
     }
 
@@ -416,7 +416,8 @@ class CircuitApiTest {
         assertEquals(TypeNotification.CIRCUIT_OUVERT, ouverts.get(0).notification().type());
         assertTrue(ouverts.get(0).notification().destinataires()
                 .containsAll(List.of(jeu.utilisateurId(KARIM), jeu.utilisateurId(YASMINE))));
-        assertEquals("CIRCUIT", ouverts.get(0).objetType());
+        assertEquals("DOCUMENT", ouverts.get(0).objetType());
+        assertEquals(doc, ouverts.get(0).objetId());
 
         decider(KARIM, c, "REFUSE", "Incomplet").andExpect(status().isCreated());
         EvenementWorkflow refus = evenements.stream(EvenementWorkflow.class)

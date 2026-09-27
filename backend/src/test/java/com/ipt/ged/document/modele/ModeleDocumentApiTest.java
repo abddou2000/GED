@@ -96,8 +96,13 @@ class ModeleDocumentApiTest {
 
     private MockMultipartHttpServletRequestBuilder depot(UUID typeId, String contenu) {
         return (MockMultipartHttpServletRequestBuilder) multipart(DOCS)
-                .file(new MockMultipartFile("file", "piece.pdf", "application/pdf", contenu.getBytes(StandardCharsets.UTF_8)))
+                .file(new MockMultipartFile("file", "piece.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf(contenu)))
                 .param("typeDocumentId", typeId.toString());
+    }
+
+    /** Métadonnées du dépôt : une partie JSON de la requête multipart, comme l'envoie l'interface. */
+    private static MockMultipartFile meta(String json) {
+        return new MockMultipartFile("metadonnees", "", "application/json", json.getBytes(StandardCharsets.UTF_8));
     }
 
     private JsonNode json(ResultActions r) throws Exception {
@@ -105,8 +110,9 @@ class ModeleDocumentApiTest {
     }
 
     private UUID deposer(String nom, String metadonnees, String dateDocument) throws Exception {
-        var req = depot(type, "contenu " + nom).param("name", nom);
-        if (metadonnees != null) req.param("metadonnees", metadonnees);
+        MockMultipartHttpServletRequestBuilder req = depot(type, "contenu " + nom);
+        req.param("name", nom);
+        if (metadonnees != null) req.file(meta(metadonnees));
         if (dateDocument != null) req.param("dateDocument", dateDocument);
         return UUID.fromString(json(mvc.perform(req).andExpect(status().isCreated())).get("id").asText());
     }
@@ -118,7 +124,7 @@ class ModeleDocumentApiTest {
     void metadonneesNormalisees() throws Exception {
         String meta = "{\"" + date.getCode().toLowerCase() + "\":\"2026-03-01\",\"" + montant.getId()
                 + "\":\"1250,5\",\"" + statut.getCode() + "\":\"payée\",\"" + urgent.getCode() + "\":\"oui\"}";
-        JsonNode d = json(mvc.perform(depot(type, "a").param("metadonnees", meta)).andExpect(status().isCreated()));
+        JsonNode d = json(mvc.perform(depot(type, "a").file(meta(meta))).andExpect(status().isCreated()));
         JsonNode m = d.get("metadonnees");
         assertEquals("2026-03-01", m.get(date.getCode()).asText());
         assertEquals(1250.5, m.get(montant.getCode()).asDouble());
@@ -134,8 +140,8 @@ class ModeleDocumentApiTest {
     @DisplayName("Métadonnées refusées : 400 METADONNEES_INVALIDES avec une erreur par champ, rien n'est déposé")
     void metadonneesRefusees() throws Exception {
         long avant = jdbc.queryForObject("SELECT count(*) FROM document", Long.class);
-        mvc.perform(depot(type, "b").param("metadonnees", "{\"" + montant.getCode() + "\":\"beaucoup\",\""
-                        + statut.getCode() + "\":\"Annulée\",\"" + urgent.getCode() + "\":\"peut-être\",\"INCONNU\":1}"))
+        mvc.perform(depot(type, "b").file(meta("{\"" + montant.getCode() + "\":\"beaucoup\",\""
+                        + statut.getCode() + "\":\"Annulée\",\"" + urgent.getCode() + "\":\"peut-être\",\"INCONNU\":1}")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("METADONNEES_INVALIDES"))
                 .andExpect(jsonPath("$.erreurs." + montant.getCode()).value("attend un nombre."))
@@ -174,7 +180,7 @@ class ModeleDocumentApiTest {
                 .andExpect(status().isOk());
         assertEquals(versionAncienne, documents.findById(ancien).orElseThrow().getPlanIndexationVersionId());
         // Un nouveau dépôt suit la nouvelle version : REF devient exigé.
-        mvc.perform(depot(type, "d").param("metadonnees", "{\"" + date.getCode() + "\":\"2026-01-12\"}"))
+        mvc.perform(depot(type, "d").file(meta("{\"" + date.getCode() + "\":\"2026-01-12\"}")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erreurs." + ref.getCode()).value("est obligatoire."));
     }
@@ -253,7 +259,7 @@ class ModeleDocumentApiTest {
                 + "\",\"typeAutorise\":[\"pdf\"],\"tailleMaxMo\":5,\"dureeConservationMois\":24,"
                 + "\"pointDepart\":\"METADONNEE\",\"pointDepartIndexCode\":\"" + note.getCode() + "\"}";
         mvc.perform(post("/api/v1/type-documents").contentType(APPLICATION_JSON).content(corps))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message", containsString("nature date")));
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.detail", containsString("nature date")));
         String t = mvc.perform(post("/api/v1/type-documents").contentType(APPLICATION_JSON)
                         .content(corps.replace(note.getCode(), date.getCode().toLowerCase())))
                 .andExpect(status().isCreated())
@@ -267,17 +273,18 @@ class ModeleDocumentApiTest {
         mvc.perform(delete("/api/v1/type-documents/" + type))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("TYPE_UTILISE"));
         assertEquals("r", jdbc.queryForObject("SELECT confdeltype::text FROM pg_constraint"
-                + " WHERE conname = 'fk_document_type_document'", String.class), "FK RESTRICT en base");
+                + " WHERE conname = 'fk_document_type_document' AND connamespace = current_schema()::regnamespace", String.class), "FK RESTRICT en base");
         mvc.perform(patch("/api/v1/type-documents/" + type + "/actif").param("actif", "false"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.actif").value(false));
         mvc.perform(depot(type, "refus")).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("désactivé")));
+                .andExpect(jsonPath("$.detail", containsString("désactivé")));
     }
 
     /* ---------------------------------------------------------------- §12.8 versions */
 
+    /** Empreinte du PDF de test portant ce marqueur (le contrôle du type réel exige un vrai PDF). */
     private static String sha256(String s) throws Exception {
-        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8)));
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(com.ipt.ged.support.Pdfs.pdf(s)));
     }
 
     @Test
@@ -286,8 +293,8 @@ class ModeleDocumentApiTest {
         UUID doc = deposer("Versionné", null, null);
         JsonNode v2 = json(mvc.perform(multipart(DOCS + "/" + doc + "/versions")
                         .file(new MockMultipartFile("file", "v2.pdf", "application/pdf",
-                                "deuxième".getBytes(StandardCharsets.UTF_8))))
-                .andExpect(status().isOk()));
+                                com.ipt.ged.support.Pdfs.pdf("deuxième"))))
+                .andExpect(status().isCreated()));
         JsonNode liste = v2.get("versions");
         assertEquals(2, liste.get(0).get("numero").asInt());
         assertTrue(liste.get(0).get("principale").asBoolean());
@@ -309,10 +316,13 @@ class ModeleDocumentApiTest {
         // Historique en lecture seule, en base.
         assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () ->
                 jdbc.update("UPDATE version_document SET file_name = 'falsifié.pdf' WHERE id = ?", UUID.fromString(premiere)));
-        assertTrue(evenements.stream(EvenementModeleDocument.class).anyMatch(e ->
-                e.action().equals(EvenementModeleDocument.VERSION_AJOUTEE) && e.documentId().equals(doc)));
-        assertTrue(evenements.stream(EvenementModeleDocument.class).anyMatch(e ->
-                e.action().equals(EvenementModeleDocument.VERSION_RESTAUREE) && e.documentId().equals(doc)));
+        // Une seule publication par action : les événements du lot stockage.
+        assertEquals(1, evenements.stream(com.ipt.ged.document.evenement.VersionAjoutee.class)
+                .filter(e -> e.documentId().equals(doc)).count());
+        assertEquals(1, evenements.stream(com.ipt.ged.document.evenement.VersionRestauree.class)
+                .filter(e -> e.documentId().equals(doc)).count());
+        assertEquals(0, evenements.stream(EvenementModeleDocument.class).filter(e -> e.documentId().equals(doc))
+                .count());
     }
 
     /* ---------------------------------------------------------------- §12.8 verrou */
@@ -337,7 +347,7 @@ class ModeleDocumentApiTest {
         List<ResultActions> refus = List.of(
                 mvc.perform(put(DOCS + "/" + doc).contentType(APPLICATION_JSON).content("{\"name\":\"x\"}")),
                 mvc.perform(multipart(DOCS + "/" + doc + "/versions")
-                        .file(new MockMultipartFile("file", "v.pdf", "application/pdf", "v".getBytes()))),
+                        .file(new MockMultipartFile("file", "v.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf("v")))),
                 mvc.perform(patch(DOCS + "/" + doc + "/emplacement").contentType(APPLICATION_JSON)
                         .content("{\"noeudId\":\"" + autre + "\"}")),
                 mvc.perform(post(DOCS + "/" + doc + "/rattachements").contentType(APPLICATION_JSON)
@@ -345,14 +355,18 @@ class ModeleDocumentApiTest {
                 mvc.perform(delete(DOCS + "/" + doc)));
         for (ResultActions r : refus) {
             r.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DOCUMENT_VERROUILLE"))
-                    .andExpect(jsonPath("$.message", containsString("Contrôle fiscal")));
+                    .andExpect(jsonPath("$.detail", containsString("Contrôle fiscal")));
         }
         mvc.perform(patch(DOCS + "/" + doc + "/verrou").param("verrouille", "false"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.verrouMotif").doesNotExist());
         mvc.perform(put(DOCS + "/" + doc).contentType(APPLICATION_JSON).content("{\"name\":\"libre\"}"))
                 .andExpect(status().isOk());
-        assertEquals(2, evenements.stream(EvenementModeleDocument.class).filter(e -> e.documentId().equals(doc)
-                && e.action().startsWith("DOCUMENT_") && e.action().contains("VERROUILLE")).count());
+        // Pose et levée : une trace chacune (DOCUMENT_VERROUILLE, DOCUMENT_DEVERROUILLE), motif compris.
+        List<com.ipt.ged.document.evenement.VerrouModifie> verrous = evenements
+                .stream(com.ipt.ged.document.evenement.VerrouModifie.class).filter(e -> e.documentId().equals(doc)).toList();
+        assertEquals(List.of("DOCUMENT_VERROUILLE", "DOCUMENT_DEVERROUILLE"),
+                verrous.stream().map(com.ipt.ged.document.evenement.VerrouModifie::type).toList());
+        assertEquals("Contrôle fiscal", verrous.get(0).motifVerrou());
     }
 
     /* ---------------------------------------------------------------- §12.5 déplacement, renommage */

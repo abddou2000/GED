@@ -118,7 +118,7 @@ class IndexationApiTest {
 
     private UUID depose(String fichier, String nom) throws Exception {
         String res = mvc.perform(multipart("/api/v1/documents")
-                        .file(new MockMultipartFile("file", fichier, "application/pdf", "contenu".getBytes()))
+                        .file(new MockMultipartFile("file", fichier, "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("name", nom)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())

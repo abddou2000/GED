@@ -22,6 +22,9 @@
         <java.version>17</java.version>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Seuil CVSS au-dela duquel OWASP Dependency-Check fait echouer la
+             construction (DAT 6.2.3, A06). Surchargeable : -Dged.cvss.seuil=9 -->
+        <ged.cvss.seuil>7</ged.cvss.seuil>
     </properties>
 
     <dependencies>
@@ -50,6 +53,21 @@
             <version>3.0.8</version>
         </dependency>
 
+        <!-- Copie de conservation PDF/A-2 (DAT 6.1.4, 12.6) : métadonnées XMP
+             d'identification PDF/A (PDFBox) et validation par veraPDF.
+             veraPDF : double licence GPL-3.0+ ou MPL-2.0+, MPL-2.0 retenue
+             (copyleft faible au niveau du fichier, bibliothèque non modifiée). -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>xmpbox</artifactId>
+            <version>3.0.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.verapdf</groupId>
+            <artifactId>validation-model-jakarta</artifactId>
+            <version>1.30.2</version>
+        </dependency>
+
         <!-- Persistence (JPA / Hibernate) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -60,6 +78,14 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Export des metriques au format Prometheus (DAT 6.7). Le point
+             /actuator/prometheus n'est servi que sur le port de management,
+             lie au reseau interne (voir exploitation.yml). -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
         <!-- Security (auth + ACL) -->
@@ -160,6 +186,15 @@
         </dependency>
         <!-- ===== FIN lot E5 (dev3) ===== -->
 
+        <!-- ===== DEBUT lot E8 notifications (dev2) ===== -->
+        <!-- Canal e-mail des notifications (DAT §12.9) : relais SMTP de MMED,
+             configuration externalisée (notification.yml). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+        <!-- ===== FIN lot E8 notifications (dev2) ===== -->
+
         <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -169,6 +204,14 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Serveur SMTP simulé pour les tests des notifications (lot E8, dev2) :
+             aucun relais réel n'est joint depuis la suite de tests. -->
+        <dependency>
+            <groupId>com.icegreen</groupId>
+            <artifactId>greenmail-junit5</artifactId>
+            <version>2.1.3</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -202,6 +245,71 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+            <!-- A06 (DAT 6.2.3) : analyse des dependances a chaque construction.
+                 Lie a la phase verify : `mvn verify` (CI) echoue des qu'une
+                 dependance porte une vulnerabilite de score >= ged.cvss.seuil.
+                 En local, `-Ddependency-check.skip=true` evite le telechargement
+                 de la base NVD. La cle d'API NVD est lue dans NVD_API_KEY :
+                 sans elle la mise a jour de la base prend plusieurs heures. -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>12.2.2</version>
+                <configuration>
+                    <failBuildOnCVSS>${ged.cvss.seuil}</failBuildOnCVSS>
+                    <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                    <formats>
+                        <format>HTML</format>
+                        <format>JSON</format>
+                    </formats>
+                    <!-- Sonatype OSS Index exige desormais un compte : sans
+                         identifiants l'analyseur echoue au lieu d'analyser. -->
+                    <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
+                    <!-- Le front est analyse par npm audit dans la CI : ces
+                         analyseurs ne verraient ici aucun package.json. -->
+                    <nodeAnalyzerEnabled>false</nodeAnalyzerEnabled>
+                    <nodeAuditAnalyzerEnabled>false</nodeAuditAnalyzerEnabled>
+                    <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
+                    <suppressionFiles>
+                        <suppressionFile>${project.basedir}/dependency-check-suppressions.xml</suppressionFile>
+                    </suppressionFiles>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>analyse-vulnerabilites</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- SBOM CycloneDX (DAT 8.3) : nom, version, licence et empreinte de
+                 chaque dependance, directe ou transitive, produit a chaque
+                 `mvn package` dans target/bom.json et target/bom.xml. -->
+            <plugin>
+                <groupId>org.cyclonedx</groupId>
+                <artifactId>cyclonedx-maven-plugin</artifactId>
+                <version>2.9.1</version>
+                <configuration>
+                    <projectType>application</projectType>
+                    <schemaVersion>1.6</schemaVersion>
+                    <outputFormat>all</outputFormat>
+                    <outputName>bom</outputName>
+                    <includeLicenseText>false</includeLicenseText>
+                    <!-- Le registre couvre ce qui part en production. -->
+                    <includeTestScope>false</includeTestScope>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>sbom</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>makeAggregateBom</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

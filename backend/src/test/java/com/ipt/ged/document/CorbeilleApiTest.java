@@ -84,7 +84,7 @@ class CorbeilleApiTest {
 
     private UUID deposer(String nom) throws Exception {
         String reponse = mvc.perform(multipart(BASE)
-                        .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("name", nom)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
@@ -131,13 +131,13 @@ class CorbeilleApiTest {
         mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON)
                         .content("{\"name\":\"Renommé en douce\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("corbeille")));
+                .andExpect(jsonPath("$.detail", containsString("corbeille")));
 
         mvc.perform(patch(BASE + "/" + id + "/verrou").param("verrouille", "true"))
                 .andExpect(status().isBadRequest());
 
         mvc.perform(multipart(BASE + "/" + id + "/versions")
-                        .file(new MockMultipartFile("file", "v2.pdf", "application/pdf", "x".getBytes())))
+                        .file(new MockMultipartFile("file", "v2.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf())))
                 .andExpect(status().isBadRequest());
 
         mvc.perform(put("/api/v1/indexation/documents/" + id).contentType(APPLICATION_JSON)
@@ -149,7 +149,7 @@ class CorbeilleApiTest {
                         .contentType(APPLICATION_JSON).content("{\"decision\":\"VALIDE\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code", is("DOCUMENT_EN_CORBEILLE")))
-                .andExpect(jsonPath("$.message", containsString("corbeille")));
+                .andExpect(jsonPath("$.detail", containsString("corbeille")));
 
         // La restauration reste possible, et rouvre l'écriture.
         mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
@@ -171,7 +171,7 @@ class CorbeilleApiTest {
 
         mvc.perform(patch("/api/v1/workspaces/" + workspaceId + "/archive"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("corbeille")));
+                .andExpect(jsonPath("$.detail", containsString("corbeille")));
 
         mvc.perform(patch("/api/v1/workspaces/" + workspaceId + "/parent")
                         .contentType(APPLICATION_JSON).content("{\"parentId\":null}"))

@@ -54,13 +54,9 @@ public class ConfigurationAutorisation {
     @Primary
     public ControleAccesPrevisualisation controleAccesPrevisualisationAutorisation(AccessPredicate droits) {
         return (version, utilisateur) -> {
-            UUID documentId;
-            try {
-                documentId = UUID.fromString(version.documentId());
-            } catch (RuntimeException e) {
-                throw Refus.introuvable("version " + version.versionId());
-            }
-            if (!droits.peut(utilisateur, CodePermission.CONSULTER, documentId)) {
+            // Identifiants UUID depuis le branchement de l'aperçu sur version_document (E5).
+            UUID documentId = version.documentId();
+            if (documentId == null || !droits.peut(utilisateur, CodePermission.CONSULTER, documentId)) {
                 throw Refus.introuvable("version " + version.versionId());
             }
         };

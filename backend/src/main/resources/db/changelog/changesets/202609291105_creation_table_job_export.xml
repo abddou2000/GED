@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609291105_creation_table_job_export.xml">
+
+    <!--
+        Lot E7 (dev3) : export de dossier en archive ZIP (§12.10). Au-delà de
+        500 documents ou de 2 Go, l'export devient un traitement de fond : sa
+        sélection (documents autorisés au moment de la demande) est figée, son
+        archive est chiffrée comme tout fichier et téléchargeable par son seul
+        demandeur jusqu'à expiration.
+    -->
+    <changeSet id="202609291105-1" author="ged">
+        <comment>Exports de dossier en traitement de fond (§12.10), téléchargeables depuis la liste de l'utilisateur.</comment>
+        <createTable tableName="job_export">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_job_export" nullable="false"/>
+            </column>
+            <column name="dossier_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dossier_nom" type="VARCHAR(255)"/>
+            <column name="demandeur_employe_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="etat" type="VARCHAR(16)" defaultValue="EN_ATTENTE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nb_documents" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="taille_estimee" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Archive ZIP produite, chiffrée comme tout fichier. -->
+            <column name="cle_fichier_id" type="UUID"/>
+            <column name="taille_octets" type="BIGINT"/>
+            <column name="motif" type="TEXT"/>
+            <column name="verrouille_par" type="VARCHAR(100)"/>
+            <column name="verrouille_jusqu_a" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="termine_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="expire_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_job_export_demandeur_employe" baseTableName="job_export"
+                                 baseColumnNames="demandeur_employe_id" referencedTableName="employe" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_job_export_cle_fichier" baseTableName="job_export"
+                                 baseColumnNames="cle_fichier_id" referencedTableName="cle_fichier" referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+        <createIndex indexName="idx_job_export_demandeur_employe_id" tableName="job_export">
+            <column name="demandeur_employe_id"/>
+        </createIndex>
+        <createIndex indexName="idx_job_export_cle_fichier_id" tableName="job_export">
+            <column name="cle_fichier_id"/>
+        </createIndex>
+        <createIndex indexName="idx_job_export_etat" tableName="job_export">
+            <column name="etat"/>
+        </createIndex>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.job_export ADD CONSTRAINT ck_job_export_etat
+            CHECK (etat IN ('EN_ATTENTE', 'EN_COURS', 'TERMINE', 'ECHEC', 'EXPIRE'))</sql>
+
+        <createTable tableName="job_export_element">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()">
+                <constraints primaryKey="true" primaryKeyName="pk_job_export_element" nullable="false"/>
+            </column>
+            <column name="job_export_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="document_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rang" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_job_export_element_job_export_id_document_id" tableName="job_export_element"
+                             columnNames="job_export_id, document_id"/>
+        <addForeignKeyConstraint constraintName="fk_job_export_element_job_export" baseTableName="job_export_element"
+                                 baseColumnNames="job_export_id" referencedTableName="job_export" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_job_export_element_document" baseTableName="job_export_element"
+                                 baseColumnNames="document_id" referencedTableName="document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex indexName="idx_job_export_element_document_id" tableName="job_export_element">
+            <column name="document_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="job_export_element"/>
+            <dropTable tableName="job_export"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271225_jalon_fichiers_ocr_recherche.xml">
+
+    <!-- Jalon des lots E5 (stockage chiffré) et E6 (OCR asynchrone, recherche plein texte). -->
+    <changeSet id="202609271225-1" author="ged">
+        <tagDatabase tag="fichiers-ocr-e5-e6"/>
+    </changeSet>
+
+</databaseChangeLog>
