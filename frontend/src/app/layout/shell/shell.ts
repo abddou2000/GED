@@ -87,6 +87,7 @@ export class Shell implements AfterViewInit {
     'plan-indexation': "Plan d'indexation",
     'type-de-document': 'Type de document',
     'etiquette': 'Étiquette',
+    'journal-audit': "Journal d'audit",
     'profil': 'Mon profil',
   };
 
