@@ -30,7 +30,7 @@ d'environnement sans toucher au script (liste dans `recette/lib/api.sh`). À met
 | E2 (D2 : connexion par UID AD, jamais l'e-mail) | `GED_CHAMP_IDENTIFIANT` | champ de l'UID `sAMAccountName` (nom exact fixé par dev1) |
 | E9 | `GED_API_TELECHARGEMENT` | `/api/v1/documents/{id}/contenu` |
 | E9 | `GED_API_RECHERCHE`, `GED_API_RECHERCHE_CORPS` | `/api/v1/recherches` en POST |
-| E9 | `GED_RECETTE_CLE_API`, `GED_IDEMPOTENCE=1` | fumée par clé API, en-tête `Idempotency-Key` |
+| E9 | `GED_RECETTE_CLE_API` | fumée par clé API (l'en-tête `Idempotency-Key` est désormais envoyé par défaut) |
 
 ## Vérifié sur ce poste
 

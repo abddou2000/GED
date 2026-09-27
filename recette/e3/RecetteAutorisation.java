@@ -96,6 +96,9 @@ public class RecetteAutorisation {
         if (jeton != null) {
             b.header("Authorization", "Bearer " + jeton);
         }
+        if (methode.equals("POST")) {
+            b.header("Idempotency-Key", UUID.randomUUID().toString()); // obligatoire sur les créations (§5.3.2)
+        }
         if (typeCorps != null) {
             b.header("Content-Type", typeCorps);
         }
