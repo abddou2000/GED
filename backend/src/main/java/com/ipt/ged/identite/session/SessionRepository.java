@@ -29,14 +29,14 @@ public interface SessionRepository extends JpaRepository<SessionUtilisateur, UUI
               and s.consommeLe is null and s.expireLe > :maintenant""")
     boolean familleActive(@Param("famille") UUID famille, @Param("maintenant") Instant maintenant);
 
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
            update SessionUtilisateur s set s.revoqueeLe = :instant, s.motifRevocation = :motif
             where s.familleId = :famille and s.revoqueeLe is null""")
     int revoquerFamille(@Param("famille") UUID famille, @Param("motif") MotifRevocation motif,
                         @Param("instant") Instant instant);
 
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
            update SessionUtilisateur s set s.revoqueeLe = :instant, s.motifRevocation = :motif
             where s.utilisateurId = :utilisateur and s.revoqueeLe is null""")
@@ -53,7 +53,7 @@ public interface SessionRepository extends JpaRepository<SessionUtilisateur, UUI
                                               @Param("maintenant") Instant maintenant);
 
     /** Ménage : les lignes dont la borne absolue est passée depuis longtemps n'apprennent plus rien. */
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from SessionUtilisateur s where s.utilisateurId = :utilisateur and s.expireLe < :avant")
     int purgerAnciennes(@Param("utilisateur") UUID utilisateur, @Param("avant") Instant avant);
 }

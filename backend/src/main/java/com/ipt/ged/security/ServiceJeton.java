@@ -63,12 +63,17 @@ public class ServiceJeton {
     private final String emetteur;
     private final long toleranceSecondes;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public ServiceJeton(ProprietesIdentite proprietes) {
+        this(proprietes, chargerOuTirer(proprietes.getJeton()));
+    }
+
+    /** Paire de clés fournie : réservé aux tests, qui forgent des jetons avec la même clé. */
+    ServiceJeton(ProprietesIdentite proprietes, KeyPair paire) {
         ProprietesIdentite.Jeton p = proprietes.getJeton();
         this.validite = p.getValidite();
         this.emetteur = p.getEmetteur();
         this.toleranceSecondes = Math.max(0, p.getToleranceHorloge().toSeconds());
-        KeyPair paire = chargerOuTirer(p);
         this.clePrivee = paire.getPrivate();
         this.clePublique = paire.getPublic();
         this.idCle = p.getAlias();

@@ -54,17 +54,28 @@ public class FiltreJwt extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String jeton = extraire(requete);
-        if (jeton != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            Optional<UtilisateurConnecte> principal = jetons.lire(jeton)
-                    .filter(j -> sessions.active(j.sessionId()))
-                    .flatMap(j -> identites.principal(j.utilisateurId(), j.sessionId()));
-            principal.ifPresent(p -> {
-                var auth = new UsernamePasswordAuthenticationToken(p, null, p.getAuthorities());
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(requete));
-                SecurityContextHolder.getContext().setAuthentication(auth);
-            });
+        if (jeton == null) {
+            suite.doFilter(requete, reponse);
+            return;
         }
-        suite.doFilter(requete, reponse);
+        /* Un jeton présent est TOUJOURS évalué, et l'identité qu'il établit ne
+           survit pas à la requête : un contexte hérité (fil réutilisé, contexte
+           de test) ne doit jamais faire passer un jeton révoqué. Jeton invalide
+           = appelant anonyme. */
+        Optional<UtilisateurConnecte> principal = jetons.lire(jeton)
+                .filter(j -> sessions.active(j.sessionId()))
+                .flatMap(j -> identites.principal(j.utilisateurId(), j.sessionId()));
+        SecurityContextHolder.clearContext();
+        principal.ifPresent(p -> {
+            var auth = new UsernamePasswordAuthenticationToken(p, null, p.getAuthorities());
+            auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(requete));
+            SecurityContextHolder.getContext().setAuthentication(auth);
+        });
+        try {
+            suite.doFilter(requete, reponse);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 
     private String extraire(HttpServletRequest requete) {
