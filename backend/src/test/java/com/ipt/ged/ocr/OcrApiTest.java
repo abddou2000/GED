@@ -197,27 +197,29 @@ class OcrApiTest {
     }
 
     @Test
-    @DisplayName("5. Un fichier au nom muet est indexé depuis son contenu")
-    void indexeDepuisContenu() throws Exception {
-        // « scan0001.pdf » ne suit aucune charte : seul le contenu peut renseigner les index
+    @DisplayName("5. Cloisonnement §4.3.3 : un fichier au nom muet n'est PAS indexé depuis son contenu")
+    void contenuNAlimenteAucunIndex() throws Exception {
+        // Le contenu porte des valeurs lisibles ; aucune ne doit remonter dans
+        // les propositions d'index : l'OCR ne sert qu'à la recherche plein texte.
         UUID doc = depose("scan0001.pdf", pdfAvecTexte(
                 "Fournisseur : ACME Distribution",
                 "Date d'emission : 15/01/2026",
                 "Priorite : Haute"));
 
-        mvc.perform(get("/api/v1/indexation/documents/" + doc + "/analyse"))
+        String res = mvc.perform(get("/api/v1/indexation/documents/" + doc + "/analyse"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.provenanceTexte", is("COUCHE_TEXTE")))
-                // la date et la priorité viennent du contenu, pas du nom de fichier
-                .andExpect(jsonPath("$.propositions[?(@.code=='O-DATE')].source", contains("CONTENU")))
-                .andExpect(jsonPath("$.propositions[?(@.code=='O-DATE')].valeurProposee", contains("2026-01-15")))
-                .andExpect(jsonPath("$.propositions[?(@.code=='O-PRIO')].source", contains("CONTENU")))
-                .andExpect(jsonPath("$.propositions[?(@.code=='O-PRIO')].valeurProposee", contains("Haute")));
+                .andExpect(jsonPath("$.provenanceTexte", is("AUCUNE")))
+                .andExpect(jsonPath("$.propositions[*].source", everyItem(not(is("CONTENU")))))
+                .andExpect(jsonPath("$.propositions[?(@.code=='O-DATE')].valeurProposee", everyItem(nullValue())))
+                .andExpect(jsonPath("$.propositions[?(@.code=='O-PRIO')].valeurProposee", everyItem(nullValue())))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertFalse(res.contains("ACME Distribution"));
+        assertFalse(res.contains("2026-01-15"));
     }
 
     @Test
-    @DisplayName("6. Le contenu n'est pas sollicité quand le nom de fichier suffit")
-    void contenuNonSollicite() throws Exception {
+    @DisplayName("6. Le nom de fichier reste la seule source des propositions")
+    void nomDeFichierSeulesPropositions() throws Exception {
         UUID doc = depose("2026-01-15_ACME Distribution_Haute.pdf",
                 pdfAvecTexte("Fournisseur : Autre Societe"));
 
@@ -227,8 +229,7 @@ class OcrApiTest {
                 .andExpect(jsonPath("$.propositions[*].source", everyItem(is("NOM_FICHIER"))))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
-        // le contenu aurait donné « Autre Societe » : il n'a pas été lu
-        assertTrue(res.contains("non sollicité"), "le contenu ne doit pas être lu inutilement");
+        assertTrue(res.contains("§4.3.3"), "le motif du cloisonnement est donné à l'opérateur");
         assertFalse(res.contains("Autre Societe"));
     }
 

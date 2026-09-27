@@ -8,8 +8,6 @@ import com.ipt.ged.index.IndexField;
 import com.ipt.ged.index.IndexFieldType;
 import com.ipt.ged.index.IndexRepository;
 import com.ipt.ged.indexation.dto.*;
-import com.ipt.ged.ocr.ExtracteurValeurs;
-import com.ipt.ged.ocr.OcrService;
 import com.ipt.ged.ocr.TexteExtrait;
 import com.ipt.ged.planindexation.CharteNommage;
 import com.ipt.ged.typedocument.TypeDocument;
@@ -44,8 +42,6 @@ public class IndexationService {
     private final IndexRepository indexRepository;
     private final UploadDocumentRepository documentRepository;
     private final DocumentIndexRepository valeurRepository;
-    private final OcrService ocr;
-    private final ExtracteurValeurs valeurs;
     /** Le type porte le plan : l'apercu part du type, pas d'un document. */
     private final TypeDocumentRepository typeRepository;
 
@@ -324,13 +320,10 @@ public class IndexationService {
         String sep = plan.getSeparateur() == null || plan.getSeparateur().isEmpty() ? "_" : plan.getSeparateur();
         List<String> segments = decouper(nomFichier, sep);
 
-        /* Le contenu n'est lu que si le nom de fichier ne suffit pas : ouvrir un
-           PDF — a fortiori l'OCRiser — coûte cher, et l'opérateur attend devant
-           son formulaire. */
-        TexteExtrait texte = (fichier != null && !fichier.isEmpty() && manqueUnChamp(champs, segments))
-                ? lireSansDeposer(fichier)
-                : TexteExtrait.aucune("Contenu non sollicité.");
-
+        /* Cloisonnement du §4.3.3 : « les champs d'indexation du formulaire de
+           dépôt ne sont en aucun cas alimentés par le contenu extrait de
+           l'OCR ». Seul le nom de fichier, saisi par l'opérateur, propose des
+           valeurs ; le contenu ne sert qu'à la recherche plein texte (lot E6). */
         List<AnalyseResponse.Proposition> propositions = new ArrayList<>();
         for (int i = 0; i < champs.size(); i++) {
             IndexField champ = champs.get(i);
@@ -338,18 +331,6 @@ public class IndexationService {
             String motif = motifDeRejet(champ, segment, segments.size(), i);
             String valeur = motif == null ? segment : null;
             String source = valeur != null ? "NOM_FICHIER" : null;
-
-            // Le nom n'a rien donné : on tente le contenu, contrôlé comme le
-            // reste — la lecture automatique n'a aucun passe-droit.
-            if (valeur == null && texte.exploitable()) {
-                String duContenu = valeurs.deduire(champ, texte.texte(),
-                        versCritere(champ).options(), texte.mots());
-                if (duContenu != null && motifDeRejet(champ, duContenu, 1, 0) == null) {
-                    valeur = duContenu;
-                    source = "CONTENU";
-                    motif = null;
-                }
-            }
 
             propositions.add(new AnalyseResponse.Proposition(
                     champ.getId(), champ.getCode(), champ.getNomIndex(), champ.getFieldType().name(),
@@ -379,7 +360,7 @@ public class IndexationService {
         String avertissement = avertissementDeLecture(reconnus, champs, sep);
 
         return new ApercuResponse(plan.getNomDuPlan(), sep, propositions, reconnus, champs.size(),
-                nomPropose, avertissement, texte.provenance().name());
+                nomPropose, avertissement, TexteExtrait.Provenance.AUCUNE.name());
     }
 
     /**
@@ -398,36 +379,6 @@ public class IndexationService {
         }
         return (champs.size() - reconnus)
                 + " champ(s) n'ont pas pu être déduits : complétez-les avant de confirmer.";
-    }
-
-    /**
-     * Lit le contenu d'un fichier qui n'est pas encore déposé.
-     *
-     * <p>Il est recopié dans un fichier temporaire : les extracteurs travaillent
-     * sur un chemin, et un flux de requête ne se relit pas — plusieurs
-     * extracteurs peuvent être essayés à la suite. Le temporaire est supprimé
-     * quoi qu'il arrive : ce fichier n'a pas été confié à la GED, il ne doit
-     * rien laisser derrière lui.</p>
-     */
-    private TexteExtrait lireSansDeposer(MultipartFile fichier) {
-        String nom = fichier.getOriginalFilename() != null ? fichier.getOriginalFilename() : "document";
-        int point = nom.lastIndexOf('.');
-        String extension = point >= 0 && point < nom.length() - 1 ? nom.substring(point + 1) : "";
-
-        java.nio.file.Path temporaire = null;
-        try {
-            temporaire = java.nio.file.Files.createTempFile("ged-apercu-", "." + extension);
-            fichier.transferTo(temporaire.toFile());
-            return ocr.lire(temporaire, extension);
-        } catch (Exception e) {
-            // Un aperçu qui échoue ne doit pas empêcher le dépôt : les champs
-            // seront proposés après, quand le document sera sur le serveur.
-            return TexteExtrait.aucune("Lecture du contenu impossible avant dépôt.");
-        } finally {
-            if (temporaire != null) {
-                try { java.nio.file.Files.deleteIfExists(temporaire); } catch (Exception ignore) { /* rien à faire */ }
-            }
-        }
     }
 
     public AnalyseResponse analyser(UUID documentId) {
@@ -453,13 +404,7 @@ public class IndexationService {
         String sep = plan.getSeparateur() == null || plan.getSeparateur().isEmpty() ? "_" : plan.getSeparateur();
         List<String> segments = decouper(fichier, sep);
 
-        // Second recours : le contenu du document, lu par la chaîne d'OCRisation.
-        // Il n'est sollicité que si le nom de fichier ne suffit pas — la lecture
-        // d'un scan coûte cher, on ne la déclenche pas pour rien.
-        TexteExtrait texte = manqueUnChamp(champs, segments)
-                ? ocr.lire(doc.getId())
-                : TexteExtrait.aucune("Nom de fichier suffisant : contenu non sollicité.");
-
+        // Cloisonnement du §4.3.3 : aucune valeur d'index n'est déduite du contenu.
         List<AnalyseResponse.Proposition> propositions = new ArrayList<>();
         for (int i = 0; i < champs.size(); i++) {
             IndexField champ = champs.get(i);
@@ -468,18 +413,6 @@ public class IndexationService {
 
             String valeur = motif == null ? segment : null;
             String source = valeur != null ? "NOM_FICHIER" : null;
-
-            // Le nom n'a rien donné : on tente le contenu, puis on le contrôle
-            // comme n'importe quelle saisie — l'OCR n'a aucun passe-droit.
-            if (valeur == null && texte.exploitable()) {
-                String duContenu = valeurs.deduire(champ, texte.texte(),
-                        versCritere(champ).options(), texte.mots());
-                if (duContenu != null && motifDeRejet(champ, duContenu, 1, 0) == null) {
-                    valeur = duContenu;
-                    source = "CONTENU";
-                    motif = null;
-                }
-            }
 
             propositions.add(new AnalyseResponse.Proposition(
                     champ.getId(), champ.getCode(), champ.getNomIndex(), champ.getFieldType().name(),
@@ -499,16 +432,8 @@ public class IndexationService {
         return new AnalyseResponse(doc.getId(), fichier, plan.getNomDuPlan(), sep, plan.isMajuscule(),
                 plan.isModeIndexation(), segments, propositions, reference,
                 reconnus, champs.size(), avertissement,
-                texte.provenance().name(), texte.detail());
-    }
-
-    /** Le nom de fichier laisse-t-il au moins un champ sans valeur exploitable ? */
-    private boolean manqueUnChamp(List<IndexField> champs, List<String> segments) {
-        for (int i = 0; i < champs.size(); i++) {
-            if (motifDeRejet(champs.get(i), segmentPour(champs.get(i), segments, i),
-                             segments.size(), i) != null) return true;
-        }
-        return false;
+                TexteExtrait.Provenance.AUCUNE.name(),
+                "Le contenu du document n'alimente aucun champ d'index (dossier technique §4.3.3).");
     }
 
     /**

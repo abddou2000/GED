@@ -85,20 +85,6 @@
               <strong>{{ a.nbReconnus }}/{{ a.nbAttendus }}</strong> champ(s) déduits automatiquement
             </p>
 
-            <!-- D'où vient ce qui a été déduit. Le nom du fichier n'a pas
-                 toujours suffi : le serveur ouvre alors le document, et peut
-                 aller jusqu'à la reconnaissance optique. Une valeur lue par OCR
-                 n'a pas la même fiabilité qu'une valeur lue dans le nom — le
-                 taire revenait à la présenter comme sûre. -->
-            @if (a.provenanceTexte !== 'AUCUNE') {
-              <p class="lecture" [class.ocr]="a.provenanceTexte === 'OCR'">
-                <mat-icon [svgIcon]="a.provenanceTexte === 'OCR' ? 'alert' : 'nav-type'"></mat-icon>
-                Contenu lu —
-                <strong>{{ a.provenanceTexte === 'OCR' ? 'reconnaissance optique (scan)' : 'couche texte du PDF' }}</strong>
-                @if (a.provenanceTexte === 'OCR') { · relisez ces valeurs, la reconnaissance peut se tromper }
-              </p>
-            }
-
             @if (a.avertissement) {
               <p class="avert"><mat-icon svgIcon="alert"></mat-icon> {{ a.avertissement }}</p>
             }
@@ -115,9 +101,9 @@
                   </span>
                   @if (indexationAuto()) {
                     @if (c.reconnue) {
-                      <span class="p-src" [class.contenu]="c.source === 'CONTENU'">
-                        {{ c.source === 'CONTENU' ? 'lu dans le document' : 'nom du fichier' }}
-                      </span>
+                      <!-- Seul le nom du fichier propose des valeurs : le contenu
+                           n'alimente aucun index (dossier technique §4.3.3). -->
+                      <span class="p-src">nom du fichier</span>
                     } @else {
                       <span class="p-src ko" [matTooltip]="c.motif || ''">à saisir</span>
                     }
