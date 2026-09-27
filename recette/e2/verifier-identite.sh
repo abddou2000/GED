@@ -62,7 +62,8 @@ attributs_cookie() { grep -i "^set-cookie: $NOM_COOKIE=" "$T/entetes.n" | head -
 connecter() {
   local compte="$1" mdp="${2-$(mdp_de "$1")}" essai
   for essai in 1 2 3; do
-    appel POST /api/v1/auth/login -H 'Content-Type: application/json' \
+    # QA_XFF : se présenter comme un client derrière le proxy de confiance (NGINX).
+    appel POST /api/v1/auth/login -H 'Content-Type: application/json' ${QA_XFF:+-H "X-Forwarded-For: $QA_XFF"} \
       --data-binary "{\"identifiant\":\"$(json_echappe "$compte")\",\"motDePasse\":\"$(json_echappe "$mdp")\"}"
     [[ "$CODE" != 429 ]] && break
     local attente; attente="$(grep -i '^retry-after:' "$T/entetes.n" | tr -dc '0-9')"
@@ -193,7 +194,15 @@ appel GET "/api/v1/documents?size=5" -H "$(auth "$NOUVEAU_JETON")"; cdoc="$CODE"
   || resultat E2-12 ECHEC "Identité sans rôle : aucun document" "HTTP $cdoc total ${tot:-?}"
 
 # ----------------------------------------------------------------- renouvellement (3.4.1)
-connecter "$GED_E2_STANDARD"; S_JETON="$JETON"; C0="$COOKIE"
+# Connexion présentée comme venant d'un client derrière NGINX (proxy de confiance = localhost
+# par défaut) : l'adresse enregistrée dans la session doit être celle du client (§7.4.1).
+QA_XFF=10.20.30.50 connecter "$GED_E2_STANDARD"; S_JETON="$JETON"; C0="$COOKIE"
+if [[ -n "$BASE" && -n "$C0" ]]; then
+  e0="$(printf '%s' "$C0" | sha256sum | cut -d' ' -f1)"; e0b="$(printf '%s' "$C0" | openssl dgst -sha256 -binary 2>/dev/null | b64url_enc)"
+  ip0="$(PGDATABASE="$BASE" pg -At -c "SELECT adresse_ip FROM ${GED_SCHEMA:-ged}.session WHERE empreinte IN ('$e0', '$e0b')" | tr -d '\r')"
+  [[ "$ip0" == 10.20.30.50 ]] && resultat E2-26 OK "Session : adresse IP du client derrière le proxy de confiance (X-Forwarded-For) [3.4.1, 7.4.1]" \
+                              || resultat E2-26 ECHEC "Session : adresse IP du client derrière le proxy [3.4.1, 7.4.1]" "adresse enregistrée « $ip0 » au lieu de 10.20.30.50 (celle du proxy)"
+fi
 appel POST /api/v1/auth/refresh -H "Cookie: $NOM_COOKIE=$C0"
 [[ "$CODE" == 403 ]] && resultat E2-13 OK "Renouvellement sans en-tête $ENTETE_CSRF refusé en 403 (CSRF) [P-03]" \
                      || resultat E2-13 ECHEC "Renouvellement sans en-tête CSRF refusé" "HTTP $CODE"
