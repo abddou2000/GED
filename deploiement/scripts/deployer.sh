@@ -144,7 +144,18 @@ verifier_prerequis_stockage() {
         findmnt -t tmpfs /var/lib/ged/tmpfs >/dev/null \
             || echec "/var/lib/ged/tmpfs n'est pas un tmpfs monté : des fichiers en clair iraient sur disque"
     fi
-    journal "Prérequis du stockage chiffré : keystore et tmpfs en place"
+    # Clé de signature des jetons (lot identité) : sans elle, le back-end refuse de démarrer.
+    [[ -n "${GED_JWT_KEYSTORE:-}" && -f "${GED_JWT_KEYSTORE}" ]] \
+        || echec "GED_JWT_KEYSTORE absent ou introuvable : clé de signature des jetons"
+    # Copie hors base des scellements d'audit : répertoire présent, idéalement en ajout seul.
+    local export_audit="${GED_AUDIT_EXPORT_SCELLEMENTS:-}"
+    [[ -n "$export_audit" && -d "$(dirname "$export_audit")" ]] \
+        || echec "GED_AUDIT_EXPORT_SCELLEMENTS : répertoire absent (${export_audit:-non défini})"
+    if [[ -f "$export_audit" ]] && command -v lsattr >/dev/null 2>&1 \
+            && ! lsattr "$export_audit" 2>/dev/null | cut -d' ' -f1 | grep -q a; then
+        journal "ATTENTION : $export_audit n'a pas l'attribut « ajout seul » (chattr +a)"
+    fi
+    journal "Prérequis : keystores, tmpfs et export des scellements en place"
 }
 
 sauvegarde_prealable() {

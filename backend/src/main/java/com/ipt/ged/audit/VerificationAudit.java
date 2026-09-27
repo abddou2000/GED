@@ -54,6 +54,19 @@ public class VerificationAudit {
         Gauge.builder("ged.audit.anomalies", dernieresAnomalies, AtomicReference::get)
                 .description("Anomalies relevées par la dernière vérification du scellement du journal d'audit")
                 .register(registre);
+        // Retard du scellement : une tâche horaire arrêtée se voit avant la vérification mensuelle.
+        Gauge.builder("ged.audit.scellement.retard", this, VerificationAudit::retardScellement)
+                .description("Temps écoulé depuis la fin de la dernière période scellée")
+                .baseUnit("seconds").register(registre);
+    }
+
+    double retardScellement() {
+        try {
+            Timestamp fin = jdbc.queryForObject("SELECT max(periode_fin) FROM journal_audit_scellement", Timestamp.class);
+            return fin == null ? Double.NaN : (Instant.now().toEpochMilli() - fin.getTime()) / 1000.0;
+        } catch (RuntimeException e) {
+            return Double.NaN;
+        }
     }
 
     public record Anomalie(String type, Instant periodeDebut, String detail) {}

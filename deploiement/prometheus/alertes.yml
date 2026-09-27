@@ -32,7 +32,9 @@ groups:
         # Une brique dont dépend le service est tombée : base, référentiel de
         # fichiers, annuaire, antivirus (dépôts refusés, échec fermé) ou file
         # de traitement débordée.
-        expr: ged_sante == 0
+        # L'annuaire a sa propre règle : indisponible, il bloque les nouvelles
+        # connexions mais pas les sessions ouvertes.
+        expr: ged_sante{composant!="annuaire"} == 0
         for: 2m
         labels:
           severite: critique
@@ -40,18 +42,17 @@ groups:
           resume: "Sonde « {{ $labels.composant }} » indisponible ({{ $labels.environnement }})"
           description: "La sonde {{ $labels.composant }} est DOWN depuis plus de 2 minutes. Détail : GET /actuator/health sur le port de management."
 
-      - alert: GedControleurAnnuaireIndisponible
-        # Un contrôleur de domaine ne répond plus. Tant qu'un autre répond, les
-        # connexions fonctionnent (sonde annuaire UP) : avertissement, pas
-        # critique. Avec un seul contrôleur (situation actuelle, D4), c'est
-        # GedSondeIndisponible qui part en même temps.
-        expr: ged_annuaire_controleur == 0
+      - alert: GedAnnuaireIndisponible
+        # Sonde « annuaire » du lot identité : aucun contrôleur de domaine ne
+        # répond (un seul aujourd'hui, D4). Les sessions ouvertes continuent,
+        # les nouvelles connexions échouent.
+        expr: ged_sante{composant="annuaire"} == 0
         for: 2m
         labels:
-          severite: avertissement
+          severite: critique
         annotations:
-          resume: "Contrôleur de domaine {{ $labels.controleur }} injoignable"
-          description: "La GED ne joint plus {{ $labels.controleur }} depuis 2 minutes."
+          resume: "Annuaire injoignable ({{ $labels.environnement }}) : nouvelles connexions impossibles"
+          description: "La sonde annuaire est DOWN depuis 2 minutes. Les utilisateurs déjà connectés continuent jusqu'à l'expiration de leur session."
 
   - name: ged-erreurs
     rules:
@@ -119,6 +120,30 @@ groups:
         annotations:
           resume: "95 % des documents OCRisés hors objectif ({{ $labels.environnement }})"
           description: "95e centile du délai dépôt -> disponibilité en recherche : {{ $value | humanizeDuration }}."
+
+  - name: ged-audit
+    rules:
+      - alert: GedAuditScellementCompromis
+        # La dernière vérification du scellement a relevé des anomalies : un
+        # enregistrement ou un scellement a été modifié hors de l'application
+        # (DAT 7.4.2). Incident de sécurité : prévenir le responsable sécurité.
+        expr: ged_audit_anomalies > 0
+        labels:
+          severite: critique
+        annotations:
+          resume: "Journal d'audit : {{ $value }} anomalie(s) de scellement ({{ $labels.environnement }})"
+          description: "Détail : POST /api/v1/audit/verifications ou journal technique (VerificationAudit). Ne rien corriger avant expertise."
+
+      - alert: GedAuditScellementEnRetard
+        # Le scellement est horaire : au-delà de 3 heures sans nouvelle période
+        # scellée, la tâche est arrêtée ou en échec (export impossible ?).
+        expr: ged_audit_scellement_retard_seconds > 3 * 3600
+        for: 10m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Journal d'audit non scellé depuis {{ $value | humanizeDuration }} ({{ $labels.environnement }})"
+          description: "Vérifier le journal technique (ScellementAudit) et l'accès en écriture au fichier d'export des scellements."
 
   - name: ged-certificats
     rules:
