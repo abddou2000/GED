@@ -59,6 +59,8 @@ public class RecetteAudit extends ClientGed {
     }
 
     static final List<String> traces = new ArrayList<>();
+    /** Trace d'une requête qui écrit aussi au journal technique (refus antivirus journalisé en WARN). */
+    static String traceInfecte = "";
 
     public static void main(String[] args) throws Exception {
         g = new RecetteAudit(env("GED_URL", "http://localhost:18084"));
@@ -131,9 +133,16 @@ public class RecetteAudit extends ClientGed {
         g.get("/api/v1/documents/" + inconnu, tSans);
         JsonNode dB = g.deposer(tDep, pdf, marque + "-hors-perimetre", typeA, "CONFIDENTIEL").json();
         g.get("/api/v1/documents/" + dB.path("id").asText(), tSans);
-        List<JsonNode> refusDroit = evenements("ACCES_REFUSE", dB.path("id").asText(), t0);
-        res("E4-A17", refusDroit.isEmpty() ? "ECHEC" : "OK", "Refus de droit (objet hors périmètre) tracé — ACCES_REFUSE [7.4.1]",
-                refusDroit.isEmpty() ? "aucun événement pour la consultation refusée" : refusDroit.get(0).path("resultat").asText());
+        // 403 : objet visible sans la permission (le TIERS n'a pas Supprimer) ; 404 : objet hors périmètre.
+        g.get("/api/v1/audit/evenements?taille=1", tTiers);
+        List<JsonNode> refus403 = evenements("ACCES_REFUSE", null, t0);
+        verif("E4-A17", refus403.stream().anyMatch(e -> e.path("resultat").asText().contains("REFUS")),
+                "Refus de droit en 403 tracé — ACCES_REFUSE avec la route refusée [7.4.1]", refus403.size() + " événement(s)");
+        String idHors = dB.path("id").asText();
+        boolean trace404 = refus403.stream().anyMatch(e -> e.toString().contains(idHors))
+                || !evenements("ACCES_REFUSE", idHors, t0).isEmpty();
+        res("E4-A17b", trace404 ? "OK" : "ECHEC", "Accès à un objet hors périmètre (réponse 404) tracé au journal [7.4.1 « les refus de droits sont tracés »]",
+                trace404 ? "" : "aucun événement pour GET d'un document confidentiel hors périmètre");
         byte[] eicar = (new StringBuilder("-DRADNATS-RACIE$}7)CC7)^P(45XZP\\4[PA@%P!O5X").reverse()
                 + new StringBuilder("*H+H$!ELIF-TSET-SURIVITNA").reverse().toString()).getBytes();
         String typeTxt = null;
@@ -142,6 +151,7 @@ public class RecetteAudit extends ClientGed {
         if (typeTxt != null) {
             Rep inf = g.deposer(tDep, eicar, "facture.txt", "text/plain", Map.of("name", marque + "-eicar", "typeDocumentId", typeTxt), null);
             List<JsonNode> ev = evenements("FICHIER_INFECTE", null, t0);
+            if (!ev.isEmpty()) traceInfecte = ev.get(0).path("traceId").asText().replace("-", "");
             verif("E4-A18", inf.code() == 422 && !ev.isEmpty(), "Fichier infecté refusé et tracé — FICHIER_INFECTE [6.1.5, 7.4.1] (antivirus simulé)",
                     "HTTP " + inf.code() + ", " + ev.size() + " événement(s)");
         } else {
@@ -203,9 +213,11 @@ public class RecetteAudit extends ClientGed {
             verif("E4-L01", datees > 0 && conformes == datees, "Journal technique au pattern de l'Article 50 (username, ip, thread, traceId/spanId) [7.1]",
                     conformes + "/" + datees + " lignes conformes");
             long authentifiees = lignes.stream().filter(l -> l.contains("[" + cDep + "]")).count();
-            long correlees = traces.stream().filter(t -> !t.isBlank()).filter(t -> lignes.stream().anyMatch(l -> l.contains(t))).count();
-            verif("E4-L02", authentifiees > 0 && correlees > 0, "username renseigné pour les requêtes authentifiées ; traceId de l'audit retrouvé dans le journal technique [7.1, 7.3]",
-                    authentifiees + " lignes de " + cDep + ", " + correlees + "/" + traces.size() + " traces d'audit retrouvées");
+            // En INFO, seules les requêtes qui journalisent quelque chose laissent une ligne : on
+            // corrèle celle du refus antivirus, journalisée en WARN, avec son événement d'audit.
+            boolean correlee = !traceInfecte.isBlank() && lignes.stream().anyMatch(l -> l.contains(traceInfecte) && l.contains("[" + cDep + "]"));
+            verif("E4-L02", authentifiees > 0 && correlee, "username renseigné pour les requêtes authentifiées ; traceId de l'audit identique à celui du journal technique [7.1, 7.3]",
+                    authentifiees + " lignes de " + cDep + ", trace du refus antivirus " + traceInfecte + " retrouvée : " + correlee);
         } else {
             res("E4-L01", "NA", "Journal technique au pattern de l'Article 50", "GED_JOURNAL_TECHNIQUE non fourni");
         }
