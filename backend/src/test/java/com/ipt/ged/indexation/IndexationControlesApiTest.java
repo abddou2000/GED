@@ -113,7 +113,7 @@ class IndexationControlesApiTest {
 
     private UUID deposer(String nom) throws Exception {
         String reponse = mvc.perform(multipart("/api/v1/documents")
-                        .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("name", nom)
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
@@ -218,12 +218,18 @@ class IndexationControlesApiTest {
         mvc.perform(multipart(BASE + "/apercu")
                         .file(new MockMultipartFile("file", "enorme.pdf", "application/pdf", new byte[6 * 1024 * 1024]))
                         .param("typeDocumentId", String.valueOf(typeId)))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isPayloadTooLarge())
                 .andExpect(jsonPath("$.message", containsString("volumineux")));
+
+        // Type réel : un « .pdf » qui n'est que du texte est refusé comme au dépôt.
+        mvc.perform(multipart(BASE + "/apercu")
+                        .file(new MockMultipartFile("file", "faux.pdf", "application/pdf", "pas un pdf".getBytes()))
+                        .param("typeDocumentId", String.valueOf(typeId)))
+                .andExpect(status().isUnsupportedMediaType());
 
         // Un fichier conforme passe toujours : la route reste utilisable.
         mvc.perform(multipart(BASE + "/apercu")
-                        .file(new MockMultipartFile("file", "ACME_100.pdf", "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", "ACME_100.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isOk());
     }

@@ -61,7 +61,9 @@ class VerificationIntegriteTest {
         StockageChiffre.ResultatStockage r = ecrire(5000);
         try (RandomAccessFile f = new RandomAccessFile(store.chemin(r.id()).toFile(), "rw")) {
             f.seek(f.length() - 3);
-            f.write(0x55);
+            int b = f.read();
+            f.seek(f.length() - 3);
+            f.write(b ^ 0x55);
         }
         VerificationIntegrite.Resultat v = verification.verifier(r.id(), r.empreinte(), "version-2");
         assertEquals(VerificationIntegrite.Statut.ALTERE, v.statut());
@@ -98,8 +100,9 @@ class VerificationIntegriteTest {
         StockageChiffre.ResultatStockage a = ecrire(100), b = ecrire(200), c = ecrire(300);
         try (RandomAccessFile f = new RandomAccessFile(store.chemin(c.id()).toFile(), "rw")) {
             f.seek(40);
-            f.write(0);
-            f.write(1);
+            int octet = f.read();
+            f.seek(40);
+            f.write(octet ^ 0xFF);
         }
         SourceEmpreintes source = visiteur -> List.of(
                 new SourceEmpreintes.EmpreinteAttendue(a.id(), a.empreinte(), "a"),

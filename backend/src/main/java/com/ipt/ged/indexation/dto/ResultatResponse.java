@@ -14,7 +14,9 @@ public record ResultatResponse(
     String expirationDate,
     /** Référence composée depuis le plan ; null tant que l'indexation n'a pas été confirmée. */
     String reference,
-    List<ValeurResponse> valeurs
+    List<ValeurResponse> valeurs,
+    /** ACTIF ou ARCHIVE : badge de statut (§12.6). */
+    String statutConservation
 ) {
     /** Une valeur d'index affichée sur le résultat. */
     public record ValeurResponse(UUID indexFieldId, String code, String libelle, String valeur) {}

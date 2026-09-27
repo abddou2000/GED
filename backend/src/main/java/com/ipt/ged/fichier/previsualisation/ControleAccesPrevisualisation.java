@@ -8,7 +8,7 @@ import org.springframework.security.core.Authentication;
  * <p>La prévisualisation applique les mêmes contrôles de droits et de
  * confidentialité que le téléchargement (§6.1.6). Ces contrôles relèvent du
  * point d'application unique des droits, livré par le lot autorisation : il
- * remplacera {@link ControleAccesPrevisualisationProvisoire} par une
+ * remplacera l'implémentation provisoire par une
  * implémentation qui délègue à ce point unique (objet hors périmètre → 404,
  * refus → 403).
  */

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271210_creation_fonctions_recherche_plein_texte.xml">
+
+    <!--
+        Lot E6 — traitement linguistique de la recherche plein texte (§4.4).
+
+        - ged_unaccent(text) : unaccent IMMUTABLE (l'original est STABLE,
+          inutilisable dans une expression indexée) ;
+        - ged_normaliser_arabe(text) : le « dictionnaire de normalisation » du
+          §4.4 — unaccent ne touche pas l'arabe : suppression des diacritiques
+          (tashkil U+064B à U+065F, alef suscrit U+0670) et du tatweel (U+0640),
+          unification des formes de l'alef (أ إ آ ٱ → ا) ;
+        - ged_partie_latine / ged_partie_arabe : répartition du texte par
+          écriture ;
+        - ged_document_tsvector(text) : la formule du §4.4,
+              to_tsvector('french', unaccent(texte)) || to_tsvector('arabic', texte),
+          où chaque configuration ne reçoit que les mots de son écriture. Sans
+          ce partage, la configuration arabic indexe les mots français tels
+          quels, mots vides compris, et « de » ou « la » retrouvaient tous les
+          documents ;
+        - ged_requete_texte(text) : websearch_to_tsquery sur les mêmes parties,
+          combinées en ET (sémantique de websearch : tous les termes) ;
+        - configuration ged_francais (french + unaccent) : surlignage
+          ts_headline sur le texte d'origine, accents conservés à l'affichage.
+
+        L'extension unaccent est créée par le superutilisateur
+        (scripts/db/preparer-base.sql) : ged_owner n'en a pas le droit.
+    -->
+    <changeSet id="202609271210-1" author="ged">
+        <preConditions onFail="HALT" onFailMessage="Extension unaccent absente : rejouer scripts/db/preparer-base.sql (superutilisateur).">
+            <sqlCheck expectedResult="1">SELECT count(*) FROM pg_catalog.pg_extension WHERE extname = 'unaccent'</sqlCheck>
+        </preConditions>
+        <comment>Fonctions de normalisation française et arabe, vecteur et requête plein texte.</comment>
+        <!-- OR REPLACE : drop-first (profil test) ne supprime pas les fonctions. -->
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.ged_unaccent(t text) RETURNS text
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$ SELECT public.unaccent('public.unaccent'::regdictionary, t) $$
+        </sql>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.ged_normaliser_arabe(t text) RETURNS text
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$
+                SELECT translate(regexp_replace(t, '[\u064B-\u065F\u0670\u0640]', '', 'g'),
+                                 chr(1571) || chr(1573) || chr(1570) || chr(1649),
+                                 repeat(chr(1575), 4))
+            $$
+        </sql>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.ged_partie_latine(t text) RETURNS text
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$ SELECT regexp_replace(t, '[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+', ' ', 'g') $$
+        </sql>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.ged_partie_arabe(t text) RETURNS text
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$ SELECT regexp_replace(t, '[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\s"-]+', ' ', 'g') $$
+        </sql>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.ged_document_tsvector(t text) RETURNS tsvector
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$
+                SELECT to_tsvector('pg_catalog.french'::regconfig,
+                                   ${database.defaultSchemaName}.ged_unaccent(${database.defaultSchemaName}.ged_partie_latine(t)))
+                    || to_tsvector('pg_catalog.arabic'::regconfig,
+                                   ${database.defaultSchemaName}.ged_normaliser_arabe(${database.defaultSchemaName}.ged_partie_arabe(t)))
+            $$
+        </sql>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.ged_requete_texte(q text) RETURNS tsquery
+                LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+            AS $$
+                SELECT websearch_to_tsquery('pg_catalog.french'::regconfig,
+                                            ${database.defaultSchemaName}.ged_unaccent(${database.defaultSchemaName}.ged_partie_latine(q)))
+                    &amp;&amp; websearch_to_tsquery('pg_catalog.arabic'::regconfig,
+                                            ${database.defaultSchemaName}.ged_normaliser_arabe(${database.defaultSchemaName}.ged_partie_arabe(q)))
+            $$
+        </sql>
+        <rollback>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.ged_requete_texte(text)</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.ged_document_tsvector(text)</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.ged_partie_arabe(text)</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.ged_partie_latine(text)</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.ged_normaliser_arabe(text)</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.ged_unaccent(text)</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609271210-2" author="ged">
+        <comment>Configuration de surlignage : french avec unaccent.</comment>
+        <!-- drop-first (profil test) ne supprime ni fonctions ni configurations :
+             la création doit pouvoir se rejouer sur un schéma déjà servi. -->
+        <sql>DROP TEXT SEARCH CONFIGURATION IF EXISTS ${database.defaultSchemaName}.ged_francais</sql>
+        <sql>CREATE TEXT SEARCH CONFIGURATION ${database.defaultSchemaName}.ged_francais (COPY = pg_catalog.french)</sql>
+        <sql>ALTER TEXT SEARCH CONFIGURATION ${database.defaultSchemaName}.ged_francais ALTER MAPPING FOR hword, hword_part, word WITH public.unaccent, french_stem</sql>
+        <rollback>
+            <sql>DROP TEXT SEARCH CONFIGURATION ${database.defaultSchemaName}.ged_francais</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

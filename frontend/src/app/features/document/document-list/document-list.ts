@@ -22,6 +22,7 @@ import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
 import { SelectionToggle } from '../../../core/selection-toggle/selection-toggle';
+import { CycleDeVieService } from '../../cycle-de-vie/cycle-de-vie.service';
 import { teinteAvatar, encreAvatar, initialesDe, graineDepuisTexte } from '../../../core/avatar';
 
 /**
@@ -39,6 +40,7 @@ import { teinteAvatar, encreAvatar, initialesDe, graineDepuisTexte } from '../..
   styleUrl: './document-list.scss',
 })
 export class DocumentList implements OnInit {
+  private cycleDeVie = inject(CycleDeVieService);
 
   /**
    * Mode selection : les cases a cocher n'apparaissent que lorsqu'on le
@@ -273,6 +275,43 @@ export class DocumentList implements OnInit {
       });
     });
   }
+  /**
+   * Purge définitive (§12.5) : depuis la corbeille seulement, jamais
+   * automatique. Lignes, clés de chiffrement et fichiers sont détruits ; le
+   * journal d'audit est conservé.
+   */
+  purger(d: DocumentItem): void {
+    this.confirm.ask({
+      title: 'Purger définitivement',
+      message: `« ${d.name} », toutes ses versions et ses fichiers seront détruits sans retour possible.`,
+      confirmLabel: 'Purger',
+      danger: true,
+    }).subscribe(ok => {
+      if (!ok) return;
+      this.cycleDeVie.purger(d.id).subscribe({
+        next: () => { this.load(); this.notify.success('Document purgé définitivement.'); },
+        error: err => this.notify.error(err?.error?.message ?? 'Purge impossible.'),
+      });
+    });
+  }
+
+  purgerSelection(): void {
+    const ids = this.selection.selected.map(d => d.id);
+    if (!ids.length) return;
+    this.confirm.ask({
+      title: 'Purger définitivement la sélection',
+      message: `${ids.length} document(s), leurs versions et leurs fichiers seront détruits sans retour possible.`,
+      confirmLabel: 'Purger',
+      danger: true,
+    }).subscribe(ok => {
+      if (!ok) return;
+      this.cycleDeVie.purgerPlusieurs(ids).subscribe({
+        next: () => { this.load(); this.notify.success(`${ids.length} document(s) purgé(s).`); },
+        error: err => this.notify.error(err?.error?.message ?? 'Purge impossible.'),
+      });
+    });
+  }
+
   restoreOne(id: string): void {
     this.service.restore(id).subscribe({
       next: () => { this.load(); this.notify.success('Document restauré.'); },

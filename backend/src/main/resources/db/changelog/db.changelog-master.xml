@@ -90,4 +90,29 @@
     <include file="changesets/202609301000_archivage_noeud_document.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301010_socle_commun_verrou_document.xml" relativeToChangelogFile="true"/>
 
+    <!-- Lots E5 (stockage chiffré) et E6 (OCR asynchrone, recherche plein texte) -->
+    <include file="changesets/202609271200_creation_table_cle_fichier.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271205_ajout_fichier_chiffre_version_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271210_creation_fonctions_recherche_plein_texte.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271215_creation_table_ocr_job.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271220_creation_table_document_texte.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271225_jalon_fichiers_ocr_recherche.xml" relativeToChangelogFile="true"/>
+
+    <!--
+        Vague 2 : branchement du stockage chiffré, phase « expand ». La phase
+        « contract » (retrait des chemins en clair, colonnes obligatoires) est
+        prête dans version-suivante/ : elle entre dans le changelog de la
+        version qui suit la reprise des fichiers en production (§4.2.2).
+    -->
+    <include file="changesets/202609281002_expand_chemin_fichier_facultatif.xml" relativeToChangelogFile="true"/>
+
+    <!-- Vague 3 : dépôt en deux temps (§12.11) et dépôt avec métadonnées (§5.3). -->
+    <include file="changesets/202609291000_ajout_statut_indexation_document.xml" relativeToChangelogFile="true"/>
+
+    <!-- Vague 4 : cycle de vie (§12.5, §12.6, §12.10, §6.1.4). -->
+    <include file="changesets/202609291100_archivage_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609291105_creation_table_job_export.xml" relativeToChangelogFile="true"/>
+    <!-- Après le statut de conservation du document (202609301000, lot modèle). -->
+    <include file="changesets/202609301020_gel_versions_document_archive.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

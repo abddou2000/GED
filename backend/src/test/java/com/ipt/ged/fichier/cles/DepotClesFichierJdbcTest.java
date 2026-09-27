@@ -57,13 +57,13 @@ class DepotClesFichierJdbcTest {
                 CREATE TABLE cle_fichier (
                     id uuid NOT NULL CONSTRAINT pk_cle_fichier PRIMARY KEY,
                     dek_enveloppee bytea NOT NULL,
-                    kek_id varchar(64) NOT NULL,
+                    kek_identifiant varchar(64) NOT NULL,
                     algorithme varchar(32) DEFAULT 'AES-256-GCM' NOT NULL,
                     cree_le timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     modifie_le timestamp with time zone,
                     CONSTRAINT ck_cle_fichier_algorithme CHECK (algorithme IN ('AES-256-GCM'))
                 )""");
-        jdbc.execute("CREATE INDEX idx_cle_fichier_kek_id ON cle_fichier (kek_id)");
+        jdbc.execute("CREATE INDEX idx_cle_fichier_kek_identifiant ON cle_fichier (kek_identifiant)");
         depot = new DepotClesFichierJdbc(jdbc);
     }
 

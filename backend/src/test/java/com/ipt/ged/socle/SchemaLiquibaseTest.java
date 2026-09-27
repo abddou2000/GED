@@ -69,13 +69,29 @@ class SchemaLiquibaseTest {
      * nœuds, les groupes d'accès des groupes GED ; les rôles globaux et les
      * rattachements groupe / espace sont repris en habilitations.
      */
-    private static final Set<String> TABLES_ATTENDUES;
+    private static final Set<String> TABLES_E3;
     static {
         Set<String> t = new TreeSet<>(TABLES_E2);
         t.removeAll(Set.of("workspace", "access_group", "access_group_workspace", "access_group_employe",
                 "utilisateur_role"));
         t.addAll(Set.of("noeud", "groupe_ged", "groupe_membre", "permission", "role_permission", "habilitation",
                 "document_rattachement", "document_confidentiel_designe", "version_habilitations"));
+        TABLES_E3 = Set.copyOf(t);
+    }
+
+    /** Tables ajoutées par les lots E5 (stockage chiffré) et E6 (OCR, recherche plein texte). */
+    private static final Set<String> TABLES_E5_E6 = Set.of("cle_fichier", "ocr_job", "document_texte");
+
+    /** Lot E7, cycle de vie (dev3) : copies de conservation, jobs d'archivage et d'export. */
+    private static final Set<String> TABLES_E7_CYCLE_DE_VIE = Set.of(
+            "copie_conservation", "job_archivage", "job_archivage_element", "job_export", "job_export_element");
+
+    /** Toutes les tables du changelog maître. */
+    private static final Set<String> TABLES_ATTENDUES;
+    static {
+        Set<String> t = new TreeSet<>(TABLES_E3);
+        t.addAll(TABLES_E5_E6);
+        t.addAll(TABLES_E7_CYCLE_DE_VIE);
         TABLES_ATTENDUES = Set.copyOf(t);
     }
 
@@ -156,9 +172,10 @@ class SchemaLiquibaseTest {
                         "neuf permissions élémentaires, sept d'administration, deux de confidentialité");
                 assertEquals(1, compter(c, "SELECT count(*) FROM " + schema + ".version_habilitations"));
 
-                // Rien n'est postérieur au jalon E3 : le schéma ne bouge pas.
+                // Retour au jalon E3 : les lots postérieurs (E5, E6, E7 cycle de
+                // vie, colonnes du lot modèle) se défont.
                 liquibase.rollback("autorisation-e3", (String) null);
-                assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
+                assertEquals(new TreeSet<>(TABLES_E3), tablesMetier(c, schema));
 
                 // Retour au jalon E2 : nœuds et groupes reprennent leurs noms,
                 // les tables d'association d'origine sont recréées.
@@ -239,8 +256,11 @@ class SchemaLiquibaseTest {
                   JOIN information_schema.constraint_column_usage ccu
                     ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
                  WHERE tc.table_schema = ? AND tc.constraint_type = 'FOREIGN KEY'
+                   -- version_id : nom imposé par le dossier (document_texte, ocr_job, §4.4),
+                   -- vise version_document.
                    AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'attribue_par', 'cree_par',
-                                               'noeud_principal_id', 'archive_par', 'verrou_par', 'auteur_id')
+                                               'noeud_principal_id', 'archive_par', 'verrou_par', 'auteur_id',
+                                               'version_id')
                    AND kcu.column_name NOT LIKE '%' || ccu.table_name || '_id'""", schema);
         assertEquals(List.of(), incoherentes, "clés étrangères dont le nom ne désigne pas la table visée");
     }

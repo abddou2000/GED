@@ -98,7 +98,6 @@ public class JeuDroits {
         d.setTypeDocument(t);
         d.setWorkspace(t.getWorkspace());
         d.setFileName(nom + ".pdf");
-        d.setFilePath("jeu/" + UUID.randomUUID() + ".pdf");
         d.setExtension("pdf");
         d.setConfidentialite(niveau);
         if (deposantEmployeId != null) d.setCreatedBy(employes.findById(deposantEmployeId).orElseThrow());

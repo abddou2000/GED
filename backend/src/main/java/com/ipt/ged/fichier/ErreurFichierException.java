@@ -1,40 +1,25 @@
 package com.ipt.ged.fichier;
 
+import com.ipt.ged.common.erreur.ExceptionMetier;
 import org.springframework.http.HttpStatus;
 
 /**
- * Refus ou panne liés à un fichier, portant son propre statut HTTP et un code
- * stable.
+ * Refus ou panne liés à un fichier, avec son statut HTTP et un code stable
+ * ({@code FICHIER_TROP_VOLUMINEUX} 413, {@code FORMAT_NON_AUTORISE} 415,
+ * {@code FICHIER_INFECTE} 422, {@code ANTIVIRUS_INDISPONIBLE} 503,
+ * {@code INTEGRITE_COMPROMISE} 500…).
  *
- * <p>Le dossier technique impose des statuts précis (413, 415, 422 avec le code
- * {@code FICHIER_INFECTE}) que le gestionnaire commun ne sait pas déduire d'une
- * {@link IllegalArgumentException}, toujours rendue en 400. Porter le statut et
- * le code dans l'exception laisse un seul gestionnaire les traduire, sans qu'un
- * nouveau cas de refus exige d'y ajouter une méthode.
+ * <p>Hérite d'{@link ExceptionMetier}, le contrat d'erreurs commun : le
+ * gestionnaire commun la rend en {@code application/problem+json} avec son
+ * code, sans qu'aucun gestionnaire propre au lot fichiers soit nécessaire.
  */
-public class ErreurFichierException extends RuntimeException {
-
-    private final HttpStatus statut;
-    private final String code;
+public class ErreurFichierException extends ExceptionMetier {
 
     public ErreurFichierException(HttpStatus statut, String code, String message) {
-        super(message);
-        this.statut = statut;
-        this.code = code;
+        super(statut, code, message);
     }
 
     public ErreurFichierException(HttpStatus statut, String code, String message, Throwable cause) {
-        super(message, cause);
-        this.statut = statut;
-        this.code = code;
-    }
-
-    public HttpStatus statut() {
-        return statut;
-    }
-
-    /** Code stable, lisible par un client (ne change pas avec le libellé). */
-    public String code() {
-        return code;
+        super(statut, code, message, cause);
     }
 }

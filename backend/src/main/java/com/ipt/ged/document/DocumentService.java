@@ -3,23 +3,43 @@ package com.ipt.ged.document;
 import com.ipt.ged.autorisation.AccessPredicate;
 import com.ipt.ged.autorisation.CodePermission;
 import com.ipt.ged.autorisation.Confidentialite;
+import com.ipt.ged.autorisation.ConflitAutorisationException;
 import com.ipt.ged.autorisation.ControleAcces;
 import com.ipt.ged.autorisation.evenement.AccesDocumentModifie;
 import com.ipt.ged.common.ActeurCourant;
+import com.ipt.ged.workspace.archivage.ArchivageNoeuds;
+import com.ipt.ged.cycledevie.conservation.CopiesConservation;
+import com.ipt.ged.depot.IssueIndexation;
+import com.ipt.ged.indexation.ValidationPlan;
 import com.ipt.ged.common.Limites;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.document.dto.DocumentRequest;
 import com.ipt.ged.document.dto.DocumentResponse;
+import com.ipt.ged.document.evenement.Acteur;
+import com.ipt.ged.document.evenement.DocumentDepose;
+import com.ipt.ged.document.evenement.DocumentRestaure;
+import com.ipt.ged.document.evenement.DocumentSupprime;
+import com.ipt.ged.document.evenement.DocumentTelecharge;
+import com.ipt.ged.document.evenement.MetadonneesModifiees;
+import com.ipt.ged.document.evenement.VerrouModifie;
+import com.ipt.ged.document.evenement.VersionAjoutee;
+import com.ipt.ged.document.evenement.VersionRestauree;
+import com.ipt.ged.fichier.Refus;
+import com.ipt.ged.fichier.StockageChiffre;
+import com.ipt.ged.fichier.controle.ControleFichiers;
+import com.ipt.ged.fichier.controle.SourceFichier;
+import com.ipt.ged.ocr.file.EnfilageOcr;
+import com.ipt.ged.ocr.file.StatutOcr;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.etiquette.Etiquette;
 import com.ipt.ged.etiquette.EtiquetteRepository;
-import com.ipt.ged.identite.Utilisateur;
-import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.signature.SignatureService;
 import com.ipt.ged.typedocument.TypeDocument;
 import com.ipt.ged.typedocument.TypeDocumentRepository;
+import com.ipt.ged.identite.Utilisateur;
+import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.workspace.WorkSpace;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -37,19 +57,33 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Logique métier du dépôt de documents (Phase 1) : upload avec validation des
- * contraintes du type (formats + taille), stockage disque, liste et corbeille.
+ * Logique métier du dépôt de documents.
+ *
+ * <p>Dépôt et nouvelle version (§6.1.5, §12.11 temps 1) : contrôles de la
+ * fiche, puis chaîne de contrôle du fichier — taille, type réel (Tika),
+ * antivirus — puis écriture chiffrée (AES-256-GCM, DEK propre, empreinte
+ * SHA-256), fiche, version et job OCR <b>dans une seule transaction</b>. Tout
+ * ce qui peut refuser passe avant l'écriture ; si la transaction échoue après,
+ * le fichier chiffré et sa clé sont détruits.
+ *
+ * <p>Chaque opération publie son événement de domaine
+ * ({@code com.ipt.ged.document.evenement}), source du journal d'audit.
  *
  * <h2>Droits (lot E3)</h2>
  * <p>Chaque chemin passe par le point d'application unique : les listes et
@@ -59,7 +93,8 @@ import java.util.UUID;
  * visible. Consulter pour la fiche et le téléchargement ; Déposer sur le nœud
  * du type pour un dépôt ; Modifier pour la fiche, le verrou et les versions ;
  * Déplacer (et Déposer sur la destination) pour un changement de type qui
- * change l'emplacement principal ; Supprimer pour la corbeille.
+ * change l'emplacement principal ; Supprimer pour la corbeille. Écritures
+ * refusées (409) sur un document verrouillé ou archivé par {@link GardeEcriture}.
  */
 @Service
 public class DocumentService {
@@ -74,40 +109,53 @@ public class DocumentService {
 
     private final UploadDocumentRepository repo;
     private final TypeDocumentRepository typeRepo;
-    private final StorageService storage;
     private final SignatureService signatureService;
     private final EtiquetteRepository etiquetteRepo;
     private final EmployeRepository employeRepo;
     private final DocumentVersionRepository versionRepo;
+    private final ControleFichiers controleFichiers;
+    private final StockageChiffre stockage;
+    private final EnfilageOcr ocr;
+    private final ApplicationEventPublisher evenements;
+    private final ArchivageNoeuds archivageNoeuds;
+    private final CopiesConservation copies;
     private final AccessPredicate droits;
     private final ControleAcces controle;
+    private final GardeEcriture garde;
     private final DocumentRattachementRepository rattachements;
     private final DocumentConfidentielDesigneRepository designes;
     private final UtilisateurRepository utilisateurs;
     private final WorkSpaceRepository noeuds;
-    private final ApplicationEventPublisher evenements;
 
     public DocumentService(UploadDocumentRepository repo, TypeDocumentRepository typeRepo,
-                           StorageService storage, SignatureService signatureService,
+                           SignatureService signatureService,
                            EtiquetteRepository etiquetteRepo, EmployeRepository employeRepo,
-                           DocumentVersionRepository versionRepo, AccessPredicate droits, ControleAcces controle,
+                           DocumentVersionRepository versionRepo, ControleFichiers controleFichiers,
+                           StockageChiffre stockage, EnfilageOcr ocr, ApplicationEventPublisher evenements,
+                           ArchivageNoeuds archivageNoeuds, CopiesConservation copies,
+                           AccessPredicate droits, ControleAcces controle, GardeEcriture garde,
                            DocumentRattachementRepository rattachements,
                            DocumentConfidentielDesigneRepository designes, UtilisateurRepository utilisateurs,
-                           WorkSpaceRepository noeuds, ApplicationEventPublisher evenements) {
+                           WorkSpaceRepository noeuds) {
         this.repo = repo;
         this.typeRepo = typeRepo;
-        this.storage = storage;
         this.signatureService = signatureService;
         this.etiquetteRepo = etiquetteRepo;
         this.employeRepo = employeRepo;
         this.versionRepo = versionRepo;
+        this.controleFichiers = controleFichiers;
+        this.stockage = stockage;
+        this.ocr = ocr;
+        this.evenements = evenements;
+        this.archivageNoeuds = archivageNoeuds;
+        this.copies = copies;
         this.droits = droits;
         this.controle = controle;
+        this.garde = garde;
         this.rattachements = rattachements;
         this.designes = designes;
         this.utilisateurs = utilisateurs;
         this.noeuds = noeuds;
-        this.evenements = evenements;
     }
 
     private static Authentication appelant() {
@@ -152,8 +200,9 @@ public class DocumentService {
     }
 
     /**
-     * Emplacement affiché dans une liste (§12.4) : le principal s'il est
-     * accessible à l'appelant, sinon son premier rattachement accessible.
+     * Page de liste : emplacement affiché (§12.4, le principal s'il est
+     * accessible à l'appelant, sinon son premier rattachement accessible) et
+     * état OCR des versions courantes, en une requête (pas une par ligne).
      */
     private PageResponse<DocumentResponse> pageDe(Page<UploadDocument> page) {
         Set<UUID> accessibles = droits.noeudsAccessibles(appelant(), CodePermission.CONSULTER);
@@ -165,18 +214,30 @@ public class DocumentService {
                     .filter(n -> accessibles.contains(n.getId()))
                     .findFirst().ifPresent(n -> affiche.put(d.getId(), n));
         }
-        return PageResponse.of(page, d -> DocumentResponse.from(d, affiche.getOrDefault(d.getId(), d.getWorkspace()),
-                null, null));
+        Map<UUID, UUID> courantes = new LinkedHashMap<>();
+        page.getContent().forEach(d -> courante(d).ifPresent(v -> courantes.put(d.getId(), v.getId())));
+        Map<UUID, StatutOcr> statuts = ocr.statuts(List.copyOf(courantes.values()));
+        return PageResponse.of(page, d -> {
+            UUID v = courantes.get(d.getId());
+            StatutOcr st = v != null ? statuts.get(v) : null;
+            return DocumentResponse.from(d, affiche.getOrDefault(d.getId(), d.getWorkspace()), null, null,
+                    st != null ? st.name() : null);
+        });
     }
 
     @Transactional(readOnly = true)
     public DocumentResponse get(UUID id) {
         controle.exigerLectureDocument(id);
-        return fiche(load(id));
+        return fiche(load(id), null);
     }
 
-    /** Fiche complète : permissions de l'appelant et emplacements complémentaires visibles. */
-    private DocumentResponse fiche(UploadDocument d) {
+    /**
+     * Fiche complète : permissions de l'appelant, emplacements complémentaires
+     * visibles, état OCR de la version courante.
+     *
+     * @param statutConnu statut que l'appelant vient de fixer (évite de relire la file).
+     */
+    private DocumentResponse fiche(UploadDocument d, StatutOcr statutConnu) {
         Set<CodePermission> perms = droits.permissionsSurDocument(appelant(), d.getId());
         Set<UUID> visibles = droits.noeudsVisibles(appelant()).keySet();
         List<DocumentResponse.Ref> autres = rattachements.findByDocumentIdOrderByCreeLeAsc(d.getId()).stream()
@@ -184,7 +245,27 @@ public class DocumentService {
                 .filter(n -> visibles.contains(n.getId()))
                 .map(n -> new DocumentResponse.Ref(n.getId(), n.getName()))
                 .toList();
-        return DocumentResponse.from(d, d.getWorkspace(), perms.stream().map(Enum::name).sorted().toList(), autres);
+        return DocumentResponse.from(d, d.getWorkspace(), perms.stream().map(Enum::name).sorted().toList(), autres,
+                statutOcr(d, statutConnu));
+    }
+
+    /** Réponse d'une écriture : fiche complète si l'appelant voit encore le document. */
+    private DocumentResponse reponse(UploadDocument d) {
+        return reponse(d, null);
+    }
+
+    private DocumentResponse reponse(UploadDocument d, StatutOcr statutConnu) {
+        return controle.documentLisible(d.getId()) ? fiche(d, statutConnu)
+                : DocumentResponse.from(d, statutOcr(d, statutConnu));
+    }
+
+    private String statutOcr(UploadDocument d, StatutOcr statutConnu) {
+        StatutOcr st = statutConnu;
+        if (st == null) {
+            Optional<DocumentVersion> v = courante(d);
+            if (v.isPresent()) st = ocr.statuts(List.of(v.get().getId())).get(v.get().getId());
+        }
+        return st != null ? st.name() : null;
     }
 
     /** Dépose un document : valide le fichier contre le type, le stocke, crée la fiche. */
@@ -209,36 +290,31 @@ public class DocumentService {
         // Déposer s'exerce sur l'emplacement principal, fixé par le type.
         controle.exigerSurNoeud(CodePermission.DEPOSER, type.getWorkspace().getId());
         ContraintesDepot.validerTypeVivant(type);
+        refuserSiDossierArchive(type.getWorkspace());
 
         String original = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document";
         String ext = extractExtension(original);
 
-        ContraintesDepot.valider(type, file);
-
-        /* TOUT ce qui peut échouer est vérifié AVANT d'écrire sur le disque.
-           Le disque n'est pas transactionnel : `storage.store()` précédait
-           l'analyse de la date d'expiration, si bien qu'une date invalide
-           annulait la base — et laissait le fichier. Zéro document, un fichier
-           orphelin, aucun moyen de le retrouver. L'ordre des opérations est ici
-           la vraie correction ; la compensation ci-dessous n'est qu'un filet. */
+        /* TOUT ce qui peut échouer est vérifié AVANT d'écrire le fichier : le
+           stockage n'est pas transactionnel. Les contrôles de la fiche d'abord,
+           puis la chaîne de contrôle du fichier (taille, type réel, antivirus),
+           qui n'écrit qu'en dernier. La compensation n'est qu'un filet. */
         String nomDocument = name != null && !name.isBlank() ? name.trim() : stripExtension(original);
         Limites.controler(nomDocument, "nom du document");
         LocalDate expiration = date(expirationDate, "date d'expiration");
 
-        WorkSpace ws = type.getWorkspace();
-        String relativePath = storage.store(file, ws.getId(), ext);
-        // Filet : si la transaction est annulée après ce point (contrainte de
-        // base, panne), le fichier écrit ne doit pas survivre à la fiche qui
-        // n'existera pas.
-        supprimerSiTransactionAnnulee(relativePath);
+        ControleFichiers.Depot depot = deposerFichier(type, file);
 
+        WorkSpace ws = type.getWorkspace();
         UploadDocument doc = new UploadDocument(nomDocument);
         doc.setWorkspace(ws);
         doc.setTypeDocument(type);
+        // Issue provisoire du temps 1 (§12.11) : seul le temps 2, dans sa propre
+        // transaction, peut la faire passer à INDEXE ; son échec la laisse ici.
+        doc.setStatutIndexation(ValidationPlan.aUnPlan(type) ? IssueIndexation.A_INDEXER : IssueIndexation.SANS_PLAN);
         doc.setFileName(original);
-        doc.setFilePath(relativePath);
         doc.setExtension(ext);
-        doc.setSizeKo(file.getSize() / 1024);
+        doc.setSizeKo(depot.stockage().tailleOctets() / 1024);
         doc.setExpirationDate(expiration);
         doc.setConfidentialite(confidentialite != null ? confidentialite
                 : type.getConfidentialiteDefaut() != null ? type.getConfidentialiteDefaut() : Confidentialite.PUBLIC);
@@ -252,15 +328,19 @@ public class DocumentService {
         }
         // Version initiale : sans elle, l'historique commencerait au deuxieme
         // depot et le fichier d'origine n'y figurerait jamais.
-        DocumentVersion initiale = versionRepo.save(new DocumentVersion(saved, original, relativePath, ext,
-                file.getSize() / 1024, "Version initiale", true));
+        DocumentVersion initiale = versionRepo.save(version(saved, original, ext, depot, "Version initiale"));
         // Reportée dans la collection en mémoire : la réponse du dépôt est
         // construite à partir de cet objet, et sans cela l'écran verrait un
         // document sans aucune version jusqu'au prochain rechargement.
         saved.getVersions().add(initiale);
         // Déclenche le circuit de signature (une demande par étape du workflow du dossier).
         signatureService.createForDocument(saved);
-        return fiche(saved);
+        StatutOcr statut = enfilerOcr(saved, initiale).orElse(null);
+        evenements.publishEvent(new DocumentDepose(saved.getId(), initiale.getId(), Acteur.courant(), Instant.now(),
+                saved.getName(), type.getId(), ws.getId(), original, initiale.getCleFichierId(),
+                initiale.getEmpreinte(), initiale.getTypeMime(), depot.stockage().tailleOctets(),
+                statut != null ? statut.name() : null));
+        return fiche(saved, statut);
     }
 
     /**
@@ -271,9 +351,8 @@ public class DocumentService {
     public DocumentResponse update(UUID id, DocumentRequest req) {
         controle.exigerSurDocument(CodePermission.MODIFIER, id);
         UploadDocument d = loadPourEcriture(id);
-        if (d.isVerrouille()) {
-            throw new IllegalArgumentException("Document verrouille : modification impossible");
-        }
+        garde.exigerModifiable(id);
+        Map<String, Object> avant = instantane(d);
         if (req.name() != null && !req.name().isBlank()) {
             Limites.controler(req.name().trim(), "nom du document");
             d.setName(req.name().trim());
@@ -282,6 +361,7 @@ public class DocumentService {
             TypeDocument type = typeRepo.findById(req.typeDocumentId())
                     .orElseThrow(() -> new EntityNotFoundException("Type de document introuvable : " + req.typeDocumentId()));
             ContraintesDepot.validerTypeVivant(type);
+            refuserSiDossierArchive(type.getWorkspace());
             if (!type.getWorkspace().getId().equals(d.getWorkspace().getId())) {
                 // Changer de type change l'emplacement principal : c'est un
                 // déplacement (§12.5), Déplacer sur le document et Déposer sur
@@ -304,8 +384,9 @@ public class DocumentService {
             d.setActive(req.active());
         }
         appliquerEtiquettes(d, req.etiquetteIds());
-        UploadDocument maj = repo.save(d);
-        return controle.documentLisible(id) ? fiche(maj) : DocumentResponse.from(maj);
+        UploadDocument saved = repo.save(d);
+        publierModifications(saved, avant, instantane(saved));
+        return reponse(saved);
     }
 
     /** Verrouille ou libere le document. */
@@ -313,9 +394,16 @@ public class DocumentService {
     public DocumentResponse setVerrou(UUID id, boolean verrouille) {
         controle.exigerSurDocument(CodePermission.MODIFIER, id);
         UploadDocument d = loadPourEcriture(id);
-        if (verrouille) d.verrouiller(com.ipt.ged.common.ActeurCourant.utilisateurId(), null);
-        else d.deverrouiller();
-        return DocumentResponse.from(repo.save(d));
+        refuserSiArchive(d, "verrouillage");
+        boolean avant = d.isVerrouille();
+        if (verrouille && !avant) d.verrouiller(ActeurCourant.utilisateurId(), null);
+        else if (!verrouille && avant) d.deverrouiller();
+        UploadDocument saved = repo.save(d);
+        if (avant != verrouille) {
+            evenements.publishEvent(new VerrouModifie(saved.getId(), versionCouranteId(saved), Acteur.courant(),
+                    Instant.now(), avant, verrouille));
+        }
+        return reponse(saved);
     }
 
     /**
@@ -337,48 +425,59 @@ public class DocumentService {
         controle.exigerSurDocument(CodePermission.MODIFIER, id);
         UploadDocument d = loadPourEcriture(id);
         refuserSiEnCorbeille(d, "nouvelle version");
-        if (d.isVerrouille()) {
-            throw new IllegalArgumentException("Document verrouille : nouvelle version impossible");
-        }
+        garde.exigerModifiable(id);
         TypeDocument type = d.getTypeDocument();
         String original = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document";
         String ext = extractExtension(original);
+        UUID precedente = versionCouranteId(d);
 
-        ContraintesDepot.valider(type, file);
+        ControleFichiers.Depot depot = deposerFichier(type, file);
 
-        String relativePath = storage.store(file, d.getWorkspace().getId(), ext);
-        supprimerSiTransactionAnnulee(relativePath);
         demoterPrincipales(id);
-        versionRepo.save(new DocumentVersion(d, original, relativePath, ext,
-                file.getSize() / 1024, observation, true));
+        DocumentVersion nouvelle = versionRepo.save(version(d, original, ext, depot, observation));
+        // Reportée dans la collection en mémoire : la réponse, et la version
+        // courante vue par la suite de la transaction, en dépendent.
+        d.getVersions().add(0, nouvelle);
 
         // La fiche pointe toujours vers la version courante : sans cette mise a
         // jour, le telechargement servirait encore l'ancien fichier.
         d.setFileName(original);
-        d.setFilePath(relativePath);
         d.setExtension(ext);
-        d.setSizeKo(file.getSize() / 1024);
-        return DocumentResponse.from(repo.save(d));
+        d.setSizeKo(depot.stockage().tailleOctets() / 1024);
+        UploadDocument saved = repo.save(d);
+        StatutOcr statut = enfilerOcr(saved, nouvelle).orElse(null);
+        evenements.publishEvent(new VersionAjoutee(saved.getId(), nouvelle.getId(), Acteur.courant(), Instant.now(),
+                precedente, original, observation, nouvelle.getCleFichierId(), nouvelle.getEmpreinte(),
+                nouvelle.getTypeMime(), depot.stockage().tailleOctets(), statut != null ? statut.name() : null));
+        return reponse(saved, statut);
     }
 
-    /** Rend une version anterieure courante. */
+    /**
+     * Rend une version anterieure courante. Elle repart à l'OCR : l'index plein
+     * texte porte sur la version courante (§4.4).
+     */
     @Transactional
     public DocumentResponse restaurerVersion(UUID documentId, UUID versionId) {
         controle.exigerSurDocument(CodePermission.MODIFIER, documentId);
         UploadDocument d = loadPourEcriture(documentId);
         refuserSiEnCorbeille(d, "restauration de version");
+        garde.exigerModifiable(documentId);
         DocumentVersion cible = versionRepo.findById(versionId)
                 .orElseThrow(() -> new EntityNotFoundException("Version introuvable : " + versionId));
         if (!cible.getDocument().getId().equals(documentId)) {
             throw new IllegalArgumentException("Cette version n'appartient pas au document");
         }
+        UUID precedente = versionCouranteId(d);
         demoterPrincipales(documentId);
         cible.setPrincipale(true);
         d.setFileName(cible.getFileName());
-        d.setFilePath(cible.getFilePath());
         d.setExtension(cible.getExtension());
         d.setSizeKo(cible.getSizeKo());
-        return DocumentResponse.from(repo.save(d));
+        UploadDocument saved = repo.save(d);
+        StatutOcr statut = Objects.equals(precedente, cible.getId()) ? null : enfilerOcr(saved, cible).orElse(null);
+        evenements.publishEvent(new VersionRestauree(saved.getId(), cible.getId(), Acteur.courant(), Instant.now(),
+                precedente, statut != null ? statut.name() : null));
+        return reponse(saved, statut);
     }
 
     /**
@@ -401,46 +500,103 @@ public class DocumentService {
         d.getEtiquettes().addAll(tags);
     }
 
-    /** Entité + ressource fichier pour le téléchargement. */
+    /**
+     * Ouvre le fichier de la version courante, déchiffré en flux, pour le
+     * téléchargement. L'appelant ferme le flux.
+     */
     @Transactional(readOnly = true)
-    public UploadDocument loadForDownload(UUID id) {
-        controle.exigerLectureDocument(id);
-        return load(id);
+    public FichierTelecharge telecharger(UUID id) {
+        return telecharger(id, false);
     }
 
-    public StorageService storage() {
-        return storage;
+    /**
+     * Pour un document archivé, la copie de conservation PDF/A est servie par
+     * défaut (§6.1.4) ; {@code original} force l'original.
+     */
+    @Transactional(readOnly = true)
+    public FichierTelecharge telecharger(UUID id, boolean original) {
+        controle.exigerLectureDocument(id);
+        UploadDocument d = load(id);
+        DocumentVersion v = courante(d)
+                .orElseThrow(() -> Refus.introuvable("aucune version pour le document " + id));
+        if (v.getCleFichierId() == null) {
+            // Version de l'ancien stockage en clair, pas encore reprise.
+            throw Refus.introuvable("version " + v.getId() + " non reprise dans le stockage chiffré");
+        }
+        if (d.estArchive() && !original) {
+            Optional<CopiesConservation.CopieValide> copie = copies.valide(v.getId());
+            if (copie.isPresent()) {
+                InputStream flux = stockage.lire(copie.get().cleFichierId());
+                evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
+                        "copie de conservation PDF/A de " + v.getFileName()));
+                return new FichierTelecharge(d.getName() + ".pdf", copie.get().tailleOctets(), flux);
+            }
+        }
+        InputStream flux = stockage.lire(v.getCleFichierId());
+        String nom = d.getName() + (d.getExtension() != null && !d.getExtension().isBlank() ? "." + d.getExtension() : "");
+        evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
+                v.getFileName()));
+        return new FichierTelecharge(nom, v.getTailleOctets() != null ? v.getTailleOctets() : -1, flux);
+    }
+
+    /** Fichier prêt à servir ; {@code taille} en octets, -1 si inconnue. */
+    public record FichierTelecharge(String nom, long taille, InputStream flux) {
     }
 
     /**
      * Suppression depuis l'emplacement principal (§12.4) : le document entier
-     * passe en corbeille et disparaît de TOUS ses emplacements.
+     * passe en corbeille et disparaît de TOUS ses emplacements. Refusée pour un
+     * document archivé (§12.6).
      */
     @Transactional
     public void softDelete(UUID id) {
         controle.exigerSurDocument(CodePermission.SUPPRIMER, id);
-        load(id).mettreEnCorbeille(ActeurCourant.employeId());
+        UploadDocument d = load(id);
+        if (d.isSupprime()) return;
+        refuserSiArchive(d, "suppression");
+        d.mettreEnCorbeille(ActeurCourant.employeId());
+        publierSuppression(d);
     }
 
     @Transactional
     public void restore(UUID id) {
         controle.exigerSurDocument(CodePermission.SUPPRIMER, id);
-        load(id).restaurer();
+        UploadDocument d = load(id);
+        if (!d.isSupprime()) return;
+        d.restaurer();
+        publierRestauration(d);
     }
 
-    /** Tout ou rien : un seul document refusé (404 / 403) et rien n'est supprimé. */
+    /** Tout ou rien : un seul document refusé (404 / 403 / 409) et rien n'est supprimé. */
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        List<UploadDocument> l = repo.findByIdInAndSupprimeFalse(ids);
-        l.forEach(d -> controle.exigerSurDocument(CodePermission.SUPPRIMER, d.getId()));
-        l.forEach(d -> d.mettreEnCorbeille(ActeurCourant.employeId()));
+        List<UploadDocument> cibles = repo.findByIdInAndSupprimeFalse(ids);
+        cibles.forEach(d -> controle.exigerSurDocument(CodePermission.SUPPRIMER, d.getId()));
+        cibles.forEach(d -> refuserSiArchive(d, "suppression"));
+        cibles.forEach(d -> {
+            d.mettreEnCorbeille(ActeurCourant.employeId());
+            publierSuppression(d);
+        });
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        List<UploadDocument> l = repo.findByIdInAndSupprimeTrue(ids);
-        l.forEach(d -> controle.exigerSurDocument(CodePermission.SUPPRIMER, d.getId()));
-        l.forEach(UploadDocument::restaurer);
+        List<UploadDocument> cibles = repo.findByIdInAndSupprimeTrue(ids);
+        cibles.forEach(d -> controle.exigerSurDocument(CodePermission.SUPPRIMER, d.getId()));
+        cibles.forEach(d -> {
+            d.restaurer();
+            publierRestauration(d);
+        });
+    }
+
+    private void publierSuppression(UploadDocument d) {
+        evenements.publishEvent(new DocumentSupprime(d.getId(), versionCouranteId(d), Acteur.courant(),
+                Instant.now(), d.getName()));
+    }
+
+    private void publierRestauration(UploadDocument d) {
+        evenements.publishEvent(new DocumentRestaure(d.getId(), versionCouranteId(d), Acteur.courant(),
+                Instant.now(), d.getName()));
     }
 
     /* ---------- rattachements (§12.4) ---------- */
@@ -449,7 +605,7 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public List<DocumentResponse.Ref> rattachements(UUID documentId) {
         controle.exigerLectureDocument(documentId);
-        return fiche(load(documentId)).rattachements();
+        return fiche(load(documentId), null).rattachements();
     }
 
     /**
@@ -474,8 +630,8 @@ public class DocumentService {
             throw new com.ipt.ged.autorisation.ConflitAutorisationException("Le document est déjà rattaché à cet espace.");
         }
         rattachements.save(new DocumentRattachement(d, noeud, ActeurCourant.utilisateurId()));
-        publier(AccesDocumentModifie.RATTACHEMENT_AJOUTE, documentId, noeudId, null, null);
-        return fiche(d);
+        publierAcces(AccesDocumentModifie.RATTACHEMENT_AJOUTE, documentId, noeudId, null, null);
+        return fiche(d, null);
     }
 
     /**
@@ -491,7 +647,7 @@ public class DocumentService {
                 .orElseThrow(() -> new EntityNotFoundException("Rattachement introuvable"));
         controle.exigerSurNoeud(CodePermission.DEPOSER, noeudId);
         rattachements.delete(r);
-        publier(AccesDocumentModifie.RATTACHEMENT_RETIRE, documentId, noeudId, null, null);
+        publierAcces(AccesDocumentModifie.RATTACHEMENT_RETIRE, documentId, noeudId, null, null);
     }
 
     /* ---------- confidentialité (§12.3) ---------- */
@@ -525,7 +681,7 @@ public class DocumentService {
         }
         if (!designes.existsByDocumentIdAndUtilisateurId(documentId, utilisateurId)) {
             designes.save(new DocumentConfidentielDesigne(documentId, utilisateurId, ActeurCourant.utilisateurId()));
-            publier(AccesDocumentModifie.DESIGNATION_AJOUTEE, documentId, utilisateurId, null, null);
+            publierAcces(AccesDocumentModifie.DESIGNATION_AJOUTEE, documentId, utilisateurId, null, null);
         }
         return designes(documentId);
     }
@@ -538,7 +694,7 @@ public class DocumentService {
         DocumentConfidentielDesigne x = designes.findByDocumentIdAndUtilisateurId(documentId, utilisateurId)
                 .orElseThrow(() -> new EntityNotFoundException("Désignation introuvable"));
         designes.delete(x);
-        publier(AccesDocumentModifie.DESIGNATION_RETIREE, documentId, utilisateurId, null, null);
+        publierAcces(AccesDocumentModifie.DESIGNATION_RETIREE, documentId, utilisateurId, null, null);
     }
 
     /**
@@ -550,7 +706,7 @@ public class DocumentService {
         Confidentialite avant = d.getConfidentialite();
         d.setConfidentialite(niveau);
         if (niveau == Confidentialite.CONFIDENTIEL) designerDeposant(d);
-        publier(AccesDocumentModifie.CONFIDENTIALITE_MODIFIEE, d.getId(), null, avant.name(), niveau.name());
+        publierAcces(AccesDocumentModifie.CONFIDENTIALITE_MODIFIEE, d.getId(), null, avant.name(), niveau.name());
     }
 
     /** Le déposant d'un document confidentiel est désigné par défaut (§12.3). */
@@ -559,12 +715,12 @@ public class DocumentService {
         utilisateurs.findByEmployeId(d.getCreatedBy().getId()).ifPresent(u -> {
             if (!designes.existsByDocumentIdAndUtilisateurId(d.getId(), u.getId())) {
                 designes.save(new DocumentConfidentielDesigne(d.getId(), u.getId(), ActeurCourant.utilisateurId()));
-                publier(AccesDocumentModifie.DESIGNATION_AJOUTEE, d.getId(), u.getId(), null, null);
+                publierAcces(AccesDocumentModifie.DESIGNATION_AJOUTEE, d.getId(), u.getId(), null, null);
             }
         });
     }
 
-    private void publier(String type, UUID documentId, UUID cible, String avant, String apres) {
+    private void publierAcces(String type, UUID documentId, UUID cible, String avant, String apres) {
         evenements.publishEvent(new AccesDocumentModifie(type, documentId, cible, avant, apres,
                 ActeurCourant.utilisateurId(), Instant.now()));
     }
@@ -603,6 +759,31 @@ public class DocumentService {
     }
 
     /**
+     * Document archivé (§12.6) : lecture seule totale pour tous les rôles —
+     * fiche, index, versions, verrou, suppression. Seul le désarchivage y fait
+     * exception. Doublé en base pour les versions (déclencheur).
+     */
+    static void refuserSiArchive(UploadDocument d, String operation) {
+        if (d.estArchive()) {
+            // Même code et même format que GardeEcriture (lot modèle).
+            throw new ConflitAutorisationException(GardeEcriture.DOCUMENT_ARCHIVE,
+                    "Document archivé : " + operation + " impossible (lecture seule). Désarchivez-le d'abord.");
+        }
+    }
+
+    /** Dossier archivé (D10) : aucun dépôt ni rangement (revue client, question Q7). */
+    private void refuserSiDossierArchive(WorkSpace ws) {
+        if (ws == null) return;
+        // Le contrat lit la base : ce que la transaction a créé doit y être.
+        repo.flush();
+        if (archivageNoeuds.statut(ws.getId()) == com.ipt.ged.common.StatutConservation.ARCHIVE) {
+            throw new com.ipt.ged.cycledevie.ErreurCycleDeVie(org.springframework.http.HttpStatus.CONFLICT,
+                    com.ipt.ged.cycledevie.ErreurCycleDeVie.DOSSIER_ARCHIVE,
+                    "Dossier archivé « " + ws.getName() + " » : aucun dépôt n'y est accepté.");
+        }
+    }
+
+    /**
      * Analyse une date ISO en refusant proprement ce qui n'en est pas une.
      *
      * <p>{@code LocalDate.parse} lève une {@code DateTimeParseException}, qui
@@ -620,22 +801,91 @@ public class DocumentService {
     }
 
     /**
-     * Programme la suppression du fichier si la transaction en cours est
-     * annulée.
-     *
-     * <p>C'est la compensation du seul point où l'application écrit sur un
-     * support non transactionnel. Elle s'exécute <b>après</b> la fin de la
-     * transaction : à ce moment la base a déjà tout rejeté, le fichier n'est
-     * référencé par rien, et le supprimer est le seul moyen de ne pas accumuler
-     * des orphelins invisibles.
+     * Chaîne de contrôle et écriture chiffrée du fichier (§6.1.5) : taille et
+     * formats du type documentaire, type réel, antivirus en échec fermé, puis
+     * écriture. Refus : 413, 415, 422 {@code FICHIER_INFECTE}, 503.
      */
-    private void supprimerSiTransactionAnnulee(String cheminRelatif) {
+    private ControleFichiers.Depot deposerFichier(TypeDocument type, MultipartFile file) {
+        ControleFichiers.Depot depot = controleFichiers.deposer(SourceFichier.de(file),
+                controleFichiers.regles(type.getTailleMaxMo(), type.formatsAutorises()));
+        detruireSiTransactionAnnulee(depot.stockage().id());
+        return depot;
+    }
+
+    private static DocumentVersion version(UploadDocument doc, String nomFichier, String ext,
+                                           ControleFichiers.Depot depot, String observation) {
+        DocumentVersion v = new DocumentVersion(doc, nomFichier, ext, depot.stockage().tailleOctets() / 1024,
+                observation, true);
+        v.setCleFichierId(depot.stockage().id());
+        v.setEmpreinte(depot.stockage().empreinte());
+        v.setTypeMime(depot.typeMime());
+        v.setTailleOctets(depot.stockage().tailleOctets());
+        return v;
+    }
+
+    private Optional<StatutOcr> enfilerOcr(UploadDocument d, DocumentVersion v) {
+        if (!ocr.actif()) return Optional.empty();
+        // Le job est écrit en JDBC, avec clés étrangères vers la fiche et la
+        // version : elles doivent être en base (même transaction) avant lui.
+        versionRepo.flush();
+        return ocr.enfiler(d.getId(), v.getId(), v.getCleFichierId(), v.getTypeMime(),
+                d.getTypeDocument() != null ? d.getTypeDocument().getCode() : null);
+    }
+
+    /** Version courante : la principale, sinon la plus récente (état hérité abîmé toléré). */
+    private static Optional<DocumentVersion> courante(UploadDocument d) {
+        try {
+            List<DocumentVersion> versions = d.getVersions();
+            return versions.stream().filter(DocumentVersion::isPrincipale).findFirst()
+                    .or(() -> versions.stream().max(Comparator.comparing(DocumentVersion::getId)));
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
+    }
+
+    private static UUID versionCouranteId(UploadDocument d) {
+        return courante(d).map(DocumentVersion::getId).orElse(null);
+    }
+
+    /** Champs de la fiche suivis par l'audit, en valeurs simples. */
+    private static Map<String, Object> instantane(UploadDocument d) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("nom", d.getName());
+        m.put("typeDocumentId", d.getTypeDocument() != null ? d.getTypeDocument().getId() : null);
+        m.put("workspaceId", d.getWorkspace() != null ? d.getWorkspace().getId() : null);
+        m.put("dateExpiration", d.getExpirationDate() != null ? d.getExpirationDate().toString() : null);
+        m.put("actif", d.isActive());
+        m.put("etiquetteIds", d.getEtiquettes().stream().map(Etiquette::getId).sorted().toList());
+        return m;
+    }
+
+    private void publierModifications(UploadDocument d, Map<String, Object> avant, Map<String, Object> apres) {
+        Map<String, Object> av = new LinkedHashMap<>();
+        Map<String, Object> ap = new LinkedHashMap<>();
+        avant.forEach((cle, valeur) -> {
+            if (!Objects.equals(valeur, apres.get(cle))) {
+                av.put(cle, valeur);
+                ap.put(cle, apres.get(cle));
+            }
+        });
+        if (!av.isEmpty()) {
+            evenements.publishEvent(new MetadonneesModifiees(d.getId(), versionCouranteId(d), Acteur.courant(),
+                    Instant.now(), av, ap));
+        }
+    }
+
+    /**
+     * Détruit le fichier chiffré et sa clé si la transaction en cours est
+     * annulée : le stockage n'est pas transactionnel, et un fichier que plus
+     * rien ne référence ne doit pas survivre à la fiche qui n'existera pas.
+     */
+    private void detruireSiTransactionAnnulee(UUID fichierId) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) return;
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCompletion(int status) {
                 if (status != STATUS_COMMITTED) {
-                    storage.supprimer(cheminRelatif);
+                    stockage.detruire(fichierId);
                 }
             }
         });

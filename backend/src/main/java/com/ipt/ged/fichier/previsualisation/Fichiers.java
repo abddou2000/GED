@@ -10,7 +10,7 @@ import java.util.Comparator;
 import java.util.stream.Stream;
 
 /** Nettoyage des répertoires de travail de la conversion. */
-final class Fichiers {
+public final class Fichiers {
 
     private static final Logger log = LoggerFactory.getLogger(Fichiers.class);
 
@@ -21,7 +21,7 @@ final class Fichiers {
      * où une erreur masquerait la cause d'origine. Un échec est signalé au
      * journal, car il laisse une copie en clair dans le répertoire de travail.
      */
-    static void supprimerArborescence(Path racine) {
+    public static void supprimerArborescence(Path racine) {
         if (racine == null || !Files.exists(racine)) return;
         try (Stream<Path> tout = Files.walk(racine)) {
             tout.sorted(Comparator.reverseOrder()).forEach(p -> {
