@@ -85,6 +85,13 @@ export const routes: Routes = [
         loadComponent: () => import('./features/audit/journal-audit/journal-audit').then(m => m.JournalAudit),
       },
       {
+        // Applications clientes et clés d'API (DAT §5.4). Le serveur refuse
+        // l'accès aux applications elles-mêmes ; garde par permission
+        // d'administration à brancher avec le lot autorisation (E3).
+        path: 'cles-api',
+        loadComponent: () => import('./features/cles-api/cles-api-admin/cles-api-admin').then(m => m.ClesApiAdmin),
+      },
+      {
         path: 'televerser',
         loadComponent: () => import('./features/document/document-list/document-list').then(m => m.DocumentList),
       },

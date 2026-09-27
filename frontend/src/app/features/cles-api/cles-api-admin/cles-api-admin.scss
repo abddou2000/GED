@@ -1,0 +1,54 @@
+/* Spécifique — Applications et clés d'API. Le commun vient de _ui.scss */
+
+.card { margin-bottom: 14px; }
+
+.cle-affichee {
+  padding: 14px; border-left: 4px solid #b26a00;
+  .valeur { margin: 8px 0; padding: 8px; background: rgba(0, 0, 0, .04); border-radius: 6px; overflow-x: auto; }
+  code { font-family: var(--font-mono); font-size: 13px; word-break: break-all; }
+  .boutons { display: flex; gap: 8px; }
+}
+
+.formulaire {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 14px; padding: 14px;
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink-soft); }
+  .large { grid-column: 1 / -1; }
+  input { font: inherit; font-size: 13.5px; padding: 6px 8px; border: 1px solid rgba(0, 0, 0, .15); border-radius: 6px; }
+  .erreur { color: #b3261e; font-size: 12px; }
+  .boutons { display: flex; gap: 6px; align-items: end; }
+}
+
+.application {
+  padding: 14px;
+  .entete { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h2 { margin: 0; font-size: 16px; }
+  .meta { margin: 4px 0 10px; font-size: 13px; color: var(--ink-soft); }
+  .alerte { color: #b26a00; }
+  .actions { display: flex; gap: 6px; align-items: flex-start; }
+}
+
+.code { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-soft); }
+
+table.cles {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(0, 0, 0, .07); }
+  th { font-weight: 600; color: var(--ink-soft); }
+  .actions-cle { white-space: nowrap; }
+  .motif { font: inherit; font-size: 12.5px; padding: 3px 6px; width: 170px;
+           border: 1px solid rgba(0, 0, 0, .15); border-radius: 4px; }
+}
+
+.generation {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.vide { text-align: center; color: var(--ink-soft); padding: 18px; }
+
+/* Point coloré : sobre, lisible en liste dense. */
+.point {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle;
+  &.active { background: #2e7d4f; }
+  &.en_chevauchement, &.bientot { background: #b26a00; }
+  &.expiree, &.revoquee, &.inactive { background: #b3261e; }
+}

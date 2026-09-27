@@ -88,6 +88,7 @@ export class Shell implements AfterViewInit {
     'type-de-document': 'Type de document',
     'etiquette': 'Étiquette',
     'journal-audit': "Journal d'audit",
+    'cles-api': "Clés d'API",
     'profil': 'Mon profil',
   };
 

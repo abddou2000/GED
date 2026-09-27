@@ -1,0 +1,103 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Applications et clés d'API</h1>
+      <p class="breadcrumb">Accueil - Applications clientes de l'API d'intégration</p>
+    </div>
+    <button mat-flat-button color="primary" (click)="nouvelle()">
+      <mat-icon svgIcon="add"></mat-icon> Nouvelle application
+    </button>
+  </div>
+
+  @if (cleAffichee(); as cle) {
+    <div class="card cle-affichee" role="alert">
+      <p><strong>Clé de l'application {{ cle.application }}</strong> — copiez-la maintenant :
+        elle ne sera plus jamais affichée.</p>
+      <div class="valeur"><code>{{ cle.valeur }}</code></div>
+      <div class="boutons">
+        <button mat-flat-button color="primary" (click)="copier(cle.valeur)">Copier</button>
+        <button mat-button (click)="fermerCle()">J'ai conservé la clé</button>
+      </div>
+    </div>
+  }
+
+  @if (formulaireOuvert()) {
+    <form class="card formulaire" (ngSubmit)="enregistrer()">
+      <label>Code
+        <input name="code" [(ngModel)]="saisie.code" [readonly]="!!enEdition()" placeholder="bureau-ordre" required />
+        @if (erreurs()['code']) { <span class="erreur">{{ erreurs()['code'] }}</span> }
+      </label>
+      <label>Nom
+        <input name="nom" [(ngModel)]="saisie.nom" required />
+        @if (erreurs()['nom']) { <span class="erreur">{{ erreurs()['nom'] }}</span> }
+      </label>
+      <label class="large">Description <input name="description" [(ngModel)]="saisie.description" /></label>
+      <label class="large">Adresses autorisées (séparées par des virgules, plages CIDR acceptées)
+        <input name="adresses" [(ngModel)]="saisie.adresses" placeholder="10.0.0.15, 10.0.1.0/24" />
+      </label>
+      <label>Quota par minute <input type="number" min="1" name="quotaMinute" [(ngModel)]="saisie.quotaMinute" /></label>
+      <label>Quota par jour <input type="number" min="1" name="quotaJour" [(ngModel)]="saisie.quotaJour" /></label>
+      <div class="boutons">
+        <button mat-flat-button color="primary" type="submit">Enregistrer</button>
+        <button mat-button type="button" (click)="formulaireOuvert.set(false)">Annuler</button>
+      </div>
+    </form>
+  }
+
+  @for (a of applications(); track a.id) {
+    <div class="card application">
+      <div class="entete">
+        <div>
+          <h2>{{ a.nom }} <span class="code">{{ a.code }}</span></h2>
+          <p class="meta">
+            <span [class]="'point ' + (a.active ? 'active' : 'inactive')"></span>{{ a.active ? 'Active' : 'Désactivée' }}
+            · {{ a.quotaMinute }} appels/min · {{ a.quotaJour }} appels/jour
+            · Adresses : {{ a.adressesAutorisees.length ? a.adressesAutorisees.join(', ') : 'toutes' }}
+            @if (a.clesExpirantBientot > 0) { · <strong class="alerte">{{ a.clesExpirantBientot }} clé(s) expirant bientôt</strong> }
+          </p>
+        </div>
+        <div class="actions">
+          <button mat-stroked-button (click)="editer(a)">Modifier</button>
+          <button mat-stroked-button (click)="basculerActivation(a)">{{ a.active ? 'Désactiver' : 'Activer' }}</button>
+        </div>
+      </div>
+
+      <table class="cles">
+        <thead>
+          <tr><th>Clé</th><th>État</th><th>Délégation</th><th>Créée le</th><th>Expire le</th><th>Dernier appel</th><th>Appels du jour</th><th></th></tr>
+        </thead>
+        <tbody>
+          @for (c of a.cles; track c.id) {
+            <tr>
+              <td class="code">ged_{{ c.environnement }}_{{ c.identifiant }}_…</td>
+              <td><span [class]="'point ' + (c.expireBientot ? 'bientot' : c.etat.toLowerCase())"></span>{{ libelleEtat(c) }}</td>
+              <td>{{ c.delegation ? 'Oui' : 'Non' }}</td>
+              <td>{{ c.creeLe | date:'dd/MM/yyyy' }}</td>
+              <td>{{ c.expireLe | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ c.derniereUtilisation ? (c.derniereUtilisation | date:'dd/MM/yyyy HH:mm') : '—' }}</td>
+              <td>{{ c.appelsDuJour }}</td>
+              <td class="actions-cle">
+                @if (c.etat === 'ACTIVE') {
+                  <button mat-button (click)="regenerer(a, c)" matTooltip="Nouvelle clé ; celle-ci reste valide pendant le chevauchement">Régénérer</button>
+                }
+                @if (c.etat === 'ACTIVE' || c.etat === 'EN_CHEVAUCHEMENT') {
+                  <input class="motif" [name]="'motif-' + c.id" [(ngModel)]="motifs[c.id]" placeholder="Motif de révocation" />
+                  <button mat-button color="warn" (click)="revoquer(c)">Révoquer</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8" class="vide">Aucune clé.</td></tr>
+          }
+        </tbody>
+      </table>
+      <div class="generation">
+        <label><input type="checkbox" [name]="'delegation-' + a.id" [(ngModel)]="delegation[a.id]" />
+          Autoriser la délégation (X-On-Behalf-Of) — exige une liste d'adresses</label>
+        <button mat-flat-button color="primary" (click)="generer(a)">Générer une clé</button>
+      </div>
+    </div>
+  } @empty {
+    @if (!chargement()) { <div class="card vide">Aucune application enregistrée.</div> }
+  }
+</div>
