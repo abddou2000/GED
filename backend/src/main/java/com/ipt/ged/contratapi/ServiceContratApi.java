@@ -122,14 +122,14 @@ public class ServiceContratApi {
         List<ResultatResponse> resultatsCriteres = List.of();
         if (!criteres.isEmpty() || !texte) {
             List<GroupeResponse> groupes = indexation.rechercher(new RechercheRequest(r.noeudId(), r.typeDocumentId(),
-                    criteres, null, archives));
+                    criteres, null, archives, r.canal()));
             resultatsCriteres = groupes.stream().flatMap(g -> g.documents().stream()).toList();
             parCriteres = new LinkedHashSet<>(resultatsCriteres.stream().map(ResultatResponse::id).toList());
         }
 
         if (texte) {
             List<FragmentSql> filtres = new ArrayList<>(new CriteresMetadonnees(r.typeDocumentId(), r.noeudId(),
-                    r.deposeDu(), r.deposeAu(), CriteresMetadonnees.Archives.valueOf(archives)).fragments());
+                    r.deposeDu(), r.deposeAu(), CriteresMetadonnees.Archives.valueOf(archives), r.canal()).fragments());
             if (!criteres.isEmpty()) {
                 if (parCriteres.isEmpty()) return new PageResultats(List.of(), 0, page, taille);
                 filtres.add(new FragmentSql("d.id IN (:contrat_criteres)", Map.of("contrat_criteres", parCriteres)));
@@ -144,9 +144,14 @@ public class ServiceContratApi {
     private PageResultats pageSansTexte(List<ResultatResponse> resultats, RechercheContratRequest r, int page,
                                         int taille) {
         Map<UUID, Instant> deposes = new HashMap<>();
+        Map<UUID, String> canaux = new HashMap<>();
         if (!resultats.isEmpty()) {
-            jdbc.query("SELECT id, created_at FROM document WHERE id = ANY (?)",
-                    rs -> { deposes.put(rs.getObject(1, UUID.class), instant(rs.getTimestamp(2))); },
+            jdbc.query("SELECT id, created_at, canal_depot FROM document WHERE id = ANY (?)",
+                    rs -> {
+                        UUID id = rs.getObject(1, UUID.class);
+                        deposes.put(id, instant(rs.getTimestamp(2)));
+                        canaux.put(id, rs.getString(3));
+                    },
                     (Object) resultats.stream().map(ResultatResponse::id).toArray(UUID[]::new));
         }
         Instant du = debut(r.deposeDu());
@@ -160,7 +165,7 @@ public class ServiceContratApi {
         };
         List<PageResultats.Resultat> tous = resultats.stream()
                 .map(x -> new PageResultats.Resultat(x.id(), null, 0, List.of(), x.name(), x.typeDocument(),
-                        x.workspace(), deposes.get(x.id()), x.statutConservation()))
+                        x.workspace(), deposes.get(x.id()), x.statutConservation(), canaux.get(x.id())))
                 .filter(x -> du == null || (x.deposeLe() != null && !x.deposeLe().isBefore(du)))
                 .filter(x -> au == null || (x.deposeLe() != null && x.deposeLe().isBefore(au)))
                 .sorted(ordre)

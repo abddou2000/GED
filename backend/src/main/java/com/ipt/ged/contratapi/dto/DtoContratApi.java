@@ -47,6 +47,8 @@ public final class DtoContratApi {
             LocalDate deposeDu,
             LocalDate deposeAu,
             @Pattern(regexp = "^(INCLURE|EXCLURE|SEULEMENT)?$") String archives,
+            @Pattern(regexp = "^(?i)(INTERFACE|API|BUREAU_ORDRE|REPRISE)?$",
+                    message = "Canal : INTERFACE, API, BUREAU_ORDRE ou REPRISE.") String canal,
             RequeteRecherche.Tri tri,
             @Min(0) Integer page,
             Integer taille) {}

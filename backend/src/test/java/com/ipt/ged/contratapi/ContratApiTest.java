@@ -199,6 +199,19 @@ class ContratApiTest {
                         + "\",\"valeur\":\"x\"}]}")));
         assertThat(et.get("total").asLong()).isZero();
 
+        // Canal du dépôt (T-040) : critère et colonne de résultat, avec ou sans plein texte.
+        assertThat(p0.get("resultats").get(0).get("canalDepot").asText()).isEqualTo("INTERFACE");
+        assertThat(texte.get("resultats").get(0).get("canalDepot").asText()).isEqualTo("INTERFACE");
+        String parCanal = parEspace.replace("\"taille\":1,", "");
+        assertThat(json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content(parCanal.replace("{", "{\"canal\":\"interface\",")))).get("total").asLong()).isEqualTo(2);
+        assertThat(json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content(parCanal.replace("{", "{\"canal\":\"API\",")))).get("total").asLong()).isZero();
+        assertThat(json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content("{\"texte\":\"" + mot + "\",\"canal\":\"BUREAU_ORDRE\"}"))).get("total").asLong()).isZero();
+        mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON).content("{\"canal\":\"COURRIER\"}"))
+                .andExpect(status().isBadRequest());
+
         mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON).content("{\"archives\":\"TOUT\"}"))
                 .andExpect(status().isBadRequest());
     }
