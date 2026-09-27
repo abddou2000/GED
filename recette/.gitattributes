@@ -1,0 +1,17 @@
+# Les scripts de recette s'exécutent aussi sur les serveurs Linux (UAT, PROD) :
+# des fins de ligne CRLF y casseraient bash (« $'\r': command not found »).
+*.sh   text eol=lf
+*.sql  text eol=lf
+*.java text eol=lf
+*.xml  text eol=lf
+*.md   text eol=lf
+*.csv  text eol=lf
+*.txt  text eol=lf
+# Jeux de données : jamais convertis, leur empreinte SHA-256 est contrôlée.
+donnees/*.pdf  binary
+donnees/*.png  binary
+donnees/*.docx binary
+donnees/faux_pdf_texte.pdf binary
+donnees/note_texte_brut.txt binary
+donnees/tableau_decomptes.csv binary
+donnees/MANIFESTE.csv binary

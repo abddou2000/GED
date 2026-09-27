@@ -1,0 +1,3 @@
+spring:
+  datasource:
+    url: ${GED_TEST_DB_URL:jdbc:postgresql://localhost:5432/ged_qa_test}

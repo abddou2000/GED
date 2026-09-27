@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog">
+  <changeSet id="doc-1" author="dev">
+    <createTable tableName="Document">
+      <column name="id" type="bigint" autoIncrement="true"><constraints primaryKey="true"/></column>
+      <column name="nomComplet" type="text"><constraints unique="true" uniqueConstraintName="document_nom_key"/></column>
+      <column name="noeud_id" type="uuid"><constraints foreignKeyName="document_noeud_fkey" references="noeud(id)"/></column>
+    </createTable>
+    <createIndex tableName="Document" indexName="document_nom_ix"><column name="nomComplet"/></createIndex>
+    <sql>ALTER TABLE document ADD CONSTRAINT document_chk CHECK (true)</sql>
+  </changeSet>
+</databaseChangeLog>
