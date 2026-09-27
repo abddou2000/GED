@@ -78,10 +78,11 @@ public class ExportDossiers {
     private final ApplicationEventPublisher evenements;
     private final ProprietesCycleDeVie proprietes;
     private final TransactionTemplate transaction;
+    private final com.ipt.ged.autorisation.ControleAcces controle;
 
     public ExportDossiers(JdbcTemplate jdbc, Dossiers dossiers, PredicatDroits droits, StockageChiffre stockage,
                           ApplicationEventPublisher evenements, ProprietesCycleDeVie proprietes,
-                          PlatformTransactionManager transactions) {
+                          PlatformTransactionManager transactions, com.ipt.ged.autorisation.ControleAcces controle) {
         this.jdbc = jdbc;
         this.nomme = new NamedParameterJdbcTemplate(jdbc);
         this.dossiers = dossiers;
@@ -90,6 +91,7 @@ public class ExportDossiers {
         this.evenements = evenements;
         this.proprietes = proprietes;
         this.transaction = new TransactionTemplate(transactions);
+        this.controle = controle;
     }
 
     /** Un document exporté : son entrée dans l'archive et sa ligne de manifeste. */
@@ -122,6 +124,10 @@ public class ExportDossiers {
      * leur version courante. 404 si le dossier n'existe pas.
      */
     public Selection selectionner(UUID dossierId, Authentication utilisateur) {
+        // ANO-E7-001 : un dossier que l'appelant ne voit pas (ni couvert, ni de
+        // passage) est introuvable, comme dans l'arbre (§6.2.3 A01, P5) : 404
+        // avant toute production, export de fond compris.
+        controle.exigerNoeudVisible(dossierId);
         Dossiers.Dossier dossier = dossiers.trouver(dossierId)
                 .orElseThrow(() -> ErreurCycleDeVie.introuvable("Dossier " + dossierId));
         List<Dossiers.DocumentRange> ranges = dossiers.documents(dossierId);
