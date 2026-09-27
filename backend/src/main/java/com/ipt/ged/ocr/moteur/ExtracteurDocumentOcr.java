@@ -76,6 +76,15 @@ public class ExtracteurDocumentOcr {
         this.delaiParPage = delaiParPage;
     }
 
+    /** Le type réel a-t-il un contenu textuel que la chaîne sait extraire ? */
+    public static boolean gere(String typeMime) {
+        if (typeMime == null) return false;
+        String t = typeMime.toLowerCase(Locale.ROOT);
+        return PDF.equals(t) || IMAGES.contains(t) || t.startsWith("text/") || DOCX.equals(t) || XLSX.equals(t)
+                || PPTX.equals(t) || OLE2.equals(t) || "application/msword".equals(t)
+                || "application/vnd.ms-excel".equals(t) || t.startsWith("application/vnd.oasis.opendocument.");
+    }
+
     /** Appelé après chaque page : le worker y prolonge son bail sur le job. */
     @FunctionalInterface
     public interface SuiviPages {

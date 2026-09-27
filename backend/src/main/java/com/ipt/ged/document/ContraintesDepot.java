@@ -1,7 +1,6 @@
 package com.ipt.ged.document;
 
 import com.ipt.ged.typedocument.TypeDocument;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -23,33 +22,12 @@ public final class ContraintesDepot {
 
     private ContraintesDepot() {}
 
-    /**
-     * Vérifie qu'un fichier peut être déposé sous ce type.
-     *
-     * @param fichier fichier reçu ; {@code null} ou vide n'est pas contrôlé ici
-     *                (l'obligation du fichier relève de l'appelant, l'aperçu
-     *                sachant travailler sur le seul nom).
-     */
-    public static void valider(TypeDocument type, MultipartFile fichier) {
-        if (fichier == null || fichier.isEmpty()) return;
-        String nom = fichier.getOriginalFilename() != null ? fichier.getOriginalFilename() : "document";
-        validerFormat(type, extension(nom));
-        validerTaille(type, fichier.getSize());
-    }
-
     /** Contrôle du seul format, quand aucun contenu n'accompagne le nom. */
     public static void validerFormat(TypeDocument type, String extension) {
         List<String> autorises = type.formatsAutorises();
         if (!autorises.isEmpty() && !autorises.contains(extension.toLowerCase())) {
             throw new IllegalArgumentException("Format « ." + extension + " » non autorisé (autorisés : "
                     + String.join(", ", autorises) + ")");
-        }
-    }
-
-    public static void validerTaille(TypeDocument type, long octets) {
-        long maxOctets = (long) type.getTailleMaxMo() * 1024 * 1024;
-        if (octets > maxOctets) {
-            throw new IllegalArgumentException("Fichier trop volumineux (max " + type.getTailleMaxMo() + " Mo)");
         }
     }
 

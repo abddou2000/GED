@@ -45,11 +45,12 @@ import com.ipt.ged.support.Comptes;
 import org.springframework.security.test.context.support.WithUserDetails;
 
 /**
- * Chaîne d'OCRisation : lecture de la couche texte des PDF natifs, déduction de
- * valeurs d'index depuis le contenu, et repli documenté quand aucun moteur ne
- * peut lire le document.
+ * Chaîne OCR vue de l'API après branchement (vague 2) : dépôt accepté en 202
+ * avec un job en attente (§4.3.4, §12.11), texte « non interrogeable » tant que
+ * le job n'est pas terminé, renvoi à l'OCR d'une version restaurée, et
+ * cloisonnement §4.3.3 (le contenu n'alimente aucun index).
  */
-@SpringBootTest
+@SpringBootTest(properties = {"ged.ocr.chaine.actif=true", "ged.ocr.chaine.workers=0"})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
@@ -60,8 +61,7 @@ class OcrApiTest {
 
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper om;
-    @Autowired private OcrService ocr;
-    @Autowired private ExtracteurValeurs extracteurValeurs;
+    @Autowired private com.ipt.ged.ocr.file.OcrJobQueue file;
     @Autowired private WorkflowRepository workflowRepository;
     @Autowired private EmployeRepository employeRepository;
     @Autowired private WorkSpaceRepository workspaceRepository;
@@ -134,70 +134,70 @@ class OcrApiTest {
         String res = mvc.perform(multipart("/api/v1/documents")
                         .file(new MockMultipartFile("file", nomFichier, "application/pdf", contenu))
                         .param("name", "Document").param("typeDocumentId", String.valueOf(typeId)))
-                .andExpect(status().isCreated())
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.statutOcr", is("EN_ATTENTE_OCR")))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         return UUID.fromString(om.readTree(res).get("id").asText());
     }
 
-    @Test
-    @DisplayName("1. La couche texte d'un PDF natif est lue, sans OCR")
-    void coucheTexteLue() throws Exception {
-        UUID doc = depose("scan0001.pdf", pdfAvecTexte("Fournisseur : ACME Distribution", "Montant : 1500"));
+    private UUID versionCourante(UUID doc) throws Exception {
+        String res = mvc.perform(get("/api/v1/documents/" + doc)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        for (var v : om.readTree(res).get("versions")) {
+            if (v.get("principale").asBoolean()) return UUID.fromString(v.get("id").asText());
+        }
+        throw new AssertionError("aucune version courante");
+    }
 
+    @Test
+    @DisplayName("1. Dépôt : 202 Accepted, job OCR en attente dans la même transaction, contenu non interrogeable")
+    void depotAccepteEnAttenteOcr() throws Exception {
+        UUID doc = depose("facture.pdf", pdfAvecTexte("Facture numero 2026-117"));
+        UUID version = versionCourante(doc);
+        assertEquals(com.ipt.ged.ocr.file.StatutOcr.EN_ATTENTE_OCR,
+                file.statutsParVersion(List.of(version)).get(version));
         mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.provenance", is("COUCHE_TEXTE")))
-                .andExpect(jsonPath("$.texte", containsString("ACME Distribution")))
-                .andExpect(jsonPath("$.nbPages", is(1)));
+                .andExpect(jsonPath("$.statutOcr", is("EN_ATTENTE_OCR")))
+                .andExpect(jsonPath("$.interrogeable", is(false)))
+                .andExpect(jsonPath("$.versionId", is(version.toString())));
+        mvc.perform(get("/api/v1/documents/" + doc))
+                .andExpect(jsonPath("$.statutOcr", is("EN_ATTENTE_OCR")))
+                .andExpect(jsonPath("$.versions[0].typeMime", is("application/pdf")))
+                .andExpect(jsonPath("$.versions[0].empreinte", matchesPattern("[0-9a-f]{64}")));
     }
 
     @Test
-    @DisplayName("2. Un PDF sans couche texte est signalé comme nécessitant un OCR")
-    void pdfSansTexte() throws Exception {
-        // PDF valide mais vide : c'est le cas d'un scan
-        byte[] vide = pdfAvecTexte();
-        UUID doc = depose("scan-vierge.pdf", vide);
-
-        mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte"))
+    @DisplayName("2. Nouvelle version : 202 et nouveau job ; restauration de l'ancienne : renvoyée à l'OCR")
+    void versionsRenvoyeesALOcr() throws Exception {
+        UUID doc = depose("contrat.pdf", pdfAvecTexte("Contrat v1"));
+        UUID v1 = versionCourante(doc);
+        mvc.perform(multipart("/api/v1/documents/" + doc + "/versions")
+                        .file(new MockMultipartFile("file", "contrat-v2.pdf", "application/pdf", pdfAvecTexte("Contrat v2"))))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.statutOcr", is("EN_ATTENTE_OCR")));
+        UUID v2 = versionCourante(doc);
+        assertNotEquals(v1, v2);
+        assertEquals(com.ipt.ged.ocr.file.StatutOcr.EN_ATTENTE_OCR, file.statutsParVersion(List.of(v2)).get(v2));
+        mvc.perform(patch("/api/v1/documents/" + doc + "/versions/" + v1 + "/default"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.provenance", is("AUCUNE")))
-                .andExpect(jsonPath("$.detail", not(emptyOrNullString())));
+                .andExpect(jsonPath("$.statutOcr", is("EN_ATTENTE_OCR")));
+        // Un seul job actif par version : v1 a été ré-enfilée (son premier job est encore en attente).
+        assertEquals(com.ipt.ged.ocr.file.StatutOcr.EN_ATTENTE_OCR, file.statutsParVersion(List.of(v1)).get(v1));
     }
 
     @Test
-    @DisplayName("3. Le diagnostic expose les extracteurs et leur disponibilité")
-    void diagnostic() throws Exception {
-        mvc.perform(get("/api/v1/ocr/diagnostic"))
+    @DisplayName("3. État de la chaîne : active, modèles fra et ara installés, fra+ara par défaut")
+    void etat() throws Exception {
+        mvc.perform(get("/api/v1/ocr/etat"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].nom", containsString("PDF natif")))
-                .andExpect(jsonPath("$[0].disponible", is(true)))
-                .andExpect(jsonPath("$[?(@.nom =~ /.*Tesseract.*/)]", hasSize(1)));
+                .andExpect(jsonPath("$.actif", is(true)))
+                .andExpect(jsonPath("$.langueDefaut", is("fra+ara")))
+                .andExpect(jsonPath("$.languesInstallees", hasItems("fra", "ara")));
     }
 
     @Test
-    @DisplayName("4. Les valeurs se déduisent du texte selon le type de l'index")
-    void deductionDepuisTexte() {
-        String texte = """
-            FACTURE
-            Fournisseur : ACME Distribution
-            Date d'émission : 15/01/2026
-            Priorité : Haute
-            """;
-        IndexField fourn = indexRepository.findAll().stream()
-                .filter(f -> "O-FOURN".equals(f.getCode())).findFirst().orElseThrow();
-        IndexField date = indexRepository.findAll().stream()
-                .filter(f -> "O-DATE".equals(f.getCode())).findFirst().orElseThrow();
-        IndexField prio = indexRepository.findAll().stream()
-                .filter(f -> "O-PRIO".equals(f.getCode())).findFirst().orElseThrow();
-
-        assertEquals("ACME Distribution", extracteurValeurs.deduire(fourn, texte, List.of()));
-        // date française normalisée en ISO
-        assertEquals("2026-01-15", extracteurValeurs.deduire(date, texte, List.of()));
-        assertEquals("Haute", extracteurValeurs.deduire(prio, texte, List.of("Basse", "Normale", "Haute")));
-    }
-
-    @Test
-    @DisplayName("5. Cloisonnement §4.3.3 : un fichier au nom muet n'est PAS indexé depuis son contenu")
+    @DisplayName("4. Cloisonnement §4.3.3 : un fichier au nom muet n'est PAS indexé depuis son contenu")
     void contenuNAlimenteAucunIndex() throws Exception {
         // Le contenu porte des valeurs lisibles ; aucune ne doit remonter dans
         // les propositions d'index : l'OCR ne sert qu'à la recherche plein texte.
@@ -218,7 +218,7 @@ class OcrApiTest {
     }
 
     @Test
-    @DisplayName("6. Le nom de fichier reste la seule source des propositions")
+    @DisplayName("5. Le nom de fichier reste la seule source des propositions")
     void nomDeFichierSeulesPropositions() throws Exception {
         UUID doc = depose("2026-01-15_ACME Distribution_Haute.pdf",
                 pdfAvecTexte("Fournisseur : Autre Societe"));
@@ -231,28 +231,5 @@ class OcrApiTest {
 
         assertTrue(res.contains("§4.3.3"), "le motif du cloisonnement est donné à l'opérateur");
         assertFalse(res.contains("Autre Societe"));
-    }
-
-    @Test
-    @DisplayName("7. Une valeur venue du contenu subit le même contrôle de type")
-    void contenuControle() throws Exception {
-        // « Extreme » n'appartient pas à la liste : la proposition doit être écartée
-        UUID doc = depose("scan0002.pdf", pdfAvecTexte("Priorite : Extreme"));
-
-        mvc.perform(get("/api/v1/indexation/documents/" + doc + "/analyse"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.propositions[?(@.code=='O-PRIO')].reconnue", contains(false)))
-                .andExpect(jsonPath("$.propositions[?(@.code=='O-PRIO')].valeurProposee",
-                        everyItem(nullValue())));
-    }
-
-    @Test
-    @DisplayName("8. Tesseract absent n'empêche pas la chaîne de répondre")
-    void tesseractAbsentSansCasse() {
-        List<OcrService.EtatExtracteur> etats = ocr.diagnostic();
-        assertTrue(etats.stream().anyMatch(e -> e.nom().contains("PDF natif") && e.disponible()));
-        // Le poste de développement n'a pas Tesseract : l'étage est ignoré, pas fatal
-        assertTrue(etats.stream().anyMatch(e -> e.nom().contains("Tesseract")));
-        assertEquals(10, etats.get(0).priorite(), "la couche texte doit être tentée en premier");
     }
 }

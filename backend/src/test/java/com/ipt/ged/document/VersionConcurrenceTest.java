@@ -98,7 +98,7 @@ class VersionConcurrenceTest {
     }
 
     private MockMultipartFile fichier(String nom) {
-        return new MockMultipartFile("file", nom, "application/pdf", ("contenu " + nom).getBytes());
+        return new MockMultipartFile("file", nom, "application/pdf", com.ipt.ged.support.Pdfs.pdf(nom));
     }
 
     private UUID deposer(String nom) {

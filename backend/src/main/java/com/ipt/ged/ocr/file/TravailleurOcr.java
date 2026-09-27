@@ -7,11 +7,16 @@ import com.ipt.ged.ocr.moteur.TexteDocument;
 import com.ipt.ged.recherche.SearchIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.support.TransactionTemplate;
+import com.ipt.ged.document.evenement.Acteur;
+import com.ipt.ged.document.evenement.ContenuIndexe;
+import com.ipt.ged.document.evenement.OcrEnEchec;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -36,10 +41,19 @@ public class TravailleurOcr {
     private final TransactionTemplate transaction;
     private final MetriquesOcr metriques;
     private final Duration bail;
+    private final ApplicationEventPublisher evenements;
 
     public TravailleurOcr(String nom, OcrJobQueue file, SourceFichierOcr source, ExtracteurDocumentOcr extracteur,
                           SearchIndexer indexer, TransactionTemplate transaction, MetriquesOcr metriques,
                           Duration bail) {
+        this(nom, file, source, extracteur, indexer, transaction, metriques, bail, e -> { });
+    }
+
+    /** @param evenements reçoit {@link ContenuIndexe} (dans la transaction de clôture) et {@link OcrEnEchec}. */
+    public TravailleurOcr(String nom, OcrJobQueue file, SourceFichierOcr source, ExtracteurDocumentOcr extracteur,
+                          SearchIndexer indexer, TransactionTemplate transaction, MetriquesOcr metriques,
+                          Duration bail, ApplicationEventPublisher evenements) {
+        this.evenements = evenements;
         this.nom = nom;
         this.file = file;
         this.source = source;
@@ -93,6 +107,9 @@ public class TravailleurOcr {
                 statut.setRollbackOnly();
                 return false;
             }
+            evenements.publishEvent(new ContenuIndexe(job.documentId(), job.versionId(), Acteur.SYSTEME,
+                    Instant.now(), texte.nbPages(), texte.provenance().name(),
+                    Duration.between(job.deposeLe(), Instant.now())));
             return true;
         }));
         if (clos) {
@@ -108,6 +125,8 @@ public class TravailleurOcr {
         StatutOcr s = file.echouer(job.id(), nom, motif, definitif);
         if (s == StatutOcr.OCR_ECHEC) {
             metriques.echec();
+            evenements.publishEvent(new OcrEnEchec(job.documentId(), job.versionId(), Acteur.SYSTEME, Instant.now(),
+                    job.id(), motif));
             log.error("Job OCR {} en échec (document « non interrogeable ») : {}", job.id(), motif);
         } else {
             metriques.reprise();

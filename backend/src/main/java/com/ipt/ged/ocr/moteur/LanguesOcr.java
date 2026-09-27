@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
  * Langue de reconnaissance d'un type de document (§4.3.4) : {@code fra+ara}
  * par défaut (documents bilingues ou mixtes), réglable par type documentaire.
  *
- * <p>Le réglage est lu dans la configuration ({@code ged.ocr.langues.par-type},
+ * <p>Le réglage est lu dans la configuration ({@code ged.ocr.chaine.langues-par-type},
  * indexé par <b>code</b> du type) plutôt que dans une colonne : le modèle des
  * types est en cours de migration (lot dev1). Au branchement, une colonne
  * {@code type_document.langue_ocr} pourra remplacer ce tableau sans changer
@@ -27,10 +27,10 @@ public class LanguesOcr {
     private final Map<String, String> parType;
 
     public LanguesOcr(String defaut, Map<String, String> parType) {
-        this.defaut = valider(defaut, "ged.ocr.langues.defaut");
+        this.defaut = valider(defaut, "ged.ocr.chaine.langue-defaut");
         TreeMap<String, String> m = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         if (parType != null) {
-            parType.forEach((type, langue) -> m.put(type, valider(langue, "ged.ocr.langues.par-type." + type)));
+            parType.forEach((type, langue) -> m.put(type, valider(langue, "ged.ocr.chaine.langues-par-type." + type)));
         }
         this.parType = m;
     }

@@ -147,7 +147,7 @@ class SecuriteApiTest {
     void usurpationDeSignatureImpossible() throws Exception {
         // Sara dépose : le circuit crée une étape assignée à Sara.
         String res = mvc.perform(multipart("/api/v1/documents")
-                        .file(new MockMultipartFile("file", "sec.pdf", "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", "sec.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .with(enTantQue(Comptes.ADMIN))
                         .param("name", "Doc sécurité")
                         .param("typeDocumentId", String.valueOf(typeId)))

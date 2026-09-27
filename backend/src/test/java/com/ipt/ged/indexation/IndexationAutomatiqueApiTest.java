@@ -113,7 +113,7 @@ class IndexationAutomatiqueApiTest {
     /** Dépose un fichier et renvoie l'id du document créé. */
     private UUID depose(String fichier) throws Exception {
         String res = mvc.perform(multipart("/api/v1/documents")
-                        .file(new MockMultipartFile("file", fichier, "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", fichier, "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("name", "Facture")
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
@@ -228,7 +228,7 @@ class IndexationAutomatiqueApiTest {
         UUID id = typeRepository.save(sansPlan).getId();
 
         String res = mvc.perform(multipart("/api/v1/documents")
-                        .file(new MockMultipartFile("file", "note.pdf", "application/pdf", "x".getBytes()))
+                        .file(new MockMultipartFile("file", "note.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("name", "Note").param("typeDocumentId", String.valueOf(id)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);

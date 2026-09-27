@@ -82,7 +82,7 @@ class DocumentApiTest {
     @DisplayName("1. Dépôt d'un fichier autorisé (201) + dossier hérité du type")
     void uploadValid() throws Exception {
         mvc.perform(multipart(BASE)
-                        .file(file("facture.pdf", "contenu pdf".getBytes()))
+                        .file(file("facture.pdf", com.ipt.ged.support.Pdfs.pdf("contenu pdf")))
                         .param("name", "Ma facture")
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
@@ -101,7 +101,7 @@ class DocumentApiTest {
            sert de trace de responsabilité — serait déclarative, et n'importe
            qui pourrait déposer au nom d'un collègue. */
         mvc.perform(multipart(BASE)
-                        .file(file("facture-createur.pdf", "contenu pdf".getBytes()))
+                        .file(file("facture-createur.pdf", com.ipt.ged.support.Pdfs.pdf("contenu pdf")))
                         .param("name", "Pièce tracée")
                         .param("typeDocumentId", String.valueOf(typeId))
                         .param("createdById", "999"))
@@ -110,23 +110,25 @@ class DocumentApiTest {
     }
 
     @Test
-    @DisplayName("2. Format non autorisé refusé (400)")
+    @DisplayName("2. Type réel non autorisé refusé (415 FORMAT_NON_AUTORISE)")
     void uploadWrongFormat() throws Exception {
         mvc.perform(multipart(BASE)
                         .file(file("virus.exe", "x".getBytes()))
                         .param("typeDocumentId", String.valueOf(typeId)))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.code").value("FORMAT_NON_AUTORISE"))
                 .andExpect(jsonPath("$.message", containsString("non autorisé")));
     }
 
     @Test
-    @DisplayName("3. Fichier trop volumineux refusé (400)")
+    @DisplayName("3. Fichier trop volumineux refusé (413 FICHIER_TROP_VOLUMINEUX)")
     void uploadTooBig() throws Exception {
         byte[] big = new byte[6 * 1024 * 1024]; // 6 Mo > 5 Mo
         mvc.perform(multipart(BASE)
                         .file(file("gros.pdf", big))
                         .param("typeDocumentId", String.valueOf(typeId)))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.code").value("FICHIER_TROP_VOLUMINEUX"))
                 .andExpect(jsonPath("$.message", containsString("volumineux")));
     }
 
@@ -144,7 +146,7 @@ class DocumentApiTest {
     @DisplayName("5. Liste + téléchargement du fichier déposé")
     void listAndDownload() throws Exception {
         String res = mvc.perform(multipart(BASE)
-                        .file(file("doc.pdf", "hello".getBytes()))
+                        .file(file("doc.pdf", com.ipt.ged.support.Pdfs.pdf("hello")))
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
@@ -154,14 +156,14 @@ class DocumentApiTest {
         mvc.perform(get(BASE + "/" + id + "/download"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", containsString("doc.pdf")))
-                .andExpect(content().bytes("hello".getBytes()));
+                .andExpect(content().bytes(com.ipt.ged.support.Pdfs.pdf("hello")));
     }
 
     @Test
     @DisplayName("6. Corbeille : suppression puis restauration")
     void softDeleteRestore() throws Exception {
         String res = mvc.perform(multipart(BASE)
-                        .file(file("del.pdf", "x".getBytes()))
+                        .file(file("del.pdf", com.ipt.ged.support.Pdfs.pdf()))
                         .param("typeDocumentId", String.valueOf(typeId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();

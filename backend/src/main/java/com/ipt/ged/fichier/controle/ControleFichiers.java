@@ -93,6 +93,25 @@ public class ControleFichiers {
         return type;
     }
 
+    /**
+     * Taille et type réel seulement, sans antivirus : pour un fichier qui n'est
+     * ni conservé ni ouvert (aperçu d'indexation, qui ne lit que son nom depuis
+     * le cloisonnement §4.3.3) mais qui doit être refusé comme le dépôt le
+     * refuserait.
+     *
+     * @return le type réel détecté.
+     */
+    public String verifierTailleEtType(SourceFichier source, ReglesDepot regles) {
+        if (source.taille() > regles.tailleMaxOctets()) {
+            throw Refus.tropVolumineux(regles.tailleMaxOctets());
+        }
+        String type = detecteur.detecter(source);
+        if (!regles.admet(type)) {
+            throw Refus.formatNonAutorise(type);
+        }
+        return type;
+    }
+
     /** Contrôles puis écriture chiffrée ; rien n'est écrit si un contrôle refuse. */
     public Depot deposer(SourceFichier source, ReglesDepot regles) {
         String type = controler(source, regles);

@@ -11,6 +11,7 @@ import com.ipt.ged.fichier.controle.ClientClamd;
 import com.ipt.ged.fichier.controle.ControleFichiers;
 import com.ipt.ged.fichier.controle.DetecteurTypeReel;
 import com.ipt.ged.fichier.integrite.SourceEmpreintes;
+import com.ipt.ged.fichier.integrite.SourceEmpreintesVersions;
 import com.ipt.ged.fichier.integrite.VerificationIntegrite;
 import com.ipt.ged.fichier.integrite.VerificationPeriodique;
 import com.ipt.ged.fichier.previsualisation.ControleAccesPrevisualisation;
@@ -93,6 +94,12 @@ public class ConfigurationFichiers {
         return new VerificationIntegrite(stockage, evenements);
     }
 
+    /** Empreintes à vérifier : toutes les versions chiffrées (vérification mensuelle, §6.1.4). */
+    @Bean
+    public SourceEmpreintes sourceEmpreintes(JdbcTemplate jdbc) {
+        return new SourceEmpreintesVersions(jdbc);
+    }
+
     @Bean
     public DetecteurTypeReel detecteurTypeReel() {
         return new DetecteurTypeReel();
@@ -153,7 +160,7 @@ public class ConfigurationFichiers {
         return new ControleAccesPrevisualisationProvisoire();
     }
 
-    /** Vérification mensuelle d'intégrité : exige une {@link SourceEmpreintes} branchée sur les versions. */
+    /** Vérification mensuelle d'intégrité de toutes les versions chiffrées. */
     @Configuration
     @EnableScheduling
     @ConditionalOnProperty(prefix = "ged.fichiers.integrite", name = "verification-planifiee", havingValue = "true")

@@ -84,6 +84,30 @@ public final class BasePostgres implements AutoCloseable {
         return new BasePostgres(url, utilisateur, mdp, schema, ds);
     }
 
+    /** Applique en plus un changelog (ex. le « contract » de la version suivante) sur le schéma jetable. */
+    public void appliquer(String changelog) throws Exception {
+        try (Connection c = source.getConnection()) {
+            Database db = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(c));
+            db.setDefaultSchemaName(schema);
+            db.setLiquibaseSchemaName(schema);
+            try (Liquibase lb = new Liquibase(changelog, new ClassLoaderResourceAccessor(), db)) {
+                lb.update(new Contexts(), new LabelExpression());
+            }
+        }
+    }
+
+    /** Retour arrière des {@code n} derniers changesets d'un changelog. */
+    public void annuler(String changelog, int n) throws Exception {
+        try (Connection c = source.getConnection()) {
+            Database db = DatabaseFactory.getInstance().findCorrectDatabaseImplementation(new JdbcConnection(c));
+            db.setDefaultSchemaName(schema);
+            db.setLiquibaseSchemaName(schema);
+            try (Liquibase lb = new Liquibase(changelog, new ClassLoaderResourceAccessor(), db)) {
+                lb.rollback(n, (String) null);
+            }
+        }
+    }
+
     public HikariDataSource source() {
         return source;
     }
@@ -97,8 +121,8 @@ public final class BasePostgres implements AutoCloseable {
     }
 
     /**
-     * Insère un document et sa version, avec l'espace et le type requis par
-     * les clés étrangères du modèle (lot E1).
+     * Insère un document et sa version (si {@code versionId} n'est pas nul),
+     * avec l'espace et le type requis par les clés étrangères du modèle (lot E1).
      */
     public synchronized void document(UUID documentId, UUID versionId) {
         JdbcTemplate j = jdbc();
@@ -115,8 +139,17 @@ public final class BasePostgres implements AutoCloseable {
         }
         j.update("INSERT INTO document (id, name, workspace_id, type_document_id) VALUES (?, 'test', ?, ?) "
                 + "ON CONFLICT (id) DO NOTHING", documentId, workspace, typeDocument);
-        j.update("INSERT INTO version_document (id, document_id, file_name, file_path) VALUES (?, ?, 'f.pdf', 'x/f.pdf')",
-                versionId, documentId);
+        if (versionId != null) {
+            j.update("INSERT INTO version_document (id, document_id, file_name, file_path) VALUES (?, ?, 'f.pdf', 'x/f.pdf')",
+                    versionId, documentId);
+        }
+    }
+
+    /** Version supplémentaire d'un document existant, avec son chemin dans l'ancien stockage en clair. */
+    public void version(UUID documentId, UUID versionId, String cheminEnClair, boolean principale) {
+        document(documentId, null);
+        jdbc().update("INSERT INTO version_document (id, document_id, file_name, file_path, is_default) "
+                + "VALUES (?, ?, 'f.pdf', ?, ?)", versionId, documentId, cheminEnClair, principale);
     }
 
     /** Clé de fichier (clé étrangère ocr_job.cle_fichier_id). */

@@ -48,13 +48,9 @@ public class UploadDocument extends Supprimable {
     @JoinColumn(name = "type_document_id", nullable = false)
     private TypeDocument typeDocument;
 
-    /** Nom du fichier stocké sur disque (unique). */
+    /** Nom d'origine du fichier de la version courante (le fichier lui-même est chiffré, cf. version). */
     @Column(name = "file_name")
     private String fileName;
-
-    /** Chemin relatif du fichier sur le disque. */
-    @Column(name = "file_path")
-    private String filePath;
 
     private String extension;
 

@@ -14,6 +14,7 @@ import com.ipt.ged.recherche.ReindexationComplete;
 import com.ipt.ged.recherche.SearchIndexer;
 import com.ipt.ged.recherche.SearchIndexerPostgres;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -62,6 +63,12 @@ public class ConfigurationChaineOcr {
     @Bean
     public OcrJobQueue ocrJobQueue(JdbcTemplate jdbc, ProprietesChaineOcr p) {
         return new OcrJobQueuePostgres(jdbc, new PolitiqueReprise(p.getDelaisReprise()));
+    }
+
+    /** Enfilage au dépôt (temps 1 du §12.11) ; inerte si la chaîne est désactivée. */
+    @Bean
+    public EnfilageOcr enfilageOcr(OcrJobQueue file, LanguesOcr langues, ProprietesChaineOcr p) {
+        return new EnfilageOcr(file, langues, p.isActif());
     }
 
     /** Point d'extension du lot autorisation : à remplacer par le prédicat du point unique de droits. */
@@ -116,12 +123,12 @@ public class ConfigurationChaineOcr {
         public PoolTravailleursOcr poolTravailleursOcr(OcrJobQueue file, SourceFichierOcr source,
                                                        ExtracteurDocumentOcr extracteur, SearchIndexer indexer,
                                                        PlatformTransactionManager tm, MetriquesOcr metriques,
-                                                       ProprietesChaineOcr p) {
+                                                       ProprietesChaineOcr p, ApplicationEventPublisher evenements) {
             // Nom unique entre instances : « pid@hôte » de la JVM, puis le rang.
             String instance = ManagementFactory.getRuntimeMXBean().getName();
             TransactionTemplate tx = new TransactionTemplate(tm);
             return new PoolTravailleursOcr(p.getWorkers(), p.getScrutation(), i -> new TravailleurOcr(
-                    instance + "#" + i, file, source, extracteur, indexer, tx, metriques, p.getBail()));
+                    instance + "#" + i, file, source, extracteur, indexer, tx, metriques, p.getBail(), evenements));
         }
     }
 }

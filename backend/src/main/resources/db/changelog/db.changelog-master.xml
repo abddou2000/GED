@@ -76,4 +76,12 @@
     <include file="changesets/202609271220_creation_table_document_texte.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609271225_jalon_fichiers_ocr_recherche.xml" relativeToChangelogFile="true"/>
 
+    <!--
+        Vague 2 : branchement du stockage chiffré, phase « expand ». La phase
+        « contract » (retrait des chemins en clair, colonnes obligatoires) est
+        prête dans version-suivante/ : elle entre dans le changelog de la
+        version qui suit la reprise des fichiers en production (§4.2.2).
+    -->
+    <include file="changesets/202609281000_expand_chemin_fichier_facultatif.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

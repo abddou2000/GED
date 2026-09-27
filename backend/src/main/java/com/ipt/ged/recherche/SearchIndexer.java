@@ -41,6 +41,13 @@ public interface SearchIndexer {
      */
     List<UUID> reindexerLot(UUID apres, int taille);
 
+    /** Texte indexé d'un document (version courante), s'il l'est. */
+    java.util.Optional<TexteIndexe> texte(UUID documentId);
+
+    record TexteIndexe(UUID documentId, UUID versionId, String langue, String provenance, Integer nbPages,
+                       java.time.Instant indexeLe, String texte) {
+    }
+
     record TexteAIndexer(UUID documentId, UUID versionId, String langue, String texte, String provenance,
                          int nbPages) {
     }

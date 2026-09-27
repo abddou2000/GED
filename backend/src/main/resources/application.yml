@@ -112,11 +112,6 @@ ged:
     # Origines autorisees a appeler l'API (CORS), separees par des virgules.
     origines: ${GED_ORIGINES:http://localhost:*,http://127.0.0.1:*}
 
-# Emplacement de stockage des fichiers de la GED
-  storage:
-    root: ./storage/ged        # dossier racine des documents
-    temp: ./storage/temp       # pages rendues en image avant OCR, purgées après lecture
-
   # ------------------------------------------------------------
   #  Stockage sécurisé des fichiers (lot E5, §6.1)
   # ------------------------------------------------------------
@@ -145,33 +140,28 @@ ged:
       delai-lecture-ms: 120000
       taille-bloc-octets: 65536
     integrite:
-      verification-planifiee: false  # à activer une fois les empreintes en base
+      verification-planifiee: true   # toutes les versions chiffrées, mensuellement
       cron: "0 0 3 1 * *"            # le 1er de chaque mois à 3 h
     previsualisation:
-      api-active: false              # à activer une fois le résolveur de versions branché
+      api-active: true               # GET /api/v1/versions/{id}/apercu
       libreoffice-commande: ${GED_LIBREOFFICE:soffice}
       delai-conversion-s: 120
       # tmpfs en production : la conversion y dépose une copie en clair éphémère
       repertoire-travail: ${GED_APERCU_TRAVAIL:${java.io.tmpdir}/ged-apercu}
 
-  # Chaîne d'OCRisation. Étage 1 (couche texte des PDF natifs) : toujours actif,
-  # aucune installation requise. Étage 2 (Tesseract) : utilisé seulement si le
-  # binaire répond, sinon simplement ignoré.
+  # ------------------------------------------------------------
+  #  OCR asynchrone et recherche plein texte (lot E6, §4.3, §4.4)
+  # ------------------------------------------------------------
+  # Le texte extrait n'alimente AUCUN champ d'index (§4.3.3) : il ne sert qu'à
+  # la recherche plein texte.
   ocr:
-    enabled: true
-    commande: C:/Program Files/Tesseract-OCR/tesseract.exe
-    tessdata: ./tessdata       # modèles LSTM livrés avec l'application
-    langue: fra+eng
+    # Binaire Tesseract 5 (appelé depuis Java, décision D5) et modèles fra/ara.
+    commande: ${GED_TESSERACT:C:/Program Files/Tesseract-OCR/tesseract.exe}
+    tessdata: ${GED_TESSDATA:./tessdata}
     oem: 1                     # 1 = moteur LSTM seul, le plus précis
     psm: 3                     # 3 = page entière, segmentation automatique
-    dpi: 300                   # rendu des pages PDF avant reconnaissance
-    pages-max: 5               # bride le coût sur les documents volumineux
-
-    # --- Chaîne OCR asynchrone et recherche plein texte (lot E6, §4.3.4, §4.4) ---
-    # Les réglages ci-dessus (langue, pages-max) ne valent que pour la lecture
-    # synchrone de l'aperçu d'indexation, appelée à retirer (cloisonnement §4.3.3).
     chaine:
-      actif: false                     # workers + jauges + API : après intégration des tables
+      actif: true                      # enfilage au dépôt (HTTP 202), workers, API recherche et supervision
       workers: 2                       # workers OCR de cette instance
       scrutation: 5s
       bail: 10m                        # prolongé à chaque page

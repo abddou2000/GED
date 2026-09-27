@@ -2,13 +2,17 @@ package com.ipt.ged.indexation;
 
 import com.ipt.ged.common.Limites;
 import com.ipt.ged.document.ContraintesDepot;
+import com.ipt.ged.document.evenement.Acteur;
+import com.ipt.ged.document.evenement.MetadonneesModifiees;
+import com.ipt.ged.fichier.controle.ControleFichiers;
+import org.springframework.context.ApplicationEventPublisher;
+import com.ipt.ged.fichier.controle.SourceFichier;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
 import com.ipt.ged.index.IndexField;
 import com.ipt.ged.index.IndexFieldType;
 import com.ipt.ged.index.IndexRepository;
 import com.ipt.ged.indexation.dto.*;
-import com.ipt.ged.ocr.TexteExtrait;
 import com.ipt.ged.planindexation.CharteNommage;
 import com.ipt.ged.typedocument.TypeDocument;
 import com.ipt.ged.typedocument.TypeDocumentRepository;
@@ -39,11 +43,20 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class IndexationService {
 
+    /**
+     * Provenance du texte des propositions : toujours « aucune » depuis le
+     * cloisonnement §4.3.3 (seul le nom de fichier propose des valeurs). Le
+     * champ reste dans les réponses pour la compatibilité de l'écran.
+     */
+    private static final String PROVENANCE_AUCUNE = "AUCUNE";
+
     private final IndexRepository indexRepository;
     private final UploadDocumentRepository documentRepository;
     private final DocumentIndexRepository valeurRepository;
     /** Le type porte le plan : l'apercu part du type, pas d'un document. */
     private final TypeDocumentRepository typeRepository;
+    private final ControleFichiers controleFichiers;
+    private final ApplicationEventPublisher evenements;
 
     /* ===================== Critères ===================== */
 
@@ -159,10 +172,18 @@ public class IndexationService {
         }
 
         // Seconde passe : écriture, plus rien ne peut être refusé ici.
+        Map<String, Object> avant = new LinkedHashMap<>();
+        Map<String, Object> apres = new LinkedHashMap<>();
         for (Map.Entry<UUID, String> ligne : recues.entrySet()) {
             IndexField champ = autorises.get(ligne.getKey());
             String valeur = ligne.getValue();
             DocumentIndex cible = existantes.remove(champ.getId());
+            String ancienne = cible != null ? cible.getValeur() : null;
+            String nouvelle = valeur == null || valeur.isEmpty() ? null : valeur;
+            if (!java.util.Objects.equals(ancienne, nouvelle)) {
+                avant.put("index." + champ.getCode(), ancienne);
+                apres.put("index." + champ.getCode(), nouvelle);
+            }
             if (valeur == null || valeur.isEmpty()) {
                 if (cible != null) valeurRepository.delete(cible);   // valeur effacée
                 continue;
@@ -183,6 +204,10 @@ public class IndexationService {
            détruisait le nom sans qu'aucune donnée n'ait été fournie. */
         if (!recues.isEmpty()) {
             recomposerReference(doc);
+        }
+        if (!avant.isEmpty()) {
+            evenements.publishEvent(new MetadonneesModifiees(doc.getId(), null, Acteur.courant(),
+                    java.time.Instant.now(), avant, apres));
         }
         return valeurs(documentId);
     }
@@ -309,7 +334,12 @@ public class IndexationService {
            décide, et il est toujours là. */
         ContraintesDepot.validerTypeVivant(type);
         ContraintesDepot.validerFormat(type, ContraintesDepot.extension(nomFichier));
-        ContraintesDepot.valider(type, fichier);
+        // Même refus que le dépôt qu'il précède (taille 413, type réel 415) ;
+        // pas d'antivirus : le fichier n'est ni conservé ni ouvert ici.
+        if (fichier != null && !fichier.isEmpty()) {
+            controleFichiers.verifierTailleEtType(SourceFichier.de(fichier),
+                    controleFichiers.regles(type.getTailleMaxMo(), type.formatsAutorises()));
+        }
 
         PlanIndexation plan = type.getPlanIndexation();
         if (plan == null) return ApercuResponse.sansPlan();
@@ -360,7 +390,7 @@ public class IndexationService {
         String avertissement = avertissementDeLecture(reconnus, champs, sep);
 
         return new ApercuResponse(plan.getNomDuPlan(), sep, propositions, reconnus, champs.size(),
-                nomPropose, avertissement, TexteExtrait.Provenance.AUCUNE.name());
+                nomPropose, avertissement, PROVENANCE_AUCUNE);
     }
 
     /**
@@ -432,7 +462,7 @@ public class IndexationService {
         return new AnalyseResponse(doc.getId(), fichier, plan.getNomDuPlan(), sep, plan.isMajuscule(),
                 plan.isModeIndexation(), segments, propositions, reference,
                 reconnus, champs.size(), avertissement,
-                TexteExtrait.Provenance.AUCUNE.name(),
+                PROVENANCE_AUCUNE,
                 "Le contenu du document n'alimente aucun champ d'index (dossier technique §4.3.3).");
     }
 
@@ -505,7 +535,7 @@ public class IndexationService {
     private AnalyseResponse vide(UploadDocument doc, String fichier, String avertissement) {
         return new AnalyseResponse(doc.getId(), fichier, null, "_", false, false,
                 List.of(), List.of(), null, 0, 0, avertissement,
-                TexteExtrait.Provenance.AUCUNE.name(), null);
+                PROVENANCE_AUCUNE, null);
     }
 
     /** Retire l'extension puis découpe sur le séparateur du plan. */

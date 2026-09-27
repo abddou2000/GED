@@ -3,7 +3,8 @@ package com.ipt.ged.document;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.document.dto.DocumentRequest;
 import com.ipt.ged.document.dto.DocumentResponse;
-import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import org.springframework.http.HttpHeaders;
 import com.ipt.ged.security.UtilisateurConnecte;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -76,8 +78,17 @@ public class DocumentController {
             @RequestParam(value = "etiquetteIds", required = false) List<UUID> etiquetteIds,
             @AuthenticationPrincipal UtilisateurConnecte principal) {
         UUID createdById = principal != null ? principal.getEmployeId() : null;
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(service.upload(file, name, typeDocumentId, expirationDate, createdById, etiquetteIds));
+        return creation(service.upload(file, name, typeDocumentId, expirationDate, createdById, etiquetteIds));
+    }
+
+    /**
+     * 202 Accepted quand le contenu part à l'OCR (le document est reçu mais pas
+     * encore interrogeable, état {@code EN_ATTENTE_OCR} dans la réponse),
+     * 201 Created sinon (§4.3.4, §12.11).
+     */
+    private static ResponseEntity<DocumentResponse> creation(DocumentResponse r) {
+        HttpStatus statut = "EN_ATTENTE_OCR".equals(r.statutOcr()) ? HttpStatus.ACCEPTED : HttpStatus.CREATED;
+        return ResponseEntity.status(statut).body(r);
     }
 
     /** Modifie la fiche (nom, type, date, etiquettes, archivage). */
@@ -94,11 +105,11 @@ public class DocumentController {
 
     /** Depose une nouvelle version du fichier. */
     @PostMapping(value = "/{id}/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public DocumentResponse ajouterVersion(
+    public ResponseEntity<DocumentResponse> ajouterVersion(
             @PathVariable UUID id,
             @RequestPart("file") MultipartFile file,
             @RequestParam(value = "observation", required = false) String observation) {
-        return service.ajouterVersion(id, file, observation);
+        return creation(service.ajouterVersion(id, file, observation));
     }
 
     /** Rend une version anterieure courante. */
@@ -107,16 +118,25 @@ public class DocumentController {
         return service.restaurerVersion(id, versionId);
     }
 
+    /**
+     * Téléchargement de la version courante, déchiffrée à la volée en flux
+     * (§6.1.2) : ni copie en clair sur disque, ni fichier entier en mémoire.
+     */
     @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> download(@PathVariable UUID id) {
-        UploadDocument doc = service.loadForDownload(id);
-        Resource resource = service.storage().load(doc.getFilePath());
-        String downloadName = doc.getName() + (doc.getExtension() != null && !doc.getExtension().isBlank()
-                ? "." + doc.getExtension() : "");
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(downloadName))
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(resource);
+    public ResponseEntity<StreamingResponseBody> download(@PathVariable UUID id) {
+        DocumentService.FichierTelecharge f = service.telecharger(id);
+        ResponseEntity.BodyBuilder r = ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(f.nom()))
+                .header("X-Content-Type-Options", "nosniff")
+                .cacheControl(CacheControl.noStore())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM);
+        if (f.taille() >= 0) r.contentLength(f.taille());
+        StreamingResponseBody corps = sortie -> {
+            try (InputStream in = f.flux()) {
+                in.transferTo(sortie);
+            }
+        };
+        return r.body(corps);
     }
 
     /**

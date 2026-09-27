@@ -32,17 +32,33 @@ public record DocumentResponse(
         String createdBy,
         List<Tag> etiquettes,
         List<Version> versions,
-        Instant createdAt
+        Instant createdAt,
+        /**
+         * État du traitement OCR de la version courante (§4.3.4) :
+         * {@code EN_ATTENTE_OCR}, {@code EN_COURS_OCR}, {@code OCR_TERMINE} (document
+         * interrogeable) ou {@code OCR_ECHEC} (« contenu non interrogeable ») ;
+         * {@code null} si la version n'a pas de contenu textuel à extraire.
+         */
+        String statutOcr
 ) {
     public record Ref(UUID id, String label) {}
 
     /** Étiquette avec sa couleur : la liste l'affiche en pastille. */
     public record Tag(UUID id, String tag, String couleur) {}
 
+    /**
+     * @param typeMime  type réel détecté au dépôt ;
+     * @param empreinte SHA-256 du contenu en clair (§6.1.4).
+     */
     public record Version(UUID id, String fileName, String observation,
-                          boolean principale, String sizeLabel, Instant createdAt) {}
+                          boolean principale, String sizeLabel, Instant createdAt,
+                          String typeMime, String empreinte) {}
 
     public static DocumentResponse from(UploadDocument d) {
+        return from(d, null);
+    }
+
+    public static DocumentResponse from(UploadDocument d, String statutOcr) {
         return new DocumentResponse(
                 d.getId(), d.getName(),
                 d.getWorkspace() != null ? new Ref(d.getWorkspace().getId(), d.getWorkspace().getName()) : null,
@@ -53,7 +69,8 @@ public record DocumentResponse(
                 chemin(d),
                 d.getCreatedBy() != null ? d.getCreatedBy().getFullName() : null,
                 tags(d), versions(d),
-                d.getCreatedAt());
+                d.getCreatedAt(),
+                statutOcr);
     }
 
     /**
@@ -83,7 +100,8 @@ public record DocumentResponse(
         try {
             return d.getVersions().stream()
                     .map(v -> new Version(v.getId(), v.getFileName(), v.getObservation(),
-                            v.isPrincipale(), humanSize(v.getSizeKo()), v.getCreatedAt()))
+                            v.isPrincipale(), humanSize(v.getSizeKo()), v.getCreatedAt(),
+                            v.getTypeMime(), v.getEmpreinte()))
                     .toList();
         } catch (RuntimeException e) {
             return List.of();

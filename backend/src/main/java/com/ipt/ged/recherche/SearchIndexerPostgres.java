@@ -143,6 +143,16 @@ public class SearchIndexerPostgres implements SearchIndexer {
     }
 
     @Override
+    public java.util.Optional<TexteIndexe> texte(UUID documentId) {
+        return jdbc.query("SELECT document_id, version_id, langue, provenance, nb_pages, indexe_le, texte "
+                        + "FROM document_texte WHERE document_id = ?",
+                (rs, i) -> new TexteIndexe(rs.getObject("document_id", UUID.class), rs.getObject("version_id", UUID.class),
+                        rs.getString("langue"), rs.getString("provenance"), (Integer) rs.getObject("nb_pages"),
+                        rs.getObject("indexe_le", java.time.OffsetDateTime.class).toInstant(), rs.getString("texte")),
+                documentId).stream().findFirst();
+    }
+
+    @Override
     public long compter() {
         Long n = jdbc.queryForObject("SELECT COUNT(*) FROM document_texte", Long.class);
         return n == null ? 0 : n;

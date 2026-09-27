@@ -1,5 +1,7 @@
 package com.ipt.ged.fichier.previsualisation;
 
+import com.ipt.ged.document.evenement.Acteur;
+import com.ipt.ged.document.evenement.ApercuConsulte;
 import com.ipt.ged.fichier.Refus;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
@@ -18,17 +20,15 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * {@code GET /api/v1/versions/{versionId}/apercu} : aperçu d'une version de
  * document, affiché dans la visionneuse intégrée (§6.1.6).
  *
- * <p>Désactivé tant que {@code ged.fichiers.previsualisation.api-active} n'est
- * pas vrai : il a besoin d'un {@link ResolveurFichierVersion} branché sur le
- * modèle de données, qui n'existe pas encore.
- *
- * <p>Chaque aperçu produit un événement {@link ApercuConsulte}, distinct du
- * téléchargement, que le journal d'audit enregistre.
+ * <p>Actif avec {@code ged.fichiers.previsualisation.api-active} (vrai par
+ * défaut). Chaque aperçu produit un événement {@link ApercuConsulte}, distinct
+ * du téléchargement, que le journal d'audit enregistre.
  */
 @RestController
 @RequestMapping("/api/v1/versions")
@@ -49,15 +49,15 @@ public class PrevisualisationController {
     }
 
     @GetMapping("/{versionId}/apercu")
-    public ResponseEntity<StreamingResponseBody> apercu(@PathVariable String versionId, Authentication utilisateur) {
+    public ResponseEntity<StreamingResponseBody> apercu(@PathVariable UUID versionId, Authentication utilisateur) {
         ResolveurFichierVersion.FichierVersion version = resolveur.resoudre(versionId)
                 .orElseThrow(() -> Refus.introuvable("version " + versionId));
         // Droits d'abord : un refus ne doit rien déchiffrer ni convertir.
         controleAcces.verifierLecture(version, utilisateur);
 
         ServicePrevisualisation.Apercu apercu = service.ouvrir(version.fichierId(), version.typeMime());
-        evenements.publishEvent(new ApercuConsulte(version.versionId(), version.documentId(), version.fichierId(),
-                utilisateur != null ? utilisateur.getName() : null, Instant.now()));
+        evenements.publishEvent(new ApercuConsulte(version.documentId(), version.versionId(), Acteur.courant(),
+                Instant.now(), version.fichierId()));
 
         HttpHeaders entetes = new HttpHeaders();
         entetes.setContentType(MediaType.parseMediaType(apercu.typeMime()));
@@ -76,10 +76,5 @@ public class PrevisualisationController {
             }
         };
         return ResponseEntity.ok().headers(entetes).body(corps);
-    }
-
-    /** Événement d'audit de la prévisualisation (§6.1.6). */
-    public record ApercuConsulte(String versionId, String documentId, java.util.UUID fichierId,
-                                 String utilisateur, Instant consulteLe) {
     }
 }
