@@ -12,8 +12,8 @@ import com.ipt.ged.identite.ServiceCacheAnnuaire;
 import com.ipt.ged.identite.Utilisateur;
 import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.security.UtilisateurConnecte;
-import com.ipt.ged.signature.SignatureStatus;
-import com.ipt.ged.signature.WorkflowSignatureRepository;
+import com.ipt.ged.workflow.circuit.CircuitRepository;
+import com.ipt.ged.workflow.circuit.DecisionRepository;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.jpa.domain.Specification;
@@ -39,21 +39,23 @@ public class ProfilService {
     private final WorkSpaceRepository workspaces;
     private final AccessGroupRepository groupes;
     private final UploadDocumentRepository documents;
-    private final WorkflowSignatureRepository signatures;
+    private final CircuitRepository circuits;
+    private final DecisionRepository decisions;
     private final UtilisateurRepository utilisateurs;
     private final ServiceCacheAnnuaire annuaire;
     private final AccessPredicate droits;
 
     public ProfilService(EmployeRepository employes, WorkSpaceRepository workspaces,
                          AccessGroupRepository groupes, UploadDocumentRepository documents,
-                         WorkflowSignatureRepository signatures, UtilisateurRepository utilisateurs,
+                         CircuitRepository circuits, DecisionRepository decisions, UtilisateurRepository utilisateurs,
                          ServiceCacheAnnuaire annuaire, AccessPredicate droits) {
         this.droits = droits;
         this.employes = employes;
         this.workspaces = workspaces;
         this.groupes = groupes;
         this.documents = documents;
-        this.signatures = signatures;
+        this.circuits = circuits;
+        this.decisions = decisions;
         this.utilisateurs = utilisateurs;
         this.annuaire = annuaire;
     }
@@ -90,11 +92,11 @@ public class ProfilService {
         int deposes = (int) documents.count(deposesVisibles
                 .and(droits.documents(appelant, CodePermission.CONSULTER)));
 
-        int enAttente = signatures
-                .findByEmployeIdAndStatusOrderByStepOrderAsc(employeId, SignatureStatus.PENDING).size();
-        int traitees = signatures
-                .findByEmployeIdAndStatusInOrderByIdDesc(employeId,
-                        List.of(SignatureStatus.SIGNED, SignatureStatus.REJECTED)).size();
+        /* Workflow (§12.8) : circuits en cours où la personne est validatrice
+           NOMMÉE (les validateurs par rôle se résolvent au moment de décider
+           et figurent dans sa liste « à traiter »), et décisions rendues. */
+        int enAttente = (int) circuits.enCoursPourEmploye(employeId);
+        int traitees = identite == null ? 0 : decisions.findByAuteurIdOrderByCreeLeDesc(identite.getId()).size();
 
         return new ProfilResponse(
                 e.getId(), e.getFullName(), e.getFirstName(), e.getLastName(), e.isHasUser(),

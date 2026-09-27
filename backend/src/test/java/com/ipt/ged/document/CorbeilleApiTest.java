@@ -93,7 +93,7 @@ class CorbeilleApiTest {
     }
 
     private UUID etapeDe(UUID documentId) throws Exception {
-        String reponse = mvc.perform(get("/api/v1/signatures/document/" + documentId))
+        String reponse = mvc.perform(get("/api/v1/workflow/documents/" + documentId + "/circuits"))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         return UUID.fromString(om.readTree(reponse).get(0).get("id").asText());
     }
@@ -106,11 +106,11 @@ class CorbeilleApiTest {
     }
 
     private int tailleListeAttente() throws Exception {
-        String reponse = mvc.perform(get("/api/v1/signatures/pending"))
+        String reponse = mvc.perform(get("/api/v1/workflow/a-traiter"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         JsonNode liste = om.readTree(reponse);
-        return liste.size();
+        return liste.get("total").asInt();
     }
 
     @Test
@@ -144,10 +144,11 @@ class CorbeilleApiTest {
                         .content("{\"valeurs\":[]}"))
                 .andExpect(status().isBadRequest());
 
-        // …y compris l'approbation de son circuit de signature.
-        mvc.perform(patch("/api/v1/signatures/" + etape + "/approve")
-                        .contentType(APPLICATION_JSON).content("{}"))
-                .andExpect(status().isBadRequest())
+        // …y compris une décision sur son circuit de validation (§12.8).
+        mvc.perform(post("/api/v1/workflow/circuits/" + etape + "/decisions")
+                        .contentType(APPLICATION_JSON).content("{\"decision\":\"VALIDE\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code", is("DOCUMENT_EN_CORBEILLE")))
                 .andExpect(jsonPath("$.message", containsString("corbeille")));
 
         // La restauration reste possible, et rouvre l'écriture.
@@ -187,7 +188,7 @@ class CorbeilleApiTest {
         assertEquals(reference + 1, compteurTableauDeBord());
         assertEquals(tailleListeAttente(), compteurTableauDeBord());
 
-        /* Avant correction : `softDelete` ne touchait pas les WorkflowSignature
+        /* Avant correction : `softDelete` ne touchait pas les signatures
            et `stats/overview` comptait tous les PENDING de la base, corbeille
            comprise — d'où le tableau de bord annonçant 73 pour une liste de 41. */
         mvc.perform(delete(BASE + "/" + id)).andExpect(status().isNoContent());

@@ -215,7 +215,7 @@ class CheminsAccesApiTest {
         mvc.perform(get("/api/v1/documents/" + b64 + "/rattachements").with(comme(U)))
                 .andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/documents/" + b64 + "/designes").with(comme(U))).andExpect(status().isNotFound());
-        mvc.perform(get("/api/v1/signatures/document/" + b64).with(comme(U))).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/workflow/documents/" + b64 + "/circuits").with(comme(U))).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/ocr/documents/" + b64 + "/texte").with(comme(U))).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/indexation/documents/" + b64).with(comme(U))).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/indexation/documents/" + b64 + "/champs").with(comme(U)))
@@ -606,7 +606,7 @@ class CheminsAccesApiTest {
     @DisplayName("Composition d'un rôle : modifiée depuis l'API, effective immédiatement ; Administrateur verrouillé")
     void compositionDeRole() throws Exception {
         String r = mvc.perform(post("/api/v1/admin/roles").contentType(APPLICATION_JSON)
-                        .content("{\"code\":\"LECTEUR\",\"libelle\":\"Lecteur\",\"permissions\":[\"CONSULTER\"]}"))
+                        .content("{\"code\":\"LECTEUR_ESSAI\",\"libelle\":\"Lecteur\",\"permissions\":[\"CONSULTER\"]}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         UUID role = UUID.fromString(om.readTree(r).get("id").asText());
         jeu.habiliterRole(U, role, a);

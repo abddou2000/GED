@@ -64,7 +64,7 @@ public class WorkSpace extends Supprimable {
 
     /** Circuit de validation appliqué aux documents du dossier. */
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "workflow_ged_id", nullable = false)
+    @JoinColumn(name = "regle_workflow_id")
     private WorkflowGed workflow;
 
     @OneToMany(mappedBy = "parent")

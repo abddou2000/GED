@@ -399,7 +399,7 @@ class ModeleDocumentApiTest {
         mvc.perform(put("/api/v1/workspaces/" + d1).contentType(APPLICATION_JSON)
                         .content("{\"name\":\"contrats\",\"code\":\"" + jdbc.queryForObject("SELECT code FROM noeud WHERE id = ?",
                                 String.class, d1) + "\",\"employeId\":\"" + jeu.employeId(Comptes.ADMIN)
-                                + "\",\"workflowId\":\"" + jdbc.queryForObject("SELECT workflow_ged_id FROM noeud WHERE id = ?",
+                                + "\",\"workflowId\":\"" + jdbc.queryForObject("SELECT regle_workflow_id FROM noeud WHERE id = ?",
                                 UUID.class, d1) + "\",\"parentId\":\"" + espace + "\"}"))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("NOM_DEJA_UTILISE"));
     }
@@ -415,7 +415,7 @@ class ModeleDocumentApiTest {
         noeuds.saveAndFlush(espaceEchange);
         jeu.habiliter(U, Role.UTILISATEUR_STANDARD, echange, null);
         jeu.habiliter(U, Role.UTILISATEUR_STANDARD, espace, null);
-        UUID wf = jdbc.queryForObject("SELECT workflow_ged_id FROM noeud WHERE id = ?", UUID.class, echange);
+        UUID wf = jdbc.queryForObject("SELECT regle_workflow_id FROM noeud WHERE id = ?", UUID.class, echange);
         String corps = "{\"name\":\"Lot 1\",\"code\":\"CPS-" + UUID.randomUUID().toString().substring(0, 6)
                 + "\",\"employeId\":\"" + jeu.employeId(U) + "\",\"workflowId\":\"" + wf + "\",\"parentId\":\"%s\"}";
 

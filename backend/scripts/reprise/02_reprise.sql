@@ -34,10 +34,10 @@ DECLARE
     t text;
     n bigint;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['employe', 'utilisateur', 'workflow_ged', 'workflow_ged_etape',
+    FOREACH t IN ARRAY ARRAY['employe', 'utilisateur', 'regle_workflow', 'regle_validateur',
         'noeud', 'groupe_ged', 'habilitation', 'reprise_lien_groupe_espace', 'groupe_membre', 'etiquette',
         'index_def', 'plan_indexation', 'plan_index', 'type_document', 'document', 'version_document',
-        'document_etiquette', 'document_index_valeur', 'workflow_ged_signature']
+        'document_etiquette', 'document_index_valeur', 'circuit', 'circuit_validateur', 'decision']
     LOOP
         EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
         IF n > 0 THEN
@@ -128,12 +128,15 @@ SELECT reprise_source.nouvel_id('employes', s.id), s.first_name, s.last_name, co
 -- Les identités GED (table utilisateur) naissent à la première connexion par
 -- l'annuaire, rattachées à la fiche employé reprise ci-dessus.
 
-INSERT INTO workflow_ged (id, name, supprime, created_at, updated_at)
+-- Règles de workflow (lot E8, §12.8) : les anciens circuits deviennent des
+-- règles, leurs étapes des validateurs NOMMÉS ; le rang d'origine n'est plus
+-- qu'un ordre d'affichage (D7 : validateurs parallèles).
+INSERT INTO regle_workflow (id, name, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('workflow_ged', s.id), s.name, coalesce(s.deleted, false),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.workflow_ged s;
 
-INSERT INTO workflow_ged_etape (id, workflow_ged_id, employe_id, label, step_order, created_at, updated_at)
+INSERT INTO regle_validateur (id, regle_workflow_id, employe_id, label, step_order, created_at, updated_at)
 SELECT reprise_source.nouvel_id('workflow_ged_steps', s.id),
        reprise_source.nouvel_id('workflow_ged', s.workflow_ged_id),
        reprise_source.nouvel_id('employes', s.employe_id), s.label, s.step_order,
@@ -146,7 +149,7 @@ SELECT reprise_source.nouvel_id('workflow_ged_steps', s.id),
 -- niveau par niveau, quel que soit l'ordre des identifiants de la source.
 -- Un nœud dont le parent est introuvable n'est pas repris : le contrôle 5
 -- (lignes noeud) et le contrôle 21 le signalent.
-INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, workflow_ged_id,
+INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, regle_workflow_id,
                    supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.description, s.status,
        reprise_source.nouvel_id('employes', s.employe_id),
@@ -161,7 +164,7 @@ DECLARE
     n bigint;
 BEGIN
     LOOP
-        INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, workflow_ged_id,
+        INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, regle_workflow_id,
                            supprime, created_at, updated_at)
         SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.description, s.status,
                reprise_source.nouvel_id('employes', s.employe_id),
@@ -305,11 +308,40 @@ SELECT reprise_source.nouvel_id('document_index_values', s.id),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.document_index_values s;
 
-INSERT INTO workflow_ged_signature (id, document_id, employe_id, step_label, step_order, status, signed_at,
-                                    motif, created_at, updated_at)
-SELECT reprise_source.nouvel_id('workflow_ged_signatures', s.id),
-       reprise_source.nouvel_id('documents_file', s.document_id),
-       reprise_source.nouvel_id('employes', s.employe_id), s.step_label, s.step_order, s.status,
-       reprise_source.utc(s.signed_at), s.motif,
-       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
-  FROM reprise_source.workflow_ged_signatures s;
+-- Signatures séquentielles -> circuits de validation (lot E8, §12.8), comme
+-- le changeset 202610021020 pour une base déjà migrée : un circuit par
+-- document (REFUSE s'il y a un rejet, VALIDE si tout est signé, EN_COURS
+-- sinon), un validateur nommé par ancienne signature (identifiant de
+-- correspondance de la signature), une décision par signature traitée, sur la
+-- version courante du document (motif conservé ; refus sans motif signalé).
+INSERT INTO circuit (id, document_id, regle_workflow_id, statut, ouvert_le, clos_le, initiateur_id)
+SELECT uuid_v7(), d.id, max(n.regle_workflow_id::text)::uuid,
+       CASE WHEN bool_or(s.status = 'REJECTED') THEN 'REFUSE'
+            WHEN bool_and(s.status = 'SIGNED') THEN 'VALIDE' ELSE 'EN_COURS' END,
+       min(coalesce(reprise_source.utc(s.created_at), now())),
+       CASE WHEN bool_and(s.status = 'SIGNED') THEN max(reprise_source.utc(s.signed_at)) END,
+       (SELECT u.id FROM utilisateur u WHERE u.employe_id = d.created_by_employe_id)
+  FROM reprise_source.workflow_ged_signatures s
+  JOIN document d ON d.id = reprise_source.nouvel_id('documents_file', s.document_id)
+  JOIN noeud n ON n.id = d.noeud_principal_id
+ GROUP BY d.id;
+
+INSERT INTO circuit_validateur (id, circuit_id, employe_id, libelle, position)
+SELECT reprise_source.nouvel_id('workflow_ged_signatures', s.id), c.id,
+       reprise_source.nouvel_id('employes', s.employe_id),
+       coalesce(nullif(btrim(s.step_label), ''), 'Validation'), s.step_order
+  FROM reprise_source.workflow_ged_signatures s
+  JOIN circuit c ON c.document_id = reprise_source.nouvel_id('documents_file', s.document_id);
+
+INSERT INTO decision (id, circuit_validateur_id, version_id, decision, motif, cree_le, auteur_id)
+SELECT uuid_v7(), reprise_source.nouvel_id('workflow_ged_signatures', s.id),
+       (SELECT v.id FROM version_document v
+         WHERE v.document_id = reprise_source.nouvel_id('documents_file', s.document_id) AND v.courante),
+       CASE s.status WHEN 'SIGNED' THEN 'VALIDE' ELSE 'REFUSE' END,
+       CASE WHEN s.status = 'REJECTED' THEN coalesce(nullif(btrim(s.motif), ''), 'Refus repris sans motif')
+            ELSE s.motif END,
+       coalesce(reprise_source.utc(s.signed_at), reprise_source.utc(s.updated_at),
+                reprise_source.utc(s.created_at), now()),
+       (SELECT u.id FROM utilisateur u WHERE u.employe_id = reprise_source.nouvel_id('employes', s.employe_id))
+  FROM reprise_source.workflow_ged_signatures s
+ WHERE s.status IN ('SIGNED', 'REJECTED');

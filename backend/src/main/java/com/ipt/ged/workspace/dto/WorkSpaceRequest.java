@@ -25,7 +25,10 @@ public record WorkSpaceRequest(
 
         UUID parentId,
 
-        @NotNull(message = "La règle de workflow est obligatoire")
+        /**
+         * Règle de workflow du nœud (§12.8) ; facultative : un dossier sans
+         * règle suit celle de ses ancêtres.
+         */
         UUID workflowId,
 
         /**

@@ -98,5 +98,10 @@
     <include file="changesets/202609301070_usage_espace_noeud.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301200_jalon_modele.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202610011000_reprise_liens_groupe_espace.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021000_regle_workflow.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021010_circuit_decision.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021020_reprise_signatures_circuits.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021030_role_lecteur_diffusion.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021200_jalon_workflow.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

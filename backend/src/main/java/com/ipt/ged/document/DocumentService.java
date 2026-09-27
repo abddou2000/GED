@@ -17,7 +17,7 @@ import com.ipt.ged.etiquette.Etiquette;
 import com.ipt.ged.etiquette.EtiquetteRepository;
 import com.ipt.ged.identite.Utilisateur;
 import com.ipt.ged.identite.UtilisateurRepository;
-import com.ipt.ged.signature.SignatureService;
+import com.ipt.ged.workflow.circuit.ServiceCircuits;
 import com.ipt.ged.typedocument.TypeDocument;
 import com.ipt.ged.typedocument.TypeDocumentRepository;
 import com.ipt.ged.workspace.WorkSpace;
@@ -75,7 +75,7 @@ public class DocumentService {
     private final UploadDocumentRepository repo;
     private final TypeDocumentRepository typeRepo;
     private final StorageService storage;
-    private final SignatureService signatureService;
+    private final ServiceCircuits circuits;
     private final EtiquetteRepository etiquetteRepo;
     private final EmployeRepository employeRepo;
     private final DocumentVersionRepository versionRepo;
@@ -91,7 +91,7 @@ public class DocumentService {
     private final com.ipt.ged.document.version.ServiceVersions versions;
 
     public DocumentService(UploadDocumentRepository repo, TypeDocumentRepository typeRepo,
-                           StorageService storage, SignatureService signatureService,
+                           StorageService storage, ServiceCircuits circuits,
                            EtiquetteRepository etiquetteRepo, EmployeRepository employeRepo,
                            DocumentVersionRepository versionRepo, AccessPredicate droits, ControleAcces controle,
                            DocumentRattachementRepository rattachements,
@@ -105,7 +105,7 @@ public class DocumentService {
         this.repo = repo;
         this.typeRepo = typeRepo;
         this.storage = storage;
-        this.signatureService = signatureService;
+        this.circuits = circuits;
         this.etiquetteRepo = etiquetteRepo;
         this.employeRepo = employeRepo;
         this.versionRepo = versionRepo;
@@ -283,8 +283,9 @@ public class DocumentService {
                 file.getSize() / 1024, "Version initiale", true);
         initiale.setEmpreinte(empreinte);
         versions.verser(saved, initiale);
-        // Déclenche le circuit de signature (une demande par étape du workflow du dossier).
-        signatureService.createForDocument(saved);
+        // Circuit de validation (§12.8) : la règle applicable (type, sinon nœud
+        // le plus proche) est figée dans la transaction du dépôt.
+        circuits.ouvrirAuDepot(saved);
         return fiche(saved);
     }
 
@@ -328,7 +329,10 @@ public class DocumentService {
             changerConfidentialite(d, req.confidentialite());
         }
         d.setExpirationDate(date(req.expirationDate(), "date d'expiration"));
-        if (req.active() != null) {
+        if (req.active() != null && req.active() != d.isActive()) {
+            // Un document soumis à validation n'est rendu utilisable que par
+            // son circuit (§12.8) : la fiche ne court-circuite pas le workflow.
+            circuits.exigerHorsCircuit(id);
             d.setActive(req.active());
         }
         appliquerEtiquettes(d, req.etiquetteIds());

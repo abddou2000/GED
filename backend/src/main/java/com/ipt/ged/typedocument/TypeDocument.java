@@ -43,6 +43,14 @@ public class TypeDocument extends Supprimable {
     @JoinColumn(name = "noeud_id", nullable = false)
     private WorkSpace workspace;
 
+    /**
+     * Règle de workflow du type (§12.8) : prévaut sur celle des nœuds, étant
+     * la plus spécifique au document. {@code null} = celle de l'emplacement.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "regle_workflow_id")
+    private com.ipt.ged.workflow.WorkflowGed regleWorkflow;
+
     /** Durée de conservation en mois (§12.9) ; {@code null} = pas d'échéance. */
     @Column(name = "duree_conservation_mois")
     private Integer dureeConservationMois;

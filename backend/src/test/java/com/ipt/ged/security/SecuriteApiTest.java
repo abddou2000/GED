@@ -136,7 +136,7 @@ class SecuriteApiTest {
        ================================================================== */
 
     @Test
-    @DisplayName("C. Usurpation de signature : l'employé B ne peut pas approuver l'étape de l'employé A")
+    @DisplayName("C. Usurpation de décision : l'employé B ne peut pas décider pour le validateur A")
     void usurpationDeSignatureImpossible() throws Exception {
         // Sara dépose : le circuit crée une étape assignée à Sara.
         String res = mvc.perform(multipart("/api/v1/documents")
@@ -148,44 +148,40 @@ class SecuriteApiTest {
                 .andReturn().getResponse().getContentAsString();
         UUID docId = UUID.fromString(om.readTree(res).get("id").asText());
 
-        String circuit = mvc.perform(get("/api/v1/signatures/document/" + docId).with(enTantQue(Comptes.ADMIN)))
+        String circuit = mvc.perform(get("/api/v1/workflow/documents/" + docId + "/circuits")
+                        .with(enTantQue(Comptes.ADMIN)))
                 .andReturn().getResponse().getContentAsString();
-        JsonNode etape = om.readTree(circuit).get(0);
-        UUID sigId = UUID.fromString(etape.get("id").asText());
+        JsonNode c = om.readTree(circuit).get(0);
+        UUID circuitId = UUID.fromString(c.get("id").asText());
+        UUID validateurId = UUID.fromString(c.get("validateurs").get(0).get("id").asText());
 
-        // Karim tente d'approuver. Les trois formes qui marchaient avant le
-        // correctif sont rejouées : corps vide, employeId de la victime dans le
-        // corps, employeId de la victime en paramètre de requête. Aucune ne doit
-        // aboutir — l'identité comparée vient du principal, pas de la requête.
-        mvc.perform(patch("/api/v1/signatures/" + sigId + "/approve").with(enTantQue(Comptes.SECOND_ACTEUR))
-                        .contentType(APPLICATION_JSON).content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("assignée")));
+        // Karim tente de décider à la place de Sara (workflow §12.8) : sans
+        // désigner de validateur, en désignant celui de Sara, avec l'employé de
+        // Sara dans le corps. Aucune forme n'aboutit — l'acteur vient du jeton.
+        String url = "/api/v1/workflow/circuits/" + circuitId + "/decisions";
+        mvc.perform(post(url).with(enTantQue(Comptes.SECOND_ACTEUR))
+                        .contentType(APPLICATION_JSON).content("{\"decision\":\"VALIDE\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PAS_VALIDATEUR"));
 
-        mvc.perform(patch("/api/v1/signatures/" + sigId + "/approve").with(enTantQue(Comptes.SECOND_ACTEUR))
+        mvc.perform(post(url).with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON)
-                        .content("{\"employeId\":\"" + Comptes.idAdmin(employeRepository) + "\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("assignée")));
+                        .content("{\"decision\":\"VALIDE\",\"validateurId\":\"" + validateurId + "\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PAS_VALIDATEUR"));
 
-        mvc.perform(patch("/api/v1/signatures/" + sigId + "/approve").with(enTantQue(Comptes.SECOND_ACTEUR))
-                        .param("employeId", String.valueOf(Comptes.idAdmin(employeRepository)))
-                        .contentType(APPLICATION_JSON).content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("assignée")));
-
-        // Le rejet suit la même règle.
-        mvc.perform(patch("/api/v1/signatures/" + sigId + "/reject").with(enTantQue(Comptes.SECOND_ACTEUR))
+        mvc.perform(post(url).with(enTantQue(Comptes.SECOND_ACTEUR))
                         .contentType(APPLICATION_JSON)
-                        .content("{\"employeId\":\"" + Comptes.idAdmin(employeRepository) + "\",\"motif\":\"tentative\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("assignée")));
+                        .content("{\"decision\":\"REFUSE\",\"motif\":\"tentative\",\"employeId\":\""
+                                + Comptes.idAdmin(employeRepository) + "\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("PAS_VALIDATEUR"));
 
-        // L'assignée légitime, elle, passe.
-        mvc.perform(patch("/api/v1/signatures/" + sigId + "/approve").with(enTantQue(Comptes.ADMIN))
-                        .contentType(APPLICATION_JSON).content("{}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SIGNED"));
+        // La validatrice légitime, elle, passe.
+        mvc.perform(post(url).with(enTantQue(Comptes.ADMIN))
+                        .contentType(APPLICATION_JSON).content("{\"decision\":\"VALIDE\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.statut").value("VALIDE"));
     }
 
     @Test

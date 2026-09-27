@@ -45,6 +45,7 @@ public class GardeDroitsRequetes implements HandlerInterceptor {
             "/api/v1/indices/**", "/api/v1/indices",
             "/api/v1/plan-indexations/**", "/api/v1/plan-indexations",
             "/api/v1/workflowgeds/**", "/api/v1/workflowgeds",
+            "/api/v1/workflow/regles/**", "/api/v1/workflow/regles",
             "/api/v1/etiquettes/**", "/api/v1/etiquettes");
 
     private static final List<String> GROUPES = List.of("/api/v1/access-groups/**", "/api/v1/access-groups");

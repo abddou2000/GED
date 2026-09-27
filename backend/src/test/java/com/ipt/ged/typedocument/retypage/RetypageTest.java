@@ -63,9 +63,9 @@ class RetypageTest {
         });
         indices.forEach(id -> jdbc.update("DELETE FROM index_def WHERE id = ?", id));
         noeuds.forEach(id -> {
-            UUID wf = jdbc.queryForObject("SELECT workflow_ged_id FROM noeud WHERE id = ?", UUID.class, id);
+            UUID wf = jdbc.queryForObject("SELECT regle_workflow_id FROM noeud WHERE id = ?", UUID.class, id);
             jdbc.update("DELETE FROM noeud WHERE id = ?", id);
-            jdbc.update("DELETE FROM workflow_ged WHERE id = ?", wf);
+            jdbc.update("DELETE FROM regle_workflow WHERE id = ?", wf);
         });
     }
 

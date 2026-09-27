@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610021000_regle_workflow.xml">
+
+    <!--
+        Règles de workflow (§12.8, décision D7) : l'ancien « workflow à étapes »
+        devient la règle (regle_workflow) et ses étapes les validateurs de la
+        règle (regle_validateur), SANS ORDRE : tous les validateurs reçoivent la
+        demande en même temps. Un validateur est nommé (employé) ou désigné par
+        RÔLE sur un périmètre (nœud ; à défaut, l'emplacement du document),
+        résolu au moment de la décision.
+
+        Rattachement (le plus spécifique s'applique au dépôt) : au TYPE de
+        document (type_document.regle_workflow_id), sinon au nœud le plus proche
+        qui en porte une (noeud.regle_workflow_id, désormais facultatif :
+        un dossier sans règle hérite de celle de ses ancêtres).
+    -->
+    <changeSet id="202610021000-1" author="ged">
+        <comment>Renommage workflow_ged en regle_workflow, étapes en validateurs.</comment>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.workflow_ged RENAME TO regle_workflow</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.workflow_ged_etape RENAME TO regle_validateur</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur RENAME COLUMN workflow_ged_id TO regle_workflow_id</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME COLUMN workflow_ged_id TO regle_workflow_id</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.regle_workflow RENAME CONSTRAINT pk_workflow_ged TO pk_regle_workflow</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.regle_workflow RENAME CONSTRAINT ck_workflow_ged_suppression TO ck_regle_workflow_suppression</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.regle_workflow RENAME CONSTRAINT fk_workflow_ged_supprime_par TO fk_regle_workflow_supprime_par</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur RENAME CONSTRAINT pk_workflow_ged_etape TO pk_regle_validateur</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur RENAME CONSTRAINT fk_workflow_ged_etape_employe TO fk_regle_validateur_employe</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur RENAME CONSTRAINT fk_workflow_ged_etape_workflow_ged TO fk_regle_validateur_regle_workflow</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT fk_noeud_workflow_ged TO fk_noeud_regle_workflow</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workflow_ged_supprime RENAME TO idx_regle_workflow_supprime</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workflow_ged_etape_employe_id RENAME TO idx_regle_validateur_employe_id</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workflow_ged_etape_workflow_ged_id RENAME TO idx_regle_validateur_regle_workflow_id</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_noeud_workflow_ged_id RENAME TO idx_noeud_regle_workflow_id</sql>
+        <rollback>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_noeud_regle_workflow_id RENAME TO idx_noeud_workflow_ged_id</sql>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_regle_validateur_regle_workflow_id RENAME TO idx_workflow_ged_etape_workflow_ged_id</sql>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_regle_validateur_employe_id RENAME TO idx_workflow_ged_etape_employe_id</sql>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_regle_workflow_supprime RENAME TO idx_workflow_ged_supprime</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT fk_noeud_regle_workflow TO fk_noeud_workflow_ged</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur RENAME CONSTRAINT fk_regle_validateur_regle_workflow TO fk_workflow_ged_etape_workflow_ged</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur RENAME CONSTRAINT fk_regle_validateur_employe TO fk_workflow_ged_etape_employe</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur RENAME CONSTRAINT pk_regle_validateur TO pk_workflow_ged_etape</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.regle_workflow RENAME CONSTRAINT fk_regle_workflow_supprime_par TO fk_workflow_ged_supprime_par</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.regle_workflow RENAME CONSTRAINT ck_regle_workflow_suppression TO ck_workflow_ged_suppression</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.regle_workflow RENAME CONSTRAINT pk_regle_workflow TO pk_workflow_ged</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME COLUMN regle_workflow_id TO workflow_ged_id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur RENAME COLUMN regle_workflow_id TO workflow_ged_id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur RENAME TO workflow_ged_etape</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.regle_workflow RENAME TO workflow_ged</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202610021000-2" author="ged">
+        <comment>Validateur par rôle sur un périmètre ; rattachement facultatif au nœud, possible au type.</comment>
+        <dropNotNullConstraint tableName="regle_validateur" columnName="employe_id" columnDataType="UUID"/>
+        <addColumn tableName="regle_validateur">
+            <column name="role_id" type="UUID"/>
+            <column name="perimetre_noeud_id" type="UUID"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_regle_validateur_role" baseTableName="regle_validateur" baseColumnNames="role_id"
+                                 referencedTableName="role" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_regle_validateur_perimetre_noeud" baseTableName="regle_validateur" baseColumnNames="perimetre_noeud_id"
+                                 referencedTableName="noeud" referencedColumnNames="id" onDelete="SET NULL"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur ADD CONSTRAINT ck_regle_validateur_designation CHECK ((employe_id IS NULL) &lt;&gt; (role_id IS NULL) AND (perimetre_noeud_id IS NULL OR role_id IS NOT NULL))</sql>
+        <createIndex indexName="idx_regle_validateur_role_id" tableName="regle_validateur"><column name="role_id"/></createIndex>
+        <createIndex indexName="idx_regle_validateur_perimetre_noeud_id" tableName="regle_validateur"><column name="perimetre_noeud_id"/></createIndex>
+        <dropNotNullConstraint tableName="noeud" columnName="regle_workflow_id" columnDataType="UUID"/>
+        <addColumn tableName="type_document">
+            <column name="regle_workflow_id" type="UUID"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_type_document_regle_workflow" baseTableName="type_document" baseColumnNames="regle_workflow_id"
+                                 referencedTableName="regle_workflow" referencedColumnNames="id"/>
+        <createIndex indexName="idx_type_document_regle_workflow_id" tableName="type_document"><column name="regle_workflow_id"/></createIndex>
+        <rollback>
+            <dropIndex tableName="type_document" indexName="idx_type_document_regle_workflow_id"/>
+            <dropForeignKeyConstraint baseTableName="type_document" constraintName="fk_type_document_regle_workflow"/>
+            <dropColumn tableName="type_document" columnName="regle_workflow_id"/>
+            <sql>UPDATE ${database.defaultSchemaName}.noeud n SET regle_workflow_id = (SELECT r.id FROM ${database.defaultSchemaName}.regle_workflow r ORDER BY r.id LIMIT 1) WHERE n.regle_workflow_id IS NULL</sql>
+            <addNotNullConstraint tableName="noeud" columnName="regle_workflow_id" columnDataType="UUID"/>
+            <dropIndex tableName="regle_validateur" indexName="idx_regle_validateur_perimetre_noeud_id"/>
+            <dropIndex tableName="regle_validateur" indexName="idx_regle_validateur_role_id"/>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.regle_validateur DROP CONSTRAINT ck_regle_validateur_designation</sql>
+            <dropForeignKeyConstraint baseTableName="regle_validateur" constraintName="fk_regle_validateur_perimetre_noeud"/>
+            <dropForeignKeyConstraint baseTableName="regle_validateur" constraintName="fk_regle_validateur_role"/>
+            <sql>DELETE FROM ${database.defaultSchemaName}.regle_validateur WHERE employe_id IS NULL</sql>
+            <dropColumn tableName="regle_validateur">
+                <column name="perimetre_noeud_id"/>
+                <column name="role_id"/>
+            </dropColumn>
+            <addNotNullConstraint tableName="regle_validateur" columnName="employe_id" columnDataType="UUID"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

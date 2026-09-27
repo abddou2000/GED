@@ -403,7 +403,7 @@ public class WorkSpaceService {
                 .orElseThrow(() -> new EntityNotFoundException("Employé introuvable : " + req.employeId()));
         w.setOwner(owner);
 
-        WorkflowGed workflow = workflowRepository.findById(req.workflowId())
+        WorkflowGed workflow = req.workflowId() == null ? null : workflowRepository.findById(req.workflowId())
                 .orElseThrow(() -> new EntityNotFoundException("Règle de workflow introuvable : " + req.workflowId()));
         w.setWorkflow(workflow);
 

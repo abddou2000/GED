@@ -12,10 +12,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Circuit de validation (« Règle de Workflow ») : un nom + une liste d'étapes ordonnées.
+ * Règle de workflow (§12.8, table {@code regle_workflow}) : un nom et ses
+ * validateurs, SANS ORDRE (D7 : tous sollicités en même temps). Rattachée à un
+ * type de document ou à un nœud ; modifiable à tout moment, avec effet sur les
+ * seuls dépôts futurs (le circuit d'un document est une copie figée).
+ * La classe garde son nom historique ; les « étapes » sont les validateurs.
  */
 @Entity
-@Table(name = "workflow_ged")
+@Table(name = "regle_workflow")
 @Getter
 @Setter
 @NoArgsConstructor
