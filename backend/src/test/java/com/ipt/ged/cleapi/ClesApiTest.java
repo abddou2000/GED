@@ -136,7 +136,7 @@ class ClesApiTest {
     @DisplayName("Une application ne peut ni administrer les clés ni consulter l'audit")
     void administrationReservee() throws Exception {
         AppEtCle a = creer(null, 600, false);
-        for (String chemin : List.of("/api/v1/applications", "/api/v1/audit/evenements")) {
+        for (String chemin : List.of("/api/v1/applications", "/api/v1/audit/evenements", "/api/v1/notifications")) {
             mvc.perform(get(chemin).with(anonymous()).header(FiltreCleApi.ENTETE_CLE, a.cle()))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value("ACCES_REFUSE"));

@@ -114,6 +114,11 @@ public enum ActionAudit {
     APPLICATION_ACTIVEE,
     APPLICATION_DESACTIVEE,
 
+    // --- Notifications (§12.9) : expéditions et préférence ------------------
+    NOTIFICATION_ENVOYEE,
+    NOTIFICATION_ECHEC,
+    PREFERENCE_NOTIFICATION_MODIFIEE,
+
     // --- Journal d'audit lui-même (§7.4.3 : la consultation est auditée) -----
     AUDIT_CONSULTE,
     AUDIT_EXPORTE,

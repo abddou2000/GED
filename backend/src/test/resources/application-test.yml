@@ -34,6 +34,13 @@ ged:
     previsualisation:
       repertoire-travail: ./target/test-apercu-travail
 
+  # Notifications : pas d'expédition automatique, les tests la déclenchent
+  # eux-mêmes (ExpediteurCourriels.expedier) vers un SMTP simulé (GreenMail).
+  notification:
+    expedition-auto: false
+    url-application: http://localhost:4200
+    expediteur: ged-test@localhost
+
   securite:
     # Mot de passe d'amorçage des comptes de test.
     #
@@ -62,6 +69,13 @@ ged:
       cle: cle-de-test-uniquement-jamais-en-production-0123456789
 
 spring:
+  # SMTP simulé des tests (GreenMail, port de test 3025, sans TLS).
+  mail:
+    host: localhost
+    port: 3025
+    properties:
+      mail.smtp.starttls.enable: false
+      mail.smtp.starttls.required: false
   liquibase:
     # Schéma vidé puis entièrement recréé par Liquibase au démarrage de la
     # suite : chaque exécution part d'une base vierge, comme une installation

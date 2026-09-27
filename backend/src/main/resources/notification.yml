@@ -1,0 +1,39 @@
+# ============================================================
+#  Notifications (dossier technique §12.9) — importé par application.yml
+#
+#  Canal e-mail : relais SMTP de MMED, entièrement externalisé (variables
+#  GED_SMTP_*, voir backend/.env.example). Aucun identifiant dans le dépôt.
+#  Canal in-app : table notification, API /api/v1/notifications.
+# ============================================================
+spring:
+  mail:
+    # Sans relais joignable, chaque e-mail échoue trois fois puis passe à
+    # l'état ECHEC ; la notification reste visible dans l'application.
+    host: ${GED_SMTP_HOTE:localhost}
+    port: ${GED_SMTP_PORT:25}
+    username: ${GED_SMTP_UTILISATEUR:}
+    password: ${GED_SMTP_MOT_DE_PASSE:}
+    default-encoding: UTF-8
+    properties:
+      mail.smtp.auth: ${GED_SMTP_AUTH:false}
+      # TLS vers le relais (DAT §6.2.1) : exigé par défaut, désactivable
+      # seulement pour un relais local sans chiffrement.
+      mail.smtp.starttls.enable: ${GED_SMTP_STARTTLS:true}
+      mail.smtp.starttls.required: ${GED_SMTP_STARTTLS:true}
+      # Délais bornés : un relais muet ne doit pas bloquer la relève.
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+
+ged:
+  notification:
+    expediteur: ${GED_NOTIFICATION_EXPEDITEUR:ged-ne-pas-repondre@localhost}
+    # Adresse publique du front, pour le lien « Ouvrir dans la GED » de l'e-mail.
+    url-application: ${GED_URL_APPLICATION:}
+    # Trois tentatives au total (DAT §12.9), 1 min puis 2 min d'écart.
+    tentatives-max: 3
+    delai-reprise: PT1M
+    # Relève de la boîte d'envoi (reprises, rattrapage après arrêt).
+    intervalle: PT30S
+    lot: 50
+    expedition-auto: true

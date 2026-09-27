@@ -156,6 +156,15 @@
         </dependency>
         <!-- ===== FIN lot E5 (dev3) ===== -->
 
+        <!-- ===== DEBUT lot E8 notifications (dev2) ===== -->
+        <!-- Canal e-mail des notifications (DAT §12.9) : relais SMTP de MMED,
+             configuration externalisée (notification.yml). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+        <!-- ===== FIN lot E8 notifications (dev2) ===== -->
+
         <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -165,6 +174,14 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Serveur SMTP simulé pour les tests des notifications (lot E8, dev2) :
+             aucun relais réel n'est joint depuis la suite de tests. -->
+        <dependency>
+            <groupId>com.icegreen</groupId>
+            <artifactId>greenmail-junit5</artifactId>
+            <version>2.1.3</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

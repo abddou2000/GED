@@ -54,7 +54,7 @@ public class ConfigurationSecuriteApplications {
                 .exceptionHandling(e -> e.authenticationEntryPoint(reponses).accessDeniedHandler(reponses))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/applications/**", "/api/v1/cles-api/**", "/api/v1/audit/**",
-                                "/api/v1/auth/**").denyAll()
+                                "/api/v1/auth/**", "/api/v1/notifications/**").denyAll()
                         .anyRequest().hasAuthority(ApplicationAuthentifiee.AUTORITE))
                 .addFilterBefore(filtre, AuthorizationFilter.class);
         return http.build();

@@ -66,8 +66,12 @@ class SchemaLiquibaseTest {
     /** Tables de l'API d'intégration (lot E9, vague 3) : clés UUID, conventions de nommage. */
     private static final Set<String> TABLES_API = Set.of("application", "cle_api", "cle_api_portee", "idempotence_cle");
 
+    /** Notifications (DAT §12.9) : boîte d'envoi et préférence (clé : l'utilisateur). */
+    private static final Set<String> TABLES_NOTIFICATION = Set.of("notification", "preference_notification");
+
     /** Tables du modèle complet. */
-    private static final Set<String> TABLES_ATTENDUES = union(union(TABLES_E1, TABLES_AUDIT), TABLES_API);
+    private static final Set<String> TABLES_ATTENDUES = union(union(union(TABLES_E1, TABLES_AUDIT), TABLES_API),
+            TABLES_NOTIFICATION);
 
     private static Set<String> union(Set<String> a, Set<String> b) {
         Set<String> u = new TreeSet<>(a);
@@ -168,7 +172,7 @@ class SchemaLiquibaseTest {
 
     /** Clé primaire {@code id} de type uuid sur toute table qui n'est pas une association. */
     private void verifierClesUuid(Connection c, String schema) throws SQLException {
-        for (String table : union(TABLES_E1, TABLES_API)) {
+        for (String table : union(union(TABLES_E1, TABLES_API), Set.of("notification"))) {
             if (ASSOCIATIONS.contains(table)) continue;
             String type = texte(c, "SELECT data_type FROM information_schema.columns"
                     + " WHERE table_schema = ? AND table_name = ? AND column_name = 'id'", schema, table);
