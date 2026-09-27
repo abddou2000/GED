@@ -51,7 +51,7 @@ public class PlanIndexationService {
     public PageResponse<PlanIndexationResponse> list(int page, int size, String search,
                                                      String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
-        Page<PlanIndexation> result = repo.findByDeletedFalseAndNomDuPlanContainingIgnoreCase(search, pageable);
+        Page<PlanIndexation> result = repo.findBySupprimeFalseAndNomDuPlanContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, PlanIndexationResponse::from);
     }
 
@@ -59,7 +59,7 @@ public class PlanIndexationService {
     public PageResponse<PlanIndexationResponse> trashed(int page, int size, String search,
                                                         String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS);
-        Page<PlanIndexation> result = repo.findByDeletedTrueAndNomDuPlanContainingIgnoreCase(search, pageable);
+        Page<PlanIndexation> result = repo.findBySupprimeTrueAndNomDuPlanContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, PlanIndexationResponse::from);
     }
 
@@ -112,7 +112,7 @@ public class PlanIndexationService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(p -> {
+        repo.findByIdInAndSupprimeFalse(ids).forEach(p -> {
             p.mettreEnCorbeille(ActeurCourant.employeId());
             journal.action(ActionAudit.PLAN_INDEXATION_SUPPRIME, "PLAN_INDEXATION", p.getId());
         });
@@ -120,7 +120,7 @@ public class PlanIndexationService {
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(p -> {
+        repo.findByIdInAndSupprimeTrue(ids).forEach(p -> {
             p.restaurer();
             journal.action(ActionAudit.PLAN_INDEXATION_RESTAURE, "PLAN_INDEXATION", p.getId());
         });
@@ -129,7 +129,7 @@ public class PlanIndexationService {
     /** Liste allégée {id, name} pour les sélecteurs (types de document). */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> forSelect() {
-        return repo.findByDeletedFalseOrderByIdAsc().stream()
+        return repo.findBySupprimeFalseOrderByIdAsc().stream()
                 .map(p -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", p.getId());

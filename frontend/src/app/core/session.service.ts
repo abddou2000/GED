@@ -17,7 +17,7 @@ export interface SessionUser {
  * exclusivement de la réponse d'authentification.
  *
  * <p>Il ne détient ni jeton ni secret : {@link AuthService} en est le seul
- * dépositaire. Ici on ne garde que ce qui s'affiche (nom, initiales, e-mail) et
+ * dépositaire (en mémoire). Ici on ne garde que ce qui s'affiche (nom, initiales, e-mail) et
  * l'identifiant d'employé dont les écrans ont besoin pour interroger l'API.
  */
 @Injectable({ providedIn: 'root' })
@@ -54,14 +54,14 @@ export class SessionService {
   ensureUser(): void {
     if (this.user()) return;
     const u = this.auth.utilisateur();
-    if (u) this.adopter(u.employeId, u.fullName, u.email);
+    if (u) this.adopter(u.employeId, u.fullName, u.email ?? '');
   }
 
   /** Ferme la session : le jeton est révoqué et l'identité oubliée. */
   signOut(): void {
     this.user.set(null);
-    // AuthService révoque le jeton et vide les deux stockages : sans cet appel,
-    // l'onglet suivant rouvrirait la session de la personne précédente.
-    this.auth.deconnexion();
+    // La session est révoquée côté serveur : le jeton d'accès cesse aussitôt
+    // d'être accepté et le cookie de renouvellement est effacé.
+    this.auth.deconnexion().subscribe();
   }
 }

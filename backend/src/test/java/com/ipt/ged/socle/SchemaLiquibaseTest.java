@@ -55,6 +55,30 @@ class SchemaLiquibaseTest {
             "version_document", "document_etiquette", "document_index_valeur",
             "workflow_ged_signature");
 
+    /** Tables à l'issue du lot E2 (jalon identite-e2) : E1 moins les comptes à mot de passe, plus l'identité. */
+    private static final Set<String> TABLES_E2;
+    static {
+        Set<String> t = new TreeSet<>(TABLES_E1);
+        t.remove("compte_utilisateur");
+        t.addAll(Set.of("role", "utilisateur", "utilisateur_role", "cache_annuaire", "session"));
+        TABLES_E2 = Set.copyOf(t);
+    }
+
+    /**
+     * Tables du modèle courant (lot E3, §12.1) : les espaces deviennent des
+     * nœuds, les groupes d'accès des groupes GED ; les rôles globaux et les
+     * rattachements groupe / espace sont repris en habilitations.
+     */
+    private static final Set<String> TABLES_E3;
+    static {
+        Set<String> t = new TreeSet<>(TABLES_E2);
+        t.removeAll(Set.of("workspace", "access_group", "access_group_workspace", "access_group_employe",
+                "utilisateur_role"));
+        t.addAll(Set.of("noeud", "groupe_ged", "groupe_membre", "permission", "role_permission", "habilitation",
+                "document_rattachement", "document_confidentiel_designe", "version_habilitations"));
+        TABLES_E3 = Set.copyOf(t);
+    }
+
     /**
      * Tables du journal d'audit (lot E4). Leur clé {@code id} est un bigint
      * SÉQUENTIEL, comme le prescrit le §7.4.1 : c'est l'ordre du scellement
@@ -63,29 +87,35 @@ class SchemaLiquibaseTest {
      */
     private static final Set<String> TABLES_AUDIT = Set.of("journal_audit", "journal_audit_scellement");
 
-    /** Tables de l'API d'intégration (lot E9, vague 3) : clés UUID, conventions de nommage. */
+    /** Tables de l'API d'intégration (lot E9) : clés UUID, conventions de nommage. */
     private static final Set<String> TABLES_API = Set.of("application", "cle_api", "cle_api_portee", "idempotence_cle");
 
     /** Notifications (DAT §12.9) : boîte d'envoi et préférence (clé : l'utilisateur). */
     private static final Set<String> TABLES_NOTIFICATION = Set.of("notification", "preference_notification");
 
-    /** Tables du modèle complet. */
-    private static final Set<String> TABLES_ATTENDUES = union(union(union(TABLES_E1, TABLES_AUDIT), TABLES_API),
-            TABLES_NOTIFICATION);
-
-    private static Set<String> union(Set<String> a, Set<String> b) {
-        Set<String> u = new TreeSet<>(a);
-        u.addAll(b);
-        return Set.copyOf(u);
+    /** Tables du modèle courant : E3 plus les lots postérieurs de dev2 (audit, API, notifications). */
+    private static final Set<String> TABLES_ATTENDUES;
+    static {
+        Set<String> t = new TreeSet<>(TABLES_E3);
+        t.addAll(TABLES_AUDIT);
+        t.addAll(TABLES_API);
+        t.addAll(TABLES_NOTIFICATION);
+        TABLES_ATTENDUES = Set.copyOf(t);
     }
 
-    /** Tables d'association, à clé composite : les seules sans colonne {@code id}. */
-    private static final Set<String> ASSOCIATIONS = Set.of(
-            "access_group_workspace", "access_group_employe", "plan_index", "document_etiquette");
+    /** Tables dont la clé primaire n'est pas un {@code id} uuid : audit (bigint séquentiel), préférence (utilisateur). */
+    private static final Set<String> CLES_PARTICULIERES = Set.of("journal_audit", "journal_audit_scellement",
+            "preference_notification");
+
+    /**
+     * Tables sans colonne {@code id} : aucune depuis ANO-E1-001 (§4.2.2), les
+     * tables d'association ayant reçu une clé {@code id} et une contrainte uk_.
+     */
+    private static final Set<String> ASSOCIATIONS = Set.of();
 
     /** Tables à corbeille : portent l'auteur et la date de suppression. */
     private static final Set<String> A_CORBEILLE = Set.of(
-            "workflow_ged", "workspace", "access_group", "etiquette", "index_def",
+            "workflow_ged", "noeud", "groupe_ged", "etiquette", "index_def",
             "plan_indexation", "type_document", "document");
 
     @Value("${spring.datasource.url}")
@@ -117,6 +147,7 @@ class SchemaLiquibaseTest {
                 verifierConventionsDeNommage(c, schema);
                 verifierSuppressionDouce(c, schema);
                 verifierMetadonnees(c, schema);
+                verifierAucunMotDePasse(c, schema);
                 int changesets = compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog");
                 assertTrue(changesets >= 21, "tous les changesets doivent être enregistrés : " + changesets);
 
@@ -132,48 +163,65 @@ class SchemaLiquibaseTest {
                 liquibase.update(new Contexts(), new LabelExpression());
                 assertEquals(changesets, compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog"));
             } finally {
-                executer(c, "DROP SCHEMA " + schema + " CASCADE");
+                supprimerSchema(c, schema);
             }
         }
     }
 
     @Test
-    @DisplayName("Retour arrière au jalon socle-e1 : l'étiquette posée par le changelog est utilisable")
-    void retourArriereAuJalon() throws Exception {
+    @DisplayName("Retour arrière par jalon : autorisation-e3, identite-e2 puis socle-e1")
+    void retourArriereAuxJalons() throws Exception {
         String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
             executer(c, "CREATE SCHEMA " + schema);
             try {
                 Liquibase liquibase = liquibase(c, schema);
                 liquibase.update(new Contexts(), new LabelExpression());
-                // Changesets antérieurs au jalon : ceux que le retour arrière doit laisser.
-                String anterieurs = " WHERE orderexecuted < (SELECT orderexecuted FROM " + schema
-                        + ".databasechangelog WHERE tag = 'socle-e1')";
-                int avant = compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog" + anterieurs);
-                // Le retour arrière défait les lots postérieurs (journal d'audit) et
-                // le jalon lui-même (Liquibase inclut la ligne étiquetée), et laisse
-                // intact tout le schéma du lot E1.
+                assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
+                assertEquals(4, compter(c, "SELECT count(*) FROM " + schema + ".role WHERE systeme"),
+                        "les quatre rôles système sont amorcés (data-initial)");
+                assertEquals(18, compter(c, "SELECT count(*) FROM " + schema + ".permission"),
+                        "neuf permissions élémentaires, sept d'administration, deux de confidentialité");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + schema + ".version_habilitations"));
+
+                // Retour au jalon E3 : les lots postérieurs (journal d'audit, API
+                // d'intégration, notifications) se défont, le modèle E3 reste.
+                liquibase.rollback("autorisation-e3", (String) null);
+                assertEquals(new TreeSet<>(TABLES_E3), tablesMetier(c, schema));
+
+                // Retour au jalon E2 : nœuds et groupes reprennent leurs noms,
+                // les tables d'association d'origine sont recréées.
+                liquibase.rollback("identite-e2", (String) null);
+                assertEquals(new TreeSet<>(TABLES_E2), tablesMetier(c, schema));
+
+                // Retour au jalon E1 : tout le lot E2 se défait, y compris la
+                // suppression de compte_utilisateur (structure recréée, vide).
                 liquibase.rollback("socle-e1", (String) null);
-                assertEquals(avant, compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog"));
-                Set<String> tables = tables(c, schema);
-                tables.removeAll(Set.of("databasechangelog", "databasechangeloglock"));
-                assertEquals(new TreeSet<>(TABLES_E1), tables);
-                // Rejouer la montée repose le jalon.
+                assertEquals(new TreeSet<>(TABLES_E1), tablesMetier(c, schema));
+
+                // Rejouer la montée repose les trois jalons.
                 liquibase.update(new Contexts(), new LabelExpression());
-                assertEquals(1, compter(c, "SELECT count(*) FROM " + schema
-                        + ".databasechangelog WHERE tag = 'socle-e1'"));
+                assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
+                assertEquals(3, compter(c, "SELECT count(*) FROM " + schema
+                        + ".databasechangelog WHERE tag IN ('socle-e1', 'identite-e2', 'autorisation-e3')"));
             } finally {
-                executer(c, "DROP SCHEMA " + schema + " CASCADE");
+                supprimerSchema(c, schema);
             }
         }
+    }
+
+    private static Set<String> tablesMetier(Connection c, String schema) throws SQLException {
+        Set<String> t = tables(c, schema);
+        t.removeAll(Set.of("databasechangelog", "databasechangeloglock"));
+        return t;
     }
 
     /* ---------------------------------------------------------------- vérifications */
 
     /** Clé primaire {@code id} de type uuid sur toute table qui n'est pas une association. */
     private void verifierClesUuid(Connection c, String schema) throws SQLException {
-        for (String table : union(union(TABLES_E1, TABLES_API), Set.of("notification"))) {
-            if (ASSOCIATIONS.contains(table)) continue;
+        for (String table : TABLES_ATTENDUES) {
+            if (ASSOCIATIONS.contains(table) || CLES_PARTICULIERES.contains(table)) continue;
             String type = texte(c, "SELECT data_type FROM information_schema.columns"
                     + " WHERE table_schema = ? AND table_name = ? AND column_name = 'id'", schema, table);
             assertEquals("uuid", type, "clé primaire de " + table);
@@ -181,6 +229,8 @@ class SchemaLiquibaseTest {
                     + " WHERE table_schema = ? AND table_name = ? AND constraint_type = 'PRIMARY KEY'", schema, table);
             assertEquals("pk_" + table, pk);
         }
+        // Clés générées par la base (tables d'association) : UUID version 7.
+        assertEquals("7", texte(c, "SELECT substr(" + schema + ".uuid_v7()::text, 15, 1)"));
         // Toute colonne se terminant par _id (clé étrangère) est elle aussi un uuid.
         List<String> nonUuid = lignes(c, "SELECT table_name || '.' || column_name FROM information_schema.columns"
                 + " WHERE table_schema = ? AND column_name LIKE '%\\_id' AND data_type <> 'uuid'"
@@ -218,22 +268,36 @@ class SchemaLiquibaseTest {
                   JOIN information_schema.constraint_column_usage ccu
                     ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
                  WHERE tc.table_schema = ? AND tc.constraint_type = 'FOREIGN KEY'
-                   AND kcu.column_name NOT IN ('parent_id', 'supprime_par')
+                   AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'attribue_par', 'cree_par',
+                                               'noeud_principal_id', 'archive_par', 'verrou_par', 'auteur_id')
                    AND kcu.column_name NOT LIKE '%' || ccu.table_name || '_id'""", schema);
         assertEquals(List.of(), incoherentes, "clés étrangères dont le nom ne désigne pas la table visée");
     }
 
-    /** supprime_par (uuid) et supprime_le (timestamptz) partout où existe `deleted`. */
+    /** supprime_par (uuid) et supprime_le (timestamptz) partout où existe `supprime`. */
     private void verifierSuppressionDouce(Connection c, String schema) throws SQLException {
-        List<String> avecDeleted = lignes(c, "SELECT table_name FROM information_schema.columns"
-                + " WHERE table_schema = ? AND column_name = 'deleted' ORDER BY 1", schema);
-        assertEquals(new TreeSet<>(A_CORBEILLE), new TreeSet<>(avecDeleted));
+        List<String> avecSupprime = lignes(c, "SELECT table_name FROM information_schema.columns"
+                + " WHERE table_schema = ? AND column_name = 'supprime' ORDER BY 1", schema);
+        assertEquals(new TreeSet<>(A_CORBEILLE), new TreeSet<>(avecSupprime));
         for (String table : A_CORBEILLE) {
             assertEquals("uuid", texte(c, "SELECT data_type FROM information_schema.columns"
                     + " WHERE table_schema = ? AND table_name = ? AND column_name = 'supprime_par'", schema, table));
             assertEquals("timestamp with time zone", texte(c, "SELECT data_type FROM information_schema.columns"
                     + " WHERE table_schema = ? AND table_name = ? AND column_name = 'supprime_le'", schema, table));
         }
+    }
+
+    /**
+     * Aucun référentiel local de mots de passe (dossier technique §3.2, A02) :
+     * aucune colonne de mot de passe ni d'empreinte de mot de passe dans le
+     * schéma. La seule empreinte stockée est celle des jetons de session.
+     */
+    private void verifierAucunMotDePasse(Connection c, String schema) throws SQLException {
+        List<String> suspects = lignes(c, """
+                SELECT table_name || '.' || column_name FROM information_schema.columns
+                 WHERE table_schema = ? AND table_name NOT LIKE 'databasechangelog%'
+                   AND (column_name ~* '(mot_de_passe|password|passwd|pwd|secret|bcrypt)')""", schema);
+        assertEquals(List.of(), suspects, "colonnes de mot de passe");
     }
 
     /** document.metadonnees : jsonb, NOT NULL, objet vide par défaut, index GIN. */
@@ -248,6 +312,36 @@ class SchemaLiquibaseTest {
     }
 
     /* ---------------------------------------------------------------- outillage */
+
+    /**
+     * Supprime le schéma jetable et vérifie qu'il a bien disparu.
+     *
+     * <p>Liquibase coupe l'autocommit de la connexion qu'on lui prête : sans le
+     * rétablir, le {@code DROP SCHEMA} restait dans une transaction jamais
+     * validée et un schéma {@code ged_verif_*} s'accumulait dans la base de test
+     * à chaque exécution.
+     */
+    private static void supprimerSchema(Connection c, String schema) throws SQLException {
+        c.setAutoCommit(true);
+        executer(c, "DROP SCHEMA IF EXISTS " + schema + " CASCADE");
+        assertEquals(0, compter(c, "SELECT count(*) FROM information_schema.schemata WHERE schema_name = '"
+                + schema + "'"), "schéma jetable non supprimé : " + schema);
+    }
+
+    /** Aucun schéma jetable ne doit survivre à la classe, ni aux exécutions précédentes. */
+    @org.junit.jupiter.api.AfterAll
+    static void aucunSchemaJetableRestant(@org.springframework.beans.factory.annotation.Autowired
+                                          org.springframework.core.env.Environment env) throws SQLException {
+        try (Connection c = DriverManager.getConnection(env.getProperty("spring.datasource.url"),
+                env.getProperty("spring.liquibase.user"), env.getProperty("spring.liquibase.password", ""))) {
+            String jetables = " WHERE schema_name ~ '^ged_verif_[0-9a-f]+$'";
+            for (String reste : lignes(c, "SELECT schema_name FROM information_schema.schemata" + jetables)) {
+                executer(c, "DROP SCHEMA " + reste + " CASCADE");
+            }
+            assertEquals(0, compter(c, "SELECT count(*) FROM information_schema.schemata" + jetables),
+                    "schémas ged_verif_* restants");
+        }
+    }
 
     private Liquibase liquibase(Connection c, String schema) throws Exception {
         executer(c, "SET search_path TO " + schema);

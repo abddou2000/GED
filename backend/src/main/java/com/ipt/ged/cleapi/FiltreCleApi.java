@@ -85,7 +85,16 @@ public class FiltreCleApi extends OncePerRequestFilter {
                 return;
             }
             try {
-                requete.setAttribute(ATTRIBUT_DELEGATION, delegation.resoudre(application, deleguee));
+                ResolveurIdentiteDeleguee.IdentiteDeleguee identite = delegation.resoudre(application, deleguee);
+                requete.setAttribute(ATTRIBUT_DELEGATION, identite);
+                // Double identité (§5.5) : l'utilisateur devient le principal (auteur,
+                // acteur_utilisateur_id), l'application reste le sujet des droits et
+                // acteur_application_id. Lecture = intersection des droits.
+                boolean lecture = "GET".equals(requete.getMethod()) || "HEAD".equals(requete.getMethod());
+                application = application.avecDelegation(identite.principal(), lecture);
+                SecurityContext delegue = SecurityContextHolder.createEmptyContext();
+                delegue.setAuthentication(application);
+                SecurityContextHolder.setContext(delegue);
             } catch (ExceptionMetier e) {
                 tracerRefus(requete, e.code(), application, null);
                 reponses.ecrire(requete, reponse, e.statut(), e.code(), e.getMessage());

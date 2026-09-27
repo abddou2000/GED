@@ -41,23 +41,26 @@ public class ServiceClesApi {
     private final ProprietesCleApi proprietes;
     private final GardeAdministrationCles garde;
     private final JournalAdministration journal;
+    private final ServicePorteeCles portees;
     private final Clock horloge;
 
     @Autowired
     public ServiceClesApi(ApplicationRepository applications, CleApiRepository cles, QuotasCleApi quotas,
-                          ProprietesCleApi proprietes, GardeAdministrationCles garde, JournalAdministration journal) {
-        this(applications, cles, quotas, proprietes, garde, journal, Clock.systemUTC());
+                          ProprietesCleApi proprietes, GardeAdministrationCles garde, JournalAdministration journal,
+                          ServicePorteeCles portees) {
+        this(applications, cles, quotas, proprietes, garde, journal, portees, Clock.systemUTC());
     }
 
     ServiceClesApi(ApplicationRepository applications, CleApiRepository cles, QuotasCleApi quotas,
                    ProprietesCleApi proprietes, GardeAdministrationCles garde, JournalAdministration journal,
-                   Clock horloge) {
+                   ServicePorteeCles portees, Clock horloge) {
         this.applications = applications;
         this.cles = cles;
         this.quotas = quotas;
         this.proprietes = proprietes;
         this.garde = garde;
         this.journal = journal;
+        this.portees = portees;
         this.horloge = horloge;
     }
 
@@ -158,7 +161,7 @@ public class ServiceClesApi {
     }
 
     /**
-     * Régénération : nouvelle clé, même attribut de délégation ; l'ancienne reste
+     * Régénération : nouvelle clé, même attribut de délégation et même portée ; l'ancienne reste
      * valide pendant le chevauchement (7 jours par défaut) pour que l'application
      * bascule sans interruption (DAT §5.4).
      */
@@ -177,6 +180,8 @@ public class ServiceClesApi {
             ancienne.setExpireLe(finChevauchement);
         }
         ancienne.setRemplaceeParCleApiId(nouvelle.cle().getId());
+        // Même portée que la clé remplacée : la bascule ne change aucun droit.
+        portees.copier(ancienne.getId(), nouvelle.cle().getId());
         Map<String, Object> apres = traceCle(nouvelle.cle());
         apres.put("cleRemplacee", ancienne.getIdentifiant());
         apres.put("ancienneExpireLe", ancienne.getExpireLe().toString());

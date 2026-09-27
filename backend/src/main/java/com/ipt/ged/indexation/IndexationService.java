@@ -53,12 +53,14 @@ public class IndexationService {
     private final TypeDocumentRepository typeRepository;
     /** Journal d'audit : indexation enregistrée, valeurs avant et après (DAT §7.4.1). */
     private final AuditService audit;
+    /** Point d'application unique des droits (lot E3). */
+    private final com.ipt.ged.autorisation.AccessPredicate droits;
 
     /* ===================== Critères ===================== */
 
     /** Critères de recherche disponibles, dérivés des index. */
     public List<CritereResponse> criteres() {
-        return indexRepository.findByDeletedFalseOrderByIdAsc().stream()
+        return indexRepository.findBySupprimeFalseOrderByIdAsc().stream()
                 .filter(IndexField::isIndexePourRecherche)
                 .map(IndexationService::versCritere)
                 .toList();
@@ -66,7 +68,7 @@ public class IndexationService {
 
     /** Index servant au regroupement des résultats. */
     public List<CritereResponse> groupages() {
-        return indexRepository.findByDeletedFalseOrderByIdAsc().stream()
+        return indexRepository.findBySupprimeFalseOrderByIdAsc().stream()
                 .filter(IndexField::isIndexDeGroupage)
                 .map(IndexationService::versCritere)
                 .toList();
@@ -79,7 +81,7 @@ public class IndexationService {
             return List.of();
         }
         return doc.getTypeDocument().getPlanIndexation().getIndices().stream()
-                .filter(i -> !i.isDeleted())
+                .filter(i -> !i.isSupprime())
                 .map(IndexationService::versCritere)
                 .toList();
     }
@@ -124,7 +126,7 @@ public class IndexationService {
     @Transactional
     public List<ResultatResponse.ValeurResponse> enregistrer(UUID documentId, ValeurRequest requete) {
         UploadDocument doc = document(documentId);
-        if (doc.isDeleted()) {
+        if (doc.isSupprime()) {
             throw new IllegalArgumentException("Document en corbeille : indexation impossible. Restaurez-le d'abord.");
         }
         if (doc.isVerrouille()) {
@@ -223,7 +225,7 @@ public class IndexationService {
     private List<IndexField> champsDuPlan(UploadDocument doc) {
         PlanIndexation plan = doc.getTypeDocument() != null ? doc.getTypeDocument().getPlanIndexation() : null;
         if (plan == null) return List.of();
-        return plan.getIndices().stream().filter(i -> !i.isDeleted()).toList();
+        return plan.getIndices().stream().filter(i -> !i.isSupprime()).toList();
     }
 
     /** Désigne un index refusé par son nom quand il existe, par son identifiant sinon. */
@@ -346,7 +348,7 @@ public class IndexationService {
         PlanIndexation plan = type.getPlanIndexation();
         if (plan == null) return ApercuResponse.sansPlan();
 
-        List<IndexField> champs = plan.getIndices().stream().filter(i -> !i.isDeleted()).toList();
+        List<IndexField> champs = plan.getIndices().stream().filter(i -> !i.isSupprime()).toList();
         if (champs.isEmpty()) return ApercuResponse.sansPlan();
 
         String sep = plan.getSeparateur() == null || plan.getSeparateur().isEmpty() ? "_" : plan.getSeparateur();
@@ -470,7 +472,7 @@ public class IndexationService {
                     + " » n'a pas de plan d'indexation : aucune analyse possible.");
         }
 
-        List<IndexField> champs = plan.getIndices().stream().filter(i -> !i.isDeleted()).toList();
+        List<IndexField> champs = plan.getIndices().stream().filter(i -> !i.isSupprime()).toList();
         if (champs.isEmpty()) {
             return vide(doc, fichier, "Le plan « " + plan.getNomDuPlan() + " » ne contient aucun index.");
         }
@@ -665,7 +667,7 @@ public class IndexationService {
         List<String> jetons = CharteNommage.jetons(plan.getCharteNommage());
         if (!jetons.isEmpty()) return jetons;
         return plan.getIndices().stream()
-                .filter(i -> !i.isDeleted())
+                .filter(i -> !i.isSupprime())
                 .map(i -> String.valueOf(i.getId()))
                 .toList();
     }
@@ -698,7 +700,14 @@ public class IndexationService {
      * <b>tous</b> les filtres renseignés (ET logique).
      */
     public List<GroupeResponse> rechercher(RechercheRequest requete) {
-        List<UploadDocument> candidats = documentRepository.findByDeletedFalseOrderByIdDesc().stream()
+        // Filtre de droits À LA SOURCE (point d'application unique, P5) : un
+        // document hors périmètre n'entre ni dans les résultats ni dans les totaux.
+        List<UploadDocument> candidats = documentRepository.findAll(
+                        droits.documents(org.springframework.security.core.context.SecurityContextHolder
+                                .getContext().getAuthentication(), com.ipt.ged.autorisation.CodePermission.CONSULTER)
+                                .and((r, q, cb) -> cb.isFalse(r.get("supprime"))),
+                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"))
+                .stream()
                 .filter(d -> requete.workspaceId() == null
                         || (d.getWorkspace() != null && d.getWorkspace().getId().equals(requete.workspaceId())))
                 .filter(d -> requete.typeDocumentId() == null
@@ -716,7 +725,7 @@ public class IndexationService {
         List<RechercheRequest.FiltreIndex> filtres = requete.criteres() == null ? List.of()
                 : requete.criteres().stream().filter(IndexationService::filtreRenseigne).toList();
 
-        Map<UUID, IndexField> champs = indexRepository.findByDeletedFalseOrderByIdAsc().stream()
+        Map<UUID, IndexField> champs = indexRepository.findBySupprimeFalseOrderByIdAsc().stream()
                 .collect(Collectors.toMap(IndexField::getId, f -> f));
 
         List<UploadDocument> retenus = candidats.stream()

@@ -4,6 +4,7 @@ import { filter } from 'rxjs/operators';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { SessionService } from '../../core/session.service';
+import { AuthService } from '../../core/auth.service';
 import { BrandLogo } from '../../core/brand-logo/brand-logo';
 import { SignatureService } from '../../features/signature/signature.service';
 import { NotificationsService } from '../../features/notifications/notifications.service';
@@ -26,6 +27,7 @@ export class Shell implements AfterViewInit {
   private readonly barreNav = viewChild<ElementRef<HTMLElement>>('barreNav');
 
   protected session = inject(SessionService);
+  protected auth = inject(AuthService);
   private router = inject(Router);
   private signatures = inject(SignatureService);
   protected notifications = inject(NotificationsService);
@@ -154,6 +156,7 @@ export class Shell implements AfterViewInit {
   /** Recompte les étapes réellement à traiter. Silencieux en cas d'échec :
    *  un badge périmé vaut mieux qu'une erreur en travers de la navigation. */
   private recompterAtraiter(): void {
+    if (this.auth.sansRole()) return;   // aucun circuit accessible sans rôle
     this.signatures.pending().subscribe({
       next: l => this.pendingCount.set(l.length),
       error: () => { /* silencieux */ },

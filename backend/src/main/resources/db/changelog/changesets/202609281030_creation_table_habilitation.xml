@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609281030_creation_table_habilitation.xml">
+
+    <!--
+        Attributions (§12.2.1) : un SUJET (utilisateur, groupe GED ou application),
+        un RÔLE, une CIBLE (nœud, document, ou aucune = portée globale) et un
+        marqueur de RUPTURE D'HÉRITAGE. Une ligne de rupture sans rôle retire au
+        sujet, sur le nœud, tout ce qu'il aurait hérité. `application_id` recevra
+        sa clé étrangère avec la table `application` (lot E9).
+    -->
+    <changeSet id="202609281030-1" author="ged">
+        <comment>Table des habilitations.</comment>
+        <createTable tableName="habilitation">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_habilitation" nullable="false"/></column>
+            <column name="sujet_type" type="VARCHAR(12)"><constraints nullable="false"/></column>
+            <column name="utilisateur_id" type="UUID"/>
+            <column name="groupe_ged_id" type="UUID"/>
+            <column name="application_id" type="UUID"/>
+            <column name="role_id" type="UUID"/>
+            <column name="noeud_id" type="UUID"/>
+            <column name="document_id" type="UUID"/>
+            <column name="rupture_heritage" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="cree_par" type="UUID"/>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_habilitation_utilisateur" baseTableName="habilitation" baseColumnNames="utilisateur_id"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_habilitation_groupe_ged" baseTableName="habilitation" baseColumnNames="groupe_ged_id"
+                                 referencedTableName="groupe_ged" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_habilitation_role" baseTableName="habilitation" baseColumnNames="role_id"
+                                 referencedTableName="role" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_habilitation_noeud" baseTableName="habilitation" baseColumnNames="noeud_id"
+                                 referencedTableName="noeud" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_habilitation_document" baseTableName="habilitation" baseColumnNames="document_id"
+                                 referencedTableName="document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_habilitation_cree_par" baseTableName="habilitation" baseColumnNames="cree_par"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.habilitation ADD CONSTRAINT ck_habilitation_sujet CHECK (
+            (sujet_type = 'UTILISATEUR' AND utilisateur_id IS NOT NULL AND groupe_ged_id IS NULL AND application_id IS NULL)
+         OR (sujet_type = 'GROUPE' AND groupe_ged_id IS NOT NULL AND utilisateur_id IS NULL AND application_id IS NULL)
+         OR (sujet_type = 'APPLICATION' AND application_id IS NOT NULL AND utilisateur_id IS NULL AND groupe_ged_id IS NULL))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.habilitation ADD CONSTRAINT ck_habilitation_cible CHECK (noeud_id IS NULL OR document_id IS NULL)</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.habilitation ADD CONSTRAINT ck_habilitation_role CHECK (role_id IS NOT NULL OR rupture_heritage)</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.habilitation ADD CONSTRAINT ck_habilitation_rupture CHECK (NOT rupture_heritage OR noeud_id IS NOT NULL)</sql>
+        <sql>CREATE UNIQUE INDEX uk_habilitation_sujet_role_cible ON ${database.defaultSchemaName}.habilitation (sujet_type,
+            coalesce(utilisateur_id, groupe_ged_id, application_id),
+            coalesce(role_id, '00000000-0000-0000-0000-000000000000'),
+            coalesce(noeud_id, '00000000-0000-0000-0000-000000000000'),
+            coalesce(document_id, '00000000-0000-0000-0000-000000000000'))</sql>
+        <createIndex indexName="idx_habilitation_utilisateur_id" tableName="habilitation"><column name="utilisateur_id"/></createIndex>
+        <createIndex indexName="idx_habilitation_groupe_ged_id" tableName="habilitation"><column name="groupe_ged_id"/></createIndex>
+        <createIndex indexName="idx_habilitation_application_id" tableName="habilitation"><column name="application_id"/></createIndex>
+        <createIndex indexName="idx_habilitation_role_id" tableName="habilitation"><column name="role_id"/></createIndex>
+        <createIndex indexName="idx_habilitation_noeud_id" tableName="habilitation"><column name="noeud_id"/></createIndex>
+        <createIndex indexName="idx_habilitation_document_id" tableName="habilitation"><column name="document_id"/></createIndex>
+        <rollback>
+            <dropTable tableName="habilitation"/>
+        </rollback>
+    </changeSet>
+
+    <!--
+        Reprise des attributions existantes : les rôles globaux attribués au lot E2
+        (utilisateur_role) deviennent des habilitations de portée globale ; les
+        rattachements groupe / espace deviennent des habilitations du groupe sur le
+        nœud, avec le rôle Utilisateur standard (sens d'origine : « le groupe
+        couvre cet espace »). Les deux tables d'origine sont ensuite supprimées.
+    -->
+    <changeSet id="202609281030-2" author="ged">
+        <comment>Reprise de utilisateur_role et access_group_workspace en habilitations.</comment>
+        <sql>INSERT INTO ${database.defaultSchemaName}.habilitation (id, sujet_type, utilisateur_id, role_id, rupture_heritage, cree_par, cree_le)
+             SELECT ${database.defaultSchemaName}.uuid_v7(), 'UTILISATEUR', utilisateur_id, role_id, false, attribue_par, attribue_le
+               FROM ${database.defaultSchemaName}.utilisateur_role</sql>
+        <sql>INSERT INTO ${database.defaultSchemaName}.habilitation (id, sujet_type, groupe_ged_id, role_id, noeud_id, rupture_heritage)
+             SELECT ${database.defaultSchemaName}.uuid_v7(), 'GROUPE', groupe_ged_id, '0192a000-0000-7000-8000-000000000004', noeud_id, false
+               FROM ${database.defaultSchemaName}.access_group_workspace</sql>
+        <dropTable tableName="utilisateur_role"/>
+        <dropTable tableName="access_group_workspace"/>
+        <rollback>
+            <sql>CREATE TABLE ${database.defaultSchemaName}.access_group_workspace (
+                id UUID DEFAULT ${database.defaultSchemaName}.uuid_v7() NOT NULL CONSTRAINT pk_access_group_workspace PRIMARY KEY,
+                groupe_ged_id UUID NOT NULL CONSTRAINT fk_access_group_workspace_groupe_ged REFERENCES ${database.defaultSchemaName}.groupe_ged (id) ON DELETE CASCADE,
+                noeud_id UUID NOT NULL CONSTRAINT fk_access_group_workspace_workspace REFERENCES ${database.defaultSchemaName}.noeud (id) ON DELETE CASCADE,
+                CONSTRAINT uk_access_group_workspace_access_group_id_workspace_id UNIQUE (groupe_ged_id, noeud_id))</sql>
+            <sql>CREATE INDEX idx_access_group_workspace_workspace_id ON ${database.defaultSchemaName}.access_group_workspace (noeud_id)</sql>
+            <sql>INSERT INTO ${database.defaultSchemaName}.access_group_workspace (groupe_ged_id, noeud_id)
+                 SELECT DISTINCT groupe_ged_id, noeud_id FROM ${database.defaultSchemaName}.habilitation
+                  WHERE sujet_type = 'GROUPE' AND noeud_id IS NOT NULL AND role_id IS NOT NULL</sql>
+            <sql>CREATE TABLE ${database.defaultSchemaName}.utilisateur_role (
+                id UUID DEFAULT ${database.defaultSchemaName}.uuid_v7() NOT NULL CONSTRAINT pk_utilisateur_role PRIMARY KEY,
+                utilisateur_id UUID NOT NULL CONSTRAINT fk_utilisateur_role_utilisateur REFERENCES ${database.defaultSchemaName}.utilisateur (id) ON DELETE CASCADE,
+                role_id UUID NOT NULL CONSTRAINT fk_utilisateur_role_role REFERENCES ${database.defaultSchemaName}.role (id),
+                attribue_le TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+                attribue_par UUID CONSTRAINT fk_utilisateur_role_attribue_par REFERENCES ${database.defaultSchemaName}.utilisateur (id),
+                CONSTRAINT uk_utilisateur_role_utilisateur_id_role_id UNIQUE (utilisateur_id, role_id))</sql>
+            <sql>CREATE INDEX idx_utilisateur_role_role_id ON ${database.defaultSchemaName}.utilisateur_role (role_id)</sql>
+            <sql>INSERT INTO ${database.defaultSchemaName}.utilisateur_role (utilisateur_id, role_id, attribue_le, attribue_par)
+                 SELECT DISTINCT ON (utilisateur_id, role_id) utilisateur_id, role_id, cree_le, cree_par FROM ${database.defaultSchemaName}.habilitation
+                  WHERE sujet_type = 'UTILISATEUR' AND noeud_id IS NULL AND document_id IS NULL AND role_id IS NOT NULL</sql>
+            <sql>DELETE FROM ${database.defaultSchemaName}.habilitation</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -41,7 +41,8 @@ public class ConfigurationSecuriteApplications {
 
     /** Routes réservées aux utilisateurs : refusées à toute application (aussi lues par la spécification OpenAPI). */
     public static final List<String> CHEMINS_RESERVES_UTILISATEURS = List.of("/api/v1/applications/**",
-            "/api/v1/cles-api/**", "/api/v1/audit/**", "/api/v1/auth/**", "/api/v1/notifications/**");
+            "/api/v1/cles-api/**", "/api/v1/audit/**", "/api/v1/auth/**", "/api/v1/notifications/**",
+            "/api/v1/admin/**", "/api/v1/access-groups/**");
 
     @Bean
     @Order(ORDRE)

@@ -20,9 +20,11 @@ public record AccessGroupResponse(
     /** Référence légère (id + libellé) vers une entité liée. */
     public record Ref(UUID id, String label) {}
 
-    public static AccessGroupResponse from(AccessGroup g) {
-        List<Ref> ws = g.getWorkspaces().stream()
-                .map(w -> new Ref(w.getId(), w.getName())).toList();
+    /**
+     * @param ws espaces couverts : nœuds où le groupe porte une habilitation
+     *           (calculés par le service, le groupe n'en porte plus la liste)
+     */
+    public static AccessGroupResponse from(AccessGroup g, List<Ref> ws) {
         List<Ref> us = g.getUsers().stream()
                 .map(e -> new Ref(e.getId(), e.getFullName())).toList();
         return new AccessGroupResponse(

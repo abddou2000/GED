@@ -57,7 +57,7 @@ public class TypeDocumentService {
     public PageResponse<TypeDocumentResponse> list(int page, int size, String search,
                                                    String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
-        Page<TypeDocument> result = repo.findByDeletedFalseAndTypeDeDocumentContainingIgnoreCase(search, pageable);
+        Page<TypeDocument> result = repo.findBySupprimeFalseAndTypeDeDocumentContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, TypeDocumentResponse::from);
     }
 
@@ -65,7 +65,7 @@ public class TypeDocumentService {
     public PageResponse<TypeDocumentResponse> trashed(int page, int size, String search,
                                                       String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
-        Page<TypeDocument> result = repo.findByDeletedTrueAndTypeDeDocumentContainingIgnoreCase(search, pageable);
+        Page<TypeDocument> result = repo.findBySupprimeTrueAndTypeDeDocumentContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, TypeDocumentResponse::from);
     }
 
@@ -118,7 +118,7 @@ public class TypeDocumentService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(t -> {
+        repo.findByIdInAndSupprimeFalse(ids).forEach(t -> {
             t.mettreEnCorbeille(ActeurCourant.employeId());
             journal.action(ActionAudit.TYPE_DOCUMENT_SUPPRIME, "TYPE_DOCUMENT", t.getId());
         });
@@ -126,7 +126,7 @@ public class TypeDocumentService {
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(t -> {
+        repo.findByIdInAndSupprimeTrue(ids).forEach(t -> {
             t.restaurer();
             journal.action(ActionAudit.TYPE_DOCUMENT_RESTAURE, "TYPE_DOCUMENT", t.getId());
         });
@@ -135,7 +135,7 @@ public class TypeDocumentService {
     /** Liste allégée {id, name} pour les sélecteurs (upload). */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> forSelect() {
-        return repo.findByDeletedFalseOrderByIdAsc().stream()
+        return repo.findBySupprimeFalseOrderByIdAsc().stream()
                 .map(t -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", t.getId());

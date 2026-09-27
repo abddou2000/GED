@@ -61,7 +61,7 @@ public final class ContraintesDepot {
      * plus personne ne peut voir ni administrer.
      */
     public static void validerTypeVivant(TypeDocument type) {
-        if (type.isDeleted()) {
+        if (type.isSupprime()) {
             throw new IllegalArgumentException("Le type de document « " + type.getTypeDeDocument()
                     + " » est en corbeille : dépôt impossible.");
         }

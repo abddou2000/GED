@@ -1,5 +1,6 @@
 package com.ipt.ged.notification;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -7,13 +8,12 @@ import java.util.UUID;
 
 /**
  * <b>Point d'extension</b> : ce que les notifications ont besoin de savoir des
- * destinataires. L'implémentation définitive (lot identité E2 de dev1) lit le
- * courriel dans {@code cache_annuaire} et les rôles dans le modèle de droits
- * (E3) ; elle remplace {@link AnnuaireDestinatairesLocal} en déclarant son
- * propre bean.
+ * destinataires. Implémentation livrée : {@link AnnuaireDestinatairesIdentite}
+ * (cache d'annuaire du lot E2, groupes et habilitations du lot E3) ; un autre
+ * bean la remplace sans rien modifier ici.
  *
- * <p>Les identifiants sont ceux des identités GED, les mêmes que
- * {@code journal_audit.acteur_utilisateur_id} et que les sujets des
+ * <p>Les identifiants sont ceux des identités GED ({@code utilisateur.id}), les
+ * mêmes que {@code journal_audit.acteur_utilisateur_id} et que les sujets des
  * habilitations.
  */
 public interface AnnuaireDestinataires {
@@ -23,6 +23,9 @@ public interface AnnuaireDestinataires {
 
     /** Membres actuels d'un groupe GED (sujet {@code GROUPE} d'une habilitation). */
     Set<UUID> membresDuGroupe(UUID groupeId);
+
+    /** Identités GED des employés donnés (membres d'un groupe GED) ; un employé sans identité est ignoré. */
+    Set<UUID> identitesDesEmployes(Collection<UUID> employeIds);
 
     /**
      * Espaces (identifiant, nom) sur lesquels un groupe porte un accès : un

@@ -172,7 +172,9 @@ public class AuditService {
             String duContexte = MDC.get(ContexteJournalisation.USERNAME);
             nom = duContexte != null && !ContexteJournalisation.ANONYME.equals(duContexte) ? duContexte : null;
         }
-        return new Contexte(ActeurCourant.employeId(), applicationCourante(), nom,
+        // Identité GED (utilisateur.id) depuis le lot E2 : la même que les sujets
+        // d'habilitation et que l'auteur des événements HabilitationModifiee.
+        return new Contexte(ActeurCourant.utilisateurId(), applicationCourante(), nom,
                 MDC.get(ContexteJournalisation.IP), traceCourante());
     }
 

@@ -2,17 +2,23 @@ package com.ipt.ged.employe;
 
 import com.ipt.ged.accessgroup.AccessGroup;
 import com.ipt.ged.accessgroup.AccessGroupRepository;
+import com.ipt.ged.autorisation.AccessPredicate;
+import com.ipt.ged.autorisation.CodePermission;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
 import com.ipt.ged.employe.dto.ProfilResponse;
-import com.ipt.ged.security.CompteUtilisateur;
-import com.ipt.ged.security.CompteUtilisateurRepository;
+import com.ipt.ged.identite.EntreeCacheAnnuaire;
+import com.ipt.ged.identite.ServiceCacheAnnuaire;
+import com.ipt.ged.identite.Utilisateur;
+import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.security.UtilisateurConnecte;
 import com.ipt.ged.signature.SignatureStatus;
 import com.ipt.ged.signature.WorkflowSignatureRepository;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,42 +40,55 @@ public class ProfilService {
     private final AccessGroupRepository groupes;
     private final UploadDocumentRepository documents;
     private final WorkflowSignatureRepository signatures;
-    private final CompteUtilisateurRepository comptes;
+    private final UtilisateurRepository utilisateurs;
+    private final ServiceCacheAnnuaire annuaire;
+    private final AccessPredicate droits;
 
     public ProfilService(EmployeRepository employes, WorkSpaceRepository workspaces,
                          AccessGroupRepository groupes, UploadDocumentRepository documents,
-                         WorkflowSignatureRepository signatures, CompteUtilisateurRepository comptes) {
+                         WorkflowSignatureRepository signatures, UtilisateurRepository utilisateurs,
+                         ServiceCacheAnnuaire annuaire, AccessPredicate droits) {
+        this.droits = droits;
         this.employes = employes;
         this.workspaces = workspaces;
         this.groupes = groupes;
         this.documents = documents;
         this.signatures = signatures;
-        this.comptes = comptes;
+        this.utilisateurs = utilisateurs;
+        this.annuaire = annuaire;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ProfilResponse profil(UUID employeId) {
         Employe e = employes.findById(employeId)
                 .orElseThrow(() -> new EntityNotFoundException("Employé introuvable : " + employeId));
 
-        /* Le compte porte l'adresse de connexion et la derniere visite. Un
-           employe sans compte n'en a pas : les champs restent nuls plutot que
-           d'afficher un vide qui ressemblerait a une donnee manquante. */
-        CompteUtilisateur compte = comptes.findByEmployeId(e.getId()).orElse(null);
+        /* L'identité GED porte la dernière connexion ; le courriel vient du
+           cache annuaire (lecture seule). Un employé sans identité n'en a pas :
+           les champs restent nuls plutôt que d'afficher un vide trompeur. */
+        Utilisateur identite = utilisateurs.findByEmployeId(e.getId()).orElse(null);
+        String courriel = identite == null ? null
+                : annuaire.lire(identite.getId()).map(EntreeCacheAnnuaire::getCourriel).orElse(null);
 
-        List<ProfilResponse.Ref> dossiers = workspaces.findByDeletedFalseOrderByIdAsc().stream()
+        // Périmètre de l'APPELANT (P5) : un dossier ou un dépôt qu'il ne peut
+        // pas voir n'est ni nommé ni compté, même sur la fiche d'un collègue.
+        var appelant = SecurityContextHolder.getContext().getAuthentication();
+        java.util.Set<UUID> visibles = droits.noeudsAccessibles(appelant, CodePermission.CONSULTER);
+        List<ProfilResponse.Ref> dossiers = workspaces.findBySupprimeFalseOrderByIdAsc().stream()
                 .filter(w -> w.getOwner() != null && w.getOwner().getId().equals(employeId))
+                .filter(w -> visibles.contains(w.getId()))
                 .map(w -> new ProfilResponse.Ref(w.getId(), w.getName()))
                 .toList();
 
-        List<ProfilResponse.Ref> mesGroupes = groupes.findByDeletedFalseOrderByIdAsc().stream()
+        List<ProfilResponse.Ref> mesGroupes = groupes.findBySupprimeFalseOrderByIdAsc().stream()
                 .filter(g -> membre(g, employeId))
                 .map(g -> new ProfilResponse.Ref(g.getId(), g.getName()))
                 .toList();
 
-        int deposes = (int) documents.findByDeletedFalseOrderByIdDesc().stream()
-                .filter(d -> auteur(d, employeId))
-                .count();
+        Specification<UploadDocument> deposesVisibles = (r, q, cb) -> cb.and(cb.isFalse(r.get("supprime")),
+                cb.equal(r.join("createdBy").get("id"), employeId));
+        int deposes = (int) documents.count(deposesVisibles
+                .and(droits.documents(appelant, CodePermission.CONSULTER)));
 
         int enAttente = signatures
                 .findByEmployeIdAndStatusOrderByStepOrderAsc(employeId, SignatureStatus.PENDING).size();
@@ -79,9 +98,9 @@ public class ProfilService {
 
         return new ProfilResponse(
                 e.getId(), e.getFullName(), e.getFirstName(), e.getLastName(), e.isHasUser(),
-                compte != null ? compte.getEmail() : null,
-                compte != null && compte.isActif(),
-                compte != null ? compte.getDerniereConnexion() : null,
+                courriel,
+                identite != null,
+                identite != null ? identite.getDerniereConnexionLe() : null,
                 dossiers, mesGroupes, deposes, enAttente, traitees);
     }
 
@@ -112,7 +131,7 @@ public class ProfilService {
      * testable sans contexte de sécurité, et l'origine de l'identifiant se lit
      * dans la signature.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ProfilResponse profilCourant(UtilisateurConnecte utilisateur) {
         if (utilisateur == null) {
             throw new AccessDeniedException("Aucun utilisateur authentifié");

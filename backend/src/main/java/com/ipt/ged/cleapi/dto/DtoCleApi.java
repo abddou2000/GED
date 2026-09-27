@@ -50,4 +50,14 @@ public final class DtoCleApi {
      * (DAT §5.4). Elle n'est ni stockée ni relisible ensuite.
      */
     public record CleGenereeResponse(String cle, CleResponse details) {}
+
+    /** Une ligne de portée : un nœud (sous-arborescence comprise) et les opérations permises (§5.4). */
+    public record PorteeRequest(@jakarta.validation.constraints.NotNull UUID noeudId,
+                                @jakarta.validation.constraints.NotEmpty java.util.Set<com.ipt.ged.cleapi.OperationApi> operations) {}
+
+    /** Portée complète d'une clé, remplacée d'un bloc. */
+    public record PorteeCleRequest(@jakarta.validation.constraints.NotNull @Size(max = 200)
+                                   List<@jakarta.validation.Valid PorteeRequest> portee) {}
+
+    public record PorteeResponse(UUID noeudId, String noeud, java.util.Set<com.ipt.ged.cleapi.OperationApi> operations) {}
 }

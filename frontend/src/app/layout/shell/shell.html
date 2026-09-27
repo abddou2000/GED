@@ -69,6 +69,8 @@
     <a routerLink="/accueil" routerLinkActive="active" (click)="closeDrawer()" aria-label="Accueil">
       <mat-icon svgIcon="home"></mat-icon><span>Accueil</span>
     </a>
+    <!-- Identité sans rôle : seul l'accueil (vide) est proposé. -->
+    @if (!auth.sansRole()) {
     <a routerLink="/mes-workflow" routerLinkActive="active" (click)="closeDrawer()" aria-label="Mes workflow">
       <mat-icon svgIcon="nav-mesworkflow"></mat-icon><span>Mes workflow</span>
       @if (pendingCount() > 0) { <span class="nav-badge">{{ pendingCount() }}</span> }
@@ -79,12 +81,18 @@
     <a routerLink="/televerser" routerLinkActive="active" (click)="closeDrawer()" aria-label="Documents déposés">
       <mat-icon svgIcon="nav-upload"></mat-icon><span>Documents</span>
     </a>
+    <!-- Référentiels : visibles de qui les administre (GERER_REFERENTIELS). -->
+    @if (auth.peut('GERER_REFERENTIELS')) {
     <a routerLink="/regles-de-workflow" routerLinkActive="active" (click)="closeDrawer()" aria-label="Règles de Workflow">
       <mat-icon svgIcon="nav-workflow"></mat-icon><span>Règles de Workflow</span>
     </a>
-    <a routerLink="/groupe-d-acces" routerLinkActive="active" (click)="closeDrawer()" aria-label="Groupe d'accès">
-      <mat-icon svgIcon="nav-groups"></mat-icon><span>Groupe d'accès</span>
+    }
+    @if (auth.peut('GERER_ROLES_HABILITATIONS')) {
+    <a routerLink="/groupe-d-acces" routerLinkActive="active" (click)="closeDrawer()" aria-label="Groupes GED">
+      <mat-icon svgIcon="nav-groups"></mat-icon><span>Groupes</span>
     </a>
+    }
+    @if (auth.peut('GERER_REFERENTIELS')) {
     <a routerLink="/index" routerLinkActive="active" (click)="closeDrawer()" aria-label="Index">
       <mat-icon svgIcon="nav-index"></mat-icon><span>Index</span>
     </a>
@@ -97,12 +105,33 @@
     <a routerLink="/etiquette" routerLinkActive="active" (click)="closeDrawer()" aria-label="Étiquette">
       <mat-icon svgIcon="nav-tag"></mat-icon><span>Étiquette</span>
     </a>
+    }
+    }
+    @if (auth.administrateur()) {
+      <a routerLink="/administration/habilitations" routerLinkActive="active" (click)="closeDrawer()" aria-label="Habilitations">
+        <mat-icon svgIcon="user"></mat-icon><span>Habilitations</span>
+      </a>
+      <a routerLink="/administration/roles" routerLinkActive="active" (click)="closeDrawer()" aria-label="Rôles">
+        <mat-icon svgIcon="nav-groups"></mat-icon><span>Rôles</span>
+      </a>
+      <a routerLink="/administration/droits-effectifs" routerLinkActive="active" (click)="closeDrawer()" aria-label="Droits effectifs">
+        <mat-icon svgIcon="nav-index"></mat-icon><span>Droits effectifs</span>
+      </a>
+      <a routerLink="/administration/sessions" routerLinkActive="active" (click)="closeDrawer()" aria-label="Sessions">
+        <mat-icon svgIcon="nav-groups"></mat-icon><span>Sessions</span>
+      </a>
+    }
+    <!-- Journal d'audit (CONSULTER_AUDIT) et clés d'API (GERER_CLES_API) : lot E4 / E9. -->
+    @if (auth.peut('CONSULTER_AUDIT')) {
     <a routerLink="/journal-audit" routerLinkActive="active" (click)="closeDrawer()" aria-label="Journal d'audit">
       <mat-icon svgIcon="nav-audit"></mat-icon><span>Journal d'audit</span>
     </a>
+    }
+    @if (auth.peut('GERER_CLES_API')) {
     <a routerLink="/cles-api" routerLinkActive="active" (click)="closeDrawer()" aria-label="Clés d'API">
       <mat-icon svgIcon="nav-cle"></mat-icon><span>Clés d'API</span>
     </a>
+    }
   </nav>
 
   <!-- ===== Contenu ===== -->

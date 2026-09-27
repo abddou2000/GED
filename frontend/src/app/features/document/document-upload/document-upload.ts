@@ -18,6 +18,7 @@ import { OcrService } from '../../indexation/ocr.service';
 import { versDate, versIso } from '../../../core/dates';
 import { TypeDocumentService } from '../../type-document/type-document.service';
 import { SelectOption } from '../../type-document/type-document.model';
+import { NIVEAUX_CONFIDENTIALITE } from '../document.model';
 import { Apercu, Proposition } from '../../indexation/indexation.model';
 import { EtiquetteService } from '../../etiquette/etiquette.service';
 import { Etiquette } from '../../etiquette/etiquette.model';
@@ -129,10 +130,13 @@ export class DocumentUpload implements OnInit {
   /** Exposés au gabarit : le sélecteur manipule des dates, l'API des chaînes. */
   protected readonly versDate = versDate;
   protected readonly versIso = versIso;
+  protected readonly niveaux = NIVEAUX_CONFIDENTIALITE;
 
   form: FormGroup = this.fb.group({
     typeDocumentId: [null as string | null, Validators.required],
     name: [''],
+    /* Vide = niveau par défaut du type, fixé par le serveur (§12.3). */
+    confidentialite: [null as string | null],
     expirationDate: [null as Date | null],
     /* Les étiquettes sont FACULTATIVES : aucun validateur. Elles classent un
        document en travers des dossiers et des types ; exiger un classement
@@ -678,7 +682,7 @@ export class DocumentUpload implements OnInit {
     const v = this.form.getRawValue();
     this.loading.set(true);
     this.service.upload(file, v.typeDocumentId, (v.name || '').trim(), versIso(v.expirationDate),
-                        v.etiquetteIds ?? [])
+                        v.etiquetteIds ?? [], v.confidentialite ?? null)
       .subscribe({
         next: doc => {
           this.documentDepose.set(doc.id);

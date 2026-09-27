@@ -23,17 +23,17 @@ public class ConfigurationNotification {
         return new ModelesNotification();
     }
 
-    /** Transitoire : employé et compte de connexion de cette branche (voir la classe). */
+    /** Cache d'annuaire (E2), groupes et habilitations (E3). */
     @Bean
     @ConditionalOnMissingBean(AnnuaireDestinataires.class)
-    public AnnuaireDestinataires annuaireDestinatairesLocal(JdbcTemplate jdbc) {
-        return new AnnuaireDestinatairesLocal(jdbc);
+    public AnnuaireDestinataires annuaireDestinatairesIdentite(JdbcTemplate jdbc) {
+        return new AnnuaireDestinatairesIdentite(jdbc);
     }
 
-    /** Identité du jeton ; à la fusion E2 : {@code ActeurCourant::utilisateurId}. */
+    /** Identité GED du jeton (lot E2). */
     @Bean
     @ConditionalOnMissingBean(IdentiteDestinataire.class)
     public IdentiteDestinataire identiteDestinataireParDefaut() {
-        return ActeurCourant::employeId;
+        return ActeurCourant::utilisateurId;
     }
 }

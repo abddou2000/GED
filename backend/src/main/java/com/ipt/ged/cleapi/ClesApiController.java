@@ -31,7 +31,10 @@ public class ClesApiController {
 
     private final ServiceClesApi service;
 
-    public ClesApiController(ServiceClesApi service) {
+    private final ServicePorteeCles portees;
+
+    public ClesApiController(ServiceClesApi service, ServicePorteeCles portees) {
+        this.portees = portees;
         this.service = service;
     }
 
@@ -77,5 +80,18 @@ public class ClesApiController {
     @PostMapping("/api/v1/cles-api/{cleId}/revocation")
     public CleResponse revoquer(@PathVariable UUID cleId, @Valid @RequestBody RevocationRequest req) {
         return service.revoquer(cleId, req.motif());
+    }
+
+    /** Portée de la clé : nœuds et opérations (§5.4). */
+    @GetMapping("/api/v1/cles-api/{cleId}/portee")
+    public List<com.ipt.ged.cleapi.dto.DtoCleApi.PorteeResponse> portee(@PathVariable UUID cleId) {
+        return portees.consulter(cleId);
+    }
+
+    /** Remplace la portée de la clé ; effet immédiat. */
+    @PutMapping("/api/v1/cles-api/{cleId}/portee")
+    public List<com.ipt.ged.cleapi.dto.DtoCleApi.PorteeResponse> definirPortee(
+            @PathVariable UUID cleId, @Valid @RequestBody com.ipt.ged.cleapi.dto.DtoCleApi.PorteeCleRequest req) {
+        return portees.definir(cleId, req.portee());
     }
 }

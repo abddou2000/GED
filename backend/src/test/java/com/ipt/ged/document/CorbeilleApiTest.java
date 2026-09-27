@@ -125,7 +125,7 @@ class CorbeilleApiTest {
         // en corbeille — l'écran n'avait auparavant aucun moyen de le savoir.
         mvc.perform(get(BASE + "/" + id))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.deleted", is(true)));
+                .andExpect(jsonPath("$.supprime", is(true)));
 
         // Écritures : toutes refusées, sur chacune des portes ouvertes.
         mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON)
@@ -166,7 +166,7 @@ class CorbeilleApiTest {
         // de la suppression : le champ `status` ne connaît qu'ACTIF/ARCHIVE.
         mvc.perform(get("/api/v1/workspaces/" + workspaceId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.deleted", is(true)));
+                .andExpect(jsonPath("$.supprime", is(true)));
 
         mvc.perform(patch("/api/v1/workspaces/" + workspaceId + "/archive"))
                 .andExpect(status().isBadRequest())

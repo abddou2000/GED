@@ -1,9 +1,11 @@
 package com.ipt.ged.notification;
 
-import com.ipt.ged.audit.EvenementAudit;
-import com.ipt.ged.audit.ResultatAudit;
+import com.ipt.ged.autorisation.evenement.HabilitationModifiee;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -22,13 +24,13 @@ import java.util.UUID;
  *   <li><b>Circuits de validation et fin de conservation</b> : tout événement
  *       qui implémente {@link EvenementNotifiable} (contrat pour les lots E8 de
  *       dev1 et dev3, voir cette interface).</li>
- *   <li><b>Accès à un espace</b> : l'événement {@code HabilitationModifiee} du lot
- *       autorisation (dev1, E3), lu par son contrat d'audit
- *       ({@link EvenementAudit}, action {@code HABILITATION_MODIFIEE}) pour ne
- *       pas compiler contre une classe d'un autre lot. Seules les attributions
- *       sont notifiées : ajout d'une habilitation avec rôle sur un nœud, ajout
- *       d'un membre à un groupe qui porte des accès. Jamais un retrait, ni une
- *       habilitation sur un document (la diffusion n'est pas un des trois cas).</li>
+ *   <li><b>Accès à un espace</b> : {@link HabilitationModifiee} du lot
+ *       autorisation (E3). Seules les attributions sont notifiées : ajout d'une
+ *       habilitation avec rôle sur un nœud (à l'utilisateur, ou aux membres du
+ *       groupe), ajout d'un membre à un groupe qui porte des accès (un avis par
+ *       espace du groupe). Jamais un retrait, ni une habilitation sur un
+ *       document (la diffusion n'est pas un des trois cas), ni une rupture
+ *       d'héritage seule.</li>
  * </ul>
  *
  * <p>L'auteur de l'attribution n'est pas notifié de son propre geste.
@@ -36,14 +38,11 @@ import java.util.UUID;
 @Component
 public class EcouteurDeclencheurs {
 
-    static final String HABILITATION_MODIFIEE = "HABILITATION_MODIFIEE";
-    static final String OBJET_HABILITATION = "HABILITATION";
-    static final String OBJET_GROUPE = "GROUPE_GED";
-    static final String AJOUT = "AJOUT";
-    static final String MODIFICATION = "MODIFICATION";
-
     private final Notifications notifications;
     private final AnnuaireDestinataires annuaire;
+
+    @PersistenceContext
+    private EntityManager em;
 
     public EcouteurDeclencheurs(Notifications notifications, AnnuaireDestinataires annuaire) {
         this.notifications = notifications;
@@ -57,15 +56,15 @@ public class EcouteurDeclencheurs {
     }
 
     @EventListener
-    public void surHabilitation(EvenementAudit evenement) {
-        if (!HABILITATION_MODIFIEE.equals(evenement.action()) || evenement.resultat() != ResultatAudit.SUCCES
-                || evenement.apres() == null) {
-            return;
-        }
-        if (OBJET_HABILITATION.equals(evenement.objetType()) && AJOUT.equals(evenement.motif())) {
-            accesAttribue(evenement.apres(), evenement.acteurUtilisateurId());
-        } else if (OBJET_GROUPE.equals(evenement.objetType()) && MODIFICATION.equals(evenement.motif())) {
-            membresAjoutes(evenement.objetId(), evenement.avant(), evenement.apres(), evenement.acteurUtilisateurId());
+    public void surHabilitation(HabilitationModifiee evenement) {
+        if (evenement.apres() == null) return;
+        synchroniser();
+        if (HabilitationModifiee.HABILITATION.equals(evenement.objet())
+                && HabilitationModifiee.AJOUT.equals(evenement.operation())) {
+            accesAttribue(evenement.apres(), evenement.auteurId());
+        } else if (HabilitationModifiee.GROUPE_GED.equals(evenement.objet())
+                && HabilitationModifiee.MODIFICATION.equals(evenement.operation())) {
+            membresAjoutes(evenement.objetId(), evenement.avant(), evenement.apres(), evenement.auteurId());
         }
     }
 
@@ -94,19 +93,36 @@ public class EcouteurDeclencheurs {
                 "ESPACE", noeud, variables, "espaces-de-travail/" + noeud));
     }
 
-    /** Membres ajoutés à un groupe : ils reçoivent l'accès aux espaces du groupe. */
+    /**
+     * Membres ajoutés à un groupe : ils reçoivent l'accès aux espaces du groupe.
+     * Les membres d'un groupe GED sont des employés ; l'avis va à leur identité.
+     */
     private void membresAjoutes(UUID groupe, Map<String, Object> avant, Map<String, Object> apres, UUID auteur) {
+        if (Boolean.TRUE.equals(apres.get("supprime"))) return;
         Set<UUID> ajoutes = uuids(apres.get("membres"));
         ajoutes.removeAll(avant == null ? Set.of() : uuids(avant.get("membres")));
-        ajoutes.remove(auteur);
         if (groupe == null || ajoutes.isEmpty()) return;
-        Map<UUID, String> espaces = annuaire.espacesDuGroupe(groupe);
-        for (Map.Entry<UUID, String> espace : espaces.entrySet()) {
+        Set<UUID> destinataires = new LinkedHashSet<>(annuaire.identitesDesEmployes(ajoutes));
+        destinataires.remove(auteur);
+        if (destinataires.isEmpty()) return;
+        for (Map.Entry<UUID, String> espace : annuaire.espacesDuGroupe(groupe).entrySet()) {
             Map<String, Object> variables = new HashMap<>();
             variables.put("espace", espace.getValue());
             variables.put("groupe", apres.get("nom"));
-            notifications.envoyer(DemandeNotification.a(TypeNotification.ACCES_ESPACE_ATTRIBUE, ajoutes,
+            notifications.envoyer(DemandeNotification.a(TypeNotification.ACCES_ESPACE_ATTRIBUE, destinataires,
                     "ESPACE", espace.getKey(), variables, "espaces-de-travail/" + espace.getKey()));
+        }
+    }
+
+    /**
+     * L'annuaire des destinataires lit la base en SQL (membres, espaces) : les
+     * écritures JPA de la transaction en cours — le membre ajouté juste avant —
+     * doivent y être poussées d'abord.
+     */
+    private void synchroniser() {
+        if (em != null && TransactionSynchronizationManager.isActualTransactionActive()
+                && !TransactionSynchronizationManager.isCurrentTransactionReadOnly() && em.isJoinedToTransaction()) {
+            em.flush();
         }
     }
 

@@ -77,10 +77,78 @@ objets:
   EtatExtracteur: Moteur d'extraction de texte disponible.
   EmployeResponse: Employé (personne métier).
   ProfilResponse: Profil de l'utilisateur connecté.
+  IdentiteResponse: Identité de l'appelant (lot E2), rôles et permissions pour le confort d'affichage.
+  IdentiteAdmin: Identité GED dans la liste d'administration.
+  SessionAdmin: Session ouverte d'une identité.
+  Revocation: Résultat de la fermeture des sessions d'une identité.
+  DemandeHabilitation: Nouvelle attribution (rôle sur un nœud, un document ou en portée globale).
+  HabilitationVue: Attribution telle que l'écran d'administration l'affiche.
+  RoleVue: Rôle et ses permissions.
+  PermissionVue: Permission livrée par le modèle de droits.
+  DemandeRole: Création ou recomposition d'un rôle.
+  DroitsEffectifs: Droits effectifs d'un sujet sur une cible, avec leur origine (§12.2.3).
+  EmplacementVue: Emplacement d'un document et permissions qui s'y appliquent.
+  OrigineVue: Origine d'une permission effective (attribution, héritage, portée globale…).
+  ConfidentialiteVue: Décision de confidentialité sur un document.
+  PorteeCleRequest: Portée complète d'une clé d'API, remplacée d'un bloc (§5.4).
+  PorteeRequest: Nœud (sous-arborescence comprise) et opérations permises à la clé.
+  PorteeResponse: Ligne de portée d'une clé d'API.
 
 champs:
   # --- Envoi multipart -------------------------------------------------------
   file: {description: "Fichier envoyé (multipart/form-data) ; type réel, taille et antivirus contrôlés.", exemple: null}
+
+  # --- Identité, droits et portée des clés (lots E2, E3, E9 vague 4) --------
+  supprime: {description: "Vrai si l'objet est dans la corbeille (suppression douce).", exemple: false}
+  confidentialite: {description: "Niveau de confidentialité : PUBLIC, PRIVE ou CONFIDENTIEL (§12.3).", exemple: PUBLIC}
+  permissions: {description: "Permissions (codes CONSULTER, DEPOSER, MODIFIER…).", exemple: [CONSULTER, DEPOSER]}
+  rattachements: {description: "Emplacements complémentaires visibles du document.", exemple: null}
+  passage: {description: "Nœud non couvert, montré pour atteindre un descendant couvert.", exemple: false}
+  direction: {description: "Direction de rattachement lue dans l'annuaire (department).", exemple: "Direction financière"}
+  roles: {description: "Rôles détenus, toute portée confondue.", exemple: [UTILISATEUR_STANDARD]}
+  rolesGlobaux: {description: "Rôles détenus en portée globale.", exemple: [ADMINISTRATEUR]}
+  sessionsOuvertes: {description: "Nombre de sessions ouvertes.", exemple: 1}
+  sessionId: {description: "Identifiant de la session.", exemple: "0192f0a6-aaaa-7d1e-9f20-3a4b5c6d7e8f"}
+  derniereActivite: {description: "Dernière activité de la session.", exemple: "2026-09-27T10:12:00Z"}
+  agentUtilisateur: {description: "Navigateur de la session (User-Agent).", exemple: "Mozilla/5.0"}
+  sessionsFermees: {description: "Nombre de sessions fermées.", exemple: 2}
+  utilisateur: {description: "Identité connectée.", exemple: null}
+  sujetType: {description: "Nature du sujet : UTILISATEUR, GROUPE ou APPLICATION.", exemple: UTILISATEUR}
+  sujetId: {description: "Identifiant du sujet (identité, groupe ou application).", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  sujetLibelle: {description: "Libellé du sujet.", exemple: "Sara Bennani (sbennani)"}
+  sujet: {description: "Libellé du sujet.", exemple: "Sara Bennani (sbennani)"}
+  roleId: {description: "Identifiant du rôle ; nul pour une rupture d'héritage seule.", exemple: "0192f0a6-bbbb-7d1e-9f20-3a4b5c6d7e8f"}
+  roleCode: {description: "Code du rôle.", exemple: UTILISATEUR_STANDARD}
+  roleLibelle: {description: "Libellé du rôle.", exemple: "Utilisateur standard"}
+  role: {description: "Code du rôle d'origine.", exemple: UTILISATEUR_STANDARD}
+  noeudId: {description: "Identifiant du nœud (espace ou dossier).", exemple: "0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f"}
+  noeud: {description: "Nom du nœud.", exemple: "Marchés 2026"}
+  noeudLibelle: {description: "Nom du nœud.", exemple: "Marchés 2026"}
+  documentLibelle: {description: "Nom du document.", exemple: MAR_2026_014}
+  ruptureHeritage: {description: "Rupture d'héritage : sans rôle, le sujet n'a plus de droit hérité sur ce nœud.", exemple: false}
+  systeme: {description: "Rôle système (non supprimable).", exemple: true}
+  accesGlobal: {description: "Rôle à accès global (Direction Générale).", exemple: false}
+  attribue: {description: "Vrai si le rôle est attribué au moins une fois.", exemple: true}
+  categorie: {description: "Catégorie : ELEMENTAIRE, ADMINISTRATION ou CONFIDENTIALITE.", exemple: ELEMENTAIRE}
+  cible: {description: "Nature de la cible : GLOBALE, NOEUD ou DOCUMENT.", exemple: NOEUD}
+  cibleId: {description: "Identifiant de la cible.", exemple: "0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f"}
+  cibleLibelle: {description: "Libellé de la cible.", exemple: "Marchés 2026"}
+  origines: {description: "Origines des permissions effectives.", exemple: null}
+  emplacements: {description: "Emplacements du document et permissions qui s'y appliquent.", exemple: null}
+  administration: {description: "Permissions d'administration (portée globale).", exemple: [CONSULTER_AUDIT]}
+  voirPrive: {description: "Le sujet porte VOIR_PRIVE.", exemple: false}
+  voirConfidentiel: {description: "Le sujet porte VOIR_CONFIDENTIEL.", exemple: false}
+  niveau: {description: "Niveau de confidentialité du document.", exemple: PRIVE}
+  autorise: {description: "Vrai si la confidentialité autorise l'accès.", exemple: true}
+  nature: {description: "ATTRIBUTION_DIRECTE, HERITAGE, PORTEE_GLOBALE, ACCES_GLOBAL, RUPTURE ou DOCUMENT_ISOLE.", exemple: HERITAGE}
+  habilitationId: {description: "Habilitation d'origine.", exemple: "0192f0a6-cccc-7d1e-9f20-3a4b5c6d7e8f"}
+  noeudAttributionId: {description: "Nœud où l'attribution est posée.", exemple: "0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f"}
+  noeudAttribution: {description: "Nom du nœud où l'attribution est posée.", exemple: "Marchés"}
+  via: {description: "Porteur : UTILISATEUR, GROUPE ou APPLICATION.", exemple: GROUPE}
+  viaLibelle: {description: "Libellé du porteur (nom du groupe…).", exemple: "Comptables"}
+  principal: {description: "Vrai pour l'emplacement principal du document.", exemple: true}
+  portee: {description: "Lignes de portée (200 au plus) ; vide = la clé n'accède à rien.", exemple: null}
+  operations: {description: "Opérations permises : CREATION_DOSSIER, DEPOT, CONSULTATION, RECHERCHE, VERSEMENT, RATTACHEMENT, CONSULTATION_DROITS, WORKFLOW_PILOTAGE, WORKFLOW_DECISION.", exemple: [CONSULTATION, DEPOT]}
 
   # --- Identifiants et références -------------------------------------------
   id: {description: "Identifiant opaque (UUID).", exemple: "0192f0a6-5b3c-7d1e-9f20-3a4b5c6d7e8f"}
@@ -350,6 +418,10 @@ surcharges:
   WorkflowResponse.name: {description: "Nom de la règle de workflow.", exemple: "Validation DAF"}
   ProfilResponse.email: {description: "Adresse e-mail du compte de connexion.", exemple: "sara.bennani@marchica.ma"}
   PageResponseMapStringObject.content: {description: "Éléments de la page courante (objets libres).", exemple: null}
+  IdentiteResponse.permissions: {description: "Permissions exercées quelque part (confort d'affichage ; le serveur décide à chaque requête).", exemple: [CONSULTER, GERER_CLES_API]}
+  DocumentResponse.permissions: {description: "Permissions de l'appelant sur le document (nul dans les listes).", exemple: [CONSULTER, MODIFIER]}
+  DemandeRole.permissions: {description: "Codes des permissions du rôle.", exemple: [CONSULTER, DEPOSER]}
+  ConfidentialiteVue.motif: {description: "Raison de la décision.", exemple: "Déposant du document"}
 
 
 # Paramètres de chemin et de requête, par nom.
@@ -384,6 +456,11 @@ parametres:
   objetType: "Nature de l'objet (DOCUMENT, ESPACE…)."
   objetId: Identifiant de l'objet.
   resultat: "Résultat : SUCCES, REFUS ou ECHEC."
+  confidentialite: "Niveau de confidentialité du document déposé (PUBLIC, PRIVE, CONFIDENTIEL) ; défaut : celui du type."
+  noeudId: Identifiant du nœud (espace ou dossier).
+  sujetId: Identifiant du sujet (identité, groupe ou application).
+  sujetType: "Nature du sujet : UTILISATEUR, GROUPE ou APPLICATION."
+  utilisateurId: Identifiant de l'identité GED.
 
 # Corps sans schéma nommé (Map côté contrôleur), reconnus par la fin du chemin.
 corps:
@@ -399,6 +476,12 @@ corps:
   /approve:
     description: Validation d'une étape ; motif facultatif.
     exemple: {motif: Conforme}
+  /rattachements:
+    description: "Rattacher le document à un nœud supplémentaire (Modifier sur le document, Déposer sur le nœud)."
+    exemple: {noeudId: 0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f}
+  /designes:
+    description: Désigner une identité autorisée à voir le document confidentiel.
+    exemple: {utilisateurId: 0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f}
   /reject:
     description: Refus d'une étape ; le motif explique le refus.
     exemple: {motif: Pièces justificatives manquantes}

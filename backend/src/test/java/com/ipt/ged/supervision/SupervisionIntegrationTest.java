@@ -50,7 +50,7 @@ class SupervisionIntegrationTest {
     }
 
     @Test
-    @DisplayName("La sonde de santé couvre base, référentiel, antivirus et files ; l'annuaire hors disponibilité (DAT 6.7)")
+    @DisplayName("La sonde de santé couvre base, référentiel, annuaire, antivirus et files ; l'annuaire hors disponibilité (DAT 6.7, 3.3)")
     void sondesPresentes() {
         var global = (CompositeHealth) sante.health();
         assertThat(global.getComponents())

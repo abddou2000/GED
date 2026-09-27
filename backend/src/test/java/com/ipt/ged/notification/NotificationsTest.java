@@ -2,8 +2,12 @@ package com.ipt.ged.notification;
 
 import com.icegreen.greenmail.junit5.GreenMailExtension;
 import com.icegreen.greenmail.util.ServerSetupTest;
-import com.ipt.ged.audit.EvenementAudit;
+import com.ipt.ged.autorisation.evenement.HabilitationModifiee;
+import com.ipt.ged.accessgroup.AccessGroupService;
+import com.ipt.ged.accessgroup.dto.AccessGroupRequest;
+import com.ipt.ged.accessgroup.dto.AccessGroupResponse;
 import com.ipt.ged.support.Comptes;
+import com.ipt.ged.support.JeuDroits;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,8 +32,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -63,11 +67,17 @@ class NotificationsTest {
     @Autowired private PlatformTransactionManager transactions;
     @Autowired private MockMvc mvc;
     @MockitoSpyBean private AnnuaireDestinataires annuaire;
+    @Autowired private JeuDroits jeu;
+    @Autowired private AccessGroupService groupes;
 
-    /** Événement de test ayant la forme de HabilitationModifiee (lot autorisation, dev1). */
-    record Habilitation(String objetType, String motif, UUID objetId, Map<String, Object> avant,
-                        Map<String, Object> apres, UUID acteurUtilisateurId) implements EvenementAudit {
-        @Override public String action() { return "HABILITATION_MODIFIEE"; }
+    /** Adresse de Sara Bennani dans le simulateur d'annuaire (cache_annuaire à la connexion). */
+    private static final String COURRIEL_ADMIN = "sara.bennani@marchica.ma";
+
+    /** Événement du lot autorisation (dev1, E3), tel que ses services le publient. */
+    private static HabilitationModifiee habilitation(String objet, String operation, UUID objetId,
+                                                     Map<String, Object> avant, Map<String, Object> apres,
+                                                     UUID auteur) {
+        return new HabilitationModifiee(objet, operation, objetId, avant, apres, auteur, Instant.now());
     }
 
     /** Événement de test d'un lot déclencheur (workflow) qui implémente le contrat. */
@@ -85,8 +95,7 @@ class NotificationsTest {
     }
 
     private UUID moi() {
-        return jdbc.queryForObject("SELECT employe_id FROM compte_utilisateur WHERE email = ?", UUID.class,
-                Comptes.ADMIN);
+        return jdbc.queryForObject("SELECT id FROM utilisateur WHERE identifiant = ?", UUID.class, Comptes.ADMIN);
     }
 
     private <T> T dansTransaction(java.util.function.Supplier<T> action) {
@@ -146,7 +155,7 @@ class NotificationsTest {
         List<MimeMessage> recus = messagesPour(document);
         assertThat(recus).hasSize(1);
         MimeMessage recu = recus.get(0);
-        assertThat(recu.getAllRecipients()[0].toString()).isEqualTo(Comptes.ADMIN);
+        assertThat(recu.getAllRecipients()[0].toString()).isEqualTo(COURRIEL_ADMIN);
         assertThat(recu.getSubject()).isEqualTo("Validation demandée : Contrat 42");
         assertThat(recu.getContent().toString())
                 .contains("« Contrat 42 », circuit ouvert par Karim Alaoui")
@@ -158,7 +167,7 @@ class NotificationsTest {
                 + "AND objet_id = ? AND resultat = 'SUCCES' AND acteur_nom = 'ged:notifications'", Integer.class, id))
                 .isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT apres::text FROM journal_audit WHERE objet_id = ?", String.class, id))
-                .doesNotContain(Comptes.ADMIN);
+                .doesNotContain(COURRIEL_ADMIN);
 
         // Une seconde relève ne renvoie rien : l'état n'est plus A_ENVOYER.
         expediteur.expedier();
@@ -279,7 +288,7 @@ class NotificationsTest {
         h.put("role", "LECTEUR");
         h.put("noeudId", espace);
         h.put("noeud", "Marchés 2026");
-        publier(new Habilitation("HABILITATION", "AJOUT", UUID.randomUUID(), null, h, UUID.randomUUID()));
+        publier(habilitation("HABILITATION", "AJOUT", UUID.randomUUID(), null, h, UUID.randomUUID()));
         List<Map<String, Object>> l = lignesPourObjet(espace);
         assertThat(l).hasSize(1);
         assertThat(l.get(0)).containsEntry("type", "ACCES_ESPACE_ATTRIBUE").containsEntry("destinataire_id", moi)
@@ -289,14 +298,14 @@ class NotificationsTest {
         UUID autreEspace = UUID.randomUUID();
         Map<String, Object> h2 = new HashMap<>(h);
         h2.put("noeudId", autreEspace);
-        publier(new Habilitation("HABILITATION", "RETRAIT", UUID.randomUUID(), h2, null, UUID.randomUUID()));
-        publier(new Habilitation("HABILITATION", "AJOUT", UUID.randomUUID(), null, h2, moi));        // auteur
+        publier(habilitation("HABILITATION", "RETRAIT", UUID.randomUUID(), h2, null, UUID.randomUUID()));
+        publier(habilitation("HABILITATION", "AJOUT", UUID.randomUUID(), null, h2, moi));        // auteur
         Map<String, Object> rupture = new HashMap<>(h2);
         rupture.remove("role");
-        publier(new Habilitation("HABILITATION", "AJOUT", UUID.randomUUID(), null, rupture, UUID.randomUUID()));
+        publier(habilitation("HABILITATION", "AJOUT", UUID.randomUUID(), null, rupture, UUID.randomUUID()));
         Map<String, Object> document = new HashMap<>(h2);
         document.put("documentId", UUID.randomUUID());
-        publier(new Habilitation("HABILITATION", "AJOUT", UUID.randomUUID(), null, document, UUID.randomUUID()));
+        publier(habilitation("HABILITATION", "AJOUT", UUID.randomUUID(), null, document, UUID.randomUUID()));
         assertThat(lignesPourObjet(autreEspace)).isEmpty();
     }
 
@@ -326,17 +335,22 @@ class NotificationsTest {
         h.put("role", "UTILISATEUR_STANDARD");
         h.put("noeudId", nouvelEspace);
         h.put("noeud", "Archives 2019");
-        publier(new Habilitation("HABILITATION", "AJOUT", UUID.randomUUID(), null, h, null));
+        publier(habilitation("HABILITATION", "AJOUT", UUID.randomUUID(), null, h, null));
         assertThat(lignesPourObjet(nouvelEspace)).extracting(r -> r.get("destinataire_id"))
                 .containsExactlyInAnyOrderElementsOf(membres);
         assertThat((String) lignesPourObjet(nouvelEspace).get(0).get("message"))
                 .isEqualTo("Un accès à l'espace « Archives 2019 » vous a été attribué par votre ajout au groupe « Comptables ».");
 
         // Ajout du collègue au groupe : un accès par espace du groupe, pour lui seul.
-        Map<String, Object> av = Map.of("nom", "Comptables", "membres", List.of(moi().toString()));
-        Map<String, Object> ap = Map.of("nom", "Comptables", "membres",
-                membres.stream().map(UUID::toString).collect(Collectors.toList()));
-        publier(new Habilitation("GROUPE_GED", "MODIFICATION", groupe, av, ap, null));
+        // Les membres d'un groupe GED sont des employés, traduits en identités.
+        UUID employeMoi = UUID.randomUUID();
+        UUID employeCollegue = UUID.randomUUID();
+        doReturn(Set.of(collegue)).when(annuaire).identitesDesEmployes(Set.of(employeCollegue));
+        Map<String, Object> av = Map.of("nom", "Comptables", "supprime", false,
+                "membres", List.of(employeMoi.toString()));
+        Map<String, Object> ap = Map.of("nom", "Comptables", "supprime", false,
+                "membres", List.of(employeMoi.toString(), employeCollegue.toString()));
+        publier(habilitation("GROUPE_GED", "MODIFICATION", groupe, av, ap, null));
         assertThat(lignesPourObjet(espaceA)).singleElement().satisfies(r -> {
             assertThat(r).containsEntry("destinataire_id", collegue);
             assertThat(r).containsEntry("titre", "Accès attribué : Direction financière");
@@ -344,8 +358,35 @@ class NotificationsTest {
         assertThat(lignesPourObjet(espaceB)).hasSize(1);
 
         // Membre retiré seulement : rien.
-        publier(new Habilitation("GROUPE_GED", "MODIFICATION", groupe, ap, av, null));
+        publier(habilitation("GROUPE_GED", "MODIFICATION", groupe, ap, av, null));
         assertThat(lignesPourObjet(espaceA)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Chaîne réelle E3 : attribution et ajout à un groupe GED notifient ; courriel lu dans cache_annuaire")
+    void chaineReelleAutorisation() {
+        String suffixe = UUID.randomUUID().toString().substring(0, 8);
+        UUID espace = jeu.noeud("Espace notifié " + suffixe, null);
+        UUID collegue = jeu.utilisateurId(Comptes.SECOND_ACTEUR);
+        dansTransaction(() -> jeu.habiliter(Comptes.SECOND_ACTEUR, "UTILISATEUR_STANDARD", espace, null));
+        assertThat(lignesPourObjet(espace)).extracting(r -> r.get("destinataire_id")).containsExactly(collegue);
+        assertThat(annuaire.courriel(collegue)).contains("karim.elfassi@marchica.ma");
+
+        // Groupe GED couvrant un espace, puis ajout d'un membre : l'avis va à son identité.
+        UUID espaceGroupe = jeu.noeud("Espace de groupe " + suffixe, null);
+        UUID troisieme = jeu.utilisateurId(Comptes.TROISIEME_ACTEUR);
+        UUID employeTroisieme = jeu.employeId(Comptes.TROISIEME_ACTEUR);
+        AccessGroupResponse g = dansTransaction(() -> groupes.create(new AccessGroupRequest("GN-" + suffixe,
+                "Groupe notifié " + suffixe, List.of(espaceGroupe), List.of())));
+        assertThat(lignesPourObjet(espaceGroupe)).isEmpty();
+        dansTransaction(() -> groupes.update(g.id(), new AccessGroupRequest("GN-" + suffixe,
+                "Groupe notifié " + suffixe, List.of(espaceGroupe), List.of(employeTroisieme))));
+        assertThat(lignesPourObjet(espaceGroupe)).extracting(r -> r.get("destinataire_id")).containsExactly(troisieme);
+
+        // Retrait du membre : aucune nouvelle notification.
+        dansTransaction(() -> groupes.update(g.id(), new AccessGroupRequest("GN-" + suffixe,
+                "Groupe notifié " + suffixe, List.of(espaceGroupe), List.of())));
+        assertThat(lignesPourObjet(espaceGroupe)).hasSize(1);
     }
 
     @Test

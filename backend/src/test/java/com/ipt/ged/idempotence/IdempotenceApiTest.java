@@ -85,7 +85,7 @@ class IdempotenceApiTest {
     }
 
     private long espacesDeCode(String code) {
-        return jdbc.queryForObject("SELECT count(*) FROM workspace WHERE code = ?", Long.class, code);
+        return jdbc.queryForObject("SELECT count(*) FROM noeud WHERE code = ?", Long.class, code);
     }
 
     @Test
@@ -208,9 +208,20 @@ class IdempotenceApiTest {
                                 + "\",\"nom\":\"Essai idempotence\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8))
                 .get("id").asText());
-        String cleApi = om.readTree(mvc.perform(post("/api/v1/applications/" + appId + "/cles")
+        var generee = om.readTree(mvc.perform(post("/api/v1/applications/" + appId + "/cles")
                         .contentType(APPLICATION_JSON).content("{}"))
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8)).get("cle").asText();
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        String cleApi = generee.get("cle").asText();
+        // Portée de la clé (vague 4) : créer des dossiers sous un espace de l'utilisateur.
+        String parent = om.readTree(mvc.perform(post("/api/v1/workspaces").contentType(APPLICATION_JSON)
+                        .content(espace("WS-IDP-" + UUID.randomUUID().toString().substring(0, 8), "Parent")))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8))
+                .get("id").asText();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/v1/cles-api/" + generee.get("details").get("id").asText() + "/portee")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"portee\":[{\"noeudId\":\"" + parent + "\",\"operations\":[\"CREATION_DOSSIER\"]}]}"))
+                .andExpect(status().isOk());
 
         String cle = UUID.randomUUID().toString();
         String codeApp = "WS-IDA-" + UUID.randomUUID().toString().substring(0, 8);
@@ -218,7 +229,8 @@ class IdempotenceApiTest {
             mvc.perform(post("/api/v1/workspaces").with(org.springframework.security.test.web.servlet.request
                                     .SecurityMockMvcRequestPostProcessors.anonymous())
                             .header("X-API-Key", cleApi).contentType(APPLICATION_JSON)
-                            .content(espace(codeApp, "Par l'application")).header(FiltreIdempotence.ENTETE, cle))
+                            .content(espace(codeApp, "Par l'application").replace("}", ",\"parentId\":\"" + parent + "\"}"))
+                            .header(FiltreIdempotence.ENTETE, cle))
                     .andExpect(status().isCreated());
         }
         assertThat(espacesDeCode(codeApp)).isEqualTo(1);

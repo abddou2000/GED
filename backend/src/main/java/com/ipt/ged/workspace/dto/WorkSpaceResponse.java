@@ -20,7 +20,7 @@ public record WorkSpaceResponse(
          * que plus aucune écriture n'y est acceptée. Les deux informations sont
          * distinctes et doivent l'être toutes les deux.
          */
-        boolean deleted,
+        boolean supprime,
         Ref owner,
         Ref parent,
         Ref workflow,
@@ -31,33 +31,23 @@ public record WorkSpaceResponse(
     public record Ref(UUID id, String label) {}
 
     /**
-     * Les groupes sont chargés paresseusement : hors transaction la collection
-     * n'est pas initialisée, et lever l'exception ici priverait la liste entière
-     * d'une réponse pour une information secondaire.
+     * @param childrenCount sous-dossiers VISIBLES de l'appelant (P5 : les
+     *                      compteurs ne portent que sur le périmètre autorisé)
+     * @param groupes       groupes GED habilités sur ce nœud
      */
-    private static List<Ref> groupes(WorkSpace w) {
-        try {
-            return w.getAccessGroups().stream()
-                    .map(g -> new Ref(g.getId(), g.getName()))
-                    .toList();
-        } catch (RuntimeException e) {
-            return List.of();
-        }
-    }
-
-    public static WorkSpaceResponse from(WorkSpace w, long childrenCount) {
+    public static WorkSpaceResponse from(WorkSpace w, long childrenCount, List<Ref> groupes) {
         return new WorkSpaceResponse(
                 w.getId(),
                 w.getName(),
                 w.getCode(),
                 w.getDescription(),
                 w.getStatus().name(),
-                w.isDeleted(),
+                w.isSupprime(),
                 w.getOwner() != null ? new Ref(w.getOwner().getId(), w.getOwner().getFullName()) : null,
                 w.getParent() != null ? new Ref(w.getParent().getId(), w.getParent().getName()) : null,
                 w.getWorkflow() != null ? new Ref(w.getWorkflow().getId(), w.getWorkflow().getName()) : null,
                 childrenCount,
-                groupes(w)
+                groupes
         );
     }
 }

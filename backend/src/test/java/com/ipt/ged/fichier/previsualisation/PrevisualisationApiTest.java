@@ -6,6 +6,7 @@ import com.ipt.ged.fichier.cles.DepotClesFichier;
 import com.ipt.ged.fichier.controle.Echantillons;
 import com.ipt.ged.fichier.controle.FormatsReconnus;
 import com.ipt.ged.support.Comptes;
+import com.ipt.ged.support.JeuDroits;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,11 +63,13 @@ class PrevisualisationApiTest {
     @Autowired private MockMvc mvc;
     @Autowired private StockageChiffre stockage;
     @Autowired private ApplicationEvents evenements;
+    /** Depuis le lot E3, l'aperçu exige un document réel que l'appelant peut consulter. */
+    @Autowired private JeuDroits jeu;
 
     private String versionPdf(byte[] pdf) {
         UUID fichier = stockage.ecrire(new ByteArrayInputStream(pdf), 10_000_000).id();
         String versionId = UUID.randomUUID().toString();
-        VERSIONS.put(versionId, new ResolveurFichierVersion.FichierVersion(versionId, "doc-1", fichier,
+        VERSIONS.put(versionId, new ResolveurFichierVersion.FichierVersion(versionId, jeu.documentPublic().toString(), fichier,
                 FormatsReconnus.PDF, "Rapport annuel.pdf"));
         return versionId;
     }
@@ -113,7 +116,8 @@ class PrevisualisationApiTest {
     @DisplayName("Format sans aperçu : 415 APERCU_NON_DISPONIBLE, aucun événement de consultation")
     void formatSansApercu() throws Exception {
         UUID fichier = stockage.ecrire(new ByteArrayInputStream(new byte[]{1, 2}), 100).id();
-        VERSIONS.put("zip", new ResolveurFichierVersion.FichierVersion("zip", "doc-2", fichier, "application/zip", "a.zip"));
+        VERSIONS.put("zip", new ResolveurFichierVersion.FichierVersion("zip", jeu.documentPublic().toString(), fichier,
+                "application/zip", "a.zip"));
         mvc.perform(get("/api/v1/versions/{id}/apercu", "zip"))
                 .andExpect(status().isUnsupportedMediaType())
                 .andExpect(jsonPath("$.code").value("APERCU_NON_DISPONIBLE"));

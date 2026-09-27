@@ -4,11 +4,8 @@ import java.util.UUID;
 
 /**
  * <b>Point d'extension</b> : identité GED de l'utilisateur de la requête, celle
- * sous laquelle ses notifications sont rangées. Par défaut l'identifiant de
- * l'employé du jeton ({@code ActeurCourant.employeId()}) ; à la fusion avec le
- * lot identité (E2), l'identifiant d'utilisateur GED
- * ({@code ActeurCourant.utilisateurId()}), qui est aussi celui des sujets
- * d'habilitation.
+ * sous laquelle ses notifications sont rangées ({@code ActeurCourant.utilisateurId()}
+ * par défaut, identité du lot E2, la même que les sujets d'habilitation).
  */
 @FunctionalInterface
 public interface IdentiteDestinataire {

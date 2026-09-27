@@ -124,7 +124,7 @@ class WorkflowApiTest {
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.total").value(greaterThanOrEqualTo(1)))
                 .andExpect(jsonPath("$.page").value(0))
-                // Taille par défaut du contrat d'API : 50 (DAT §5.3.2).
+                // Taille par défaut du DAT 5.3.2 (T-050).
                 .andExpect(jsonPath("$.size").value(50));
     }
 

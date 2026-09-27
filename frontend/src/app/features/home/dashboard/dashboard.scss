@@ -362,3 +362,11 @@
   border-radius: 0; height: 100vh; box-shadow: -18px 0 44px -22px rgba(6, 20, 60, .5);
 }
 ::ng-deep .tiroir-perso .mat-mdc-dialog-container { padding: 0; height: 100vh; }
+
+/* Page d'accueil d'une identité sans rôle : sobre, informative. */
+.accueil-vide {
+  max-width: 640px; margin: 48px auto; padding: 32px;
+  border: 1px solid var(--line, #e3e6ea); border-radius: 12px; background: var(--surface, #fff);
+  h1 { margin: 0 0 12px; font-size: 22px; }
+  p { margin: 8px 0; color: var(--ink-soft, #555); line-height: 1.5; }
+}

@@ -1,7 +1,12 @@
 package com.ipt.ged.cleapi;
 
+import com.ipt.ged.autorisation.CodePermission;
+import com.ipt.ged.autorisation.ControleAcces;
 import com.ipt.ged.common.erreur.AccesRefuseException;
-import com.ipt.ged.common.erreur.RegleMetierException;
+import com.ipt.ged.common.erreur.NonAuthentifieException;
+import com.ipt.ged.identite.ServiceIdentites;
+import com.ipt.ged.identite.UtilisateurRepository;
+import com.ipt.ged.identite.annuaire.Annuaire;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -12,18 +17,22 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 /**
- * Câblage des clés d'API et implémentations par défaut des points
- * d'extension, remplacées par les lots suivants en déclarant leur propre bean.
+ * Câblage des clés d'API et implémentations des points d'extension sur les lots
+ * identité (E2) et autorisation (E3). Chacune reste remplaçable en déclarant son
+ * propre bean.
  */
 @Configuration
 @EnableScheduling
-@EnableConfigurationProperties(ProprietesCleApi.class)
+@EnableConfigurationProperties({ProprietesCleApi.class, ProprietesDelegation.class})
 public class ConfigurationCleApi {
 
-    /** Utilisateur authentifié, jamais une application. Remplacée par la permission d'E3. */
+    /**
+     * Administration des applications et des clés : permission
+     * {@code GERER_CLES_API} (rôle Administrateur), jamais une application.
+     */
     @Bean
     @ConditionalOnMissingBean(GardeAdministrationCles.class)
-    public GardeAdministrationCles gardeAdministrationClesParDefaut() {
+    public GardeAdministrationCles gardeAdministrationCles(ControleAcces controle) {
         return () -> {
             Authentication a = SecurityContextHolder.getContext().getAuthentication();
             if (a instanceof ApplicationAuthentifiee) {
@@ -31,30 +40,33 @@ public class ConfigurationCleApi {
                         "L'administration des clés d'API est réservée aux administrateurs.");
             }
             if (a == null || !a.isAuthenticated() || a instanceof AnonymousAuthenticationToken) {
-                throw new AccesRefuseException("Administration des clés d'API réservée à l'Administrateur.");
+                throw new NonAuthentifieException("Authentification requise.");
             }
+            controle.exigerAdministration(CodePermission.GERER_CLES_API);
         };
     }
 
     /**
-     * Portée non encore évaluée : l'authentification de la clé fait seule foi,
-     * comme les droits des utilisateurs avant le lot autorisation. Remplacée en
-     * vague 4 par l'évaluation de {@code cle_api_portee} via le point
-     * d'application unique.
+     * Portée d'une clé : même décision que pour un utilisateur (point
+     * d'application unique), la clé étant un sujet
+     * ({@link SourceHabilitationsApplications}). Toutes les permissions de
+     * l'opération sont exigées sur le nœud : 404 hors portée, 403 sinon.
      */
     @Bean
     @ConditionalOnMissingBean(ControlePorteeApplication.class)
-    public ControlePorteeApplication controlePorteeProvisoire() {
-        return (application, operation, noeudId) -> { };
+    public ControlePorteeApplication controlePorteeParDroits(ControleAcces controle) {
+        return (application, operation, noeudId) -> {
+            for (CodePermission p : operation.permissions()) controle.exigerSurNoeud(p, noeudId);
+        };
     }
 
-    /** Délégation non encore résolue : refusée (échec fermé, DAT §5.5). */
+    /** Délégation résolue par les identités GED et l'annuaire (lot E2). */
     @Bean
     @ConditionalOnMissingBean(ResolveurIdentiteDeleguee.class)
-    public ResolveurIdentiteDeleguee resolveurDelegationFerme() {
-        return (application, valeur) -> {
-            throw new RegleMetierException(CodesErreurCleApi.IDENTITE_DELEGUEE_INVALIDE,
-                    "Identité déléguée non vérifiable : la délégation n'est pas encore disponible.");
-        };
+    public ResolveurIdentiteDeleguee resolveurDelegationAnnuaire(UtilisateurRepository utilisateurs,
+                                                                 ServiceIdentites identites, Annuaire annuaire,
+                                                                 ApplicationRepository applications,
+                                                                 ProprietesDelegation proprietes) {
+        return new ResolveurDelegationAnnuaire(utilisateurs, identites, annuaire, applications, proprietes);
     }
 }

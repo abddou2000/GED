@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271015_creation_table_cache_annuaire.xml">
+
+    <!--
+        Cache annuaire (dossier technique §3.4.2, décision T2) : nom, prénom,
+        courriel et direction lus dans l'annuaire à la connexion, en lecture seule,
+        expirant après 15 minutes et régénérés à la demande. Ce n'est pas une source
+        de vérité. Aucun attribut d'état du compte (décision D1) ni d'appartenance
+        (principe P2) n'y figure.
+    -->
+    <changeSet id="202609271015-1" author="ged">
+        <comment>Cache des attributs d'annuaire des identités.</comment>
+        <createTable tableName="cache_annuaire">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_cache_annuaire" nullable="false"/></column>
+            <column name="utilisateur_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="identifiant" type="VARCHAR(64)"><constraints nullable="false"/></column>
+            <column name="prenom" type="VARCHAR(255)"/>
+            <column name="nom" type="VARCHAR(255)"/>
+            <column name="nom_affiche" type="VARCHAR(255)"/>
+            <column name="courriel" type="VARCHAR(255)"/>
+            <column name="direction" type="VARCHAR(255)"/>
+            <column name="lu_le" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+            <column name="expire_le" type="TIMESTAMP WITH TIME ZONE"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_cache_annuaire_utilisateur_id" tableName="cache_annuaire" columnNames="utilisateur_id"/>
+        <addForeignKeyConstraint constraintName="fk_cache_annuaire_utilisateur" baseTableName="cache_annuaire" baseColumnNames="utilisateur_id"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="CASCADE"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.cache_annuaire ADD CONSTRAINT ck_cache_annuaire_expiration CHECK (expire_le &gt;= lu_le)</sql>
+        <rollback>
+            <dropTable tableName="cache_annuaire"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

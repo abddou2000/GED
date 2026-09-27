@@ -21,18 +21,26 @@ ged:
   base:
     nom: ${DB_NAME:ged_dev1}
 
-  securite:
-    # Mot de passe du compte administrateur créé au premier démarrage sur la
-    # base locale de développement.
-    # Ce n'est PAS un secret : valeur volontairement inutilisable ailleurs, sur
-    # une base jetable, et jamais chargée en prod (le profil prod n'a pas de
-    # valeur par défaut : sans GED_MDP_INITIAL, aucun compte n'est amorcé).
-    # Un vrai mot de passe ici repartirait avec le dépôt et son historique.
-    mot-de-passe-initial: ${GED_MDP_INITIAL:dev-local-only}
-
-    # Compte unique en local : rattaché au premier employé de démonstration,
-    # dont l'adresse dérivée est précisément celle-ci.
-    email-admin: ${GED_EMAIL_ADMIN:sara.bennani@marchica.ma}
+  # Identité : annuaire de DÉMONSTRATION embarqué (UnboundID), démarré par le
+  # profil dev sur ce poste. Comptes de démonstration (mot de passe
+  # « dev-local-only », voir annuaire/annuaire-dev.ldif) : sbennani
+  # (Administrateur par amorçage), kelfassi, yalaoui, nidrissi (sans rôle),
+  # otazi (désactivé dans l'annuaire). Ces comptes n'existent QUE dans le
+  # simulateur : le profil prod n'en connaît aucun et refuse l'annuaire embarqué.
+  identite:
+    annuaire:
+      urls: ${GED_LDAP_URLS:ldap://localhost:33389}
+      base: ${GED_LDAP_BASE:DC=marchicamed,DC=ma}
+      compte-service: ${GED_LDAP_COMPTE_SERVICE:CN=svc-ged-ldap,OU=Services,DC=marchicamed,DC=ma}
+      mot-de-passe-service: ${GED_LDAP_MOT_DE_PASSE:dev-local-only}
+      exiger-ldaps: false
+      embarque:
+        port: 33389
+        ldif: classpath:annuaire/annuaire-dev.ldif
+    jeton:
+      cle-ephemere-autorisee: true
+    amorcage:
+      administrateurs: ${GED_ADMINISTRATEURS:sbennani}
 
   # Stockage sécurisé : keystore local jetable (data/ n'est pas versionné).
   # La phrase secrète par défaut n'est PAS un secret : elle ne protège que des

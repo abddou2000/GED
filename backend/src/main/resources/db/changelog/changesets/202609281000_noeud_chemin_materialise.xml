@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609281000_noeud_chemin_materialise.xml">
+
+    <!--
+        Nœuds (dossier technique §12.1, §12.2.3) : l'arborescence des espaces et
+        dossiers devient la table `noeud`, avec un CHEMIN MATÉRIALISÉ
+        (« /id-espace/id-dossier/…/id/ ») : les nœuds d'une sous-arborescence se
+        trouvent par une seule requête sur le préfixe (index text_pattern_ops),
+        base du calcul des droits hérités, du déplacement et de la suppression en
+        cascade. `nature` : ESPACE (racine) ou DOSSIER.
+        Le document désigne son emplacement principal par `noeud_principal_id`
+        (§12.4) ; le type de document son nœud par `noeud_id`.
+    -->
+    <changeSet id="202609281000-1" author="ged">
+        <comment>Renommage workspace en noeud et des clés étrangères qui le visent.</comment>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.workspace RENAME TO noeud</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT pk_workspace TO pk_noeud</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT uk_workspace_code TO uk_noeud_code</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT ck_workspace_parent TO ck_noeud_parent</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT ck_workspace_status TO ck_noeud_status</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT ck_workspace_suppression TO ck_noeud_suppression</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT fk_workspace_employe TO fk_noeud_employe</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT fk_workspace_parent TO fk_noeud_parent</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT fk_workspace_supprime_par TO fk_noeud_supprime_par</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT fk_workspace_workflow_ged TO fk_noeud_workflow_ged</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document RENAME CONSTRAINT fk_document_workspace TO fk_document_noeud_principal</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.type_document RENAME CONSTRAINT fk_type_document_workspace TO fk_type_document_noeud</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workspace_employe_id RENAME TO idx_noeud_employe_id</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workspace_parent_id RENAME TO idx_noeud_parent_id</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workspace_supprime RENAME TO idx_noeud_supprime</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_workspace_workflow_ged_id RENAME TO idx_noeud_workflow_ged_id</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_document_workspace_id RENAME TO idx_document_noeud_principal_id</sql>
+        <sql>ALTER INDEX ${database.defaultSchemaName}.idx_type_document_workspace_id RENAME TO idx_type_document_noeud_id</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document RENAME COLUMN workspace_id TO noeud_principal_id</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.type_document RENAME COLUMN workspace_id TO noeud_id</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.access_group_workspace RENAME COLUMN workspace_id TO noeud_id</sql>
+        <rollback>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.access_group_workspace RENAME COLUMN noeud_id TO workspace_id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.type_document RENAME COLUMN noeud_id TO workspace_id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document RENAME COLUMN noeud_principal_id TO workspace_id</sql>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_type_document_noeud_id RENAME TO idx_type_document_workspace_id</sql>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_document_noeud_principal_id RENAME TO idx_document_workspace_id</sql>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_noeud_workflow_ged_id RENAME TO idx_workspace_workflow_ged_id</sql>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_noeud_supprime RENAME TO idx_workspace_supprime</sql>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_noeud_parent_id RENAME TO idx_workspace_parent_id</sql>
+            <sql>ALTER INDEX ${database.defaultSchemaName}.idx_noeud_employe_id RENAME TO idx_workspace_employe_id</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.type_document RENAME CONSTRAINT fk_type_document_noeud TO fk_type_document_workspace</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document RENAME CONSTRAINT fk_document_noeud_principal TO fk_document_workspace</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT fk_noeud_workflow_ged TO fk_workspace_workflow_ged</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT fk_noeud_supprime_par TO fk_workspace_supprime_par</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT fk_noeud_parent TO fk_workspace_parent</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT fk_noeud_employe TO fk_workspace_employe</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT ck_noeud_suppression TO ck_workspace_suppression</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT ck_noeud_status TO ck_workspace_status</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT ck_noeud_parent TO ck_workspace_parent</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT uk_noeud_code TO uk_workspace_code</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME CONSTRAINT pk_noeud TO pk_workspace</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud RENAME TO workspace</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609281000-2" author="ged">
+        <comment>Chemin matérialisé et nature (espace ou dossier) des nœuds, calculés pour l'existant.</comment>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud ADD COLUMN chemin VARCHAR(4000)</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud ADD COLUMN nature VARCHAR(10)</sql>
+        <sql>WITH RECURSIVE arbre(id, chemin) AS ( SELECT id, '/' || id::text || '/' FROM ${database.defaultSchemaName}.noeud WHERE parent_id IS NULL UNION ALL SELECT n.id, a.chemin || n.id::text || '/' FROM ${database.defaultSchemaName}.noeud n JOIN arbre a ON n.parent_id = a.id) UPDATE ${database.defaultSchemaName}.noeud n SET chemin = a.chemin FROM arbre a WHERE a.id = n.id</sql>
+        <sql>UPDATE ${database.defaultSchemaName}.noeud SET nature = CASE WHEN parent_id IS NULL THEN 'ESPACE' ELSE 'DOSSIER' END</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud ALTER COLUMN chemin SET NOT NULL</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud ALTER COLUMN nature SET NOT NULL</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud ADD CONSTRAINT uk_noeud_chemin UNIQUE (chemin)</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud ADD CONSTRAINT ck_noeud_nature CHECK ((nature = 'ESPACE') = (parent_id IS NULL))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud ADD CONSTRAINT ck_noeud_chemin CHECK (chemin ~ ('/' || id::text || '/$'))</sql>
+        <sql>CREATE INDEX idx_noeud_chemin ON ${database.defaultSchemaName}.noeud (chemin text_pattern_ops)</sql>
+        <rollback>
+            <sql>DROP INDEX ${database.defaultSchemaName}.idx_noeud_chemin</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud DROP CONSTRAINT ck_noeud_chemin</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud DROP CONSTRAINT ck_noeud_nature</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud DROP CONSTRAINT uk_noeud_chemin</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud DROP COLUMN nature</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud DROP COLUMN chemin</sql>
+        </rollback>
+    </changeSet>
+
+    <!--
+        Le chemin est tenu par la base, pas par l'application : toute écriture
+        (service, reprise de données, correction manuelle) le garde exact. Un
+        nœud reçoit « chemin du parent + son id » ; quand son chemin change
+        (déplacement), celui de ses enfants est recalculé, et ainsi de suite
+        jusqu'aux feuilles — une seule instruction UPDATE côté application met
+        donc à jour toute la sous-arborescence (§12.5). Un parent pris dans la
+        propre descendance du nœud est refusé (anti-cycle).
+    -->
+    <changeSet id="202609281000-3" author="ged">
+        <comment>Déclencheurs de maintien du chemin matérialisé.</comment>
+        <sql splitStatements="false">CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.noeud_chemin() RETURNS trigger LANGUAGE plpgsql AS $corps$
+DECLARE
+    chemin_parent VARCHAR(4000);
+BEGIN
+    IF NEW.parent_id IS NULL THEN
+        NEW.chemin := '/' || NEW.id::text || '/';
+        NEW.nature := 'ESPACE';
+    ELSE
+        SELECT n.chemin INTO chemin_parent FROM ${database.defaultSchemaName}.noeud n WHERE n.id = NEW.parent_id;
+        IF chemin_parent IS NULL THEN
+            RAISE EXCEPTION 'Noeud parent introuvable : %', NEW.parent_id USING ERRCODE = 'foreign_key_violation';
+        END IF;
+        IF position('/' || NEW.id::text || '/' IN chemin_parent) > 0 THEN
+            RAISE EXCEPTION 'Un noeud ne peut pas etre deplace dans sa propre descendance' USING ERRCODE = 'check_violation';
+        END IF;
+        NEW.chemin := chemin_parent || NEW.id::text || '/';
+        NEW.nature := 'DOSSIER';
+    END IF;
+    RETURN NEW;
+END
+$corps$</sql>
+        <sql splitStatements="false">CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.noeud_chemin_enfants() RETURNS trigger LANGUAGE plpgsql AS $corps$
+BEGIN
+    IF NEW.chemin IS DISTINCT FROM OLD.chemin THEN
+        UPDATE ${database.defaultSchemaName}.noeud SET chemin = NEW.chemin || id::text || '/' WHERE parent_id = NEW.id;
+    END IF;
+    RETURN NULL;
+END
+$corps$</sql>
+        <sql>CREATE TRIGGER trg_noeud_chemin BEFORE INSERT OR UPDATE OF parent_id ON ${database.defaultSchemaName}.noeud FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.noeud_chemin()</sql>
+        <sql>CREATE TRIGGER trg_noeud_chemin_enfants AFTER UPDATE OF chemin ON ${database.defaultSchemaName}.noeud FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.noeud_chemin_enfants()</sql>
+        <rollback>
+            <sql>DROP TRIGGER trg_noeud_chemin_enfants ON ${database.defaultSchemaName}.noeud</sql>
+            <sql>DROP TRIGGER trg_noeud_chemin ON ${database.defaultSchemaName}.noeud</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.noeud_chemin_enfants()</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.noeud_chemin()</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

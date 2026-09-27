@@ -1,122 +1,143 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Observable, finalize, of, shareReplay, tap } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { API_BASE } from './api';
 
-/** Ce que l'API renvoie à la connexion et sur `/auth/me`. */
-export interface ReponseConnexion {
-  token: string | null;
-  tokenType: string | null;
-  expiresIn: number;
+/** Identité renvoyée par la connexion, le renouvellement et `/auth/me`. */
+export interface Identite {
+  id: string;
+  identifiant: string;
   employeId: string;
-  email: string;
   fullName: string;
+  email: string | null;
+  direction: string | null;
+  /** Rôles GED détenus (toute portée) : confort d'affichage seulement, le serveur les revérifie à chaque appel. */
+  roles: string[];
+  /**
+   * Permissions exercées quelque part (lot E3) : menus et actions sont masqués
+   * sans elles. Confort seulement — le serveur décide à chaque requête.
+   */
+  permissions?: string[];
 }
 
-/** Clé de reprise de session dans l'onglet. */
-const CLE_JETON = 'ged.jeton';
+/** Réponse de `/auth/login` et `/auth/refresh`. */
+export interface ReponseConnexion {
+  token: string;
+  tokenType: string;
+  expiresIn: number;
+  utilisateur: Identite;
+}
+
+/** En-tête exigé par le serveur sur les appels fondés sur le cookie (protection CSRF). */
+export const ENTETE_RENOUVELLEMENT = 'X-GED-Renouvellement';
 
 /**
- * Authentification côté navigateur.
+ * Authentification côté navigateur (dossier technique §3.4.1).
  *
- * <p><b>Où vit le jeton.</b> En mémoire pendant la navigation, et recopié dans
- * {@code sessionStorage} par défaut — ou dans {@code localStorage} si la
- * personne a coché « Se souvenir de moi ». La différence compte :
- * {@code sessionStorage} est cloisonné à l'onglet et disparaît à sa fermeture,
- * là où {@code localStorage} survivrait indéfiniment sur un poste partagé. Le
- * jeton reste néanmoins lisible par du JavaScript exécuté dans la page : c'est
- * la contrepartie assumée du transport par en-tête, et la raison pour laquelle
- * sa durée de vie est courte côté serveur (2 h).
+ * <p><b>Le jeton d'accès vit en mémoire, et nulle part ailleurs</b> : ni
+ * `localStorage`, ni `sessionStorage`. Un script injecté dans la page ne peut
+ * pas le lire dans un stockage, et il disparaît avec l'onglet. Il est valable
+ * 15 minutes.
  *
- * <p><b>Ce qui fait autorité.</b> Jamais ce service. Le jeton est signé par le
- * serveur et revalidé à chaque requête : ce qui est stocké ici ne sert qu'à
- * afficher l'identité, pas à décider de quoi que ce soit.
+ * <p><b>La session survit au rechargement grâce au cookie de renouvellement</b>,
+ * `HttpOnly` (illisible par JavaScript) et `SameSite=Strict`, posé par le
+ * serveur : au démarrage et à chaque 401, un nouveau jeton d'accès est demandé
+ * en silence. Un seul renouvellement à la fois : le serveur fait tourner le jeton
+ * de renouvellement à chaque usage et traite une seconde présentation du même
+ * jeton comme un vol (toute la session est révoquée).
+ *
+ * <p>Il n'y a plus de « se souvenir de moi » : il reposait sur le stockage du
+ * jeton dans le navigateur.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
 
-  private readonly jetonInterne = signal<string | null>(this.lireJetonMemorise());
-  readonly utilisateur = signal<ReponseConnexion | null>(null);
+  private readonly jetonInterne = signal<string | null>(null);
+  readonly utilisateur = signal<Identite | null>(null);
 
   /** Le jeton courant, pour l'intercepteur. */
   readonly jeton = this.jetonInterne.asReadonly();
   readonly connecte = computed(() => this.jetonInterne() !== null);
 
+  /** Identité provisionnée sans rôle : page d'accueil vide, état attendu (§3.4.2). */
+  readonly sansRole = computed(() => {
+    const u = this.utilisateur();
+    return u !== null && u.roles.length === 0;
+  });
+
   /**
-   * @param memoriser « Se souvenir de moi » : le jeton est alors écrit dans
-   *   {@code localStorage}, qui survit à la fermeture de l'onglet. Sans la
-   *   case, il reste dans {@code sessionStorage} et disparaît avec l'onglet —
-   *   c'est le comportement par défaut, et le plus sûr sur un poste partagé.
+   * Administrateur des droits : la permission GERER_ROLES_HABILITATIONS n'est
+   * reçue qu'en portée globale (§12.2.2), comme l'accès à /api/v1/admin/**.
    */
-  connexion(email: string, motDePasse: string, memoriser = false): Observable<ReponseConnexion> {
+  readonly administrateur = computed(() => this.peut('GERER_ROLES_HABILITATIONS'));
+
+  /** L'utilisateur exerce-t-il cette permission quelque part ? (confort d'affichage) */
+  peut(permission: string): boolean {
+    return this.utilisateur()?.permissions?.includes(permission) ?? false;
+  }
+
+  /** Renouvellement en cours, partagé par tous les appels qui l'attendent. */
+  private renouvellementEnCours: Observable<ReponseConnexion> | null = null;
+
+  /** Connexion par l'identifiant Windows (sAMAccountName), jamais par l'adresse e-mail. */
+  connexion(identifiant: string, motDePasse: string): Observable<ReponseConnexion> {
     return this.http
-      .post<ReponseConnexion>(`${API_BASE}/auth/login`, { email, motDePasse })
-      .pipe(tap(r => this.ouvrir(r, memoriser)));
+      .post<ReponseConnexion>(`${API_BASE}/auth/login`, { identifiant, motDePasse }, { withCredentials: true })
+      .pipe(tap(r => this.ouvrir(r)));
   }
 
   /**
-   * Revalide le jeton mémorisé auprès du serveur.
-   *
-   * <p>Indispensable au démarrage : un jeton présent dans l'onglet peut avoir
-   * expiré, ou son compte avoir été désactivé entre-temps. Se fier à sa seule
-   * présence afficherait une application dont chaque appel répondrait 401.
+   * Nouveau jeton d'accès à partir du cookie de renouvellement. Les appels
+   * simultanés partagent le même aller-retour.
+   */
+  renouveler(): Observable<ReponseConnexion> {
+    if (!this.renouvellementEnCours) {
+      this.renouvellementEnCours = this.http
+        .post<ReponseConnexion>(`${API_BASE}/auth/refresh`, null, {
+          headers: new HttpHeaders({ [ENTETE_RENOUVELLEMENT]: '1' }),
+          withCredentials: true,
+        })
+        .pipe(
+          tap(r => this.ouvrir(r)),
+          finalize(() => { this.renouvellementEnCours = null; }),
+          shareReplay(1),
+        );
+    }
+    return this.renouvellementEnCours;
+  }
+
+  /**
+   * Reprise de session au démarrage ou après un rechargement : le jeton d'accès
+   * n'a pas survécu (mémoire), le cookie oui.
    */
   reprendreSession(): Observable<ReponseConnexion> {
-    return this.http
-      .get<ReponseConnexion>(`${API_BASE}/auth/me`)
-      .pipe(tap(r => this.appliquerIdentite(r)));
+    return this.renouveler();
   }
 
   /**
-   * Ferme la session côté navigateur.
-   *
-   * <p>L'appel serveur est informatif : sans état, il n'y a rien à invalider.
-   * On efface donc localement d'abord — la déconnexion ne doit pas dépendre de
-   * la disponibilité du réseau.
+   * Déconnexion : la session est révoquée côté serveur (le jeton d'accès cesse
+   * aussitôt d'être accepté, le cookie est effacé). La mémoire locale est vidée
+   * d'abord : se déconnecter ne doit pas dépendre du réseau.
    */
-  deconnexion(): void {
+  deconnexion(): Observable<unknown> {
+    const jeton = this.jetonInterne();
+    this.oublier();
+    let headers = new HttpHeaders({ [ENTETE_RENOUVELLEMENT]: '1' });
+    if (jeton) headers = headers.set('Authorization', `Bearer ${jeton}`);
+    return this.http.post(`${API_BASE}/auth/logout`, null, { headers, withCredentials: true })
+      .pipe(catchError(() => of(null)));
+  }
+
+  /** Oubli local seulement (session refusée par le serveur). */
+  oublier(): void {
     this.jetonInterne.set(null);
     this.utilisateur.set(null);
-    // Les DEUX stockages sont vidés : se déconnecter doit fermer la session,
-    // qu'elle ait été mémorisée ou non.
-    this.effacerJeton();
   }
 
-  private ouvrir(r: ReponseConnexion, memoriser: boolean): void {
-    if (r.token) {
-      this.jetonInterne.set(r.token);
-      /* On efface d'abord les deux : sans cela, un jeton laissé par une session
-         mémorisée survivrait à une connexion NON mémorisée, et l'onglet suivant
-         rouvrirait la session de la personne précédente. */
-      this.effacerJeton();
-      try {
-        (memoriser ? localStorage : sessionStorage).setItem(CLE_JETON, r.token);
-      } catch {
-        // Stockage refusé : la session vit alors le temps de la page.
-      }
-    }
-    this.appliquerIdentite(r);
-  }
-
-  private effacerJeton(): void {
-    try { sessionStorage.removeItem(CLE_JETON); } catch { /* stockage indisponible */ }
-    try { localStorage.removeItem(CLE_JETON); } catch { /* stockage indisponible */ }
-  }
-
-  private appliquerIdentite(r: ReponseConnexion): void {
-    this.utilisateur.set(r);
-  }
-
-  private lireJetonMemorise(): string | null {
-    try {
-      // L'onglet d'abord — une session ouverte ici prime sur une session
-      // mémorisée plus ancienne.
-      return sessionStorage.getItem(CLE_JETON) ?? localStorage.getItem(CLE_JETON);
-    } catch {
-      // Stockage interdit (navigation privée verrouillée, politique d'entreprise) :
-      // la session vivra alors le temps de la page, sans reprise possible.
-      return null;
-    }
+  private ouvrir(r: ReponseConnexion): void {
+    this.jetonInterne.set(r.token);
+    this.utilisateur.set(r.utilisateur);
   }
 }
