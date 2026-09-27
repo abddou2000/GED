@@ -85,11 +85,12 @@
         </ng-container>
 
         <ng-container matColumnDef="steps">
-          <th mat-header-cell *matHeaderCellDef>Étapes</th>
+          <th mat-header-cell *matHeaderCellDef>Validateurs</th>
           <td mat-cell *matCellDef="let w">
+            <!-- Aucun rang : les validateurs décident en parallèle (D7). -->
             <span class="tags">
               @for (s of w.steps; track s.stepOrder) {
-                <span class="etape"><span class="rang">{{ s.stepOrder }}</span>{{ s.label }}</span>
+                <span class="etape">{{ s.label }}@if (s.roleCode) { <span class="muted">&nbsp;· rôle {{ s.roleCode }}</span> }</span>
               }
             </span>
           </td>

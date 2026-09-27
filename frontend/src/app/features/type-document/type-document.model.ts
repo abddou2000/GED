@@ -22,6 +22,8 @@ export interface TypeDocument {
   actif?: boolean;
   /** Version en vigueur du plan d'indexation. */
   versionPlan?: number | null;
+  /** Règle de workflow du type (§12.8) : prioritaire sur celle des dossiers. */
+  regleWorkflow?: Ref | null;
 }
 
 export type PointDepart = 'DATE_DOCUMENT' | 'DATE_DEPOT' | 'METADONNEE';

@@ -62,8 +62,8 @@
     </a>
     <!-- Identité sans rôle : seul l'accueil (vide) est proposé. -->
     @if (!auth.sansRole()) {
-    <a routerLink="/mes-workflow" routerLinkActive="active" (click)="closeDrawer()" aria-label="Mes workflow">
-      <mat-icon svgIcon="nav-mesworkflow"></mat-icon><span>Mes workflow</span>
+    <a routerLink="/mes-workflow" routerLinkActive="active" (click)="closeDrawer()" aria-label="Mes validations">
+      <mat-icon svgIcon="nav-mesworkflow"></mat-icon><span>Mes validations</span>
       @if (pendingCount() > 0) { <span class="nav-badge">{{ pendingCount() }}</span> }
     </a>
     <a routerLink="/espaces-de-travail" routerLinkActive="active" (click)="closeDrawer()" aria-label="Espaces de travail">

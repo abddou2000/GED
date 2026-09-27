@@ -25,7 +25,9 @@ public record TypeDocumentResponse(
         /** Type actif : un type désactivé n'accepte plus de dépôt. */
         boolean actif,
         /** Version en vigueur du plan d'indexation, s'il y en a un. */
-        Integer versionPlan
+        Integer versionPlan,
+        /** Règle de workflow du type (§12.8), prioritaire sur celle des nœuds ; {@code null} = aucune. */
+        Ref regleWorkflow
 ) {
     public record Ref(UUID id, String label) {}
 
@@ -46,6 +48,8 @@ public record TypeDocumentResponse(
                 types, t.getTailleMaxMo(), t.getDureeConservationMois(),
                 t.getPointDepart() != null ? t.getPointDepart().name() : null, t.getPointDepartIndexCode(),
                 t.getConfidentialiteDefaut() != null ? t.getConfidentialiteDefaut().name() : null,
-                t.isActif(), versionPlan);
+                t.isActif(), versionPlan,
+                t.getRegleWorkflow() != null && !t.getRegleWorkflow().isSupprime()
+                        ? new Ref(t.getRegleWorkflow().getId(), t.getRegleWorkflow().getName()) : null);
     }
 }

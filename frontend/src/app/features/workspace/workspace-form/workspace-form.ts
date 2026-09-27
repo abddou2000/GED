@@ -47,7 +47,7 @@ export class WorkspaceForm implements OnInit {
     code: ['', Validators.required],
     name: ['', Validators.required],
     description: [''],
-    workflowId: [null, Validators.required],
+    workflowId: [null as string | null],
     employeId: [null, Validators.required],
     parentId: [null as string | null],
     usageEspace: ['METIER'],

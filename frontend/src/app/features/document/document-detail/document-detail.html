@@ -167,6 +167,9 @@
       </div>
     </div>
 
+    <!-- Circuit de validation (§12.8) : statut, validateurs, décisions, actions. -->
+    <app-circuit-document [documentId]="d.id" [permissions]="d.permissions ?? []"></app-circuit-document>
+
     <!-- Versions -->
     <div class="card card-versions">
       <div class="bloc-tete">

@@ -360,6 +360,7 @@ public class ServiceCircuits {
         Circuit c = charger(circuitId);
         DroitsResolus d = droits(acteur);
         exigerLecture(d, c.getDocument().getId());
+        exigerVivant(c.getDocument());
         if (c.getStatut() == Circuit.Statut.ANNULE || c.getStatut() == Circuit.Statut.VALIDE) {
             throw ErreurWorkflowException.conflit(ErreurWorkflowException.CIRCUIT_CLOS,
                     "Seul un circuit en cours ou refusé peut être annulé.");
@@ -410,6 +411,7 @@ public class ServiceCircuits {
         }
         Limites.controler(m, "motif", 500);
         Circuit c = charger(circuitId);
+        exigerVivant(c.getDocument());
         if (c.getStatut() == Circuit.Statut.ANNULE || c.getStatut() == Circuit.Statut.VALIDE) {
             throw ErreurWorkflowException.conflit(ErreurWorkflowException.CIRCUIT_CLOS,
                     "Ce circuit n'attend plus de décision.");
@@ -846,8 +848,9 @@ public class ServiceCircuits {
                 x.getValidateur().getId(), x.getVersionId(), numeros.get(x.getVersionId()), x.getDecision().name(),
                 x.getMotif(), nomUtilisateur(x.getAuteurId(), noms), x.getApplicationId(), x.getCreeLe(),
                 !Objects.equals(x.getVersionId(), courante))).toList();
-        boolean ouvert = c.getStatut() == Circuit.Statut.EN_COURS || c.getStatut() == Circuit.Statut.REFUSE;
-        boolean peutDecider = ouvert && !doc.isSupprime()
+        boolean ouvert = !doc.isSupprime()
+                && (c.getStatut() == Circuit.Statut.EN_COURS || c.getStatut() == Circuit.Statut.REFUSE);
+        boolean peutDecider = ouvert
                 && predicat.permissionsSurDocument(d, doc.getId()).contains(CodePermission.VALIDER)
                 && !incarnes(c, acteur, d, doc).isEmpty();
         boolean peutAnnuler = ouvert && (acteur.utilisateurId().equals(c.getInitiateurId()) || administrateur(d));

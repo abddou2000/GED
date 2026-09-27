@@ -34,7 +34,7 @@ export interface WorkSpaceRequest {
   status: WorkspaceStatus;
   employeId: string;
   parentId?: string | null;
-  workflowId: string;
+  workflowId: string | null;
   /** Usage d'un espace (ignoré pour un dossier). */
   usageEspace?: 'METIER' | 'ECHANGE';
 }

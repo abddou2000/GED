@@ -92,7 +92,7 @@ export class WorkflowList implements OnInit {
     { cle: 'select', libelle: '', toujours: true },
     { cle: 'id', libelle: 'ID' },
     { cle: 'name', libelle: 'Nom' },
-    { cle: 'steps', libelle: 'Étapes' },
+    { cle: 'steps', libelle: 'Validateurs' },
     { cle: 'workspaces', libelle: 'Espaces de travail' },
     { cle: 'actions', libelle: 'Actions', toujours: true },
   ];
