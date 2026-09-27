@@ -1,5 +1,6 @@
 package com.ipt.ged.document;
 
+import com.ipt.ged.depot.IssueIndexation;
 import com.ipt.ged.common.IdentifiantUuid;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.employe.Employe;
@@ -113,6 +114,14 @@ public class UploadDocument extends Supprimable {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadonnees", nullable = false)
     private Map<String, Object> metadonnees = new HashMap<>();
+
+    /**
+     * Issue de l'indexation au dépôt (§12.11) : {@code INDEXE}, {@code SANS_PLAN}
+     * ou {@code A_INDEXER} (indexation reprenable).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "statut_indexation", nullable = false, length = 16)
+    private IssueIndexation statutIndexation = IssueIndexation.A_INDEXER;
 
     public UploadDocument(String name) {
         this.name = name;

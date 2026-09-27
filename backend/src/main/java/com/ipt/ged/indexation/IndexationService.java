@@ -183,6 +183,11 @@ public class IndexationService {
                 valeurRepository.save(cible);
             }
         }
+        // Plan satisfait (obligatoires compris) : issue INDEXE, y compris
+        // pour la reprise d'un dépôt resté A_INDEXER (§12.11).
+        if (doc.getTypeDocument() != null && doc.getTypeDocument().getPlanIndexation() != null) {
+            doc.setStatutIndexation(com.ipt.ged.depot.IssueIndexation.INDEXE);
+        }
 
         /* La confirmation de l'opérateur vaut validation : c'est ici, et nulle
            part avant, que la référence du document est composée depuis le plan.
@@ -257,27 +262,9 @@ public class IndexationService {
 
     /** Refuse une valeur incompatible avec le type de l'index. */
     private void controlerType(IndexField champ, String valeur) {
-        if (valeur == null || valeur.isEmpty()) return;
-        switch (champ.getFieldType()) {
-            case NOMBRE -> {
-                if (nombre(valeur) == null) {
-                    throw new IllegalArgumentException("« " + champ.getNomIndex() + " » attend un nombre.");
-                }
-            }
-            case DATE -> {
-                if (!valeur.matches("\\d{4}-\\d{2}-\\d{2}")) {
-                    throw new IllegalArgumentException("« " + champ.getNomIndex() + " » attend une date (AAAA-MM-JJ).");
-                }
-            }
-            case LISTE -> {
-                List<String> options = versCritere(champ).options();
-                if (!options.isEmpty() && options.stream().noneMatch(o -> o.equalsIgnoreCase(valeur))) {
-                    throw new IllegalArgumentException(
-                            "« " + valeur + " » ne fait pas partie des valeurs de « " + champ.getNomIndex() + " ».");
-                }
-            }
-            case TEXTE -> { /* aucune contrainte */ }
-        }
+        // Règle partagée avec le dépôt avec métadonnées (§5.3), qui valide
+        // avant toute écriture.
+        ValidationPlan.controlerType(champ, valeur);
     }
 
     /* ===================== Indexation automatique ===================== */

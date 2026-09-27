@@ -6,8 +6,6 @@ import com.ipt.ged.document.dto.DocumentResponse;
 import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import org.springframework.http.HttpHeaders;
-import com.ipt.ged.security.UtilisateurConnecte;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -59,34 +57,15 @@ public class DocumentController {
         return service.get(id);
     }
 
-    /**
-     * Dépose un document.
-     *
-     * <p>Le créateur n'est plus un paramètre de la requête mais l'utilisateur
-     * AUTHENTIFIÉ. Auparavant le navigateur l'annonçait : n'importe qui pouvait
-     * déposer une pièce au nom d'un collègue, et la colonne « Créateur » — qui
-     * sert de trace de responsabilité — devenait déclarative. Un paramètre
-     * {@code createdById} résiduel est ignoré plutôt que refusé, pour ne pas
-     * casser un appel ancien sur un champ qui n'a jamais eu autorité.</p>
-     */
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<DocumentResponse> upload(
-            @RequestPart("file") MultipartFile file,
-            @RequestParam(value = "name", required = false) String name,
-            @RequestParam("typeDocumentId") UUID typeDocumentId,
-            @RequestParam(value = "expirationDate", required = false) String expirationDate,
-            @RequestParam(value = "etiquetteIds", required = false) List<UUID> etiquetteIds,
-            @AuthenticationPrincipal UtilisateurConnecte principal) {
-        UUID createdById = principal != null ? principal.getEmployeId() : null;
-        return creation(service.upload(file, name, typeDocumentId, expirationDate, createdById, etiquetteIds));
-    }
+    /* Le dépôt (POST /api/v1/documents) est servi par le paquet depot
+       (DepotController) : dépôt en deux temps et métadonnées (§5.3, §12.11). */
 
     /**
      * 202 Accepted quand le contenu part à l'OCR (le document est reçu mais pas
      * encore interrogeable, état {@code EN_ATTENTE_OCR} dans la réponse),
      * 201 Created sinon (§4.3.4, §12.11).
      */
-    private static ResponseEntity<DocumentResponse> creation(DocumentResponse r) {
+    static ResponseEntity<DocumentResponse> creation(DocumentResponse r) {
         HttpStatus statut = "EN_ATTENTE_OCR".equals(r.statutOcr()) ? HttpStatus.ACCEPTED : HttpStatus.CREATED;
         return ResponseEntity.status(statut).body(r);
     }

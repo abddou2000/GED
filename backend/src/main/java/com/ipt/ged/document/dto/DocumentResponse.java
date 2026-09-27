@@ -39,7 +39,14 @@ public record DocumentResponse(
          * interrogeable) ou {@code OCR_ECHEC} (« contenu non interrogeable ») ;
          * {@code null} si la version n'a pas de contenu textuel à extraire.
          */
-        String statutOcr
+        String statutOcr,
+        /**
+         * Issue de l'indexation (§12.11) : {@code INDEXE}, {@code SANS_PLAN} ou
+         * {@code A_INDEXER} (métadonnées à saisir ou à reprendre).
+         */
+        String statutIndexation,
+        /** Pourquoi l'indexation du dépôt n'a pas abouti ; renseigné par le seul dépôt. */
+        String motifIndexation
 ) {
     public record Ref(UUID id, String label) {}
 
@@ -70,7 +77,16 @@ public record DocumentResponse(
                 d.getCreatedBy() != null ? d.getCreatedBy().getFullName() : null,
                 tags(d), versions(d),
                 d.getCreatedAt(),
-                statutOcr);
+                statutOcr,
+                d.getStatutIndexation() != null ? d.getStatutIndexation().name() : null,
+                null);
+    }
+
+    /** Même réponse, avec l'issue d'indexation établie par le dépôt et son motif. */
+    public DocumentResponse avecIndexation(String statut, String motif) {
+        return new DocumentResponse(id, name, workspace, typeDocument, fileName, extension, sizeKo, sizeLabel,
+                expirationDate, active, verrouille, deleted, chemin, createdBy, etiquettes, versions, createdAt,
+                statutOcr, statut, motif);
     }
 
     /**

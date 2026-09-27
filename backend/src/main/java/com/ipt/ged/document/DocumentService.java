@@ -1,6 +1,8 @@
 package com.ipt.ged.document;
 
 import com.ipt.ged.common.ActeurCourant;
+import com.ipt.ged.depot.IssueIndexation;
+import com.ipt.ged.indexation.ValidationPlan;
 import com.ipt.ged.common.Limites;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
@@ -181,6 +183,9 @@ public class DocumentService {
         UploadDocument doc = new UploadDocument(nomDocument);
         doc.setWorkspace(ws);
         doc.setTypeDocument(type);
+        // Issue provisoire du temps 1 (§12.11) : seul le temps 2, dans sa propre
+        // transaction, peut la faire passer à INDEXE ; son échec la laisse ici.
+        doc.setStatutIndexation(ValidationPlan.aUnPlan(type) ? IssueIndexation.A_INDEXER : IssueIndexation.SANS_PLAN);
         doc.setFileName(original);
         doc.setExtension(ext);
         doc.setSizeKo(depot.stockage().tailleOctets() / 1024);

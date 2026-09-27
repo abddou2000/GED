@@ -84,4 +84,7 @@
     -->
     <include file="changesets/202609281000_expand_chemin_fichier_facultatif.xml" relativeToChangelogFile="true"/>
 
+    <!-- Vague 3 : dépôt en deux temps (§12.11) et dépôt avec métadonnées (§5.3). -->
+    <include file="changesets/202609291000_ajout_statut_indexation_document.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>
