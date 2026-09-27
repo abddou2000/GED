@@ -44,3 +44,9 @@
   mark { padding: 0 1px; border-radius: 2px; background: #fff1b8; color: inherit; }
   .vide { color: var(--ink-soft); }
 }
+
+.badge-archive {
+  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid var(--line); color: var(--ink);
+}

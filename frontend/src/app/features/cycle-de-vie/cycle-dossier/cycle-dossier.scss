@@ -1,0 +1,13 @@
+.cycle { display: flex; flex-direction: column; gap: 12px; }
+.cycle-tete { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.cycle-tete h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+.cycle-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.muted { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-3, #6b7280); }
+.danger { color: var(--cramoisi); }
+.job { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--ink); }
+.job-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.job .etat { font-weight: 600; }
+.job .alerte { color: var(--cramoisi); }
+.barre { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.barre span { display: block; height: 100%; background: var(--marine, #1f3a5f); transition: width .3s; }
+.rapport { margin: 4px 0 0; padding-left: 18px; font-size: 12.5px; }

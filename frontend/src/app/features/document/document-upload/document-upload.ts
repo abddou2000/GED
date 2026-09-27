@@ -669,12 +669,30 @@ export class DocumentUpload implements OnInit {
 
     const v = this.form.getRawValue();
     this.loading.set(true);
+    /* Dépôt et métadonnées en une seule requête (§5.3) : le serveur valide les
+       index contre le plan avant d'écrire quoi que ce soit, puis les enregistre
+       dans un second temps (§12.11). Seules les valeurs saisies partent. */
+    const metadonnees: Record<string, string> = {};
+    for (const c of this.champsIndex()) {
+      const valeur = (this.valeursIndex()[c.indexFieldId] ?? '').trim();
+      if (valeur) metadonnees[c.indexFieldId] = valeur;
+    }
     this.service.upload(file, v.typeDocumentId, (v.name || '').trim(), versIso(v.expirationDate),
-                        v.etiquetteIds ?? [])
+                        v.etiquetteIds ?? [], metadonnees)
       .subscribe({
         next: doc => {
           this.documentDepose.set(doc.id);
           this.figerContexte();
+          if (doc.statutIndexation === 'INDEXE') { this.loading.set(false); this.terminer('indexe'); return; }
+          if (doc.statutIndexation === 'SANS_PLAN') { this.loading.set(false); this.terminer('sans-plan'); return; }
+          if (doc.motifIndexation) {
+            /* Temps 2 en échec : le document est reçu, son fichier conservé ;
+               l'enregistrement des index se reprend d'ici (« Réessayer »). */
+            this.loading.set(false);
+            this.serverError.set("Le document est déposé, mais ses index n'ont pas été enregistrés : "
+              + doc.motifIndexation);
+            return;
+          }
           this.enregistrerIndex(doc.id);
         },
         error: err => {

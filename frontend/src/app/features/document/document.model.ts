@@ -28,6 +28,18 @@ export interface DocumentItem {
    * interrogeable ») ; null si le format n'a pas de contenu textuel.
    */
   statutOcr?: 'EN_ATTENTE_OCR' | 'EN_COURS_OCR' | 'OCR_TERMINE' | 'OCR_ECHEC' | null;
+  /**
+   * Issue de l'indexation (dépôt en deux temps, §12.11) : INDEXE, SANS_PLAN, ou
+   * A_INDEXER (métadonnées à saisir ou à reprendre).
+   */
+  statutIndexation?: 'INDEXE' | 'SANS_PLAN' | 'A_INDEXER' | null;
+  /** Pourquoi le dépôt n'a pas pu enregistrer les métadonnées (réponse du dépôt seulement). */
+  motifIndexation?: string | null;
+  /** ACTIF, ou ARCHIVE : lecture seule totale (§12.6). */
+  statutConservation?: 'ACTIF' | 'ARCHIVE' | null;
+  archiveLe?: string | null;
+  /** En corbeille. */
+  deleted?: boolean;
 }
 
 /** Etiquette apposee a un document, avec sa couleur. */

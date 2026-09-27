@@ -19,6 +19,7 @@ export class RechercheService {
     if (c.workspaceId) params['workspaceId'] = c.workspaceId;
     if (c.du) params['du'] = c.du;
     if (c.au) params['au'] = c.au;
+    if (c.archives && c.archives !== 'INCLURE') params['archives'] = c.archives;
     return this.http.get<PageResultats>(`${API_BASE}/recherche/plein-texte`, { params });
   }
 

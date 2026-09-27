@@ -13,6 +13,8 @@ export interface ResultatRecherche {
   typeDocument: string | null;
   espace: string | null;
   deposeLe: string | null;
+  /** ACTIF ou ARCHIVE (badge, §12.6). */
+  statutConservation?: 'ACTIF' | 'ARCHIVE' | null;
 }
 
 export interface PageResultats {
@@ -31,6 +33,8 @@ export interface CriteresRecherche {
   workspaceId?: string | null;
   du?: string | null;
   au?: string | null;
+  /** Documents archivés : inclus par défaut (§12.6). */
+  archives?: 'INCLURE' | 'EXCLURE' | 'SEULEMENT';
 }
 
 export type StatutOcr = 'EN_ATTENTE_OCR' | 'EN_COURS_OCR' | 'OCR_TERMINE' | 'OCR_ECHEC';

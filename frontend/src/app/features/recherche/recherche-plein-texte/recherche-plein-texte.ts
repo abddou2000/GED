@@ -37,7 +37,7 @@ export class RecherchePleinTexte implements OnInit {
     { valeur: 'TYPE', libelle: 'Type de document' },
   ];
 
-  criteres: CriteresRecherche = { q: '', tri: 'PERTINENCE', typeDocumentId: null, workspaceId: null, du: null, au: null };
+  criteres: CriteresRecherche = { q: '', tri: 'PERTINENCE', typeDocumentId: null, workspaceId: null, du: null, au: null, archives: 'INCLURE' };
   listeTypes = signal<{ id: string; libelle: string }[]>([]);
   listeEspaces = signal<{ id: string; libelle: string }[]>([]);
   resultat = signal<PageResultats | null>(null);

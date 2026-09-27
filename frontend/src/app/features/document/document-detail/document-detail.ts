@@ -21,6 +21,8 @@ import { IndexationService } from '../../indexation/indexation.service';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { formaterDate, versDate, versIso } from '../../../core/dates';
+import { CycleDeVieService } from '../../cycle-de-vie/cycle-de-vie.service';
+import { Conservation } from '../../cycle-de-vie/cycle-de-vie.model';
 
 /** Une valeur d'index déjà enregistrée pour ce document. */
 interface ValeurIndex {
@@ -54,6 +56,11 @@ export class DocumentDetail implements OnInit {
   private indexation = inject(IndexationService);
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
+  private cycleDeVie = inject(CycleDeVieService);
+
+  /** Copie de conservation PDF/A et statut d'archivage (§12.6). */
+  conservation = signal<Conservation | null>(null);
+  archivageEnCours = signal(false);
 
   id = signal<string | null>(null);
   doc = signal<DocumentItem | null>(null);
@@ -111,8 +118,9 @@ export class DocumentDetail implements OnInit {
           etiquetteIds: (d.etiquettes ?? []).map(e => e.id),
           active: d.active,
         });
-        this.appliquerVerrou(d.verrouille);
+        this.appliquerVerrou(this.verrouille);
         this.chargement.set(false);
+        this.chargerConservation(d);
       },
       error: () => { this.chargement.set(false); this.introuvable.set(true); },
     });
@@ -124,7 +132,84 @@ export class DocumentDetail implements OnInit {
     });
   }
 
-  get verrouille(): boolean { return this.doc()?.verrouille === true; }
+  /**
+   * Fiche figée : verrou posé, ou document archivé (§12.6 : lecture seule
+   * totale ; seul le désarchivage y fait exception).
+   */
+  get verrouille(): boolean { return this.doc()?.verrouille === true || this.archive; }
+
+  get archive(): boolean { return this.doc()?.statutConservation === 'ARCHIVE'; }
+
+  private chargerConservation(d: DocumentItem): void {
+    if (d.statutConservation !== 'ARCHIVE') { this.conservation.set(null); return; }
+    this.cycleDeVie.conservation(d.id).subscribe({
+      next: c => this.conservation.set(c),
+      error: () => this.conservation.set(null),
+    });
+  }
+
+  /** Archivage manuel (D10) : empreinte revérifiée, copie PDF/A-2, lecture seule. */
+  archiver(): void {
+    const d = this.doc();
+    if (!d || this.archivageEnCours()) return;
+    this.confirm.ask({
+      title: 'Archiver ce document ?',
+      message: "Le document passera en lecture seule pour tous. Une copie de conservation PDF/A sera produite ; l'original est conservé.",
+      confirmLabel: 'Archiver',
+    }).subscribe(ok => {
+      if (!ok) return;
+      this.archivageEnCours.set(true);
+      this.cycleDeVie.archiver(d.id).subscribe({
+        next: r => {
+          this.archivageEnCours.set(false);
+          if (r.issue === 'ANOMALIE') {
+            this.notify.error("Document archivé avec son seul original : la copie PDF/A n'a pas pu être produite (signalée pour reprise).");
+          } else {
+            this.notify.success('Document archivé.');
+          }
+          this.charger();
+        },
+        error: err => {
+          this.archivageEnCours.set(false);
+          this.notify.error(err?.error?.message ?? 'Archivage impossible.');
+        },
+      });
+    });
+  }
+
+  desarchiver(): void {
+    const d = this.doc();
+    if (!d) return;
+    this.confirm.ask({
+      title: 'Désarchiver ce document ?',
+      message: 'Il redeviendra modifiable. Opération réservée et tracée.',
+      confirmLabel: 'Désarchiver',
+    }).subscribe(ok => {
+      if (!ok) return;
+      this.cycleDeVie.desarchiver(d.id).subscribe({
+        next: () => { this.notify.success('Document désarchivé.'); this.charger(); },
+        error: err => this.notify.error(err?.error?.message ?? 'Désarchivage impossible.'),
+      });
+    });
+  }
+
+  /** Document archivé : l'original déposé, plutôt que la copie PDF/A servie par défaut. */
+  telechargerOriginal(): void {
+    const d = this.doc();
+    if (!d || this.telechargementEnCours()) return;
+    this.telechargementEnCours.set(true);
+    this.service.telecharger(d.id, true).subscribe({
+      next: blob => {
+        this.telechargementEnCours.set(false);
+        this.cycleDeVie.enregistrer(blob, d.fileName || d.name);
+      },
+      error: (e: HttpErrorResponse) => {
+        this.telechargementEnCours.set(false);
+        const msg = messageErreurTelechargement(e);
+        if (msg) this.notify.error(msg);
+      },
+    });
+  }
 
   /**
    * Un document verrouillé fige tout le formulaire. On passe par
@@ -166,7 +251,7 @@ export class DocumentDetail implements OnInit {
     this.service.verrou(id, !d.verrouille).subscribe({
       next: maj => {
         this.doc.set(maj);
-        this.appliquerVerrou(maj.verrouille);
+        this.appliquerVerrou(this.verrouille);
         this.notify.success(maj.verrouille ? 'Document verrouillé.' : 'Document déverrouillé.');
       },
       error: () => this.notify.error('Opération impossible.'),

@@ -12,11 +12,27 @@
         <button mat-stroked-button (click)="telecharger()" [disabled]="telechargementEnCours()">
           <mat-icon svgIcon="download"></mat-icon> Télécharger
         </button>
-        <button mat-stroked-button (click)="basculerVerrou()"
-                [matTooltip]="d.verrouille ? 'Autoriser à nouveau les modifications' : 'Empêcher toute modification'">
-          <mat-icon svgIcon="archive"></mat-icon>
-          {{ d.verrouille ? 'Déverrouiller' : 'Verrouiller' }}
-        </button>
+        @if (archive) {
+          <button mat-stroked-button (click)="telechargerOriginal()" [disabled]="telechargementEnCours()"
+                  matTooltip="Le téléchargement sert la copie de conservation PDF/A ; ceci sert le fichier déposé">
+            <mat-icon svgIcon="download"></mat-icon> Original
+          </button>
+          <button mat-stroked-button (click)="desarchiver()" matTooltip="Réservé à l'Agent d'archive et à l'Administrateur">
+            <mat-icon svgIcon="archive"></mat-icon> Désarchiver
+          </button>
+        } @else {
+          <button mat-stroked-button (click)="basculerVerrou()"
+                  [matTooltip]="d.verrouille ? 'Autoriser à nouveau les modifications' : 'Empêcher toute modification'">
+            <mat-icon svgIcon="archive"></mat-icon>
+            {{ d.verrouille ? 'Déverrouiller' : 'Verrouiller' }}
+          </button>
+          @if (!d.verrouille && !d.deleted) {
+            <button mat-stroked-button (click)="archiver()" [disabled]="archivageEnCours()"
+                    matTooltip="Lecture seule définitive (désarchivage réservé) et copie de conservation PDF/A">
+              <mat-icon svgIcon="archive"></mat-icon> {{ archivageEnCours() ? 'Archivage…' : 'Archiver' }}
+            </button>
+          }
+        }
       </div>
     }
   </div>
@@ -37,6 +53,23 @@
       <div class="bandeau-ocr" [class.echec]="d.statutOcr === 'OCR_ECHEC'">
         <mat-icon svgIcon="search"></mat-icon>
         <span>{{ msg }}</span>
+      </div>
+    }
+
+    @if (archive) {
+      <div class="bandeau-verrou archive">
+        <mat-icon svgIcon="archive"></mat-icon>
+        <span>
+          <span class="badge-archive">Archivé</span>
+          le {{ dateCourte(d.archiveLe ?? '') }} — lecture seule pour tous.
+          @if (conservation()?.copie; as c) {
+            @if (c.statut === 'VALIDE') {
+              Copie de conservation {{ c.format }} servie au téléchargement ; l'original est conservé.
+            } @else {
+              Copie PDF/A non produite ({{ c.motif }}) : seul l'original est conservé, anomalie signalée pour reprise.
+            }
+          }
+        </span>
       </div>
     }
 

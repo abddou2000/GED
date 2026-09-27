@@ -93,6 +93,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/recherche/recherche-plein-texte/recherche-plein-texte').then(m => m.RecherchePleinTexte),
       },
       {
+        // Exports de dossier préparés en arrière-plan (§12.10).
+        path: 'mes-exports',
+        loadComponent: () => import('./features/cycle-de-vie/mes-exports/mes-exports').then(m => m.MesExports),
+      },
+      {
         // Supervision des traitements OCR et réindexation (§4.3.4, §4.4.1).
         path: 'traitements-ocr',
         loadComponent: () => import('./features/recherche/supervision-ocr/supervision-ocr').then(m => m.SupervisionOcr),

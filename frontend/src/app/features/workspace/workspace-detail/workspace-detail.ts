@@ -14,6 +14,7 @@ import { DocumentService, messageErreurTelechargement } from '../../document/doc
 import { DocumentItem } from '../../document/document.model';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
+import { CycleDossier } from '../../cycle-de-vie/cycle-dossier/cycle-dossier';
 
 /**
  * Fiche d'un espace de travail — reprend la page « Overview » de l'application
@@ -26,7 +27,7 @@ import { NotifyService } from '../../../core/notify.service';
   selector: 'app-workspace-detail',
   imports: [
     RouterLink, MatTableModule, MatButtonModule, MatIconModule,
-    MatTooltipModule, MatDialogModule,
+    MatTooltipModule, MatDialogModule, CycleDossier,
   ],
   templateUrl: './workspace-detail.html',
   styleUrl: './workspace-detail.scss',

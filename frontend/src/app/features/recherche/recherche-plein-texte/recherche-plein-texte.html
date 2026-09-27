@@ -27,6 +27,13 @@
       </label>
       <label>Déposé du <input type="date" name="du" [(ngModel)]="criteres.du" /></label>
       <label>au <input type="date" name="au" [(ngModel)]="criteres.au" /></label>
+      <label>Archivés
+        <select name="archives" [(ngModel)]="criteres.archives">
+          <option value="INCLURE">Inclus</option>
+          <option value="EXCLURE">Exclus</option>
+          <option value="SEULEMENT">Seuls</option>
+        </select>
+      </label>
       <label>Tri
         <select name="tri" [(ngModel)]="criteres.tri">
           @for (t of TRIS; track t.valeur) { <option [ngValue]="t.valeur">{{ t.libelle }}</option> }
@@ -43,6 +50,7 @@
         @for (d of r.resultats; track d.documentId) {
           <li>
             <a class="nom" [routerLink]="['/televerser', d.documentId]">{{ d.nom }}</a>
+            @if (d.statutConservation === 'ARCHIVE') { <span class="badge-archive">Archivé</span> }
             <span class="meta">
               {{ d.typeDocument ?? '—' }} · {{ d.espace ?? '—' }}
               @if (d.deposeLe) { · déposé le {{ d.deposeLe | date: 'dd/MM/yyyy' }} }
