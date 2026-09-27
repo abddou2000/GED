@@ -27,12 +27,12 @@ export class CycleDossier implements OnChanges {
 
   readonly dossierId = input.required<string>();
   readonly dossierNom = input<string>('');
-  /** Drapeau d'archivage du dossier. */
-  readonly archive = input<boolean>(false);
   /** Le dossier a changé (drapeau posé ou retiré) : l'écran parent recharge. */
   readonly change = output<void>();
 
   job = signal<JobArchivage | null>(null);
+  /** Drapeau d'archivage du dossier (statut de conservation du nœud, D10). */
+  archive = signal(false);
   anomalies = signal<ElementJob[]>([]);
   exportEnCours = signal(false);
 
@@ -52,9 +52,17 @@ export class CycleDossier implements OnChanges {
   }
 
   ngOnChanges(): void {
+    this.chargerStatut();
     this.service.jobs(this.dossierId()).subscribe({
       next: jobs => this.afficher(jobs[0] ?? null),
       error: () => this.job.set(null),
+    });
+  }
+
+  private chargerStatut(): void {
+    this.service.statutDossier(this.dossierId()).subscribe({
+      next: s => this.archive.set(s.statutConservation === 'ARCHIVE'),
+      error: () => this.archive.set(false),
     });
   }
 
@@ -67,6 +75,7 @@ export class CycleDossier implements OnChanges {
         if (maj.etat === 'TERMINE' || maj.etat === 'ANNULE') {
           this.suivi?.unsubscribe();
           this.chargerRapport(maj);
+          this.chargerStatut();
           this.change.emit();
         }
       });
@@ -116,7 +125,7 @@ export class CycleDossier implements OnChanges {
     }).subscribe(ok => {
       if (!ok) return;
       this.service.retirerDrapeau(this.dossierId()).subscribe({
-        next: () => { this.notify.success('Drapeau retiré.'); this.change.emit(); },
+        next: () => { this.notify.success('Drapeau retiré.'); this.chargerStatut(); this.change.emit(); },
         error: err => this.notify.error(err?.error?.message ?? 'Opération impossible.'),
       });
     });

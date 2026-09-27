@@ -1,25 +1,27 @@
 package com.ipt.ged.config;
 
+import com.ipt.ged.identite.Role;
 import com.ipt.ged.security.FiltreJwt;
-import com.ipt.ged.security.ServiceUtilisateurs;
+import com.ipt.ged.security.UtilisateurConnecte;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.authentication.ProviderNotFoundException;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -28,28 +30,32 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
- * Sécurité de l'API : authentification par jeton JWT, API sans état.
+ * Sécurité de l'API : jeton d'accès RS256 dans l'en-tête {@code Authorization},
+ * API sans état (dossier technique §3.4.1, §8.2.1).
  *
- * <p>Tout est fermé par défaut ({@code anyRequest().authenticated()}). Seules
- * les routes explicitement listées restent ouvertes. C'est le sens de lecture
- * le plus sûr : oublier de protéger un nouveau contrôleur ne l'expose pas, il
- * faut au contraire une décision explicite pour l'ouvrir.
- *
- * <p>Choix notables :
+ * <p>Tout est fermé par défaut. Trois niveaux :
  * <ul>
- *   <li><b>Sans état</b> : aucune session serveur, donc aucun cookie de session
- *       — et par conséquent aucune surface CSRF, ce qui justifie de désactiver
- *       la protection correspondante. Avec un cookie, la désactiver serait une
- *       faute.</li>
- *   <li><b>401 plutôt qu'une redirection</b> : un appel d'API non authentifié
- *       doit recevoir un code, pas une page de connexion en HTML que le
- *       frontend prendrait pour une réponse valide.</li>
- *   <li><b>Aucune autorisation par rôle</b> : l'application n'a qu'un seul
- *       utilisateur. La seule question posée est « l'appelant est-il
- *       authentifié ? », et elle l'est ici, dans la chaîne de filtres.</li>
+ *   <li><b>ouvert</b> : connexion, renouvellement et déconnexion (fondés sur le
+ *       cookie de renouvellement, protégés par un en-tête personnalisé exigé par
+ *       le contrôleur), rendu d'erreur, sonde de santé, documentation hors
+ *       production ;</li>
+ *   <li><b>authentifié</b> : {@code /api/v1/auth/me} — une identité provisionnée
+ *       sans rôle doit pouvoir savoir qui elle est et afficher sa page d'accueil
+ *       vide (§3.4.2) ;</li>
+ *   <li><b>au moins un rôle GED</b> : tout le reste. Une identité sans rôle
+ *       n'accède à rien (§3.2 : l'attribution d'un rôle est un acte manuel de
+ *       l'Administrateur). {@code /api/v1/admin/**} exige le rôle
+ *       Administrateur.</li>
  * </ul>
+ * Les autorisations fines par nœud et par permission arrivent au lot E3.
+ *
+ * <p>Pas de protection CSRF de Spring : l'API n'accepte le jeton d'accès que
+ * dans l'en-tête {@code Authorization}, qu'un site tiers ne peut pas poser ; le
+ * seul cookie (renouvellement) est {@code SameSite=Strict}, limité au chemin
+ * {@code /api/v1/auth}, et son usage exige l'en-tête {@code X-GED-Renouvellement}.
  */
 @Configuration
 @EnableWebSecurity
@@ -64,96 +70,74 @@ public class SecurityConfig {
             @Value("${ged.securite.origines:http://localhost:*,http://127.0.0.1:*}") String origines,
             Environment environnement) {
         this.origines = origines;
-
-        /* Le repli localhost est commode en développement, mais en production
-           il signifie qu'on a oublié GED_ORIGINES : le frontend réel serait
-           alors refusé, et surtout la liste blanche ne reflète plus le
-           déploiement. On le signale bruyamment plutôt que de le laisser
-           passer inaperçu. Simple avertissement et non échec : contrairement à
-           la clé de signature, une liste CORS trop étroite ne permet à
-           personne de se faire passer pour un administrateur. */
-        boolean prod = Arrays.asList(environnement.getActiveProfiles()).contains("prod");
-        if (prod && origines.contains("localhost")) {
-            log.warn("Profil prod avec des origines CORS locales ({}). "
+        if (exploitation(environnement) && origines.contains("localhost")) {
+            log.warn("Profil prod ou uat avec des origines CORS locales ({}). "
                     + "Définissez GED_ORIGINES avec les domaines réels du frontend.", origines);
         }
     }
 
-    /**
-     * Chaîne de filtres.
-     *
-     * <p><b>Swagger n'est ouvert qu'en dehors de la production.</b> La
-     * documentation était accessible sans jeton, y compris sur une instance
-     * exposée : {@code GET /v3/api-docs} renvoyait 58 Ko décrivant les 111
-     * opérations de l'API — chemins, verbes, forme des corps, noms de champs.
-     * Ce n'est pas une fuite de données, c'est le plan du bâtiment offert avant
-     * l'effraction. Et rien ne permettait de le couper : l'autorisation était
-     * écrite en dur.</p>
-     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, FiltreJwt filtreJwt,
                                            Environment environnement) throws Exception {
-        boolean horsProduction = !Arrays.asList(environnement.getActiveProfiles()).contains("prod");
+        // Documentation de l'API fermée en production ET en recette (uat), qui
+        // partagent les mêmes contrôles de sécurité.
+        boolean horsProduction = !exploitation(environnement);
         http
-                // Pas de cookie de session, donc pas de vecteur CSRF à couvrir.
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
-                        // Le pré-vol CORS ne porte aucun en-tête d'autorisation.
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Connexion : seule porte ouverte, par définition.
-                        .requestMatchers("/api/v1/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh",
+                                "/api/v1/auth/logout").permitAll()
                         /* Le rendu d'erreur de Spring Boot passe par un dispatch
-                           interne vers /error. Ce second passage n'a plus de
-                           jeton dans son contexte : sans cette autorisation, un
-                           404 ou un 500 survenu APRÈS authentification ressort
-                           en 401 et masque la vraie cause. */
+                           interne vers /error, sans jeton dans son contexte. */
                         .requestMatchers("/error").permitAll()
-                        /* Sonde de vie : ouverte partout, y compris en production.
-                           Un orchestrateur ou un répartiteur de charge interroge
-                           cette route sans pouvoir s'authentifier ; elle ne
-                           renvoie qu'un état, jamais de donnée métier. */
                         .requestMatchers("/actuator/health", "/api/v1/health").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
-                            .access((appelant, contexte) ->
-                                    new org.springframework.security.authorization.AuthorizationDecision(horsProduction))
-                        .anyRequest().authenticated())
+                            .access((appelant, contexte) -> new AuthorizationDecision(horsProduction))
+                        .requestMatchers("/api/v1/auth/me").authenticated()
+                        .requestMatchers("/api/v1/admin/**").hasRole(Role.ADMINISTRATEUR)
+                        .anyRequest().access(auMoinsUnRole()))
                 .addFilterBefore(filtreJwt, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
-    /**
-     * BCrypt, coût 12. Le coût par défaut (10) est daté ; 12 reste
-     * imperceptible à la connexion tout en multipliant par quatre l'effort
-     * d'une attaque par force brute sur une base dérobée.
-     */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
+    /** Profils d'exploitation : prod et uat appliquent les mêmes contrôles de sécurité. */
+    static boolean exploitation(Environment environnement) {
+        return Arrays.stream(environnement.getActiveProfiles())
+                .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("uat"));
     }
 
     /**
-     * Gestionnaire d'authentification construit explicitement.
-     *
-     * <p>Passer par {@code AuthenticationConfiguration} aurait marché, mais en
-     * s'appuyant sur la découverte automatique du {@code UserDetailsService} et
-     * de l'{@code AuthenticationProvider} présents dans le contexte. Le
-     * câblage direct rend la chaîne lisible et ne dépend d'aucun ordre
-     * d'initialisation : un seul fournisseur, celui qu'on a choisi.
+     * Authentifié ET porteur d'au moins un rôle GED. Une identité tout juste
+     * provisionnée n'en a aucun : elle reçoit 403 partout ailleurs que sur
+     * {@code /auth/me}.
+     */
+    static AuthorizationManager<RequestAuthorizationContext> auMoinsUnRole() {
+        return (Supplier<Authentication> appelant, RequestAuthorizationContext contexte) -> {
+            Authentication a = appelant.get();
+            // Seul un principal GED compte : un appelant anonyme porte lui
+            // aussi une autorité « ROLE_ANONYMOUS », qui ne vaut rien ici.
+            boolean ok = a != null && a.getPrincipal() instanceof UtilisateurConnecte u && u.aUnRole();
+            return new AuthorizationDecision(ok);
+        };
+    }
+
+    /**
+     * Aucun gestionnaire d'authentification par mot de passe dans la GED : la
+     * seule vérification d'identité est la liaison à l'annuaire
+     * ({@code /api/v1/auth/login}). Déclarer ce gestionnaire qui refuse tout
+     * empêche aussi Spring Boot de créer son utilisateur en mémoire à mot de
+     * passe généré.
      */
     @Bean
-    public AuthenticationManager authenticationManager(ServiceUtilisateurs utilisateurs,
-                                                       PasswordEncoder encodeur) {
-        DaoAuthenticationProvider fournisseur = new DaoAuthenticationProvider();
-        fournisseur.setUserDetailsService(utilisateurs);
-        fournisseur.setPasswordEncoder(encodeur);
-        // Un e-mail inconnu doit échouer exactement comme un mot de passe faux,
-        // sans quoi la différence de réponse permet d'énumérer les comptes.
-        fournisseur.setHideUserNotFoundExceptions(true);
-        return new ProviderManager(fournisseur);
+    public AuthenticationManager authenticationManager() {
+        return authentification -> {
+            throw new ProviderNotFoundException("Authentification par l'annuaire uniquement (/api/v1/auth/login).");
+        };
     }
 
     /** Origines du frontend autorisées à appeler l'API. */
@@ -163,8 +147,9 @@ public class SecurityConfig {
         config.setAllowedOriginPatterns(Arrays.stream(origines.split(",")).map(String::trim).toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        // Le jeton voyage dans un en-tête, pas dans un cookie : inutile
-        // d'autoriser l'envoi d'identifiants d'origine croisée.
+        /* Le frontend est servi par la même origine que l'API (NGINX, proxy de
+           développement) : le cookie de renouvellement n'a pas à franchir une
+           frontière d'origine. On ne l'autorise donc pas. */
         config.setAllowCredentials(false);
         config.setMaxAge(3600L);
 

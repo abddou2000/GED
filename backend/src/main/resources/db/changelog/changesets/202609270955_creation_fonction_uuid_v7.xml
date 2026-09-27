@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609270955_creation_fonction_uuid_v7.xml">
+
+    <!--
+        UUID v7 côté base (RFC 9562) : 48 bits d'horodatage en millisecondes puis
+        de l'aléa. Sert de valeur par défaut aux clés `id` des tables d'association,
+        dont les lignes sont écrites par Hibernate sans passer par une entité
+        (@ManyToMany) : l'application ne fournit donc pas la clé. Les entités, elles,
+        tirent leur UUID v7 côté Java (UuidV7). PostgreSQL 16 n'a pas encore de
+        fonction native (uuidv7() arrive en PostgreSQL 18).
+        Construction : un UUID v4 aléatoire dont les 6 premiers octets reçoivent
+        l'horodatage et dont le quartet de version passe de 4 (0100) à 7 (0111).
+    -->
+    <changeSet id="202609270955-1" author="ged">
+        <comment>Fonction uuid_v7() pour les clés générées par la base.</comment>
+        <createProcedure>
+CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.uuid_v7() RETURNS uuid
+LANGUAGE sql VOLATILE PARALLEL SAFE AS $$
+    SELECT encode(
+        set_bit(
+            set_bit(
+                overlay(uuid_send(gen_random_uuid())
+                        placing substring(int8send(floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint) FROM 3)
+                        FROM 1 FOR 6),
+                52, 1),
+            53, 1),
+        'hex')::uuid
+$$
+        </createProcedure>
+        <rollback>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.uuid_v7()</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

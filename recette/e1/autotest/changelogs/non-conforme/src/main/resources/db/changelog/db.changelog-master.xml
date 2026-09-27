@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog">
+  <changeSet id="0" author="dev"><sql>SELECT 1</sql></changeSet>
+  <include file="changes/202610021200_ajout_type.xml" relativeToChangelogFile="true"/>
+  <include file="changes/V2__table.xml" relativeToChangelogFile="true"/>
+  <include file="changes/202610011200_creation_Document.xml" relativeToChangelogFile="true"/>
+</databaseChangeLog>

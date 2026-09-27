@@ -48,7 +48,8 @@ class SearchIndexerPostgresTest {
     @BeforeEach
     void vider() {
         jdbc.update("DELETE FROM document_texte");
-        indexer = new SearchIndexerPostgres(jdbc, new PredicatDroitsProvisoire());
+        indexer = new SearchIndexerPostgres(jdbc, (colonne, utilisateur) -> utilisateur != null && utilisateur.isAuthenticated()
+                ? com.ipt.ged.recherche.FragmentSql.VRAI : com.ipt.ged.recherche.FragmentSql.FAUX);
     }
 
     private UUID indexer(String texte) {
@@ -279,10 +280,10 @@ class SearchIndexerPostgresTest {
         UUID c = indexer("bail de la marina, mis en corbeille");
         jdbc.update("UPDATE document SET name = 'Zeta', created_at = '2026-01-10T10:00:00Z' WHERE id = ?", a);
         jdbc.update("UPDATE document SET name = 'Alpha', created_at = '2026-03-05T10:00:00Z' WHERE id = ?", b);
-        jdbc.update("UPDATE document SET deleted = true, supprime_le = now() WHERE id = ?", c);
+        jdbc.update("UPDATE document SET supprime = true, supprime_le = now() WHERE id = ?", c);
         UUID autreType = UUID.randomUUID();
-        jdbc.update("INSERT INTO type_document (id, code, type_de_document, description, workspace_id) "
-                + "SELECT ?, 'TD-AUTRE', 'Avenant', 'x', workspace_id FROM document WHERE id = ?", autreType, a);
+        jdbc.update("INSERT INTO type_document (id, code, type_de_document, description, noeud_id) "
+                + "SELECT ?, 'TD-AUTRE', 'Avenant', 'x', noeud_principal_id FROM document WHERE id = ?", autreType, a);
         jdbc.update("UPDATE document SET type_document_id = ? WHERE id = ?", autreType, a);
 
         PageResultats tous = indexer.rechercher(RequeteRecherche.simple("bail", 0, 10), UTILISATEUR);

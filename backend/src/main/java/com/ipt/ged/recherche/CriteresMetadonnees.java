@@ -42,7 +42,10 @@ public record CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDa
             f.add(new FragmentSql("d.type_document_id = :critere_type", Map.of("critere_type", typeDocumentId)));
         }
         if (workspaceId != null) {
-            f.add(new FragmentSql("d.workspace_id = :critere_espace", Map.of("critere_espace", workspaceId)));
+            // Emplacement principal ou rattachement (§12.4).
+            f.add(new FragmentSql("(d.noeud_principal_id = :critere_espace OR EXISTS (SELECT 1 FROM document_rattachement "
+                    + "critere_r WHERE critere_r.document_id = d.id AND critere_r.noeud_id = :critere_espace))",
+                    Map.of("critere_espace", workspaceId)));
         }
         if (deposeDu != null) {
             f.add(new FragmentSql("d.created_at >= :critere_du",

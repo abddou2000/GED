@@ -15,5 +15,7 @@ public record DocumentRequest(
         UUID typeDocumentId,
         String expirationDate,
         Boolean active,
-        List<UUID> etiquetteIds
+        List<UUID> etiquetteIds,
+        /** Nouveau niveau de confidentialité (§12.3) ; absent = inchangé. */
+        com.ipt.ged.autorisation.Confidentialite confidentialite
 ) {}

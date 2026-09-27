@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog">
+  <changeSet id="202610011200-1" author="qa">
+    <createTable tableName="noeud">
+      <column name="id" type="uuid"><constraints primaryKey="true" primaryKeyName="pk_noeud"/></column>
+      <column name="parent_id" type="uuid"><constraints foreignKeyName="fk_noeud_parent" references="noeud(id)"/></column>
+      <column name="nom" type="text"/>
+    </createTable>
+    <createIndex tableName="noeud" indexName="idx_noeud_parent_id"><column name="parent_id"/></createIndex>
+  </changeSet>
+  <changeSet id="202610011200-2" author="qa">
+    <sql>ALTER TABLE noeud ADD CONSTRAINT ck_noeud_nom CHECK (nom &lt;&gt; '')</sql>
+    <rollback><sql>ALTER TABLE noeud DROP CONSTRAINT ck_noeud_nom</sql></rollback>
+  </changeSet>
+</databaseChangeLog>

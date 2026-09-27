@@ -68,8 +68,7 @@
     </div>
 
     <!-- ===== Conservation : archivage du dossier entier (D10) et export ZIP (§12.10) ===== -->
-    <app-cycle-dossier [dossierId]="w.id" [dossierNom]="w.name" [archive]="w.status === 'ARCHIVE'"
-                       (change)="charger()"></app-cycle-dossier>
+    <app-cycle-dossier [dossierId]="w.id" [dossierNom]="w.name" (change)="charger()"></app-cycle-dossier>
 
     <!-- ===== Sous-dossiers ===== -->
     <div class="card">

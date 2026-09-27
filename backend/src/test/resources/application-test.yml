@@ -46,32 +46,24 @@ ged:
     archivage:
       repertoire-travail: ./target/test-conservation-travail
 
-  securite:
-    # Mot de passe d'amorçage des comptes de test.
-    #
-    # Ce n'est PAS un secret exposé : la base visée est une base de test locale,
-    # vidée et recréée par Liquibase à chaque exécution de la suite
-    # (drop-first). Aucun compte produit ici ne survit à l'exécution suivante.
-    # La valeur est volontairement inutilisable ailleurs.
-    #
-    # Sans cette ligne, `mot-de-passe-initial` reste vide (application.yml,
-    # fail-closed volontaire) : CompteSeeder ne crée AUCUN compte et les tests
-    # ne peuvent plus s'authentifier — or l'API est désormais fermée par défaut
-    # (anyRequest().authenticated()). Les tests doivent donc s'authentifier
-    # comme un vrai client, pas contourner la sécurité.
-    mot-de-passe-initial: test-only-password
-
-    # Compte unique des tests. L'adresse correspond à l'employé Sara Bennani du
-    # jeu d'essai : le seeder rattache donc le compte à cet employé existant au
-    # lieu d'en créer un.
-    email-admin: sara.bennani@marchica.ma
-
-    # Clé JWT fixe pour les tests, afin que la clé aléatoire tirée au démarrage
-    # hors prod ne rende pas les tests dépendants d'un tirage. Même statut que
-    # ci-dessus : jetable, jamais chargée en prod (le profil prod n'a aucune
-    # valeur par défaut et refuse de démarrer sans GED_JWT_CLE).
-    jwt:
-      cle: cle-de-test-uniquement-jamais-en-production-0123456789
+  # Identité : simulateur d'annuaire embarqué (UnboundID) chargé du LDIF de
+  # test ; comptes à mot de passe « test-only-password », jetables, qui
+  # n'existent que dans ce simulateur. Clé JWT : paire RSA tirée par exécution.
+  identite:
+    annuaire:
+      urls: ldap://localhost:33390
+      base: DC=marchicamed,DC=ma
+      compte-service: CN=svc-ged-ldap,OU=Services,DC=marchicamed,DC=ma
+      mot-de-passe-service: test-only-password
+      exiger-ldaps: false
+      pool: false
+      embarque:
+        port: 33390
+        ldif: classpath:annuaire/annuaire-test.ldif
+    jeton:
+      cle-ephemere-autorisee: true
+    amorcage:
+      administrateurs: sbennani
 
 spring:
   liquibase:

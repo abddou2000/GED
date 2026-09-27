@@ -65,6 +65,9 @@
             CHECK (etat IN ('EN_ATTENTE', 'EN_COURS', 'TERMINE', 'ECHEC', 'EXPIRE'))</sql>
 
         <createTable tableName="job_export_element">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()">
+                <constraints primaryKey="true" primaryKeyName="pk_job_export_element" nullable="false"/>
+            </column>
             <column name="job_export_id" type="UUID">
                 <constraints nullable="false"/>
             </column>
@@ -75,7 +78,8 @@
                 <constraints nullable="false"/>
             </column>
         </createTable>
-        <addPrimaryKey constraintName="pk_job_export_element" tableName="job_export_element" columnNames="job_export_id, document_id"/>
+        <addUniqueConstraint constraintName="uk_job_export_element_job_export_id_document_id" tableName="job_export_element"
+                             columnNames="job_export_id, document_id"/>
         <addForeignKeyConstraint constraintName="fk_job_export_element_job_export" baseTableName="job_export_element"
                                  baseColumnNames="job_export_id" referencedTableName="job_export" referencedColumnNames="id" onDelete="CASCADE"/>
         <addForeignKeyConstraint constraintName="fk_job_export_element_document" baseTableName="job_export_element"

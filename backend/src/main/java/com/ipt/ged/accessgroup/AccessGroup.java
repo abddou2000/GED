@@ -3,7 +3,6 @@ package com.ipt.ged.accessgroup;
 import com.ipt.ged.common.IdentifiantUuid;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.employe.Employe;
-import com.ipt.ged.workspace.WorkSpace;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,13 +13,15 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Groupe d'accès : rattache des utilisateurs (employés) à des espaces de travail.
- * Il sert à l'organisation et à l'affichage (fiche d'espace, profil, tableau de
- * bord). Il ne conditionne aucune autorisation : l'application n'a qu'un seul
- * utilisateur, l'administrateur, et toute écriture lui est ouverte.
+ * Groupe interne à la GED (dossier technique §12.2.1, table {@code groupe_ged}) :
+ * un ensemble de personnes, sujet d'habilitations comme un utilisateur. Son
+ * appartenance est gérée dans la GED, jamais déduite de l'annuaire (P2).
+ *
+ * <p>Les espaces qu'un groupe « couvre » ne sont plus une table à part : ce sont
+ * ses habilitations sur des nœuds (voir {@code autorisation.Habilitation}).
  */
 @Entity
-@Table(name = "access_group")
+@Table(name = "groupe_ged")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -45,17 +46,13 @@ public class AccessGroup extends Supprimable {
     @Embedded
     private GedRights rights = new GedRights();
 
-    /** Espaces de travail couverts par le groupe (N–N). */
+    /**
+     * Membres du groupe (table {@code groupe_membre}). Le membre est la personne
+     * (employé), à laquelle l'identité d'annuaire est rattachée une à une.
+     */
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "access_group_workspace",
-            joinColumns = @JoinColumn(name = "access_group_id"),
-            inverseJoinColumns = @JoinColumn(name = "workspace_id"))
-    private Set<WorkSpace> workspaces = new LinkedHashSet<>();
-
-    /** Membres du groupe (employés) — relation « users » de CCISTTA (N–N). */
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "access_group_employe",
-            joinColumns = @JoinColumn(name = "access_group_id"),
+    @JoinTable(name = "groupe_membre",
+            joinColumns = @JoinColumn(name = "groupe_ged_id"),
             inverseJoinColumns = @JoinColumn(name = "employe_id"))
     private Set<Employe> users = new LinkedHashSet<>();
 

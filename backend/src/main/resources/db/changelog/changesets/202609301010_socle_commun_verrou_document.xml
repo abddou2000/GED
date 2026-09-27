@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301010_socle_commun_verrou_document.xml">
+
+    <!--
+        Socle commun du document (§12.7) : objet et date du document (clé de tri
+        prioritaire de la recherche) ; la date du document existante est reprise
+        de la date de dépôt.
+        Verrouillage (§12.8) : auteur, date et motif du verrou, en plus de
+        l'indicateur is_locked déjà présent. Un verrou posé porte toujours sa
+        date (ck_document_verrou) ; les verrous antérieurs reçoivent la date de
+        dernière modification, faute de mieux.
+    -->
+    <changeSet id="202609301010-1" author="ged">
+        <comment>Objet, date du document, auteur / date / motif du verrou.</comment>
+        <addColumn tableName="document">
+            <column name="objet" type="VARCHAR(1000)"/>
+            <column name="date_document" type="DATE" defaultValueComputed="CURRENT_DATE"/>
+            <column name="verrou_par" type="UUID"/>
+            <column name="verrou_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="verrou_motif" type="VARCHAR(500)"/>
+        </addColumn>
+        <sql>UPDATE ${database.defaultSchemaName}.document SET date_document = coalesce(created_at, now())::date</sql>
+        <sql>UPDATE ${database.defaultSchemaName}.document SET verrou_le = coalesce(updated_at, created_at, now()) WHERE is_locked</sql>
+        <addNotNullConstraint tableName="document" columnName="date_document" columnDataType="DATE"/>
+        <addForeignKeyConstraint constraintName="fk_document_verrou_par" baseTableName="document" baseColumnNames="verrou_par"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_verrou CHECK (is_locked = (verrou_le IS NOT NULL))</sql>
+        <createIndex indexName="idx_document_date_document" tableName="document"><column name="date_document"/></createIndex>
+        <createIndex indexName="idx_document_verrou_par" tableName="document"><column name="verrou_par"/></createIndex>
+        <rollback>
+            <dropIndex tableName="document" indexName="idx_document_verrou_par"/>
+            <dropIndex tableName="document" indexName="idx_document_date_document"/>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_verrou</sql>
+            <dropForeignKeyConstraint baseTableName="document" constraintName="fk_document_verrou_par"/>
+            <dropColumn tableName="document">
+                <column name="verrou_motif"/>
+                <column name="verrou_le"/>
+                <column name="verrou_par"/>
+                <column name="date_document"/>
+                <column name="objet"/>
+            </dropColumn>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

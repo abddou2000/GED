@@ -85,6 +85,12 @@ public class CycleDeVieController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(archivageDossiers.archiverDossier(dossierId));
     }
 
+    /** Statut de conservation du dossier : {@code ACTIF} ou {@code ARCHIVE} (drapeau, D10). */
+    @GetMapping("/api/v1/archivage/dossiers/{dossierId}")
+    public Map<String, String> statutDossier(@PathVariable UUID dossierId) {
+        return Map.of("statutConservation", archivageDossiers.statut(dossierId));
+    }
+
     /** Retire le drapeau d'archivage du dossier ; ses documents restent archivés. */
     @DeleteMapping("/api/v1/archivage/dossiers/{dossierId}")
     public ResponseEntity<Void> retirerDrapeau(@PathVariable UUID dossierId) {

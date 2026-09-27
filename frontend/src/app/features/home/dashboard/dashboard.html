@@ -1,3 +1,16 @@
+<!-- Identité provisionnée sans rôle (dossier technique §3.4.2) : page
+     d'accueil vide, état attendu et non anomalie. Aucun encart n'est chargé :
+     le serveur refuserait chacun de leurs appels (403). -->
+@if (sansRole()) {
+  <div class="page">
+    <section class="accueil-vide" role="status">
+      <h1>Bienvenue {{ firstName() }}</h1>
+      <p>Votre accès à la GED est ouvert, mais aucun rôle ne vous est encore attribué.</p>
+      <p>L'Administrateur de la GED vous donnera accès aux espaces qui vous concernent.
+         Vous n'avez rien d'autre à faire : reconnectez-vous ensuite.</p>
+    </section>
+  </div>
+} @else {
 <div class="page">
   <!-- ===== Bandeau d'accueil =====
        Scène du cap au couchant, entièrement en SVG. Le viewBox (1400x240) est
@@ -240,3 +253,5 @@
     }
   </div>
 </div>
+
+}

@@ -3,19 +3,18 @@ package com.ipt.ged.cycledevie;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ipt.ged.document.evenement.DocumentExporte;
 import com.ipt.ged.fichier.controle.Echantillons;
-import com.ipt.ged.recherche.FragmentSql;
-import com.ipt.ged.recherche.PredicatDroits;
 import com.ipt.ged.support.Comptes;
 import com.ipt.ged.support.Pdfs;
+import com.ipt.ged.identite.Role;
+import com.ipt.ged.support.IdentitesDeTest;
+import com.ipt.ged.support.JeuDroits;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import com.ipt.ged.workspace.WorkSpace;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MvcResult;
@@ -42,21 +41,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @RecordApplicationEvents
 class ExportApiTest extends BaseCycleDeVieApiTest {
 
-    /** Prédicat de droits de test : tout document dont le nom commence par SECRET est hors périmètre. */
-    @TestConfiguration
-    static class Droits {
-        @Bean
-        @Primary
-        PredicatDroits predicatDeTest() {
-            return (colonne, utilisateur) -> new FragmentSql(
-                    "NOT EXISTS (SELECT 1 FROM document droits_x WHERE droits_x.id = " + colonne
-                            + " AND droits_x.name LIKE 'SECRET%')", Map.of());
-        }
-    }
-
     @Autowired private ProprietesCycleDeVie proprietes;
     @Autowired private ExportDossiers exports;
     @Autowired private ApplicationEvents evenements;
+    @Autowired private JeuDroits jeu;
+    @Autowired private IdentitesDeTest identites;
 
     private WorkSpace racine, sous;
     private UUID typeRacine, typeSous;
@@ -98,11 +87,20 @@ class ExportApiTest extends BaseCycleDeVieApiTest {
                 .andExpect(status().is2xxSuccessful());
         UUID b = deposer(typeRacine, "Rapport", "rapport-bis.pdf", "application/pdf", Pdfs.pdf("bis"));
         UUID c = deposer(typeSous, "Plan", "plan.png", "image/png", png);
-        UUID secret = deposer(typeSous, "SECRET budget", "s.pdf", "application/pdf", Pdfs.pdf("secret"));
+        // Document PRIVÉ d'un autre déposant : hors du périmètre d'un utilisateur standard (§12.3).
+        UUID secret = UUID.fromString(json(mvc.perform(multipart("/api/v1/documents")
+                .file(new org.springframework.mock.web.MockMultipartFile("file", "s.pdf", "application/pdf",
+                        Pdfs.pdf("secret")))
+                .param("name", "SECRET budget").param("typeDocumentId", typeSous.toString())
+                .param("confidentialite", "PRIVE")).andExpect(status().is2xxSuccessful())).get("id").asText());
         UUID supprime = deposer(typeRacine, "Supprimé", "x.pdf", "application/pdf", Pdfs.pdf("x"));
         mvc.perform(delete("/api/v1/documents/" + supprime)).andExpect(status().isNoContent());
 
-        MvcResult r = mvc.perform(post("/api/v1/exports/dossiers/" + racine.getId()))
+        // Export par un utilisateur standard sur le dossier : le prédicat de droits
+        // réel (lot E3) écarte le document privé qu'il ne peut pas voir.
+        jeu.habiliter(Comptes.SANS_ROLE, Role.UTILISATEUR_STANDARD, racine.getId(), null);
+        MvcResult r = mvc.perform(post("/api/v1/exports/dossiers/" + racine.getId())
+                        .with(user(identites.loadUserByUsername(Comptes.SANS_ROLE))))
                 .andExpect(request().asyncNotStarted())
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/zip"))

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271025_suppression_table_compte_utilisateur.xml">
+
+    <!--
+        Suppression du référentiel local de mots de passe (dossier technique §3.2,
+        A02 : « aucun mot de passe stocké »). L'authentification passe désormais par
+        l'annuaire ; la table des comptes et ses empreintes BCrypt disparaissent.
+
+        Opération destructrice : à précéder d'une sauvegarde ciblée de la table en
+        production (DEPLOIEMENT.md §8). Le retour arrière recrée la STRUCTURE de la
+        table, vide : les empreintes supprimées ne sont pas restituées — c'est le
+        but — et l'ancienne connexion locale ne peut de toute façon plus servir.
+    -->
+    <changeSet id="202609271025-1" author="ged">
+        <comment>Suppression de la table des comptes à mot de passe local.</comment>
+        <dropTable tableName="compte_utilisateur"/>
+        <rollback>
+            <createTable tableName="compte_utilisateur">
+                <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_compte_utilisateur" nullable="false"/></column>
+                <column name="email" type="VARCHAR(190)"><constraints nullable="false"/></column>
+                <column name="mot_de_passe" type="VARCHAR(100)"><constraints nullable="false"/></column>
+                <column name="actif" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+                <column name="employe_id" type="UUID"><constraints nullable="false"/></column>
+                <column name="derniere_connexion" type="TIMESTAMP WITH TIME ZONE"/>
+            </createTable>
+            <addUniqueConstraint constraintName="uk_compte_utilisateur_email" tableName="compte_utilisateur" columnNames="email"/>
+            <addUniqueConstraint constraintName="uk_compte_utilisateur_employe_id" tableName="compte_utilisateur" columnNames="employe_id"/>
+            <addForeignKeyConstraint constraintName="fk_compte_utilisateur_employe" baseTableName="compte_utilisateur" baseColumnNames="employe_id"
+                                     referencedTableName="employe" referencedColumnNames="id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

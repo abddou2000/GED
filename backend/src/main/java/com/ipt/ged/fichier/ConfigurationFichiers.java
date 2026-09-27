@@ -15,7 +15,6 @@ import com.ipt.ged.fichier.integrite.SourceEmpreintesVersions;
 import com.ipt.ged.fichier.integrite.VerificationIntegrite;
 import com.ipt.ged.fichier.integrite.VerificationPeriodique;
 import com.ipt.ged.fichier.previsualisation.ControleAccesPrevisualisation;
-import com.ipt.ged.fichier.previsualisation.ControleAccesPrevisualisationProvisoire;
 import com.ipt.ged.fichier.previsualisation.ConvertisseurBureautique;
 import com.ipt.ged.fichier.previsualisation.ConvertisseurLibreOffice;
 import com.ipt.ged.fichier.previsualisation.ServicePrevisualisation;
@@ -160,11 +159,8 @@ public class ConfigurationFichiers {
                 Path.of(p.getPrevisualisation().getRepertoireTravail()), p.getPlafondPlateformeMo() * MO);
     }
 
-    /** Point d'extension du lot autorisation : à remplacer par le point unique de droits. */
-    @Bean
-    public ControleAccesPrevisualisation controleAccesPrevisualisation() {
-        return new ControleAccesPrevisualisationProvisoire();
-    }
+    /* ControleAccesPrevisualisation : fourni par le lot autorisation
+       (ConfigurationAutorisation), même décision que le téléchargement. */
 
     /** Vérification mensuelle d'intégrité de toutes les versions chiffrées. */
     @Configuration

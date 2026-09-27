@@ -61,7 +61,7 @@ class RepriseDonneesTest {
     private static final Path JEU = Path.of("src", "test", "resources", "reprise", "jeu-essai");
 
     private static final List<String> TABLES_SOURCE = List.of(
-            "employes", "comptes_utilisateurs", "workflow_ged", "workflow_ged_steps", "work_spaces",
+            "employes", "workflow_ged", "workflow_ged_steps", "work_spaces",
             "access_groups", "pivot_workspace_groups", "pivot_employe_groups", "etiquettes", "indices",
             "plan_d_indexations", "pivot_plan_d_indexation_indices", "type_de_documents", "documents_file",
             "document_versions", "pivot_document_etiquettes", "document_index_values",
@@ -126,17 +126,17 @@ class RepriseDonneesTest {
         assertEquals("الإدريسي", texte(c, "SELECT last_name FROM employe WHERE first_name = 'عبد الله'"));
         // Tabulation et saut de ligne conservés ; chaîne vide distincte de NULL.
         assertEquals("Pièces\tcomptables\nde l'exercice",
-                texte(c, "SELECT description FROM workspace WHERE code = 'WS-FACT'"));
-        assertEquals("", texte(c, "SELECT description FROM workspace WHERE code = 'WS-ARCH'"));
-        assertNull(texte(c, "SELECT description FROM workspace WHERE code = 'WS-COMPTA'"));
+                texte(c, "SELECT description FROM noeud WHERE code = 'WS-FACT'"));
+        assertEquals("", texte(c, "SELECT description FROM noeud WHERE code = 'WS-ARCH'"));
+        assertNull(texte(c, "SELECT description FROM noeud WHERE code = 'WS-COMPTA'"));
         // Barres obliques inverses.
         assertEquals(1, compter(c, "SELECT count(*) FROM document WHERE name = 'Note C:\\temp\\rapport'"));
         // Parent désigné par un identifiant supérieur au sien.
-        assertEquals(texte(c, "SELECT id::text FROM workspace WHERE code = 'WS-COMPTA'"),
-                texte(c, "SELECT parent_id::text FROM workspace WHERE code = 'WS-FACT'"));
+        assertEquals(texte(c, "SELECT id::text FROM noeud WHERE code = 'WS-COMPTA'"),
+                texte(c, "SELECT parent_id::text FROM noeud WHERE code = 'WS-FACT'"));
         // Booléens, corbeille sans auteur connu, métadonnées par défaut.
         assertEquals(1, compter(c, "SELECT count(*) FROM document WHERE is_locked"));
-        assertEquals(1, compter(c, "SELECT count(*) FROM document WHERE deleted AND supprime_par IS NULL AND supprime_le IS NULL"));
+        assertEquals(1, compter(c, "SELECT count(*) FROM document WHERE supprime AND supprime_par IS NULL AND supprime_le IS NULL"));
         assertEquals(3, compter(c, "SELECT count(*) FROM document WHERE metadonnees = '{}'::jsonb"));
         // Taille inconnue ramenée à 0 (colonne désormais NOT NULL).
         assertEquals(0, compter(c, "SELECT size_ko FROM document WHERE file_name = 'rapport.docx'"));
@@ -146,11 +146,16 @@ class RepriseDonneesTest {
         // Horodatage UTC de l'ancienne base -> timestamptz.
         assertEquals(Instant.parse("2026-01-15T10:00:00Z"),
                 instant(c, "SELECT created_at FROM document WHERE file_name = 'facture 01.pdf'"));
-        // Adresse de connexion normalisée comme le fait l'application.
-        assertEquals("sara.bennani@marchica.ma", texte(c, "SELECT email FROM compte_utilisateur"));
+        // Aucun compte local ni mot de passe n'est repris (lot E2, §3.2).
+        assertEquals(0, compter(c, "SELECT count(*) FROM utilisateur"));
         // Associations.
-        assertEquals(3, compter(c, "SELECT count(*) FROM access_group_workspace ag JOIN access_group g"
-                + " ON g.id = ag.access_group_id WHERE g.code = 'AG-ADMIN'"));
+        // Espaces couverts par un groupe : habilitations du groupe (lot E3).
+        assertEquals(3, compter(c, "SELECT count(*) FROM habilitation h JOIN groupe_ged g"
+                + " ON g.id = h.groupe_ged_id WHERE g.code = 'AG-ADMIN' AND h.noeud_id IS NOT NULL"));
+        // Chemin matérialisé calculé pour la hiérarchie reprise, parent d'id supérieur compris.
+        assertEquals(texte(c, "SELECT chemin FROM noeud WHERE code = 'WS-COMPTA'")
+                        + texte(c, "SELECT id::text FROM noeud WHERE code = 'WS-FACT'") + "/",
+                texte(c, "SELECT chemin FROM noeud WHERE code = 'WS-FACT'"));
         assertEquals("Haute", texte(c, "SELECT v.valeur FROM document_index_valeur v JOIN index_def i"
                 + " ON i.id = v.index_def_id WHERE i.code = 'IDX-PRIO'"));
     }

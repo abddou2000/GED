@@ -39,8 +39,26 @@ export interface DocumentItem {
   statutConservation?: 'ACTIF' | 'ARCHIVE' | null;
   archiveLe?: string | null;
   /** En corbeille. */
-  deleted?: boolean;
+  supprime?: boolean;
+  /** Niveau de confidentialité (§12.3). */
+  confidentialite?: Confidentialite;
+  /**
+   * Permissions de l'appelant sur ce document (fiche seulement) : l'interface
+   * masque les actions qu'il ne peut pas exercer. Confort : le serveur décide.
+   */
+  permissions?: string[] | null;
+  /** Emplacements complémentaires visibles (fiche seulement). */
+  rattachements?: Ref[] | null;
 }
+
+export type Confidentialite = 'PUBLIC' | 'PRIVE' | 'CONFIDENTIEL';
+
+/** Libellés des niveaux de confidentialité. */
+export const NIVEAUX_CONFIDENTIALITE: { valeur: Confidentialite; libelle: string }[] = [
+  { valeur: 'PUBLIC', libelle: 'Public' },
+  { valeur: 'PRIVE', libelle: 'Privé (déposant et archivistes)' },
+  { valeur: 'CONFIDENTIEL', libelle: 'Confidentiel (personnes désignées)' },
+];
 
 /** Etiquette apposee a un document, avec sa couleur. */
 export interface Tag {
@@ -70,6 +88,7 @@ export interface DocumentRequest {
   expirationDate?: string | null;
   active?: boolean;
   etiquetteIds?: string[];
+  confidentialite?: Confidentialite;
 }
 
 export interface PageResult<T> {

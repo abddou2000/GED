@@ -1,3 +1,4 @@
+import { AuthService } from '../../../core/auth.service';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
@@ -51,6 +52,7 @@ export class DocumentList implements OnInit {
     this.modeSelection.set(actif);
     if (!actif) this.selection.clear();
   }
+  protected auth = inject(AuthService);
   private service = inject(DocumentService);
   private dialog = inject(MatDialog);
   private confirm = inject(ConfirmService);

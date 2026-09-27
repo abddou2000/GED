@@ -147,8 +147,7 @@ public class ExportDossiers {
         predicat.parametres().forEach(p::addValue);
         List<Ligne> brutes = nomme.query("""
                 SELECT d.id, d.name, d.extension, t.type_de_document, d.created_at, d.statut_conservation,
-                       d.metadonnees ->> 'objet' AS objet, d.metadonnees ->> 'date_document' AS date_document,
-                       d.metadonnees ->> 'confidentialite' AS confidentialite,
+                       d.objet, CAST(d.date_document AS text) AS date_document, d.confidentialite,
                        trim(coalesce(e.first_name, '') || ' ' || coalesce(e.last_name, '')) AS deposant,
                        v.id AS version_id, v.cle_fichier_id, v.empreinte, v.taille_octets,
                        (SELECT count(*) FROM version_document v2 WHERE v2.document_id = d.id
@@ -158,7 +157,7 @@ public class ExportDossiers {
                   LEFT JOIN employe e ON e.id = d.created_by_employe_id
                   JOIN LATERAL (SELECT * FROM version_document x WHERE x.document_id = d.id
                                  ORDER BY x.is_default DESC, x.created_at DESC NULLS LAST, x.id DESC LIMIT 1) v ON true
-                 WHERE d.id = ANY(:ids) AND NOT d.deleted AND v.cle_fichier_id IS NOT NULL AND (""" + predicat.sql() + ")",
+                 WHERE d.id = ANY(:ids) AND NOT d.supprime AND v.cle_fichier_id IS NOT NULL AND (""" + predicat.sql() + ")",
                 p, (rs, i) -> new Ligne(rs.getObject("id", UUID.class), rs.getObject("version_id", UUID.class),
                         rs.getObject("cle_fichier_id", UUID.class), List.of(), rs.getString("name"),
                         rs.getString("extension"), rs.getString("objet"), rs.getString("type_de_document"),

@@ -22,10 +22,13 @@ public class EmployeController {
 
     private final EmployeRepository repository;
     private final ProfilService profils;
+    private final com.ipt.ged.autorisation.ControleAcces controle;
 
-    public EmployeController(EmployeRepository repository, ProfilService profils) {
+    public EmployeController(EmployeRepository repository, ProfilService profils,
+                             com.ipt.ged.autorisation.ControleAcces controle) {
         this.repository = repository;
         this.profils = profils;
+        this.controle = controle;
     }
 
     /** GET /api/v1/employes?has_user=1  → liste (filtrée sur les employés avec compte si has_user=1). */
@@ -40,11 +43,17 @@ public class EmployeController {
     /**
      * GET /api/v1/employes/{id}/profil → fiche de profil (identité, activité).
      *
-     * <p>Ouverte à tout appelant authentifié : l'application n'a qu'un seul
-     * utilisateur, il n'y a plus de « fiche d'autrui » à protéger d'un pair.
+     * <p>Depuis le lot E3 (plusieurs utilisateurs), la fiche d'autrui — courriel
+     * d'annuaire, groupes, activité — est réservée à qui administre les droits
+     * ({@code GERER_ROLES_HABILITATIONS}) ; pour les autres elle est
+     * introuvable (404, P5). Sa propre fiche reste accessible.
      */
     @GetMapping("/{id}/profil")
-    public ProfilResponse profil(@PathVariable UUID id) {
+    public ProfilResponse profil(@PathVariable UUID id, @AuthenticationPrincipal UtilisateurConnecte principal) {
+        boolean soi = principal != null && id.equals(principal.getEmployeId());
+        if (!soi && !controle.administre(com.ipt.ged.autorisation.CodePermission.GERER_ROLES_HABILITATIONS)) {
+            throw new com.ipt.ged.autorisation.HorsPerimetreException("Employé introuvable : " + id);
+        }
         return profils.profil(id);
     }
 

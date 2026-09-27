@@ -9,7 +9,6 @@ import com.ipt.ged.ocr.moteur.LanguesOcr;
 import com.ipt.ged.ocr.moteur.MoteurTesseract;
 import com.ipt.ged.ocr.moteur.OcrEngine;
 import com.ipt.ged.recherche.PredicatDroits;
-import com.ipt.ged.recherche.PredicatDroitsProvisoire;
 import com.ipt.ged.recherche.ReindexationComplete;
 import com.ipt.ged.recherche.SearchIndexer;
 import com.ipt.ged.recherche.SearchIndexerPostgres;
@@ -71,11 +70,8 @@ public class ConfigurationChaineOcr {
         return new EnfilageOcr(file, langues, p.isActif());
     }
 
-    /** Point d'extension du lot autorisation : à remplacer par le prédicat du point unique de droits. */
-    @Bean
-    public PredicatDroits predicatDroits() {
-        return new PredicatDroitsProvisoire();
-    }
+    /* PredicatDroits : fourni par le lot autorisation (ConfigurationAutorisation,
+       AccessPredicate.predicatSql), seule implémentation depuis la fusion d'E3. */
 
     @Bean
     public SearchIndexer searchIndexer(JdbcTemplate jdbc, PredicatDroits droits) {

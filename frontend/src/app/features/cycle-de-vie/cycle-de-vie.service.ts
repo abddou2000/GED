@@ -45,6 +45,10 @@ export class CycleDeVieService {
     return this.http.post<JobArchivage>(`${API_BASE}/archivage/dossiers/${dossierId}`, null);
   }
 
+  statutDossier(dossierId: string): Observable<{ statutConservation: 'ACTIF' | 'ARCHIVE' }> {
+    return this.http.get<{ statutConservation: 'ACTIF' | 'ARCHIVE' }>(`${API_BASE}/archivage/dossiers/${dossierId}`);
+  }
+
   retirerDrapeau(dossierId: string): Observable<void> {
     return this.http.delete<void>(`${API_BASE}/archivage/dossiers/${dossierId}`);
   }

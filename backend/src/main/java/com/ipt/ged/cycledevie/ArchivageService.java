@@ -1,5 +1,8 @@
 package com.ipt.ged.cycledevie;
 
+import com.ipt.ged.autorisation.CodePermission;
+import com.ipt.ged.autorisation.ControleAcces;
+import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.cycledevie.conservation.CopiesConservation;
 import com.ipt.ged.document.DocumentVersion;
 import com.ipt.ged.document.archivage.ArchivageDocuments;
@@ -49,7 +52,7 @@ public class ArchivageService {
     private static final Logger log = LoggerFactory.getLogger(ArchivageService.class);
 
     private final UploadDocumentRepository documents;
-    private final AutorisationsCycleDeVie autorisations;
+    private final ControleAcces controle;
     private final CopiesConservation copies;
     private final VerificationIntegrite integrite;
     private final StockageChiffre stockage;
@@ -58,12 +61,12 @@ public class ArchivageService {
     private final TransactionTemplate transaction;
     private final TransactionTemplate lecture;
 
-    public ArchivageService(UploadDocumentRepository documents, AutorisationsCycleDeVie autorisations,
+    public ArchivageService(UploadDocumentRepository documents, ControleAcces controle,
                             CopiesConservation copies, VerificationIntegrite integrite, StockageChiffre stockage,
                             ApplicationEventPublisher evenements, ArchivageDocuments statuts,
                             PlatformTransactionManager transactions) {
         this.documents = documents;
-        this.autorisations = autorisations;
+        this.controle = controle;
         this.copies = copies;
         this.integrite = integrite;
         this.stockage = stockage;
@@ -111,17 +114,18 @@ public class ArchivageService {
     /** Archive un document (action manuelle) ; 409 si son état l'interdit, 403 sans la permission. */
     public Resultat archiver(UUID documentId) {
         Acteur acteur = Acteur.courant();
-        existe(documentId);
-        if (!autorisations.peutArchiver(documentId)) throw ErreurCycleDeVie.permission("Archiver");
+        // Permission Archiver (Agent d'archive, Administrateur) : 404 hors périmètre, 403 sinon.
+        controle.exigerSurDocument(CodePermission.ARCHIVER, documentId);
         Preparation p = preparer(documentId);
         if (p.refusee()) {
             throw p.refus().code().equals(com.ipt.ged.fichier.CodesErreurFichier.INTEGRITE_COMPROMISE)
                     ? Refus.integriteCompromise(p.refus().motif(), null)
                     : ErreurCycleDeVie.conflit(p.refus().code(), p.refus().motif());
         }
+        UUID archiviste = ActeurCourant.utilisateurId();
         Resultat r;
         try {
-            r = transaction.execute(s -> appliquer(p, acteur, null));
+            r = transaction.execute(s -> appliquer(p, acteur, archiviste, null));
         } catch (RuntimeException e) {
             abandonner(p);
             throw e;
@@ -138,7 +142,8 @@ public class ArchivageService {
     public void desarchiver(UUID documentId) {
         UploadDocument d = documents.findByIdPourEcriture(documentId)
                 .orElseThrow(() -> ErreurCycleDeVie.introuvable("Document " + documentId));
-        if (!autorisations.peutDesarchiver(documentId)) throw ErreurCycleDeVie.permission("Archiver");
+        // Désarchivage réservé : même permission Archiver (§12.6).
+        controle.exigerSurDocument(CodePermission.ARCHIVER, documentId);
         if (!d.estArchive()) {
             throw ErreurCycleDeVie.conflit(ErreurCycleDeVie.DOCUMENT_NON_ARCHIVE, "Le document n'est pas archivé.");
         }
@@ -182,7 +187,7 @@ public class ArchivageService {
         Object etat = lecture.execute(s -> {
             UploadDocument d = documents.findById(documentId).orElse(null);
             if (d == null) return refus(documentId, Issue.IGNORE, ErreurCycleDeVie.INTROUVABLE, "document introuvable");
-            if (d.isDeleted()) {
+            if (d.isSupprime()) {
                 return refus(documentId, Issue.IGNORE, ErreurCycleDeVie.DOCUMENT_EN_CORBEILLE, "document en corbeille");
             }
             if (d.estArchive()) {
@@ -219,10 +224,13 @@ public class ArchivageService {
      * Phase 2, dans la transaction de l'appelant : document verrouillé et
      * recontrôlé, copie enregistrée, statut ARCHIVE, événement d'audit.
      */
-    public Resultat appliquer(Preparation p, Acteur acteur, UUID jobId) {
+    /**
+     * @param archivisteUtilisateurId identité GED de l'archiviste (contrat {@link ArchivageDocuments}).
+     */
+    public Resultat appliquer(Preparation p, Acteur acteur, UUID archivisteUtilisateurId, UUID jobId) {
         if (p.refusee()) return new Resultat(p.documentId(), p.refus().issue(), null, p.refus().motif());
         UploadDocument d = documents.findByIdPourEcriture(p.documentId()).orElse(null);
-        if (d == null || d.isDeleted()) {
+        if (d == null || d.isSupprime()) {
             return new Resultat(p.documentId(), Issue.IGNORE, null, "document mis en corbeille pendant l'archivage");
         }
         if (d.estArchive()) return new Resultat(p.documentId(), Issue.DEJA_ARCHIVE, null, "document déjà archivé");
@@ -235,10 +243,9 @@ public class ArchivageService {
         UUID par = acteur != null ? acteur.employeId() : null;
         Optional<UUID> remplacee = copies.enregistrer(p.versionId(), p.copie(), par);
         remplacee.ifPresent(this::detruireApresValidation);
-        // Statut, date et archiviste posés par le contrat du lot modèle (dev1),
-        // dans la transaction de l'appelant. Archiviste : identité de l'acteur
-        // (employé dans cette branche ; identité GED après la fusion d'E2).
-        statuts.archiver(p.documentId(), par);
+        // Statut, date et archiviste (identité GED) posés par le contrat du lot
+        // modèle, dans la transaction de l'appelant.
+        statuts.archiver(p.documentId(), archivisteUtilisateurId);
         CopiesConservation.Production c = p.copie();
         if (!c.valide()) {
             log.warn("Document {} archivé avec son seul original : copie PDF/A en échec ({})", p.documentId(), c.motif());
@@ -267,11 +274,6 @@ public class ArchivageService {
                 stockage.detruire(fichierId);
             }
         });
-    }
-
-    private void existe(UUID documentId) {
-        Boolean present = lecture.execute(s -> documents.existsById(documentId));
-        if (!Boolean.TRUE.equals(present)) throw ErreurCycleDeVie.introuvable("Document " + documentId);
     }
 
     private static Preparation refus(UUID documentId, Issue issue, String code, String motif) {

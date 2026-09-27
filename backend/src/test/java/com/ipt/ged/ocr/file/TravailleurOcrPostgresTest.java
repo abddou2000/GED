@@ -6,7 +6,6 @@ import com.ipt.ged.ocr.moteur.EchecOcrException;
 import com.ipt.ged.ocr.moteur.ExtracteurDocumentOcr;
 import com.ipt.ged.ocr.moteur.OcrEngine;
 import com.ipt.ged.recherche.PageResultats;
-import com.ipt.ged.recherche.PredicatDroitsProvisoire;
 import com.ipt.ged.recherche.RequeteRecherche;
 import com.ipt.ged.recherche.SearchIndexerPostgres;
 import com.ipt.ged.support.BasePostgres;
@@ -79,7 +78,8 @@ class TravailleurOcrPostgresTest {
         jdbc.update("DELETE FROM ocr_job");
         jdbc.update("DELETE FROM document_texte");
         file = new OcrJobQueuePostgres(jdbc, PolitiqueReprise.PAR_DEFAUT);
-        indexer = new SearchIndexerPostgres(jdbc, new PredicatDroitsProvisoire());
+        indexer = new SearchIndexerPostgres(jdbc, (colonne, utilisateur) -> utilisateur != null && utilisateur.isAuthenticated()
+                ? com.ipt.ged.recherche.FragmentSql.VRAI : com.ipt.ged.recherche.FragmentSql.FAUX);
         registre = new SimpleMeterRegistry();
         metriques = new MetriquesOcr(registre, Duration.ofHours(24), Clock.systemUTC());
         tx = new TransactionTemplate(new DataSourceTransactionManager(base.source()));

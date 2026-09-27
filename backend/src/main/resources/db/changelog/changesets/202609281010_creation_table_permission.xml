@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609281010_creation_table_permission.xml">
+
+    <!--
+        Permissions (§12.2.1) : neuf permissions élémentaires, des permissions
+        d'administration distinctes, et deux permissions techniques de
+        confidentialité (VOIR_PRIVE, VOIR_CONFIDENTIEL). Liste close, livrée par la
+        GED : le code s'y réfère. Validées par le client (revue technique D14).
+    -->
+    <changeSet id="202609281010-1" author="ged">
+        <comment>Table des permissions.</comment>
+        <createTable tableName="permission">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_permission" nullable="false"/></column>
+            <column name="code" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="libelle" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="categorie" type="VARCHAR(20)"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_permission_code" tableName="permission" columnNames="code"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.permission ADD CONSTRAINT ck_permission_categorie CHECK (categorie IN ('ELEMENTAIRE', 'ADMINISTRATION', 'CONFIDENTIALITE'))</sql>
+        <rollback>
+            <dropTable tableName="permission"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609281010-2" author="ged" labels="data-initial">
+        <comment>Les dix-huit permissions livrées.</comment>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000001"/>
+            <column name="code" value="CONSULTER"/>
+            <column name="libelle" value="Consulter"/>
+            <column name="categorie" value="ELEMENTAIRE"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000002"/>
+            <column name="code" value="DEPOSER"/>
+            <column name="libelle" value="Déposer"/>
+            <column name="categorie" value="ELEMENTAIRE"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000003"/>
+            <column name="code" value="MODIFIER"/>
+            <column name="libelle" value="Modifier"/>
+            <column name="categorie" value="ELEMENTAIRE"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000004"/>
+            <column name="code" value="VALIDER"/>
+            <column name="libelle" value="Valider"/>
+            <column name="categorie" value="ELEMENTAIRE"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000005"/>
+            <column name="code" value="DIFFUSER"/>
+            <column name="libelle" value="Diffuser"/>
+            <column name="categorie" value="ELEMENTAIRE"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000006"/>
+            <column name="code" value="DEPLACER"/>
+            <column name="libelle" value="Déplacer"/>
+            <column name="categorie" value="ELEMENTAIRE"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000007"/>
+            <column name="code" value="ARCHIVER"/>
+            <column name="libelle" value="Archiver"/>
+            <column name="categorie" value="ELEMENTAIRE"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000008"/>
+            <column name="code" value="SUPPRIMER"/>
+            <column name="libelle" value="Supprimer"/>
+            <column name="categorie" value="ELEMENTAIRE"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000009"/>
+            <column name="code" value="PURGER"/>
+            <column name="libelle" value="Purger"/>
+            <column name="categorie" value="ELEMENTAIRE"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000010"/>
+            <column name="code" value="GERER_REFERENTIELS"/>
+            <column name="libelle" value="Gérer les référentiels"/>
+            <column name="categorie" value="ADMINISTRATION"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000011"/>
+            <column name="code" value="GERER_ESPACES"/>
+            <column name="libelle" value="Gérer les espaces"/>
+            <column name="categorie" value="ADMINISTRATION"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000012"/>
+            <column name="code" value="GERER_ROLES_HABILITATIONS"/>
+            <column name="libelle" value="Gérer les rôles et habilitations"/>
+            <column name="categorie" value="ADMINISTRATION"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000013"/>
+            <column name="code" value="GERER_CLES_API"/>
+            <column name="libelle" value="Gérer les clés d'API"/>
+            <column name="categorie" value="ADMINISTRATION"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000014"/>
+            <column name="code" value="CONSULTER_AUDIT"/>
+            <column name="libelle" value="Consulter l'audit"/>
+            <column name="categorie" value="ADMINISTRATION"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000015"/>
+            <column name="code" value="ADMINISTRER_INDEX"/>
+            <column name="libelle" value="Administrer les index"/>
+            <column name="categorie" value="ADMINISTRATION"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000016"/>
+            <column name="code" value="SUPERVISER_TRAITEMENTS"/>
+            <column name="libelle" value="Superviser les traitements"/>
+            <column name="categorie" value="ADMINISTRATION"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000017"/>
+            <column name="code" value="VOIR_PRIVE"/>
+            <column name="libelle" value="Voir les documents privés"/>
+            <column name="categorie" value="CONFIDENTIALITE"/>
+        </insert>
+        <insert tableName="permission">
+            <column name="id" value="0192b000-0000-7000-8000-000000000018"/>
+            <column name="code" value="VOIR_CONFIDENTIEL"/>
+            <column name="libelle" value="Voir les documents confidentiels"/>
+            <column name="categorie" value="CONFIDENTIALITE"/>
+        </insert>
+        <rollback>
+            <delete tableName="permission"><where>id::text LIKE '0192b000-0000-7000-8000-%'</where></delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

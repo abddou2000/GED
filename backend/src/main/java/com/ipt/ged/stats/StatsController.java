@@ -1,11 +1,14 @@
 package com.ipt.ged.stats;
 
 import com.ipt.ged.accessgroup.AccessGroupRepository;
-import com.ipt.ged.document.UploadDocumentRepository;
+import com.ipt.ged.autorisation.AccessPredicate;
+import com.ipt.ged.autorisation.CodePermission;
+import com.ipt.ged.autorisation.ControleAcces;
 import com.ipt.ged.security.UtilisateurConnecte;
 import com.ipt.ged.signature.SignatureService;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -37,16 +40,21 @@ public class StatsController {
     private static final int JOURS_MAX = 180;
 
     private final WorkSpaceRepository workspaces;
-    private final UploadDocumentRepository documents;
+    private final StatistiquesPerimetre documents;
     private final AccessGroupRepository accessGroups;
     private final SignatureService signatures;
+    private final AccessPredicate droits;
+    private final ControleAcces controle;
 
-    public StatsController(WorkSpaceRepository workspaces, UploadDocumentRepository documents,
-                           AccessGroupRepository accessGroups, SignatureService signatures) {
+    public StatsController(WorkSpaceRepository workspaces, StatistiquesPerimetre documents,
+                           AccessGroupRepository accessGroups, SignatureService signatures,
+                           AccessPredicate droits, ControleAcces controle) {
         this.workspaces = workspaces;
         this.documents = documents;
         this.accessGroups = accessGroups;
         this.signatures = signatures;
+        this.droits = droits;
+        this.controle = controle;
     }
 
     public record Overview(long workspaces, long documents, long pendingSignatures, long accessGroups) {}
@@ -75,11 +83,17 @@ public class StatsController {
     public Overview overview(@AuthenticationPrincipal UtilisateurConnecte principal) {
         long enAttente = principal != null && principal.getEmployeId() != null
                 ? signatures.nombreEnAttente(principal.getEmployeId()) : 0L;
-        return new Overview(
-                workspaces.countByDeletedFalse(),
-                documents.countByDeletedFalse(),
-                enAttente,
-                accessGroups.countByDeletedFalse());
+        // Lot E3 (P5) : chaque tuile ne compte que le périmètre de l'appelant —
+        // espaces couverts par ses habilitations, documents qu'il peut
+        // consulter, et, hors administrateur des droits, ses propres groupes.
+        var couverts = droits.noeudsVisibles(SecurityContextHolder.getContext().getAuthentication())
+                .entrySet().stream().filter(java.util.Map.Entry::getValue).map(java.util.Map.Entry::getKey).toList();
+        long espaces = couverts.isEmpty() ? 0 : workspaces.findAllById(couverts).stream()
+                .filter(w -> !w.isSupprime()).count();
+        long groupes = controle.administre(CodePermission.GERER_ROLES_HABILITATIONS)
+                ? accessGroups.countBySupprimeFalse()
+                : principal == null ? 0 : accessGroups.compterPourMembre(principal.getEmployeId());
+        return new Overview(espaces, documents.documents(), enAttente, groupes);
     }
 
     /**
@@ -90,9 +104,9 @@ public class StatsController {
      */
     @GetMapping("/par-type")
     public List<Part> parType() {
-        return documents.compterParType().stream()
-                .map(p -> new Part(p.getLabel() == null || p.getLabel().isBlank() ? "Sans type" : p.getLabel(),
-                                   p.getTotal()))
+        return documents.parType().stream()
+                .map(p -> new Part(p.libelle() == null || p.libelle().isBlank() ? "Sans type" : p.libelle(),
+                                   p.total()))
                 .toList();
     }
 

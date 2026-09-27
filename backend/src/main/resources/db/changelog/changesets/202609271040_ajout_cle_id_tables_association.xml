@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271040_ajout_cle_id_tables_association.xml">
+
+    <!--
+        Anomalie ANO-E1-001 (§4.2.2 : « clé primaire id ») : les quatre tables
+        d'association avaient une clé primaire composite. Chacune reçoit une clé
+        `id` UUID (valeur par défaut uuid_v7(), les lignes existantes sont
+        numérotées par la même occasion) ; le couple garde son unicité par une
+        contrainte uk_.
+    -->
+    <changeSet id="202609271040-1" author="ged">
+        <comment>Clé id UUID sur les tables d'association ; unicité du couple en uk_.</comment>
+        <dropPrimaryKey tableName="access_group_workspace" constraintName="pk_access_group_workspace"/>
+        <addColumn tableName="access_group_workspace">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addPrimaryKey tableName="access_group_workspace" constraintName="pk_access_group_workspace" columnNames="id"/>
+        <addUniqueConstraint tableName="access_group_workspace" constraintName="uk_access_group_workspace_access_group_id_workspace_id" columnNames="access_group_id, workspace_id"/>
+        <dropPrimaryKey tableName="access_group_employe" constraintName="pk_access_group_employe"/>
+        <addColumn tableName="access_group_employe">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addPrimaryKey tableName="access_group_employe" constraintName="pk_access_group_employe" columnNames="id"/>
+        <addUniqueConstraint tableName="access_group_employe" constraintName="uk_access_group_employe_access_group_id_employe_id" columnNames="access_group_id, employe_id"/>
+        <dropPrimaryKey tableName="plan_index" constraintName="pk_plan_index"/>
+        <addColumn tableName="plan_index">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addPrimaryKey tableName="plan_index" constraintName="pk_plan_index" columnNames="id"/>
+        <addUniqueConstraint tableName="plan_index" constraintName="uk_plan_index_plan_indexation_id_position" columnNames="plan_indexation_id, position"/>
+        <dropPrimaryKey tableName="document_etiquette" constraintName="pk_document_etiquette"/>
+        <addColumn tableName="document_etiquette">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addPrimaryKey tableName="document_etiquette" constraintName="pk_document_etiquette" columnNames="id"/>
+        <addUniqueConstraint tableName="document_etiquette" constraintName="uk_document_etiquette_document_id_etiquette_id" columnNames="document_id, etiquette_id"/>
+        <rollback>
+            <dropUniqueConstraint tableName="document_etiquette" constraintName="uk_document_etiquette_document_id_etiquette_id"/>
+            <dropPrimaryKey tableName="document_etiquette" constraintName="pk_document_etiquette"/>
+            <dropColumn tableName="document_etiquette" columnName="id"/>
+            <addPrimaryKey tableName="document_etiquette" constraintName="pk_document_etiquette" columnNames="document_id, etiquette_id"/>
+            <dropUniqueConstraint tableName="plan_index" constraintName="uk_plan_index_plan_indexation_id_position"/>
+            <dropPrimaryKey tableName="plan_index" constraintName="pk_plan_index"/>
+            <dropColumn tableName="plan_index" columnName="id"/>
+            <addPrimaryKey tableName="plan_index" constraintName="pk_plan_index" columnNames="plan_indexation_id, position"/>
+            <dropUniqueConstraint tableName="access_group_employe" constraintName="uk_access_group_employe_access_group_id_employe_id"/>
+            <dropPrimaryKey tableName="access_group_employe" constraintName="pk_access_group_employe"/>
+            <dropColumn tableName="access_group_employe" columnName="id"/>
+            <addPrimaryKey tableName="access_group_employe" constraintName="pk_access_group_employe" columnNames="access_group_id, employe_id"/>
+            <dropUniqueConstraint tableName="access_group_workspace" constraintName="uk_access_group_workspace_access_group_id_workspace_id"/>
+            <dropPrimaryKey tableName="access_group_workspace" constraintName="pk_access_group_workspace"/>
+            <dropColumn tableName="access_group_workspace" columnName="id"/>
+            <addPrimaryKey tableName="access_group_workspace" constraintName="pk_access_group_workspace" columnNames="access_group_id, workspace_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

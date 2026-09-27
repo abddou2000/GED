@@ -26,13 +26,23 @@ public record DocumentResponse(
          * document supprimé s'affichait donc à l'identique d'un document vivant,
          * l'écran n'ayant aucun moyen de savoir que toute écriture y sera refusée.
          */
-        boolean deleted,
+        boolean supprime,
         /** Chemin de rangement lisible : dossier / type. */
         String chemin,
         String createdBy,
         List<Tag> etiquettes,
         List<Version> versions,
         Instant createdAt,
+        /** Niveau de confidentialité (§12.3). */
+        String confidentialite,
+        /**
+         * Permissions de l'appelant sur ce document (fiche seulement ; absentes
+         * des listes) : l'interface masque les actions correspondantes. Confort
+         * seulement, le serveur revérifie chaque action.
+         */
+        List<String> permissions,
+        /** Emplacements complémentaires visibles de l'appelant (§12.4 ; fiche seulement). */
+        List<Ref> rattachements,
         /**
          * État du traitement OCR de la version courante (§4.3.4) :
          * {@code EN_ATTENTE_OCR}, {@code EN_COURS_OCR}, {@code OCR_TERMINE} (document
@@ -65,21 +75,36 @@ public record DocumentResponse(
                           String typeMime, String empreinte) {}
 
     public static DocumentResponse from(UploadDocument d) {
-        return from(d, null);
+        return from(d, d.getWorkspace(), null, null, null);
     }
 
     public static DocumentResponse from(UploadDocument d, String statutOcr) {
+        return from(d, d.getWorkspace(), null, null, statutOcr);
+    }
+
+    /**
+     * @param emplacement   emplacement affiché : le principal s'il est accessible
+     *                      à l'appelant, sinon son premier emplacement accessible (§12.4)
+     * @param permissions   permissions de l'appelant ({@code null} dans les listes)
+     * @param rattachements emplacements complémentaires visibles ({@code null} dans les listes)
+     * @param statutOcr     état OCR de la version courante, {@code null} si sans objet
+     */
+    public static DocumentResponse from(UploadDocument d, com.ipt.ged.workspace.WorkSpace emplacement,
+                                        List<String> permissions, List<Ref> rattachements, String statutOcr) {
+        com.ipt.ged.workspace.WorkSpace ws = emplacement != null ? emplacement : d.getWorkspace();
         return new DocumentResponse(
                 d.getId(), d.getName(),
-                d.getWorkspace() != null ? new Ref(d.getWorkspace().getId(), d.getWorkspace().getName()) : null,
+                ws != null ? new Ref(ws.getId(), ws.getName()) : null,
                 d.getTypeDocument() != null ? new Ref(d.getTypeDocument().getId(), d.getTypeDocument().getTypeDeDocument()) : null,
                 d.getFileName(), d.getExtension(), d.getSizeKo(), humanSize(d.getSizeKo()),
                 d.getExpirationDate() != null ? d.getExpirationDate().toString() : null,
-                d.isActive(), d.isVerrouille(), d.isDeleted(),
-                chemin(d),
+                d.isActive(), d.isVerrouille(), d.isSupprime(),
+                chemin(d, ws),
                 d.getCreatedBy() != null ? d.getCreatedBy().getFullName() : null,
                 tags(d), versions(d),
                 d.getCreatedAt(),
+                d.getConfidentialite() != null ? d.getConfidentialite().name() : null,
+                permissions, rattachements,
                 statutOcr,
                 d.getStatutIndexation() != null ? d.getStatutIndexation().name() : null,
                 null,
@@ -90,8 +115,8 @@ public record DocumentResponse(
     /** Même réponse, avec l'issue d'indexation établie par le dépôt et son motif. */
     public DocumentResponse avecIndexation(String statut, String motif) {
         return new DocumentResponse(id, name, workspace, typeDocument, fileName, extension, sizeKo, sizeLabel,
-                expirationDate, active, verrouille, deleted, chemin, createdBy, etiquettes, versions, createdAt,
-                statutOcr, statut, motif, statutConservation, archiveLe);
+                expirationDate, active, verrouille, supprime, chemin, createdBy, etiquettes, versions, createdAt,
+                confidentialite, permissions, rattachements, statutOcr, statut, motif, statutConservation, archiveLe);
     }
 
     /**
@@ -99,8 +124,8 @@ public record DocumentResponse(
      * chemin de fichier ; le chemin disque de Marchica ne dirait rien à un
      * utilisateur, on montre donc le dossier et le type.
      */
-    private static String chemin(UploadDocument d) {
-        String dossier = d.getWorkspace() != null ? d.getWorkspace().getName() : "—";
+    private static String chemin(UploadDocument d, com.ipt.ged.workspace.WorkSpace ws) {
+        String dossier = ws != null ? ws.getName() : "—";
         String type = d.getTypeDocument() != null ? d.getTypeDocument().getTypeDeDocument() : null;
         return type != null ? dossier + " / " + type : dossier;
     }

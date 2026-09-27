@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { administrateurGuard, authGuard, permissionGuard, roleGuard } from './core/auth.guard';
 
 /**
  * Routing GED.
@@ -26,6 +26,12 @@ export const routes: Routes = [
         path: 'accueil',
         loadComponent: () => import('./features/home/dashboard/dashboard').then(m => m.Dashboard),
       },
+      {
+        // Tout le reste exige au moins un rôle GED (une identité sans rôle
+        // reste sur l'accueil vide, §3.4.2).
+        path: '',
+        canActivateChild: [roleGuard],
+        children: [
       {
         path: 'regles-de-workflow',
         loadComponent: () => import('./features/workflow/workflow-list/workflow-list').then(m => m.WorkflowList),
@@ -100,6 +106,7 @@ export const routes: Routes = [
       {
         // Supervision des traitements OCR et réindexation (§4.3.4, §4.4.1).
         path: 'traitements-ocr',
+        canActivate: [permissionGuard('SUPERVISER_TRAITEMENTS')],
         loadComponent: () => import('./features/recherche/supervision-ocr/supervision-ocr').then(m => m.SupervisionOcr),
       },
       {
@@ -110,6 +117,31 @@ export const routes: Routes = [
       {
         path: 'mes-workflow',
         loadComponent: () => import('./features/signature/mes-workflow/mes-workflow').then(m => m.MesWorkflow),
+      },
+      {
+        // Administration des droits (lot E3, §12.2) : habilitations et
+        // attribution d'un premier rôle, composition des rôles, droits effectifs.
+        path: 'administration/habilitations',
+        canActivate: [administrateurGuard],
+        loadComponent: () => import('./features/administration/habilitations/habilitations').then(m => m.HabilitationsAdmin),
+      },
+      {
+        path: 'administration/roles',
+        canActivate: [administrateurGuard],
+        loadComponent: () => import('./features/administration/roles/roles').then(m => m.RolesAdmin),
+      },
+      {
+        path: 'administration/droits-effectifs',
+        canActivate: [administrateurGuard],
+        loadComponent: () => import('./features/administration/droits-effectifs/droits-effectifs').then(m => m.DroitsEffectifsAdmin),
+      },
+      {
+        // Administration : révocation des sessions d'un utilisateur (risque R26).
+        path: 'administration/sessions',
+        canActivate: [administrateurGuard],
+        loadComponent: () => import('./features/administration/sessions/sessions').then(m => m.SessionsAdmin),
+      },
+        ],
       },
     ],
   },

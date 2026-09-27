@@ -1,5 +1,8 @@
 package com.ipt.ged.cycledevie;
 
+import com.ipt.ged.autorisation.CodePermission;
+import com.ipt.ged.autorisation.ControleAcces;
+import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.document.evenement.Acteur;
 import com.ipt.ged.workspace.archivage.ArchivageNoeuds;
 import org.slf4j.Logger;
@@ -45,20 +48,20 @@ public class ArchivageDossiers {
     private final JdbcTemplate jdbc;
     private final Dossiers dossiers;
     private final ArchivageNoeuds noeuds;
-    private final AutorisationsCycleDeVie autorisations;
+    private final ControleAcces controle;
     private final ArchivageService archivage;
     private final ApplicationEventPublisher evenements;
     private final ProprietesCycleDeVie proprietes;
     private final TransactionTemplate transaction;
 
     public ArchivageDossiers(JdbcTemplate jdbc, Dossiers dossiers, ArchivageNoeuds noeuds,
-                             AutorisationsCycleDeVie autorisations,
+                             ControleAcces controle,
                              ArchivageService archivage, ApplicationEventPublisher evenements,
                              ProprietesCycleDeVie proprietes, PlatformTransactionManager transactions) {
         this.jdbc = jdbc;
         this.dossiers = dossiers;
         this.noeuds = noeuds;
-        this.autorisations = autorisations;
+        this.controle = controle;
         this.archivage = archivage;
         this.evenements = evenements;
         this.proprietes = proprietes;
@@ -66,7 +69,8 @@ public class ArchivageDossiers {
     }
 
     /** État d'un job, pour le suivi de progression. */
-    public record Job(UUID id, UUID dossierId, String dossierNom, UUID demandeurId, String etat, int total,
+    public record Job(UUID id, UUID dossierId, String dossierNom, UUID demandeurId, UUID archivisteUtilisateurId,
+                      String etat, int total,
                       int traites, int archives, int anomalies, int echecs, boolean annulationDemandee,
                       Instant creeLe, Instant demarreLe, Instant termineLe) {
     }
@@ -77,7 +81,8 @@ public class ArchivageDossiers {
 
     private static final RowMapper<Job> JOB = (rs, i) -> new Job(rs.getObject("id", UUID.class),
             rs.getObject("dossier_id", UUID.class), rs.getString("dossier_nom"),
-            rs.getObject("demandeur_employe_id", UUID.class), rs.getString("etat"), rs.getInt("total"),
+            rs.getObject("demandeur_employe_id", UUID.class), rs.getObject("archiviste_utilisateur_id", UUID.class),
+            rs.getString("etat"), rs.getInt("total"),
             rs.getInt("traites"), rs.getInt("archives"), rs.getInt("anomalies"), rs.getInt("echecs"),
             rs.getBoolean("annulation_demandee"), instant(rs.getTimestamp("cree_le")),
             instant(rs.getTimestamp("demarre_le")), instant(rs.getTimestamp("termine_le")));
@@ -86,10 +91,12 @@ public class ArchivageDossiers {
 
     /** Demande l'archivage d'un dossier entier : job créé (202), sélection figée. */
     public Job archiverDossier(UUID dossierId) {
+        // Permission Archiver sur le nœud (404 hors périmètre, 403 sinon).
+        controle.exigerSurNoeud(CodePermission.ARCHIVER, dossierId);
         Dossiers.Dossier dossier = dossiers.trouver(dossierId)
                 .orElseThrow(() -> ErreurCycleDeVie.introuvable("Dossier " + dossierId));
-        if (!autorisations.peutArchiverDossier(dossierId)) throw ErreurCycleDeVie.permission("Archiver");
         Acteur acteur = Acteur.courant();
+        UUID archiviste = ActeurCourant.utilisateurId();
         UUID jobId = transaction.execute(s -> {
             // Sérialise les demandes concurrentes sur le même dossier.
             jdbc.queryForList("SELECT pg_advisory_xact_lock(hashtext(?))", "archivage:" + dossierId);
@@ -108,8 +115,9 @@ public class ArchivageDossiers {
                 if (page.size() < tranche) break;
             }
             UUID id = UUID.randomUUID();
-            jdbc.update("INSERT INTO job_archivage (id, dossier_id, dossier_nom, demandeur_employe_id, etat, total) "
-                    + "VALUES (?, ?, ?, ?, 'EN_ATTENTE', ?)", id, dossierId, dossier.nom(), acteur.employeId(), selection.size());
+            jdbc.update("INSERT INTO job_archivage (id, dossier_id, dossier_nom, demandeur_employe_id, "
+                    + "archiviste_utilisateur_id, etat, total) VALUES (?, ?, ?, ?, ?, 'EN_ATTENTE', ?)",
+                    id, dossierId, dossier.nom(), acteur.employeId(), archiviste, selection.size());
             List<Object[]> lignes = new ArrayList<>();
             for (int i = 0; i < selection.size(); i++) lignes.add(new Object[]{id, selection.get(i), i});
             jdbc.batchUpdate("INSERT INTO job_archivage_element (job_archivage_id, document_id, rang) VALUES (?, ?, ?)", lignes);
@@ -125,7 +133,7 @@ public class ArchivageDossiers {
      */
     public Job annuler(UUID jobId) {
         Job j = job(jobId).orElseThrow(() -> ErreurCycleDeVie.introuvable("Job d'archivage " + jobId));
-        if (!autorisations.peutArchiverDossier(j.dossierId())) throw ErreurCycleDeVie.permission("Archiver");
+        controle.exigerSurNoeud(CodePermission.ARCHIVER, j.dossierId());
         transaction.executeWithoutResult(s -> {
             int n = jdbc.update("UPDATE job_archivage SET annulation_demandee = true WHERE id = ? "
                     + "AND etat IN ('EN_ATTENTE', 'EN_COURS')", jobId);
@@ -144,9 +152,9 @@ public class ArchivageDossiers {
      * désarchivage se fait un par un (contrat {@link ArchivageNoeuds#marquerActif}).
      */
     public void retirerDrapeau(UUID dossierId) {
+        controle.exigerSurNoeud(CodePermission.ARCHIVER, dossierId);
         Dossiers.Dossier dossier = dossiers.trouver(dossierId)
                 .orElseThrow(() -> ErreurCycleDeVie.introuvable("Dossier " + dossierId));
-        if (!autorisations.peutArchiverDossier(dossierId)) throw ErreurCycleDeVie.permission("Archiver");
         transaction.executeWithoutResult(s -> {
             Integer enCours = jdbc.queryForObject("SELECT count(*) FROM job_archivage WHERE dossier_id = ? "
                     + "AND etat IN ('EN_ATTENTE', 'EN_COURS')", Integer.class, dossierId);
@@ -157,6 +165,12 @@ public class ArchivageDossiers {
             noeuds.marquerActif(dossierId);
             evenements.publishEvent(EvenementDossier.desarchivage(dossierId, dossier.nom(), Acteur.courant()));
         });
+    }
+
+    /** Drapeau d'archivage d'un dossier visible de l'appelant (404 sinon). */
+    public String statut(UUID dossierId) {
+        controle.exigerNoeudVisible(dossierId);
+        return noeuds.statut(dossierId).name();
     }
 
     public Optional<Job> job(UUID jobId) {
@@ -221,7 +235,7 @@ public class ArchivageDossiers {
             if (tranche.isEmpty()) {
                 // Toutes les tranches passées : le dossier est archivé en entier.
                 transaction.executeWithoutResult(s -> {
-                    noeuds.marquerArchive(job.dossierId(), acteur.employeId());
+                    noeuds.marquerArchive(job.dossierId(), job.archivisteUtilisateurId());
                     jdbc.update("UPDATE job_archivage SET etat = 'TERMINE', termine_le = now(), verrouille_par = NULL, "
                             + "verrouille_jusqu_a = NULL WHERE id = ?", job.id());
                 });
@@ -251,7 +265,7 @@ public class ArchivageDossiers {
         try {
             transaction.executeWithoutResult(s -> {
                 for (ArchivageService.Preparation p : preparations) {
-                    consigner(job, archivage.appliquer(p, acteur, job.id()), p);
+                    consigner(job, archivage.appliquer(p, acteur, job.archivisteUtilisateurId(), job.id()), p);
                 }
                 prolongerBail(job.id());
             });
@@ -259,7 +273,7 @@ public class ArchivageDossiers {
             log.warn("Archivage : tranche du job {} en échec, reprise document par document", job.id(), e);
             for (ArchivageService.Preparation p : preparations) {
                 try {
-                    transaction.executeWithoutResult(s -> consigner(job, archivage.appliquer(p, acteur, job.id()), p));
+                    transaction.executeWithoutResult(s -> consigner(job, archivage.appliquer(p, acteur, job.archivisteUtilisateurId(), job.id()), p));
                 } catch (RuntimeException ex) {
                     archivage.abandonner(p);
                     transaction.executeWithoutResult(s -> consigner(job, new ArchivageService.Resultat(p.documentId(),

@@ -29,7 +29,7 @@ public final class ValidationPlan {
     public static List<IndexField> champs(TypeDocument type) {
         PlanIndexation plan = type != null ? type.getPlanIndexation() : null;
         if (plan == null) return List.of();
-        return plan.getIndices().stream().filter(i -> !i.isDeleted()).toList();
+        return plan.getIndices().stream().filter(i -> !i.isSupprime()).toList();
     }
 
     /** Le type porte-t-il un plan d'indexation ({@code SANS_PLAN} sinon, §12.11) ? */

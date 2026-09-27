@@ -4,9 +4,12 @@
       <h1>Téléverser un document</h1>
       <p class="breadcrumb">Accueil - Documents déposés</p>
     </div>
-    <button mat-flat-button color="primary" (click)="upload()">
-      <mat-icon svgIcon="add"></mat-icon> Téléverser un document
-    </button>
+    <!-- Déposer quelque part (confort ; le serveur vérifie Déposer sur le nœud du type). -->
+    @if (auth.peut('DEPOSER')) {
+      <button mat-flat-button color="primary" (click)="upload()">
+        <mat-icon svgIcon="add"></mat-icon> Téléverser un document
+      </button>
+    }
   </div>
 
   <div class="card">

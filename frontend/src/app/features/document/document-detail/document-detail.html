@@ -17,21 +17,23 @@
                   matTooltip="Le téléchargement sert la copie de conservation PDF/A ; ceci sert le fichier déposé">
             <mat-icon svgIcon="download"></mat-icon> Original
           </button>
-          <button mat-stroked-button (click)="desarchiver()" matTooltip="Réservé à l'Agent d'archive et à l'Administrateur">
-            <mat-icon svgIcon="archive"></mat-icon> Désarchiver
-          </button>
-        } @else {
+          @if (peut('ARCHIVER')) {
+            <button mat-stroked-button (click)="desarchiver()" matTooltip="Réservé à l'Agent d'archive et à l'Administrateur">
+              <mat-icon svgIcon="archive"></mat-icon> Désarchiver
+            </button>
+          }
+        } @else if (peut('MODIFIER')) {
           <button mat-stroked-button (click)="basculerVerrou()"
                   [matTooltip]="d.verrouille ? 'Autoriser à nouveau les modifications' : 'Empêcher toute modification'">
             <mat-icon svgIcon="archive"></mat-icon>
             {{ d.verrouille ? 'Déverrouiller' : 'Verrouiller' }}
           </button>
-          @if (!d.verrouille && !d.deleted) {
-            <button mat-stroked-button (click)="archiver()" [disabled]="archivageEnCours()"
-                    matTooltip="Lecture seule définitive (désarchivage réservé) et copie de conservation PDF/A">
-              <mat-icon svgIcon="archive"></mat-icon> {{ archivageEnCours() ? 'Archivage…' : 'Archiver' }}
-            </button>
-          }
+        }
+        @if (!archive && !d.verrouille && !d.supprime && peut('ARCHIVER')) {
+          <button mat-stroked-button (click)="archiver()" [disabled]="archivageEnCours()"
+                  matTooltip="Lecture seule définitive (désarchivage réservé) et copie de conservation PDF/A">
+            <mat-icon svgIcon="archive"></mat-icon> {{ archivageEnCours() ? 'Archivage…' : 'Archiver' }}
+          </button>
         }
       </div>
     }
@@ -89,6 +91,13 @@
         <div class="cartouche"><span class="val">{{ d.chemin }}</span><span class="lib">Chemin</span></div>
         <div class="cartouche"><span class="val">{{ d.createdBy || '—' }}</span><span class="lib">Créateur</span></div>
         <div class="cartouche"><span class="val">{{ dateCourte(d.createdAt) }}</span><span class="lib">Déposé le</span></div>
+        <div class="cartouche"><span class="val">{{ d.confidentialite || 'PUBLIC' }}</span><span class="lib">Confidentialité</span></div>
+        @if (d.rattachements?.length) {
+          <div class="cartouche">
+            <span class="val">@for (r of d.rattachements; track r.id) { {{ r.label }}@if (!$last) {, } }</span>
+            <span class="lib">Rattaché aussi à</span>
+          </div>
+        }
       </div>
     </div>
 
@@ -131,11 +140,20 @@
             </mat-select>
           </mat-form-field>
 
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Confidentialité</mat-label>
+            <mat-select formControlName="confidentialite">
+              @for (n of niveaux; track n.valeur) {
+                <mat-option [value]="n.valeur">{{ n.libelle }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
           <mat-slide-toggle formControlName="active" class="toggle-line">
             Document actif
           </mat-slide-toggle>
 
-          @if (!verrouille) {
+          @if (modifiable) {
             <div class="actions-form">
               <button mat-flat-button color="primary" type="button"
                       [disabled]="enregistrement()" (click)="enregistrer()">
@@ -184,7 +202,7 @@
         <span class="cpt">{{ d.versions.length }}</span>
       </div>
 
-      @if (!verrouille) {
+      @if (modifiable) {
         <div class="depot-version">
           <input type="file" id="fichier-version" class="cache" (change)="fichierChoisi($event)" />
           <label for="fichier-version" class="btn-fichier">
@@ -235,7 +253,7 @@
               <button mat-icon-button (click)="apercu(v)" matTooltip="Aperçu" aria-label="Aperçu de la version">
                 <mat-icon svgIcon="fullscreen"></mat-icon>
               </button>
-              @if (!v.principale && !verrouille) {
+              @if (!v.principale && modifiable) {
                 <button mat-icon-button (click)="restaurerVersion(v)"
                         matTooltip="Rendre courante" aria-label="Rendre courante">
                   <mat-icon svgIcon="restore"></mat-icon>

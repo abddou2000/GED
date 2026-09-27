@@ -75,7 +75,7 @@ public class SearchIndexerPostgres implements SearchIndexer {
                 .addValue("options", OPTIONS_EXTRAIT);
         // Corbeille exclue : un document supprimé est invisible de tous ses
         // emplacements (§12.5), recherche comprise.
-        StringBuilder where = new StringBuilder("dt.tsv @@ q.requete AND NOT d.deleted");
+        StringBuilder where = new StringBuilder("dt.tsv @@ q.requete AND NOT d.supprime");
         List<FragmentSql> fragments = new ArrayList<>();
         fragments.add(droits.predicat("dt.document_id", utilisateur));
         fragments.addAll(r.filtres());
@@ -99,7 +99,7 @@ public class SearchIndexerPostgres implements SearchIndexer {
         String depuis = "FROM document_texte dt "
                 + "JOIN document d ON d.id = dt.document_id "
                 + "LEFT JOIN type_document t ON t.id = d.type_document_id "
-                + "LEFT JOIN workspace w ON w.id = d.workspace_id "
+                + "LEFT JOIN noeud w ON w.id = d.noeud_principal_id "
                 + "CROSS JOIN (SELECT ged_requete_texte(:q) AS requete) q ";
         String sql = "SELECT p.*, "
                 + "ts_headline('ged_francais', ged_normaliser_arabe(dt.texte), "

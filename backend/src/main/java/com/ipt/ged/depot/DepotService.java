@@ -1,5 +1,6 @@
 package com.ipt.ged.depot;
 
+import com.ipt.ged.autorisation.Confidentialite;
 import com.ipt.ged.document.DocumentService;
 import com.ipt.ged.document.dto.DocumentResponse;
 import com.ipt.ged.indexation.dto.ValeurRequest;
@@ -52,7 +53,8 @@ public class DepotService {
     }
 
     public ResultatDepot deposer(MultipartFile fichier, String nom, UUID typeDocumentId, String dateExpiration,
-                                 UUID deposantId, List<UUID> etiquetteIds, String metadonneesJson) {
+                                 UUID deposantId, List<UUID> etiquetteIds, Confidentialite confidentialite,
+                                 String metadonneesJson) {
         // Appelé dans une transaction englobante (tests transactionnels), les
         // deux temps la rejoignent : un temps 2 dans une transaction nouvelle
         // attendrait le document non validé du temps 1. En service (contrôleur),
@@ -60,7 +62,8 @@ public class DepotService {
         boolean englobante = TransactionSynchronizationManager.isActualTransactionActive();
         Optional<ValeurRequest> valeurs = metadonnees.lire(metadonneesJson, typeDocumentId);
 
-        DocumentResponse recu = documents.upload(fichier, nom, typeDocumentId, dateExpiration, deposantId, etiquetteIds);
+        DocumentResponse recu = documents.upload(fichier, nom, typeDocumentId, dateExpiration, deposantId, etiquetteIds,
+                confidentialite);
         boolean ocrEnAttente = "EN_ATTENTE_OCR".equals(recu.statutOcr());
 
         if (IssueIndexation.SANS_PLAN.name().equals(recu.statutIndexation()) || valeurs.isEmpty()) {

@@ -18,6 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutorService;
+import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.ArrayList;
@@ -50,9 +52,14 @@ import static org.junit.jupiter.api.Assertions.*;
  * propriété testée est une propriété de concurrence entre transactions
  * distinctes, elle disparaîtrait dans une transaction de test unique. Le jeu
  * d'essai est donc nettoyé explicitement.
+ *
+ * <p>Depuis le lot E3 chaque appel du service est soumis aux droits : les
+ * appels partent sous l'identité de l'Administrateur, propagée aux fils de
+ * la rafale.
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@WithUserDetails(Comptes.ADMIN)
 class VersionConcurrenceTest {
 
     @Autowired private DocumentService service;
@@ -117,7 +124,8 @@ class VersionConcurrenceTest {
         UUID docId = deposer("depart.pdf");
 
         int concurrents = 6;
-        ExecutorService pool = Executors.newFixedThreadPool(concurrents);
+        ExecutorService pool = new DelegatingSecurityContextExecutorService(
+                Executors.newFixedThreadPool(concurrents));
         CountDownLatch top = new CountDownLatch(1);
         List<Future<String>> lances = new ArrayList<>();
         for (int i = 0; i < concurrents; i++) {

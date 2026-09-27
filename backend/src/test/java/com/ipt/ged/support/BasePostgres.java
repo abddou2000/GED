@@ -132,12 +132,13 @@ public final class BasePostgres implements AutoCloseable {
             typeDocument = UUID.randomUUID();
             j.update("INSERT INTO employe (id, first_name, last_name) VALUES (?, 'Test', 'E6')", employe);
             j.update("INSERT INTO workflow_ged (id, name) VALUES (?, 'circuit de test')", workflow);
-            j.update("INSERT INTO workspace (id, name, code, status, employe_id, workflow_ged_id) "
-                    + "VALUES (?, 'espace de test', ?, 'ACTIF', ?, ?)", workspace, "ESP-" + workspace, employe, workflow);
-            j.update("INSERT INTO type_document (id, code, type_de_document, description, workspace_id) "
+            // Nœud racine (lot E3) ; le chemin matérialisé est posé par la base.
+            j.update("INSERT INTO noeud (id, name, code, status, nature, employe_id, workflow_ged_id) "
+                    + "VALUES (?, 'espace de test', ?, 'ACTIF', 'ESPACE', ?, ?)", workspace, "ESP-" + workspace, employe, workflow);
+            j.update("INSERT INTO type_document (id, code, type_de_document, description, noeud_id) "
                     + "VALUES (?, ?, 'Type de test', 'test', ?)", typeDocument, "TD-" + typeDocument, workspace);
         }
-        j.update("INSERT INTO document (id, name, workspace_id, type_document_id) VALUES (?, 'test', ?, ?) "
+        j.update("INSERT INTO document (id, name, noeud_principal_id, type_document_id) VALUES (?, 'test', ?, ?) "
                 + "ON CONFLICT (id) DO NOTHING", documentId, workspace, typeDocument);
         if (versionId != null) {
             j.update("INSERT INTO version_document (id, document_id, file_name, file_path) VALUES (?, ?, 'f.pdf', 'x/f.pdf')",

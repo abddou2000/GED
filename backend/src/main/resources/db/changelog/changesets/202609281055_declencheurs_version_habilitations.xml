@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609281055_declencheurs_version_habilitations.xml">
+
+    <!--
+        Le compteur version_habilitations est tenu par la BASE (§12.2.3) : toute
+        écriture sur les tables qui déterminent les droits — nœuds, habilitations,
+        membres et corbeille des groupes, composition et indicateur des rôles — le
+        fait avancer, quel que soit le chemin d'écriture (service, reprise,
+        correction en base). L'effet sur les droits en cache est donc immédiat,
+        sans dépendre de la discipline du code.
+
+        La valeur est tirée d'une SÉQUENCE : une transaction annulée consomme son
+        numéro sans le rendre. Des droits calculés dans une transaction ensuite
+        annulée restent en cache sous un numéro que plus aucune écriture validée
+        ne reprendra : ils ne peuvent jamais être resservis.
+    -->
+    <changeSet id="202609281055-1" author="ged">
+        <comment>Séquence et déclencheurs du compteur de version des habilitations.</comment>
+        <sql>CREATE SEQUENCE IF NOT EXISTS ${database.defaultSchemaName}.version_habilitations_seq START WITH 1</sql>
+        <sql splitStatements="false">CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.incrementer_version_habilitations() RETURNS trigger LANGUAGE plpgsql AS $corps$
+BEGIN
+    UPDATE ${database.defaultSchemaName}.version_habilitations SET valeur = nextval('${database.defaultSchemaName}.version_habilitations_seq');
+    RETURN NULL;
+END
+$corps$</sql>
+        <sql>CREATE TRIGGER trg_noeud_version_habilitations AFTER INSERT OR UPDATE OR DELETE ON ${database.defaultSchemaName}.noeud FOR EACH STATEMENT EXECUTE FUNCTION ${database.defaultSchemaName}.incrementer_version_habilitations()</sql>
+        <sql>CREATE TRIGGER trg_habilitation_version_habilitations AFTER INSERT OR UPDATE OR DELETE ON ${database.defaultSchemaName}.habilitation FOR EACH STATEMENT EXECUTE FUNCTION ${database.defaultSchemaName}.incrementer_version_habilitations()</sql>
+        <sql>CREATE TRIGGER trg_groupe_membre_version_habilitations AFTER INSERT OR UPDATE OR DELETE ON ${database.defaultSchemaName}.groupe_membre FOR EACH STATEMENT EXECUTE FUNCTION ${database.defaultSchemaName}.incrementer_version_habilitations()</sql>
+        <sql>CREATE TRIGGER trg_groupe_ged_version_habilitations AFTER UPDATE OR DELETE ON ${database.defaultSchemaName}.groupe_ged FOR EACH STATEMENT EXECUTE FUNCTION ${database.defaultSchemaName}.incrementer_version_habilitations()</sql>
+        <sql>CREATE TRIGGER trg_role_permission_version_habilitations AFTER INSERT OR UPDATE OR DELETE ON ${database.defaultSchemaName}.role_permission FOR EACH STATEMENT EXECUTE FUNCTION ${database.defaultSchemaName}.incrementer_version_habilitations()</sql>
+        <sql>CREATE TRIGGER trg_role_version_habilitations AFTER UPDATE OR DELETE ON ${database.defaultSchemaName}.role FOR EACH STATEMENT EXECUTE FUNCTION ${database.defaultSchemaName}.incrementer_version_habilitations()</sql>
+        <rollback>
+            <sql>DROP TRIGGER trg_role_version_habilitations ON ${database.defaultSchemaName}.role</sql>
+            <sql>DROP TRIGGER trg_role_permission_version_habilitations ON ${database.defaultSchemaName}.role_permission</sql>
+            <sql>DROP TRIGGER trg_groupe_ged_version_habilitations ON ${database.defaultSchemaName}.groupe_ged</sql>
+            <sql>DROP TRIGGER trg_groupe_membre_version_habilitations ON ${database.defaultSchemaName}.groupe_membre</sql>
+            <sql>DROP TRIGGER trg_habilitation_version_habilitations ON ${database.defaultSchemaName}.habilitation</sql>
+            <sql>DROP TRIGGER trg_noeud_version_habilitations ON ${database.defaultSchemaName}.noeud</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.incrementer_version_habilitations()</sql>
+            <sql>DROP SEQUENCE ${database.defaultSchemaName}.version_habilitations_seq</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

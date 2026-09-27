@@ -1,5 +1,7 @@
 package com.ipt.ged.cycledevie;
 
+import com.ipt.ged.autorisation.CodePermission;
+import com.ipt.ged.autorisation.ControleAcces;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
 import com.ipt.ged.document.evenement.Acteur;
@@ -39,9 +41,8 @@ import java.util.UUID;
  * ne laisse qu'un bloc indéchiffrable. Le journal d'audit est conservé :
  * l'événement {@code DOCUMENT_PURGE} y est écrit dans la même transaction.
  *
- * <p>Les rattachements multiples (table {@code document_rattachement}, lot E3)
- * sont à supprimer avec les autres lignes métier à la fusion avec E3 (ou par
- * la cascade de leur clé étrangère).
+ * <p>Les rattachements multiples, les désignations de confidentialité et les
+ * habilitations propres au document (lot E3) partent avec les lignes métier.
  */
 @Service
 public class PurgeService {
@@ -49,7 +50,7 @@ public class PurgeService {
     private static final Logger log = LoggerFactory.getLogger(PurgeService.class);
 
     private final UploadDocumentRepository documents;
-    private final AutorisationsCycleDeVie autorisations;
+    private final ControleAcces controle;
     private final JdbcTemplate jdbc;
     private final DepotClesFichier cles;
     private final StockageChiffre stockage;
@@ -57,11 +58,11 @@ public class PurgeService {
     private final EntityManager em;
     private final ApplicationEventPublisher evenements;
 
-    public PurgeService(UploadDocumentRepository documents, AutorisationsCycleDeVie autorisations, JdbcTemplate jdbc,
+    public PurgeService(UploadDocumentRepository documents, ControleAcces controle, JdbcTemplate jdbc,
                         DepotClesFichier cles, StockageChiffre stockage, ObjectProvider<ServicePrevisualisation> apercus,
                         EntityManager em, ApplicationEventPublisher evenements) {
         this.documents = documents;
-        this.autorisations = autorisations;
+        this.controle = controle;
         this.jdbc = jdbc;
         this.cles = cles;
         this.stockage = stockage;
@@ -70,15 +71,16 @@ public class PurgeService {
         this.evenements = evenements;
     }
 
-    /** Purge un document en corbeille ; 409 s'il n'y est pas, 403 sans la permission. */
+    /**
+     * Purge un document en corbeille : 404 hors périmètre, 403 sans la
+     * permission Purger (§12.2), 409 s'il n'est pas en corbeille.
+     */
     @Transactional
     public void purger(UUID documentId) {
+        controle.exigerSurDocument(CodePermission.PURGER, documentId);
         UploadDocument d = documents.findByIdPourEcriture(documentId)
                 .orElseThrow(() -> ErreurCycleDeVie.introuvable("Document " + documentId));
-        if (!autorisations.peutPurger(documentId)) {
-            throw ErreurCycleDeVie.permission("Purger");
-        }
-        if (!d.isDeleted()) {
+        if (!d.isSupprime()) {
             throw ErreurCycleDeVie.conflit(ErreurCycleDeVie.DOCUMENT_NON_SUPPRIME,
                     "Seul un document placé en corbeille peut être purgé définitivement.");
         }
@@ -106,6 +108,10 @@ public class PurgeService {
         jdbc.update("DELETE FROM workflow_ged_signature WHERE document_id = ?", documentId);
         jdbc.update("DELETE FROM document_index_valeur WHERE document_id = ?", documentId);
         jdbc.update("DELETE FROM document_etiquette WHERE document_id = ?", documentId);
+        // Rattachements (§12.4), désignations (§12.3) et habilitations propres au document.
+        jdbc.update("DELETE FROM document_rattachement WHERE document_id = ?", documentId);
+        jdbc.update("DELETE FROM document_confidentiel_designe WHERE document_id = ?", documentId);
+        jdbc.update("DELETE FROM habilitation WHERE document_id = ?", documentId);
         jdbc.update("DELETE FROM version_document WHERE document_id = ?", documentId);
         jdbc.update("DELETE FROM document WHERE id = ?", documentId);
 

@@ -62,26 +62,60 @@ rejouer le script sans elles retire ce droit.
 
 ## 2. Variables d'environnement
 
+Toutes sont décrites dans `backend/.env.example`. Les profils `prod` et `uat`
+appliquent les mêmes contrôles (le profil `uat` importe `application-prod.yml`).
+
 | Variable | Obligatoire | Rôle |
 |---|---|---|
-| `GED_JWT_CLE` | **oui** | Clé de signature, 32 octets minimum. **Absente en prod = refus de démarrer**, volontairement. |
-| `GED_MDP_INITIAL` | **oui au 1er démarrage** | Mot de passe du compte administrateur amorcé. Vide = **aucun compte créé**, et personne ne peut se connecter. |
-| `GED_EMAIL_ADMIN` | recommandé | Adresse du compte unique. Défaut : `admin@marchica.ma`. |
-| `GED_NOM_ADMIN` | non | Nom affiché. Défaut : `Administrateur GED`. |
-| `GED_ORIGINES` | **oui** | Origines CORS du frontend. Sans elle, repli sur `localhost` — le frontend déployé sera refusé. |
-| `DB_HOST` `DB_PORT` `DB_NAME` | oui | Serveur et base PostgreSQL (défauts `localhost`, `5432`, `ged`). |
-| `DB_USER` `DB_PASSWORD` | **oui** | Compte applicatif `ged_app` (défaut `ged_app`). |
-| `DB_OWNER_USER` `DB_OWNER_PASSWORD` | **oui** | Compte `ged_owner`, utilisé par Liquibase seul au démarrage (défaut `ged_owner`). |
-| `DB_SCHEMA` `DB_SCHEMA_LIQUIBASE` | non | Schémas, défauts `ged` et `ged_liquibase`. |
+| `GED_LDAP_URLS` | **oui** | Contrôleurs de domaine `ldaps://…:636`, séparés par des virgules, par ordre de préférence. Un seul suffit (D4). `ldap://` = refus de démarrer. |
+| `GED_LDAP_BASE` | **oui** | Base de recherche, par exemple `DC=marchicamed,DC=ma`. |
+| `GED_LDAP_COMPTE_SERVICE` | **oui** | DN du compte de service en lecture seule. |
+| `GED_LDAP_MOT_DE_PASSE_FICHIER` ou `GED_LDAP_MOT_DE_PASSE` | **oui** | Secret du compte de service. Le fichier (déposé par le coffre) est relu à chaud quand il change. |
+| `GED_LDAP_TRUSTSTORE` `GED_LDAP_TRUSTSTORE_MOT_DE_PASSE` | recommandé | Magasin PKCS#12 contenant la chaîne de certificats de MMED ; sinon, magasin de la JVM. |
+| `GED_JWT_KEYSTORE` `GED_JWT_KEYSTORE_MOT_DE_PASSE` `GED_JWT_ALIAS` | **oui** | Clé privée RSA (≥ 2048 bits) des jetons RS256. Absente = refus de démarrer. |
+| `GED_SESSION_DUREE_ABSOLUE` | non | Défaut `8h` ; **4 h recommandées** (risque R26). |
+| `GED_ADMINISTRATEURS` | **oui au 1er démarrage** | sAMAccountName du ou des premiers administrateurs. |
+| `GED_ORIGINES` | **oui** | Origines CORS du frontend. |
+| `DB_HOST` `DB_PORT` `DB_NAME` | oui | Serveur et base PostgreSQL. |
+| `DB_SSLMODE` `DB_SSLROOTCERT` | non | Défaut `verify-full` et `/etc/ged/pki/postgresql-ca.crt`. |
+| `DB_USER` `DB_PASSWORD` | **oui** | Compte applicatif `ged_app`. |
+| `DB_OWNER_USER` `DB_OWNER_PASSWORD` | pour le déploiement | Compte `ged_owner`, utilisé par le script de migration. |
 
-Générer la clé :
+### 2.1 Annuaire (LDAPS)
+
+- Protocole : LDAPS (636), TLS 1.2 ou 1.3 seulement ; le certificat des
+  contrôleurs est validé contre `GED_LDAP_TRUSTSTORE` **et** le nom d'hôte est
+  vérifié. Délais : connexion 3 s, lecture 5 s ; pool des connexions du compte
+  de service.
+- Identifiant de connexion : `sAMAccountName` **uniquement** (décision D2) ;
+  l'adresse e-mail est refusée. Clé technique : `objectGUID`.
+- Attributs lus : `sAMAccountName`, `objectGUID`, `givenName`, `sn`,
+  `displayName`, `mail` (notifications), `department` (s'il existe). Jamais
+  `memberOf`, groupes, unité, ni `userAccountControl` (P2, D1) : un compte
+  désactivé est refusé par l'annuaire lui-même au moment de la liaison.
+- Annuaire indisponible : connexion impossible avec un message explicite (503),
+  sessions ouvertes conservées. Sonde de santé `annuaire` : à placer dans un
+  groupe de supervision, **pas** dans la sonde `readiness`.
+
+### 2.2 Clé de signature des jetons
 
 ```bash
-openssl rand -base64 48
+keytool -genkeypair -alias ged-jwt -keyalg RSA -keysize 3072 -validity 825 \
+        -storetype PKCS12 -keystore /etc/ged/secrets/ged-jwt.p12 -dname "CN=ged-jwt"
 ```
 
-> **Ne réutilisez pas** `Marchica@2026` : ce mot de passe est écrit dans la
-> documentation de l'archive de démonstration.
+Un magasin **par environnement**, hors du dépôt, lisible par le seul compte du
+service. Changer de clé déconnecte tout le monde au plus 15 minutes plus tard
+(les jetons en cours ne sont plus vérifiables).
+
+### 2.3 Sessions
+
+Cookie `ged_renouvellement` : `HttpOnly; Secure; SameSite=Strict;
+Path=/api/v1/auth`. Le frontend et l'API doivent être servis **par la même
+origine** (NGINX) : le cookie n'est pas autorisé en origine croisée. NGINX doit
+transmettre l'adresse du client (`X-Forwarded-For`) et l'application doit la
+lire (`server.forward-headers-strategy`) : la limitation de débit de la
+connexion se fait par adresse IP.
 
 ---
 
@@ -93,20 +127,13 @@ mvn -DskipTests package
 java -jar target/ged-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
 ```
 
-Au premier démarrage, Liquibase (compte `ged_owner`) applique le changelog ;
-chercher dans le journal :
-
-```
-Creating database history table with name: ged_liquibase.databasechangelog
-Running Changeset: db/changelog/changesets/202609261000_creation_table_employe.xml::202609261000-1::ged
-...
-Successfully released change log lock
-Started GedApplication
-```
-
-Aux démarrages suivants, seuls les changesets nouveaux s'appliquent. Hibernate
-vérifie ensuite le schéma (`ddl-auto: validate`) et l'application ouvre son
-pool de connexions avec `ged_app`.
+En `uat` et en `prod`, **Liquibase ne tourne pas au démarrage**
+(`spring.liquibase.enabled=false`) : le script de déploiement applique d'abord
+les migrations avec `ged_owner` (`liquibase validate` puis `update`, §8), puis
+démarre l'application, qui vérifie le schéma (`ddl-auto: validate`) et se
+connecte avec `ged_app`. `SPRING_LIQUIBASE_ENABLED=true` rétablit la migration
+au démarrage (poste isolé). Vérifié sur une base reprise : les changesets du lot
+E2 s'appliquent sur des données existantes.
 
 Puis vérifier :
 
@@ -157,11 +184,22 @@ n'est nécessaire pour les routes de l'application.
 
 ## 5. Première connexion
 
-Adresse = `GED_EMAIL_ADMIN`, mot de passe = `GED_MDP_INITIAL`.
+Avec son identifiant Windows et son mot de passe d'annuaire. La personne dont le
+`sAMAccountName` figure dans `GED_ADMINISTRATEURS` reçoit le rôle Administrateur
+à sa **première** connexion ; toute autre personne est provisionnée **sans
+rôle** et voit une page d'accueil vide jusqu'à ce qu'un Administrateur lui en
+attribue un : menu **Habilitations**, qui signale les identités sans rôle ; un
+premier rôle est une habilitation de portée globale ou sur un espace. Les
+fiches employé reprises de l'ancienne base sont rattachées automatiquement
+quand le courriel de l'annuaire égale l'adresse dérivée « prénom.nom@domaine ».
 
-Si la connexion échoue avec « E-mail ou mot de passe incorrect », regardez le
-**journal du serveur** : quand aucun compte n'a été créé, l'écran affiche ce
-message-là — il ne sait pas distinguer les deux cas.
+**Droits (lot E3).** Un rôle est une habilitation : un sujet (utilisateur ou
+groupe GED), un rôle, une cible (portée globale, espace ou dossier, document)
+et éventuellement une rupture d'héritage. L'attribution la plus spécifique
+prévaut : une habilitation posée sur un espace **remplace**, sur cet espace et
+en dessous, ce que la portée globale donnait. Menus **Rôles** (composition) et
+**Droits effectifs** (permissions d'une personne sur un objet, avec leur
+origine). Toute modification est effective immédiatement, sans reconnexion.
 
 ---
 
@@ -179,8 +217,10 @@ le disque porte les documents.
 après mise à la corbeille — c'est un choix, pour que la restauration ne mente
 pas. Prévoyez la place, et une purge décidée manuellement.
 
-**Redémarrage = reconnexion.** Les jetons ne survivent pas à un redémarrage si
-`GED_JWT_CLE` change. Gardez la même clé d'un déploiement à l'autre.
+**Sessions.** Un compte désactivé dans l'annuaire garde sa session jusqu'à la
+durée absolue (la GED ne relit pas son état, décision D1) : en cas de départ,
+l'Administrateur révoque ses sessions (menu « Sessions »). Garder le même
+magasin de clé JWT d'un déploiement à l'autre.
 
 ---
 
@@ -208,8 +248,8 @@ transfert vers le schéma Liquibase en **une seule transaction**, contrôles.
    ```
 3. Préparer la base cible (§1.1, puis §1.2 avec `-v reprise=oui`), puis démarrer
    une fois la nouvelle application **sans l'utiliser** : Liquibase crée le
-   schéma, vide (ou `liquibase update`, §8). `GED_MDP_INITIAL` doit rester vide :
-   la reprise refuse une cible qui contient déjà une ligne.
+   schéma, vide (ou `liquibase update`, §8). Personne ne doit s'y connecter avant
+   la reprise : elle refuse une cible qui contient déjà une ligne.
 4. Charger, transférer, contrôler (compte `ged_owner`) :
    ```bash
    PGHOST=... PGDATABASE=ged PGUSER=ged_owner PGPASSWORD=... \
@@ -235,8 +275,9 @@ Ce que fait la conversion :
 - les chemins de fichiers sont repris **à l'identique** : les fichiers ne
   bougent pas sur le disque (le sous-dossier garde l'ancien numéro d'espace,
   sans incidence : le chemin complet est en base) ;
-- les adresses de connexion sont ramenées en minuscules ; les empreintes BCrypt
-  sont reprises telles quelles (les mots de passe restent valables) ;
+- les comptes locaux et leurs empreintes de mot de passe ne sont **ni exportés
+  ni repris** (lot E2 : authentification par l'annuaire) ; chaque personne
+  retrouve sa fiche employé à sa première connexion ;
 - `supprime_par` et `supprime_le` restent vides pour les éléments déjà en
   corbeille : l'ancien modèle ne savait ni qui ni quand.
 
@@ -262,7 +303,24 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
   changement de type) suit le schéma **expand / contract** : ajout, bascule du
   code, suppression dans une version ultérieure — et elle est précédée d'une
   sauvegarde ciblée de la table.
-- Chaque lot livré pose un jalon (`tagDatabase`) : le lot E1 pose `socle-e1`.
+- Chaque lot livré pose un jalon (`tagDatabase`) : `socle-e1` (E1),
+  `identite-e2` (E2), `autorisation-e3` (E3).
+- **Passage au lot E3** (`autorisation-e3`) — à relire avant la montée :
+  - `workspace` devient `noeud` (chemin matérialisé et nature ESPACE / DOSSIER,
+    calculés pour l'existant et tenus ensuite par déclencheurs) ; `access_group`
+    et `access_group_employe` deviennent `groupe_ged` et `groupe_membre` ;
+  - les rôles globaux (`utilisateur_role`) deviennent des habilitations de portée
+    globale, et chaque rattachement groupe / espace (`access_group_workspace`)
+    une habilitation du groupe sur le nœud, **rôle Utilisateur standard** ; les
+    deux tables d'origine sont supprimées (le retour arrière les recrée) ;
+  - **conséquence à vérifier** : l'attribution la plus spécifique prévaut. Un
+    Administrateur membre d'un groupe repris sur un espace n'a plus, sur cet
+    espace, que les permissions d'Utilisateur standard (ni suppression, ni
+    purge). Après la montée, l'écran **Habilitations** permet de retirer ces
+    habilitations de groupe ou de leur donner le rôle voulu ;
+  - `version_habilitations` est tenu par des déclencheurs (séquence
+    `version_habilitations_seq`) : `ged_app` doit avoir `USAGE` sur les
+    séquences du schéma, ce que `preparer-base.sql` accorde déjà par défaut.
 - **Retour arrière** avec la Liquibase CLI 4.29 (compte `ged_owner`), depuis le
   dossier `backend/src/main/resources` ou le contenu `BOOT-INF/classes` du JAR :
   ```bash
@@ -285,11 +343,11 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
 
 Elles ne bloquent pas un démarrage, mais il faut les connaître :
 
-1. **Le limiteur de tentatives de connexion grandit sans borne.** Aucune purge :
-   sur une route publique, poster des adresses différentes fait enfler la
-   mémoire. À surveiller, ou à corriger avant une exposition sur Internet.
-2. **La déconnexion ne révoque pas le jeton** : il reste valide jusqu'à son
-   expiration (2 h). Un jeton copié continue de fonctionner.
+1. **Limitation de débit en mémoire** : propre à chaque instance ; à déplacer
+   dans un cache partagé si la GED tourne un jour sur plusieurs nœuds.
+2. **Portée des clés d'API** : les applications sont des sujets
+   d'habilitation prévus par le modèle (lot E3), mais leurs clés arrivent au
+   lot E9 ; aucune application ne peut encore appeler l'API.
 3. **L'OCR peut bloquer un thread** : la sortie d'erreur de Tesseract n'est pas
    drainée, et le délai de garde de 120 s n'est alors jamais atteint.
 4. **Aucun HTTPS n'est configuré ici** : à porter par le reverse-proxy.

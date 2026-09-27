@@ -67,6 +67,28 @@
     <include file="changesets/202609261130_ajout_auteur_suppression_douce.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609261135_ajout_metadonnees_document.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609261140_jalon_socle_donnees.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609270955_creation_fonction_uuid_v7.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271000_creation_table_role.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271005_creation_table_utilisateur.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271010_creation_table_utilisateur_role.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271015_creation_table_cache_annuaire.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271020_creation_table_session.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271025_suppression_table_compte_utilisateur.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271040_ajout_cle_id_tables_association.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271045_renommage_indicateur_suppression.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609271200_jalon_identite.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281000_noeud_chemin_materialise.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281010_creation_table_permission.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281015_creation_table_role_permission.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281020_groupe_ged.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281030_creation_table_habilitation.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281040_confidentialite_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281045_creation_table_document_rattachement.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281050_creation_table_version_habilitations.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281055_declencheurs_version_habilitations.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281200_jalon_autorisation.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301000_archivage_noeud_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301010_socle_commun_verrou_document.xml" relativeToChangelogFile="true"/>
 
     <!-- Lots E5 (stockage chiffré) et E6 (OCR asynchrone, recherche plein texte) -->
     <include file="changesets/202609271200_creation_table_cle_fichier.xml" relativeToChangelogFile="true"/>
@@ -82,7 +104,7 @@
         prête dans version-suivante/ : elle entre dans le changelog de la
         version qui suit la reprise des fichiers en production (§4.2.2).
     -->
-    <include file="changesets/202609281000_expand_chemin_fichier_facultatif.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609281002_expand_chemin_fichier_facultatif.xml" relativeToChangelogFile="true"/>
 
     <!-- Vague 3 : dépôt en deux temps (§12.11) et dépôt avec métadonnées (§5.3). -->
     <include file="changesets/202609291000_ajout_statut_indexation_document.xml" relativeToChangelogFile="true"/>
@@ -90,8 +112,7 @@
     <!-- Vague 4 : cycle de vie (§12.5, §12.6, §12.10, §6.1.4). -->
     <include file="changesets/202609291100_archivage_document.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609291105_creation_table_job_export.xml" relativeToChangelogFile="true"/>
-    <!-- Après le statut de conservation du document (202609301000 de dev1, ou sa copie provisoire). -->
-    <include file="changesets/202609301005_statut_conservation_document_provisoire.xml" relativeToChangelogFile="true"/>
-    <include file="changesets/202609301010_gel_versions_document_archive.xml" relativeToChangelogFile="true"/>
+    <!-- Après le statut de conservation du document (202609301000, lot modèle). -->
+    <include file="changesets/202609301020_gel_versions_document_archive.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

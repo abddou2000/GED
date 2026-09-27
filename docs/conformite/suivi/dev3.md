@@ -467,3 +467,33 @@ compatible avec la cession à MMED, bibliothèque non modifiée) et ses transiti
 (`verapdf-*`, `Saxon-HE` MPL-2.0, `rhino` MPL-2.0, `xmlresolver` Apache-2.0, `jaxb` EDL/BSD) ;
 `org.apache.pdfbox:xmpbox` 3.0.8 (Apache-2.0). À ajouter à la table des usages de
 `outils/registre-dependances.mjs` (dev2).
+
+---
+
+## Fusion de `conformite-technique` (E2, E3 de dev1) dans `ct/dev3`
+
+- **Contrats de dev1 branchés, implémentations provisoires supprimées** :
+  - `cycledevie.provisoire` ;
+  - `AutorisationsCycleDeVie` : remplacée par `ControleAcces` (`PURGER`, `ARCHIVER` ; 404 hors périmètre, 403 sinon) ;
+  - `PredicatDroitsProvisoire` et `ControleAccesPrevisualisationProvisoire` : remplacés par les beans `@Primary` d'`AccessPredicate`.
+- **Archivage** : `ArchivageNoeudsJdbc` et `ArchivageDocumentsJdbc` de dev1 portent désormais le drapeau et le statut. L'archiviste passé au contrat est l'identité GED (`utilisateurId`) ; il est conservé sur le job (`job_archivage.archiviste_utilisateur_id`).
+- **Gardes d'écriture** : `GardeEcriture.exigerModifiable` sur la fiche, le versement et la restauration de version. Même code 409 `DOCUMENT_ARCHIVE` pour la suppression, le verrou et l'indexation d'un document archivé.
+- **Changesets** :
+  - colonnes de conservation : celui de dev1 (`202609301000`) est gardé, le mien (`202609301005`, provisoire) est supprimé ;
+  - gel des versions renuméroté `202609301020` : l'identifiant `202609301010-1` était déjà pris par dev1 ;
+  - expand du stockage chiffré renuméroté `202609281002` : l'identifiant `202609281000-1` était déjà pris par dev1 ;
+  - tables d'association `job_*_element` : clé `id` en `uuid_v7()` et contrainte uk_ sur le couple (convention ANO-E1-001).
+- **Renommages du socle reportés** (`deleted` → `supprime`, `workspace` → `noeud`, `workspace_id` → `noeud_principal_id`) :
+  - `DossiersEspaces` devient `DossiersNoeuds` ;
+  - mises à jour dans `SearchIndexerPostgres`, `CriteresMetadonnees` (critère d'espace : emplacement principal **ou** rattachement), `ExportDossiers` (colonnes `objet`, `date_document` et `confidentialite` du socle commun), ainsi que dans les tests (`BasePostgres`, `SearchIndexerPostgresTest`).
+- **Rattachements** :
+  - export : chaque document une seule fois, tous ses chemins dans la sélection au manifeste (principal d'abord) ;
+  - recherche : prédicat `EXISTS` de dev1 sur les emplacements, une ligne par document ;
+  - purge : suppression des rattachements, désignations et habilitations du document.
+- **Supervision OCR** : `/api/v1/admin/ocr/**` et la réindexation exigent `SUPERVISER_TRAITEMENTS`.
+- **Front** :
+  - menu : Recherche et Mes exports pour tous, Traitements OCR sous `SUPERVISER_TRAITEMENTS` (garde de route) ;
+  - fiche document : actions conditionnées aux permissions (`MODIFIER`, `ARCHIVER`) ;
+  - statut du dossier lu par `GET /api/v1/archivage/dossiers/{id}`.
+- **Tests de dev1 adaptés** : dépôts de vrais PDF dans `CheminsAccesApiTest` (le contrôle du type réel refuse « pdf » en 415) ; `FichierVersion` en UUID ; le test `PrevisualisationApiTest` est remplacé par `ApercuTelechargementApiTest`.
+- **Non anticipé** : le lot E7 modèle de dev1 (b739ed3). dev1 réconciliera `DocumentService`, `ValidationPlan` et les événements doublons.

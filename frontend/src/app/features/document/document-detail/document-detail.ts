@@ -12,7 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTableModule } from '@angular/material/table';
 import { DocumentService, messageErreurTelechargement } from '../document.service';
-import { DocumentItem, Version } from '../document.model';
+import { DocumentItem, Version, Confidentialite, NIVEAUX_CONFIDENTIALITE } from '../document.model';
 import { EtiquetteService } from '../../etiquette/etiquette.service';
 import { Etiquette } from '../../etiquette/etiquette.model';
 import { TypeDocumentService } from '../../type-document/type-document.service';
@@ -83,7 +83,18 @@ export class DocumentDetail implements OnInit {
     etiquetteIds: [[] as string[]],
     active: [true],
     observation: [''],
+    confidentialite: ['PUBLIC' as Confidentialite],
   });
+
+  readonly niveaux = NIVEAUX_CONFIDENTIALITE;
+
+  /** L'appelant détient-il la permission sur ce document ? (confort d'affichage) */
+  peut(permission: string): boolean {
+    return this.doc()?.permissions?.includes(permission) ?? false;
+  }
+
+  /** Fiche modifiable : ni verrouillée, ni hors de la permission Modifier. */
+  get modifiable(): boolean { return !this.verrouille && this.peut('MODIFIER'); }
 
   ngOnInit(): void {
     // Toutes les étiquettes actives : elles se comptent en dizaines, une page
@@ -117,8 +128,9 @@ export class DocumentDetail implements OnInit {
           expirationDate: versDate(d.expirationDate),
           etiquetteIds: (d.etiquettes ?? []).map(e => e.id),
           active: d.active,
+          confidentialite: d.confidentialite ?? 'PUBLIC',
         });
-        this.appliquerVerrou(this.verrouille);
+        this.appliquerVerrou(!this.modifiable);
         this.chargement.set(false);
         this.chargerConservation(d);
       },
@@ -231,6 +243,7 @@ export class DocumentDetail implements OnInit {
       name: v.name, typeDocumentId: v.typeDocumentId ?? undefined,
       expirationDate: versIso(v.expirationDate),
       active: v.active, etiquetteIds: v.etiquetteIds ?? [],
+      confidentialite: v.confidentialite ?? undefined,
     }).subscribe({
       next: d => {
         this.doc.set(d);
@@ -251,7 +264,7 @@ export class DocumentDetail implements OnInit {
     this.service.verrou(id, !d.verrouille).subscribe({
       next: maj => {
         this.doc.set(maj);
-        this.appliquerVerrou(this.verrouille);
+        this.appliquerVerrou(!this.modifiable);
         this.notify.success(maj.verrouille ? 'Document verrouillé.' : 'Document déverrouillé.');
       },
       error: () => this.notify.error('Opération impossible.'),

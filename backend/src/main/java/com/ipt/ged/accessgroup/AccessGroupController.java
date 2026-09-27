@@ -28,7 +28,7 @@ public class AccessGroupController {
     @GetMapping
     public PageResponse<AccessGroupResponse> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir) {
@@ -38,7 +38,7 @@ public class AccessGroupController {
     @GetMapping("/trashed")
     public PageResponse<AccessGroupResponse> trashed(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir) {

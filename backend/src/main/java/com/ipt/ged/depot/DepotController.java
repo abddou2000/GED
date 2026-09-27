@@ -1,5 +1,6 @@
 package com.ipt.ged.depot;
 
+import com.ipt.ged.autorisation.Confidentialite;
 import com.ipt.ged.document.dto.DocumentResponse;
 import com.ipt.ged.security.UtilisateurConnecte;
 import org.springframework.http.HttpStatus;
@@ -52,10 +53,11 @@ public class DepotController {
             @RequestParam("typeDocumentId") UUID typeDocumentId,
             @RequestParam(value = "expirationDate", required = false) String expirationDate,
             @RequestParam(value = "etiquetteIds", required = false) List<UUID> etiquetteIds,
+            @RequestParam(value = "confidentialite", required = false) Confidentialite confidentialite,
             @AuthenticationPrincipal UtilisateurConnecte principal) {
         UUID deposant = principal != null ? principal.getEmployeId() : null;
         DepotService.ResultatDepot r = depot.deposer(file, name, typeDocumentId, expirationDate, deposant,
-                etiquetteIds, metadonnees);
+                etiquetteIds, confidentialite, metadonnees);
         return ResponseEntity.status(r.ocrEnAttente() ? HttpStatus.ACCEPTED : HttpStatus.CREATED).body(r.document());
     }
 }

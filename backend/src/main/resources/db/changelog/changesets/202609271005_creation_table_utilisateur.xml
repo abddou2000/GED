@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609271005_creation_table_utilisateur.xml">
+
+    <!--
+        Identité GED (dossier technique §3.2, §3.3, §12.1) : la clé d'annuaire
+        `objectGUID` (immuable) et l'identifiant de connexion `sAMAccountName`
+        (tenu à jour : un changement de login ne crée pas de doublon). AUCUN mot
+        de passe : la vérification reste déléguée à l'annuaire.
+        `employe_id` rattache l'identité à la personne métier (propriétaire de
+        dossier, approbateur, déposant) déjà référencée par les autres tables.
+    -->
+    <changeSet id="202609271005-1" author="ged">
+        <comment>Identités GED provisionnées depuis l'annuaire.</comment>
+        <createTable tableName="utilisateur">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_utilisateur" nullable="false"/></column>
+            <column name="object_guid" type="UUID"><constraints nullable="false"/></column>
+            <column name="identifiant" type="VARCHAR(64)"><constraints nullable="false"/></column>
+            <column name="employe_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="derniere_connexion_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_utilisateur_object_guid" tableName="utilisateur" columnNames="object_guid"/>
+        <addUniqueConstraint constraintName="uk_utilisateur_employe_id" tableName="utilisateur" columnNames="employe_id"/>
+        <addForeignKeyConstraint constraintName="fk_utilisateur_employe" baseTableName="utilisateur" baseColumnNames="employe_id"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <!-- sAMAccountName est insensible à la casse côté AD : on cherche sur lower(). -->
+        <sql>CREATE INDEX idx_utilisateur_identifiant ON ${database.defaultSchemaName}.utilisateur (lower(identifiant))</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.utilisateur ADD CONSTRAINT ck_utilisateur_identifiant CHECK (identifiant !~ '@' AND length(identifiant) &gt; 0)</sql>
+        <rollback>
+            <dropTable tableName="utilisateur"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

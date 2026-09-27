@@ -43,7 +43,7 @@ public class IndexService {
     public PageResponse<IndexResponse> list(int page, int size, String search,
                                             String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NON_TEXTE);
-        Page<IndexField> result = repo.findByDeletedFalseAndNomIndexContainingIgnoreCase(search, pageable);
+        Page<IndexField> result = repo.findBySupprimeFalseAndNomIndexContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, IndexResponse::from);
     }
 
@@ -51,7 +51,7 @@ public class IndexService {
     public PageResponse<IndexResponse> trashed(int page, int size, String search,
                                                String sortBy, String sortDir) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NON_TEXTE);
-        Page<IndexField> result = repo.findByDeletedTrueAndNomIndexContainingIgnoreCase(search, pageable);
+        Page<IndexField> result = repo.findBySupprimeTrueAndNomIndexContainingIgnoreCase(search, pageable);
         return PageResponse.of(result, IndexResponse::from);
     }
 
@@ -94,18 +94,18 @@ public class IndexService {
 
     @Transactional
     public void multipleDelete(List<UUID> ids) {
-        repo.findByIdInAndDeletedFalse(ids).forEach(x -> x.mettreEnCorbeille(ActeurCourant.employeId()));
+        repo.findByIdInAndSupprimeFalse(ids).forEach(x -> x.mettreEnCorbeille(ActeurCourant.employeId()));
     }
 
     @Transactional
     public void multipleRestore(List<UUID> ids) {
-        repo.findByIdInAndDeletedTrue(ids).forEach(x -> x.restaurer());
+        repo.findByIdInAndSupprimeTrue(ids).forEach(x -> x.restaurer());
     }
 
     /** Liste allégée {id, name} pour les sélecteurs (plans d'indexation). */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> forSelect() {
-        return repo.findByDeletedFalseOrderByIdAsc().stream()
+        return repo.findBySupprimeFalseOrderByIdAsc().stream()
                 .map(x -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", x.getId());

@@ -45,16 +45,17 @@
       }
 
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <!-- E-mail -->
+        <!-- Identifiant Windows (sAMAccountName) -->
         <div class="field-wrap" style="--d: 140ms">
-          <div class="field" [class.invalid]="showError('email')">
+          <div class="field" [class.invalid]="showError('identifiant')">
             <mat-icon svgIcon="user"></mat-icon>
-            <input type="email" formControlName="email" autocomplete="username"
-                   placeholder="Adresse e-mail" aria-label="Adresse e-mail" />
+            <input type="text" formControlName="identifiant" autocomplete="username" autocapitalize="off"
+                   spellcheck="false" placeholder="Identifiant Windows" aria-label="Identifiant Windows" />
           </div>
-          @if (showError('email')) {
+          @if (showError('identifiant')) {
             <p class="err">
-              {{ form.controls.email.hasError('required') ? "L'adresse e-mail est requise." : "Format d'adresse invalide." }}
+              {{ form.controls.identifiant.hasError('required') ? "L'identifiant est requis."
+                 : "Saisissez votre identifiant Windows (par exemple sbennani), pas votre adresse e-mail." }}
             </p>
           }
         </div>
@@ -72,21 +73,17 @@
           </div>
           @if (showError('password')) {
             <p class="err">
-              {{ form.controls.password.hasError('required') ? 'Le mot de passe est requis.' : 'Au moins 4 caractères.' }}
+              Le mot de passe est requis.
             </p>
           }
         </div>
 
-        <div class="row-forgot" style="--d: 250ms">
-          <!-- Case native plutôt qu'un composant Material : c'est le seul
-               élément de cet écran, qui n'importe pas Material Checkbox, et une
-               case à cocher n'a besoin de rien de plus. -->
-          <label class="memoriser">
-            <input type="checkbox" formControlName="memoriser" />
-            <span>Se souvenir de moi</span>
-          </label>
-          <a class="forgot" tabindex="0" role="link">Mot de passe oublié ?</a>
-        </div>
+        <!-- Ni « se souvenir de moi » (il reposait sur le stockage du jeton dans
+             le navigateur) ni « mot de passe oublié » : le mot de passe est celui
+             du compte Windows, géré par l'annuaire de l'entreprise. -->
+        <p class="aide-annuaire" style="--d: 250ms">
+          Utilisez l'identifiant et le mot de passe de votre session Windows.
+        </p>
 
         <!-- Désactivé pendant l'appel : sans cela, un double clic envoie deux
              tentatives et fait avancer deux fois le compteur d'échecs. -->

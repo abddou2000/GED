@@ -1,0 +1,118 @@
+# Annuaire de DÉMONSTRATION (profil dev uniquement) : simulateur d'Active Directory.
+# Mot de passe de tous les comptes : dev-local-only (pas un secret : ces comptes
+# n'existent que dans ce simulateur, jamais démarré en uat ni en prod).
+# memberOf est présent pour prouver que la GED ne le lit pas (principe P2).
+
+dn: DC=marchicamed,DC=ma
+objectClass: top
+objectClass: domain
+dc: marchicamed
+
+dn: OU=Services,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: organizationalUnit
+ou: Services
+
+dn: OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: organizationalUnit
+ou: Utilisateurs
+
+# Compte de service en lecture seule (recherche des utilisateurs).
+dn: CN=svc-ged-ldap,OU=Services,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+cn: svc-ged-ldap
+sn: svc-ged-ldap
+userPassword: dev-local-only
+
+dn: CN=Sara Bennani,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Sara Bennani
+sAMAccountName: sbennani
+userPrincipalName: sbennani@marchicamed.ma
+objectGUID:: Lg0fXDsaXUyOnwobLD1OAQ==
+givenName: Sara
+sn: Bennani
+displayName: Sara Bennani
+mail: sara.bennani@marchica.ma
+department:: RGlyZWN0aW9uIEZpbmFuY2nDqHJl
+userAccountControl: 512
+memberOf: CN=GED-Administrateurs,OU=Groupes,DC=marchicamed,DC=ma
+userPassword: dev-local-only
+
+dn: CN=Karim El Fassi,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Karim El Fassi
+sAMAccountName: kelfassi
+userPrincipalName: kelfassi@marchicamed.ma
+objectGUID:: Lg0fXDsaXUyOnwobLD1OAg==
+givenName: Karim
+sn: El Fassi
+displayName: Karim El Fassi
+mail: karim.elfassi@marchica.ma
+department: Ressources Humaines
+userAccountControl: 512
+memberOf: CN=GED-Administrateurs,OU=Groupes,DC=marchicamed,DC=ma
+userPassword: dev-local-only
+
+dn: CN=Yasmine Alaoui,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Yasmine Alaoui
+sAMAccountName: yalaoui
+userPrincipalName: yalaoui@marchicamed.ma
+objectGUID:: Lg0fXDsaXUyOnwobLD1OAw==
+givenName: Yasmine
+sn: Alaoui
+displayName: Yasmine Alaoui
+mail: yasmine.alaoui@marchica.ma
+department: Direction Juridique
+userAccountControl: 512
+memberOf: CN=GED-Administrateurs,OU=Groupes,DC=marchicamed,DC=ma
+userPassword: dev-local-only
+
+# Pas de department : attribut facultatif.
+dn: CN=Nadia Idrissi,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Nadia Idrissi
+sAMAccountName: nidrissi
+userPrincipalName: nidrissi@marchicamed.ma
+objectGUID:: Lg0fXDsaXUyOnwobLD1OBA==
+givenName: Nadia
+sn: Idrissi
+displayName: Nadia Idrissi
+mail: nadia.idrissi@marchica.ma
+userAccountControl: 512
+memberOf: CN=GED-Administrateurs,OU=Groupes,DC=marchicamed,DC=ma
+userPassword: dev-local-only
+
+# Compte DÉSACTIVÉ (userAccountControl 514) : la liaison est refusée, code 49 / 533.
+dn: CN=Omar Tazi,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Omar Tazi
+sAMAccountName: otazi
+userPrincipalName: otazi@marchicamed.ma
+objectGUID:: Lg0fXDsaXUyOnwobLD1OBQ==
+givenName: Omar
+sn: Tazi
+displayName: Omar Tazi
+mail: omar.tazi@marchica.ma
+department: Direction Technique
+userAccountControl: 514
+memberOf: CN=GED-Administrateurs,OU=Groupes,DC=marchicamed,DC=ma
+userPassword: dev-local-only

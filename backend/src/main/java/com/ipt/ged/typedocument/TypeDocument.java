@@ -1,5 +1,6 @@
 package com.ipt.ged.typedocument;
 
+import com.ipt.ged.autorisation.Confidentialite;
 import com.ipt.ged.common.IdentifiantUuid;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.planindexation.PlanIndexation;
@@ -39,8 +40,13 @@ public class TypeDocument extends Supprimable {
 
     /** Dossier auquel ce type est rattaché (un type appartient à un seul dossier). */
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "workspace_id", nullable = false)
+    @JoinColumn(name = "noeud_id", nullable = false)
     private WorkSpace workspace;
+
+    /** Niveau de confidentialité donné par défaut aux documents de ce type (§12.3). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "confidentialite_defaut", nullable = false)
+    private Confidentialite confidentialiteDefaut = Confidentialite.PUBLIC;
 
     /** Plan d'indexation appliqué (facultatif). */
     @ManyToOne(fetch = FetchType.EAGER)

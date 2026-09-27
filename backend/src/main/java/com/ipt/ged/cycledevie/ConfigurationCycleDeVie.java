@@ -1,10 +1,6 @@
 package com.ipt.ged.cycledevie;
 
 import com.ipt.ged.cycledevie.conservation.ConvertisseurPdfA;
-import com.ipt.ged.cycledevie.provisoire.ArchivageDocumentsProvisoire;
-import com.ipt.ged.cycledevie.provisoire.ArchivageNoeudsEspaces;
-import com.ipt.ged.document.archivage.ArchivageDocuments;
-import com.ipt.ged.workspace.archivage.ArchivageNoeuds;
 import com.ipt.ged.cycledevie.conservation.CopiesConservation;
 import com.ipt.ged.cycledevie.conservation.ValidateurPdfA;
 import com.ipt.ged.cycledevie.conservation.ValidateurVeraPdf;
@@ -22,11 +18,9 @@ import java.nio.file.Path;
  * Cycle de vie des documents (lot E7, dev3) : purge, archivage et copie de
  * conservation, export de dossier.
  *
- * <p>Points d'extension fournis par d'autres lots, remplaçables par un bean du
- * même type : {@link AutorisationsCycleDeVie} (permissions Purger et Archiver,
- * E3), {@link Dossiers} (nœuds et rattachements, E3), et les contrats
- * d'archivage du lot modèle {@link ArchivageNoeuds} et {@link ArchivageDocuments}
- * (dev1), dont les implémentations provisoires ne servent qu'avant la fusion.
+ * <p>S'appuie sur les lots de dev1 : permissions Purger et Archiver par
+ * {@code ControleAcces} (E3), contrats d'archivage {@code ArchivageNoeuds} et
+ * {@code ArchivageDocuments} (E7 modèle), garde d'écriture {@code GardeEcriture}.
  */
 @Configuration
 @EnableConfigurationProperties(ProprietesCycleDeVie.class)
@@ -36,29 +30,9 @@ public class ConfigurationCycleDeVie {
     private static final long PLAFOND_COPIE_OCTETS = 4L * 1024 * 1024 * 1024;
 
     @Bean
-    @ConditionalOnMissingBean(AutorisationsCycleDeVie.class)
-    public AutorisationsCycleDeVie autorisationsCycleDeVie() {
-        return new AutorisationsCycleDeVieProvisoires();
-    }
-
-    @Bean
     @ConditionalOnMissingBean(Dossiers.class)
     public Dossiers dossiers(JdbcTemplate jdbc) {
-        return new DossiersEspaces(jdbc);
-    }
-
-    /** Contrat du lot modèle (dev1) ; implémentation provisoire sur les espaces, à retirer à la fusion. */
-    @Bean
-    @ConditionalOnMissingBean(ArchivageNoeuds.class)
-    public ArchivageNoeuds archivageNoeuds(JdbcTemplate jdbc) {
-        return new ArchivageNoeudsEspaces(jdbc);
-    }
-
-    /** Contrat du lot modèle (dev1) ; implémentation provisoire, à retirer à la fusion. */
-    @Bean
-    @ConditionalOnMissingBean(ArchivageDocuments.class)
-    public ArchivageDocuments archivageDocuments(JdbcTemplate jdbc) {
-        return new ArchivageDocumentsProvisoire(jdbc);
+        return new DossiersNoeuds(jdbc);
     }
 
     @Bean

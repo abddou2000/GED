@@ -26,7 +26,10 @@ spring:
   # surchargeable par variables d'environnement, voir backend/.env.example.
   # ------------------------------------------------------------
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${ged.base.nom}?currentSchema=${DB_SCHEMA:ged}
+    # sslmode : prefer en dev et test (PostgreSQL local) ; verify-full en uat et
+    # prod (profil prod), où la connexion à la base est chiffrée ET le certificat
+    # du serveur vérifié contre l'autorité de MMED (§6.2.1).
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${ged.base.nom}?currentSchema=${DB_SCHEMA:ged}&sslmode=${ged.base.sslmode}
     username: ${DB_USER:ged_app}
     password: ${DB_PASSWORD:}
 
@@ -63,54 +66,77 @@ server:
 #  Securite : authentification par jeton JWT
 # ============================================================
 ged:
+  base:
+    sslmode: ${DB_SSLMODE:prefer}
+
   securite:
-    jwt:
-      # Cle de signature HMAC-SHA256. 32 octets MINIMUM.
-      #
-      # AUCUNE VALEUR PAR DEFAUT ICI, VOLONTAIREMENT. Une cle ecrite dans un
-      # fichier versionne est publique des que le depot circule (et le reste
-      # dans l'historique) : elle permet de FORGER un jeton administrateur sans
-      # connaitre aucun mot de passe. Voir backend/.env.example.
-      #
-      #   - profil prod : GED_JWT_CLE obligatoire, sinon le demarrage echoue.
-      #   - hors prod   : une cle aleatoire est tiree au demarrage (jetons
-      #                   invalides apres chaque redemarrage, WARN au log).
-      cle: ${GED_JWT_CLE:}
-      # Duree de vie du jeton. Courte a dessein : le jeton vit cote navigateur,
-      # une fuite ne doit pas donner un acces indefini. Cette valeur sert aussi
-      # de BORNE HAUTE a la verification : un jeton dont exp-iat depasse cette
-      # duree est refuse, meme correctement signe.
-      validite-minutes: 120
-      # Emetteur pose a l'emission et exige a la verification.
-      emetteur: ged-api
-      # Derive d'horloge toleree entre le serveur et l'emetteur, en secondes.
-      tolerance-horloge-secondes: 60
-
-    # Domaine utilise pour deriver l'adresse d'un employe (prenom.nom@domaine).
-    # Sert a rattacher le compte administrateur a l'employe correspondant.
-    domaine-email: marchica.ma
-
-    # Adresse du COMPTE UNIQUE (l'administrateur). L'application n'a qu'un
-    # utilisateur : c'est la seule adresse amorcee au premier demarrage.
-    # Vide = repli sur admin@<domaine-email>.
-    email-admin: ${GED_EMAIL_ADMIN:}
-
-    # Nom affiche de l'employe cree pour porter le compte administrateur, si
-    # aucun employe existant ne correspond a l'adresse ci-dessus.
-    nom-admin: ${GED_NOM_ADMIN:Administrateur GED}
-
-    # Mot de passe pose sur le compte AMORCE au premier demarrage.
-    # Vide = aucun compte cree (comportement par defaut, fail-closed).
-    # Meme regle que la cle JWT : jamais de secret par defaut ici. Le profil dev
-    # fixe une valeur locale explicitement jetable (voir application-dev.yml).
-    mot-de-passe-initial: ${GED_MDP_INITIAL:}
-
-    # Freinage des tentatives de connexion ratees, par e-mail vise.
-    tentatives-max: 8
-    blocage-minutes: 10
-
     # Origines autorisees a appeler l'API (CORS), separees par des virgules.
     origines: ${GED_ORIGINES:http://localhost:*,http://127.0.0.1:*}
+
+  # ------------------------------------------------------------
+  #  Autorisation (lot E3, dossier technique §12.2.3)
+  # ------------------------------------------------------------
+  autorisation:
+    cache:
+      # Nombre de sujets dont les droits résolus restent en mémoire (le plus
+      # ancien usage est évincé). Invalidation par le compteur
+      # version_habilitations : aucune durée de vie à régler.
+      taille: ${GED_AUTORISATION_CACHE_TAILLE:1000}
+
+  # ------------------------------------------------------------
+  #  Identité et sessions (lot E2, dossier technique §3 ; décisions D1 à D4)
+  #  Valeurs par défaut = PRODUCTION, fermées : LDAPS exigé, clé JWT fournie
+  #  exigée, cookie Secure. Voir backend/.env.example et DEPLOIEMENT.md.
+  # ------------------------------------------------------------
+  identite:
+    annuaire:
+      # Contrôleurs de domaine, par ordre de préférence, séparés par des
+      # virgules (D4 : N contrôleurs, un seul suffit). ldaps:// obligatoire.
+      urls: ${GED_LDAP_URLS:}
+      base: ${GED_LDAP_BASE:}
+      # Compte de service en lecture seule (DN) et son secret : variable
+      # d'environnement, ou fichier relu à chaud (rotation sans redémarrage).
+      compte-service: ${GED_LDAP_COMPTE_SERVICE:}
+      mot-de-passe-service: ${GED_LDAP_MOT_DE_PASSE:}
+      mot-de-passe-service-fichier: ${GED_LDAP_MOT_DE_PASSE_FICHIER:}
+      delai-connexion: 3s
+      delai-lecture: 5s
+      pool: true
+      exiger-ldaps: true
+      # Chaîne de certificats de MMED (magasin de confiance propre à l'annuaire).
+      truststore: ${GED_LDAP_TRUSTSTORE:}
+      truststore-mot-de-passe: ${GED_LDAP_TRUSTSTORE_MOT_DE_PASSE:}
+      truststore-type: ${GED_LDAP_TRUSTSTORE_TYPE:PKCS12}
+      # Strict minimum (D3). memberOf, groupes, unités et userAccountControl
+      # sont refusés par le code même s'ils sont ajoutés ici (P2, D1).
+      attributs: sAMAccountName,objectGUID,givenName,sn,displayName,mail,department
+    jeton:
+      validite: 15m
+      emetteur: ged-api
+      tolerance-horloge: 30s
+      # Magasin PKCS#12 de la clé privée RSA de signature (RS256), hors dépôt.
+      keystore: ${GED_JWT_KEYSTORE:}
+      keystore-mot-de-passe: ${GED_JWT_KEYSTORE_MOT_DE_PASSE:}
+      alias: ${GED_JWT_ALIAS:ged-jwt}
+      cle-ephemere-autorisee: false
+    session:
+      # 8 h au dossier V3 ; 4 h recommandées (risque R26). Format ISO-8601 ou 8h.
+      duree-absolue: ${GED_SESSION_DUREE_ABSOLUE:8h}
+      inactivite: 30m
+      nom-cookie: ged_renouvellement
+      chemin-cookie: /api/v1/auth
+      cookie-securise: true
+      entete-csrf: X-GED-Renouvellement
+    limitation:
+      tentatives: 5
+      fenetre: 1m
+    cache:
+      duree: 15m
+    amorcage:
+      # sAMAccountName recevant le rôle Administrateur à leur PREMIÈRE connexion.
+      administrateurs: ${GED_ADMINISTRATEURS:}
+    # Rapprochement d'une identité avec une fiche employé reprise (prenom.nom@domaine).
+    domaine-courriel: ${GED_DOMAINE_COURRIEL:marchica.ma}
 
   # ------------------------------------------------------------
   #  Stockage sécurisé des fichiers (lot E5, §6.1)

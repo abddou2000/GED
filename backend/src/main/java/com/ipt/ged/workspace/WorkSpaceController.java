@@ -29,7 +29,7 @@ public class WorkSpaceController {
     @GetMapping
     public PageResponse<WorkSpaceResponse> list(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
@@ -39,7 +39,7 @@ public class WorkSpaceController {
     @GetMapping("/trashed")
     public PageResponse<WorkSpaceResponse> trashed(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {

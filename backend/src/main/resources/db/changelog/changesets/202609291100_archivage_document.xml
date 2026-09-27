@@ -72,6 +72,8 @@
             </column>
             <column name="dossier_nom" type="VARCHAR(255)"/>
             <column name="demandeur_employe_id" type="UUID"/>
+            <!-- Identité GED de l'archiviste, inscrite sur les documents et le dossier (contrat du lot modèle). -->
+            <column name="archiviste_utilisateur_id" type="UUID"/>
             <column name="etat" type="VARCHAR(16)" defaultValue="EN_ATTENTE">
                 <constraints nullable="false"/>
             </column>
@@ -103,6 +105,12 @@
         </createTable>
         <addForeignKeyConstraint constraintName="fk_job_archivage_demandeur_employe" baseTableName="job_archivage"
                                  baseColumnNames="demandeur_employe_id" referencedTableName="employe" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_job_archivage_archiviste_utilisateur" baseTableName="job_archivage"
+                                 baseColumnNames="archiviste_utilisateur_id" referencedTableName="utilisateur"
+                                 referencedColumnNames="id" onDelete="SET NULL"/>
+        <createIndex indexName="idx_job_archivage_archiviste_utilisateur_id" tableName="job_archivage">
+            <column name="archiviste_utilisateur_id"/>
+        </createIndex>
         <createIndex indexName="idx_job_archivage_demandeur_employe_id" tableName="job_archivage">
             <column name="demandeur_employe_id"/>
         </createIndex>
@@ -115,6 +123,9 @@
             CHECK (traites &gt;= 0 AND traites &lt;= total AND archives + echecs &lt;= traites AND anomalies &lt;= archives)</sql>
 
         <createTable tableName="job_archivage_element">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()">
+                <constraints primaryKey="true" primaryKeyName="pk_job_archivage_element" nullable="false"/>
+            </column>
             <column name="job_archivage_id" type="UUID">
                 <constraints nullable="false"/>
             </column>
@@ -129,7 +140,8 @@
             <column name="motif" type="TEXT"/>
             <column name="traite_le" type="TIMESTAMP WITH TIME ZONE"/>
         </createTable>
-        <addPrimaryKey constraintName="pk_job_archivage_element" tableName="job_archivage_element" columnNames="job_archivage_id, document_id"/>
+        <addUniqueConstraint constraintName="uk_job_archivage_element_job_archivage_id_document_id" tableName="job_archivage_element"
+                             columnNames="job_archivage_id, document_id"/>
         <addForeignKeyConstraint constraintName="fk_job_archivage_element_job_archivage" baseTableName="job_archivage_element"
                                  baseColumnNames="job_archivage_id" referencedTableName="job_archivage" referencedColumnNames="id" onDelete="CASCADE"/>
         <!-- Un document purgé sort de la sélection (la purge ne touche qu'un document en corbeille). -->

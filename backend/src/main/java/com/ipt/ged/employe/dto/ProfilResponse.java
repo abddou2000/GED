@@ -18,11 +18,11 @@ public record ProfilResponse(
         String fullName,
         String firstName,
         String lastName,
-        /** Possède un compte de connexion — donc peut approuver un circuit. */
+        /** Possède une identité GED (annuaire) — donc peut approuver un circuit. */
         boolean hasUser,
-        /** Adresse de connexion, {@code null} si l'employé n'a pas de compte. */
+        /** Courriel lu dans l'annuaire (cache), {@code null} sans identité GED. */
         String email,
-        /** Compte ouvert ou suspendu. */
+        /** Identité GED provisionnée (la personne s'est déjà connectée par l'annuaire). */
         boolean compteActif,
         /** Dernière connexion réussie, {@code null} si jamais connecté. */
         Instant derniereConnexion,

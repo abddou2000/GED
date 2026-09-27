@@ -139,7 +139,7 @@ class ArchivageDossierApiTest extends BaseCycleDeVieApiTest {
 
         // Dossier archivé en entier : drapeau sur le dossier et sa sous-arborescence,
         // plus aucun dépôt (Q7).
-        assertEquals("ARCHIVE", jdbc.queryForObject("SELECT status FROM workspace WHERE id = ?", String.class, sous.getId()));
+        assertEquals("ARCHIVE", jdbc.queryForObject("SELECT statut_conservation FROM noeud WHERE id = ?", String.class, sous.getId()));
         mvc.perform(multipart("/api/v1/documents")
                         .file(new org.springframework.mock.web.MockMultipartFile("file", "z.pdf", "application/pdf", Echantillons.pdf()))
                         .param("typeDocumentId", typeSous.toString()))
@@ -166,7 +166,7 @@ class ArchivageDossierApiTest extends BaseCycleDeVieApiTest {
         assertEquals(2, fin.archives(), "la tranche en cours s'achève, la suivante n'est pas commencée");
         assertEquals(3, jdbc.queryForObject("SELECT count(*) FROM job_archivage_element WHERE job_archivage_id = ? "
                 + "AND resultat IS NULL", Integer.class, jobId));
-        assertEquals("ACTIF", jdbc.queryForObject("SELECT status FROM workspace WHERE id = ?", String.class, racine.getId()));
+        assertEquals("ACTIF", jdbc.queryForObject("SELECT statut_conservation FROM noeud WHERE id = ?", String.class, racine.getId()));
         mvc.perform(post("/api/v1/archivage/jobs/" + jobId + "/annulation")).andExpect(status().isConflict());
     }
 
@@ -182,7 +182,7 @@ class ArchivageDossierApiTest extends BaseCycleDeVieApiTest {
         }
         assertEquals("ANNULE", job(jobId).etat());
         assertEquals(0, job(jobId).traites());
-        assertEquals("ACTIF", jdbc.queryForObject("SELECT status FROM workspace WHERE id = ?", String.class, racine.getId()));
+        assertEquals("ACTIF", jdbc.queryForObject("SELECT statut_conservation FROM noeud WHERE id = ?", String.class, racine.getId()));
     }
 
     @Test
