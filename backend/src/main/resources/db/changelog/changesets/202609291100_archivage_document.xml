@@ -7,45 +7,11 @@
         logicalFilePath="db/changelog/changesets/202609291100_archivage_document.xml">
 
     <!--
-        Lot E7, cycle de vie (dev3) : archivage (§12.6, revue client D10) et
-        copie de conservation PDF/A-2 (§6.1.4). Le statut de conservation est
-        porté par le document, donc identique depuis tous ses emplacements ; un
-        dossier entier s'archive par un job traité par tranches de 100.
+        Lot E7, cycle de vie (dev3) : copie de conservation PDF/A-2 (§6.1.4) et
+        archivage d'un dossier entier par un job traité par tranches de 100
+        (§12.6, revue client D10). Le statut de conservation du document et du
+        nœud est posé par le lot modèle (dev1, changeset 202609301000).
     -->
-    <changeSet id="202609291100-1" author="ged">
-        <comment>Statut de conservation du document (ACTIF, ARCHIVE), date et auteur de l'archivage.</comment>
-        <addColumn tableName="document">
-            <column name="statut_conservation" type="VARCHAR(16)" defaultValue="ACTIF">
-                <constraints nullable="false"/>
-            </column>
-            <column name="archive_le" type="TIMESTAMP WITH TIME ZONE"/>
-            <column name="archive_par" type="UUID"/>
-        </addColumn>
-        <addForeignKeyConstraint constraintName="fk_document_archive_par" baseTableName="document" baseColumnNames="archive_par"
-                                 referencedTableName="employe" referencedColumnNames="id"/>
-        <createIndex indexName="idx_document_archive_par" tableName="document">
-            <column name="archive_par"/>
-        </createIndex>
-        <createIndex indexName="idx_document_statut_conservation" tableName="document">
-            <column name="statut_conservation"/>
-        </createIndex>
-        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_statut_conservation
-            CHECK (statut_conservation IN ('ACTIF', 'ARCHIVE'))</sql>
-        <!-- Un document archivé porte sa date d'archivage ; un document actif n'en porte pas. -->
-        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_archivage
-            CHECK ((statut_conservation = 'ARCHIVE') = (archive_le IS NOT NULL))</sql>
-        <rollback>
-            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_archivage</sql>
-            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_statut_conservation</sql>
-            <dropIndex indexName="idx_document_statut_conservation" tableName="document"/>
-            <dropIndex indexName="idx_document_archive_par" tableName="document"/>
-            <dropForeignKeyConstraint baseTableName="document" constraintName="fk_document_archive_par"/>
-            <dropColumn tableName="document" columnName="archive_par"/>
-            <dropColumn tableName="document" columnName="archive_le"/>
-            <dropColumn tableName="document" columnName="statut_conservation"/>
-        </rollback>
-    </changeSet>
-
     <changeSet id="202609291100-2" author="ged">
         <comment>Copie de conservation PDF/A-2 d'une version, chiffrée comme tout fichier (§6.1.4).</comment>
         <createTable tableName="copie_conservation">

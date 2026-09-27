@@ -11,8 +11,7 @@ import java.util.UUID;
 
 /**
  * Dossiers portés par les espaces de travail actuels (table {@code workspace},
- * arborescence par {@code parent_id}, drapeau d'archivage = statut
- * {@code ARCHIVE} de l'espace), en attendant les nœuds du lot E3.
+ * arborescence par {@code parent_id}), en attendant les nœuds du lot E3.
  *
  * <p>Seule implémentation du cycle de vie qui lit le référentiel des dossiers ;
  * remplacée au lot E3 (dev1) par une implémentation sur les nœuds et les
@@ -39,28 +38,9 @@ public class DossiersEspaces implements Dossiers {
 
     @Override
     public Optional<Dossier> trouver(UUID dossierId) {
-        return jdbc.query("SELECT id, name, status FROM workspace WHERE id = ? AND NOT deleted",
-                (rs, i) -> new Dossier(rs.getObject("id", UUID.class), rs.getString("name"),
-                        "ARCHIVE".equals(rs.getString("status"))), dossierId).stream().findFirst();
-    }
-
-    @Override
-    public boolean estArchive(UUID dossierId) {
-        if (dossierId == null) return false;
-        Boolean archive = jdbc.queryForObject("""
-                WITH RECURSIVE ascendants(id, parent_id, status) AS (
-                    SELECT id, parent_id, status FROM workspace WHERE id = ?
-                    UNION ALL
-                    SELECT w.id, w.parent_id, w.status FROM workspace w JOIN ascendants a ON w.id = a.parent_id
-                )
-                SELECT coalesce(bool_or(status = 'ARCHIVE'), false) FROM ascendants
-                """, Boolean.class, dossierId);
-        return Boolean.TRUE.equals(archive);
-    }
-
-    @Override
-    public void marquerArchive(UUID dossierId, boolean archive) {
-        jdbc.update("UPDATE workspace SET status = ? WHERE id = ?", archive ? "ARCHIVE" : "ACTIF", dossierId);
+        return jdbc.query("SELECT id, name FROM workspace WHERE id = ? AND NOT deleted",
+                (rs, i) -> new Dossier(rs.getObject("id", UUID.class), rs.getString("name")), dossierId)
+                .stream().findFirst();
     }
 
     @Override

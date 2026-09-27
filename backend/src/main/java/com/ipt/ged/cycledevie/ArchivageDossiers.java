@@ -1,6 +1,7 @@
 package com.ipt.ged.cycledevie;
 
 import com.ipt.ged.document.evenement.Acteur;
+import com.ipt.ged.workspace.archivage.ArchivageNoeuds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -23,15 +24,17 @@ import java.util.UUID;
  * « archivage d'un ensemble volumineux ») : action manuelle, jamais
  * automatique.
  *
- * <p>La demande pose le drapeau d'archivage sur le dossier (plus aucun dépôt,
- * question Q7) et crée un {@code job_archivage} avec sa sélection figée
- * (documents actifs du dossier et de ses sous-dossiers). Un travailleur le
- * traite par tranches de 100 documents, chacune dans sa transaction ; bail
- * prolongé à chaque tranche (reprise par une autre instance après
- * interruption) ; progression lisible à tout moment ; annulation prise en
- * compte entre deux tranches (les documents déjà archivés le restent, le
- * drapeau du dossier est retiré) ; rapport final par document ; un événement
- * d'audit {@code DOCUMENT_ARCHIVE} par document archivé.
+ * <p>Suit le contrat {@link ArchivageNoeuds} du lot modèle (dev1) : la demande
+ * crée un {@code job_archivage} dont la sélection est figée (documents vivants
+ * non archivés dont l'emplacement principal est dans la sous-arborescence,
+ * lus par tranches) ; un travailleur le traite par tranches de 100 documents,
+ * chacune dans sa transaction ; bail prolongé à chaque tranche (reprise par une
+ * autre instance après interruption) ; progression lisible à tout moment ;
+ * annulation prise en compte entre deux tranches (les documents déjà archivés
+ * le restent) ; rapport final par document ; un événement d'audit
+ * {@code DOCUMENT_ARCHIVE} par document archivé. Une fois toutes les tranches
+ * passées, le drapeau est posé sur le dossier et sa sous-arborescence
+ * (« dossier archivé en entier » : plus aucun dépôt, question Q7).
  */
 @Service
 public class ArchivageDossiers {
@@ -41,17 +44,20 @@ public class ArchivageDossiers {
 
     private final JdbcTemplate jdbc;
     private final Dossiers dossiers;
+    private final ArchivageNoeuds noeuds;
     private final AutorisationsCycleDeVie autorisations;
     private final ArchivageService archivage;
     private final ApplicationEventPublisher evenements;
     private final ProprietesCycleDeVie proprietes;
     private final TransactionTemplate transaction;
 
-    public ArchivageDossiers(JdbcTemplate jdbc, Dossiers dossiers, AutorisationsCycleDeVie autorisations,
+    public ArchivageDossiers(JdbcTemplate jdbc, Dossiers dossiers, ArchivageNoeuds noeuds,
+                             AutorisationsCycleDeVie autorisations,
                              ArchivageService archivage, ApplicationEventPublisher evenements,
                              ProprietesCycleDeVie proprietes, PlatformTransactionManager transactions) {
         this.jdbc = jdbc;
         this.dossiers = dossiers;
+        this.noeuds = noeuds;
         this.autorisations = autorisations;
         this.archivage = archivage;
         this.evenements = evenements;
@@ -78,7 +84,7 @@ public class ArchivageDossiers {
 
     /* ======================= Demandes ======================= */
 
-    /** Demande l'archivage d'un dossier entier : drapeau posé, job créé (202). */
+    /** Demande l'archivage d'un dossier entier : job créé (202), sélection figée. */
     public Job archiverDossier(UUID dossierId) {
         Dossiers.Dossier dossier = dossiers.trouver(dossierId)
                 .orElseThrow(() -> ErreurCycleDeVie.introuvable("Dossier " + dossierId));
@@ -93,13 +99,13 @@ public class ArchivageDossiers {
                 throw ErreurCycleDeVie.conflit(ErreurCycleDeVie.ARCHIVAGE_EN_COURS,
                         "Un archivage de ce dossier est déjà en cours.");
             }
+            // Sélection figée, lue par tranches selon le contrat (pagination par clé).
             List<UUID> selection = new ArrayList<>();
-            List<UUID> candidats = dossiers.documents(dossierId).stream().map(Dossiers.DocumentRange::documentId).toList();
-            if (!candidats.isEmpty()) {
-                selection.addAll(jdbc.queryForList("SELECT id FROM document WHERE id = ANY(?) AND statut_conservation = 'ACTIF'",
-                        UUID.class, (Object) candidats.toArray(new UUID[0])));
-                // Ordre du dossier conservé.
-                selection.sort(java.util.Comparator.comparingInt(candidats::indexOf));
+            int tranche = proprietes.getArchivage().getTranche();
+            for (List<UUID> page = noeuds.documentsAArchiver(dossierId, null, tranche); !page.isEmpty();
+                 page = noeuds.documentsAArchiver(dossierId, page.get(page.size() - 1), tranche)) {
+                selection.addAll(page);
+                if (page.size() < tranche) break;
             }
             UUID id = UUID.randomUUID();
             jdbc.update("INSERT INTO job_archivage (id, dossier_id, dossier_nom, demandeur_employe_id, etat, total) "
@@ -107,7 +113,6 @@ public class ArchivageDossiers {
             List<Object[]> lignes = new ArrayList<>();
             for (int i = 0; i < selection.size(); i++) lignes.add(new Object[]{id, selection.get(i), i});
             jdbc.batchUpdate("INSERT INTO job_archivage_element (job_archivage_id, document_id, rang) VALUES (?, ?, ?)", lignes);
-            dossiers.marquerArchive(dossierId, true);
             evenements.publishEvent(EvenementDossier.archivage(dossierId, dossier.nom(), acteur, id, selection.size()));
             return id;
         });
@@ -127,16 +132,16 @@ public class ArchivageDossiers {
             if (n == 0) {
                 throw ErreurCycleDeVie.conflit(ErreurCycleDeVie.JOB_TERMINE, "Ce job d'archivage est déjà terminé.");
             }
-            int annule = jdbc.update("UPDATE job_archivage SET etat = 'ANNULE', termine_le = now() "
+            jdbc.update("UPDATE job_archivage SET etat = 'ANNULE', termine_le = now() "
                     + "WHERE id = ? AND etat = 'EN_ATTENTE'", jobId);
-            if (annule == 1) dossiers.marquerArchive(j.dossierId(), false);
         });
         return job(jobId).orElseThrow();
     }
 
     /**
-     * Retire le drapeau d'archivage d'un dossier (dépôts de nouveau acceptés) ;
-     * ses documents restent archivés, leur désarchivage se fait un par un.
+     * Retire le drapeau d'archivage du dossier et de sa sous-arborescence
+     * (dépôts de nouveau acceptés) ; ses documents restent archivés, leur
+     * désarchivage se fait un par un (contrat {@link ArchivageNoeuds#marquerActif}).
      */
     public void retirerDrapeau(UUID dossierId) {
         Dossiers.Dossier dossier = dossiers.trouver(dossierId)
@@ -149,7 +154,7 @@ public class ArchivageDossiers {
                 throw ErreurCycleDeVie.conflit(ErreurCycleDeVie.ARCHIVAGE_EN_COURS,
                         "Un archivage de ce dossier est en cours : l'annuler d'abord.");
             }
-            dossiers.marquerArchive(dossierId, false);
+            noeuds.marquerActif(dossierId);
             evenements.publishEvent(EvenementDossier.desarchivage(dossierId, dossier.nom(), Acteur.courant()));
         });
     }
@@ -206,19 +211,20 @@ public class ArchivageDossiers {
             Boolean annulation = jdbc.queryForObject("SELECT annulation_demandee FROM job_archivage WHERE id = ?",
                     Boolean.class, job.id());
             if (Boolean.TRUE.equals(annulation)) {
-                transaction.executeWithoutResult(s -> {
-                    jdbc.update("UPDATE job_archivage SET etat = 'ANNULE', termine_le = now(), verrouille_par = NULL, "
-                            + "verrouille_jusqu_a = NULL WHERE id = ?", job.id());
-                    dossiers.marquerArchive(job.dossierId(), false);
-                });
+                jdbc.update("UPDATE job_archivage SET etat = 'ANNULE', termine_le = now(), verrouille_par = NULL, "
+                        + "verrouille_jusqu_a = NULL WHERE id = ?", job.id());
                 log.info("Archivage du dossier {} annulé (job {})", job.dossierId(), job.id());
                 return true;
             }
             List<UUID> tranche = jdbc.queryForList("SELECT document_id FROM job_archivage_element WHERE job_archivage_id = ? "
                     + "AND resultat IS NULL ORDER BY rang LIMIT " + proprietes.getArchivage().getTranche(), UUID.class, job.id());
             if (tranche.isEmpty()) {
-                jdbc.update("UPDATE job_archivage SET etat = 'TERMINE', termine_le = now(), verrouille_par = NULL, "
-                        + "verrouille_jusqu_a = NULL WHERE id = ?", job.id());
+                // Toutes les tranches passées : le dossier est archivé en entier.
+                transaction.executeWithoutResult(s -> {
+                    noeuds.marquerArchive(job.dossierId(), acteur.employeId());
+                    jdbc.update("UPDATE job_archivage SET etat = 'TERMINE', termine_le = now(), verrouille_par = NULL, "
+                            + "verrouille_jusqu_a = NULL WHERE id = ?", job.id());
+                });
                 log.info("Archivage du dossier {} terminé (job {})", job.dossierId(), job.id());
                 return true;
             }

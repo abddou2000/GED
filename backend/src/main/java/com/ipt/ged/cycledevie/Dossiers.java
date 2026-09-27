@@ -5,8 +5,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Point d'extension sur les dossiers, utilisé par l'archivage d'un dossier
- * entier (§12.6, revue client D10) et par l'export de dossier (§12.10).
+ * Point d'extension sur les dossiers, utilisé par l'export de dossier (§12.10)
+ * et pour nommer un dossier archivé ; le drapeau d'archivage et la sélection
+ * des documents à archiver relèvent du contrat
+ * {@code workspace.archivage.ArchivageNoeuds} du lot modèle (dev1).
  *
  * <p>Le référentiel des dossiers change de forme au lot E3 (nœuds à chemin
  * matérialisé, rattachements multiples, drapeau d'archivage sur le nœud, dev1) :
@@ -16,8 +18,7 @@ import java.util.UUID;
  */
 public interface Dossiers {
 
-    /** Un dossier, et son drapeau d'archivage propre. */
-    record Dossier(UUID id, String nom, boolean archive) {
+    record Dossier(UUID id, String nom) {
     }
 
     /**
@@ -32,12 +33,6 @@ public interface Dossiers {
     }
 
     Optional<Dossier> trouver(UUID dossierId);
-
-    /** Vrai si le dossier ou l'un de ses ancêtres porte le drapeau d'archivage (dépôt refusé, Q7). */
-    boolean estArchive(UUID dossierId);
-
-    /** Pose ou retire le drapeau d'archivage du dossier (D10). */
-    void marquerArchive(UUID dossierId, boolean archive);
 
     /**
      * Documents hors corbeille du dossier et de toute sa sous-arborescence,

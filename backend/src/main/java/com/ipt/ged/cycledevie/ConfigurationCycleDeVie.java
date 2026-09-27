@@ -1,6 +1,10 @@
 package com.ipt.ged.cycledevie;
 
 import com.ipt.ged.cycledevie.conservation.ConvertisseurPdfA;
+import com.ipt.ged.cycledevie.provisoire.ArchivageDocumentsProvisoire;
+import com.ipt.ged.cycledevie.provisoire.ArchivageNoeudsEspaces;
+import com.ipt.ged.document.archivage.ArchivageDocuments;
+import com.ipt.ged.workspace.archivage.ArchivageNoeuds;
 import com.ipt.ged.cycledevie.conservation.CopiesConservation;
 import com.ipt.ged.cycledevie.conservation.ValidateurPdfA;
 import com.ipt.ged.cycledevie.conservation.ValidateurVeraPdf;
@@ -20,7 +24,9 @@ import java.nio.file.Path;
  *
  * <p>Points d'extension fournis par d'autres lots, remplaçables par un bean du
  * même type : {@link AutorisationsCycleDeVie} (permissions Purger et Archiver,
- * E3) et {@link Dossiers} (nœuds et rattachements, E3).
+ * E3), {@link Dossiers} (nœuds et rattachements, E3), et les contrats
+ * d'archivage du lot modèle {@link ArchivageNoeuds} et {@link ArchivageDocuments}
+ * (dev1), dont les implémentations provisoires ne servent qu'avant la fusion.
  */
 @Configuration
 @EnableConfigurationProperties(ProprietesCycleDeVie.class)
@@ -39,6 +45,20 @@ public class ConfigurationCycleDeVie {
     @ConditionalOnMissingBean(Dossiers.class)
     public Dossiers dossiers(JdbcTemplate jdbc) {
         return new DossiersEspaces(jdbc);
+    }
+
+    /** Contrat du lot modèle (dev1) ; implémentation provisoire sur les espaces, à retirer à la fusion. */
+    @Bean
+    @ConditionalOnMissingBean(ArchivageNoeuds.class)
+    public ArchivageNoeuds archivageNoeuds(JdbcTemplate jdbc) {
+        return new ArchivageNoeudsEspaces(jdbc);
+    }
+
+    /** Contrat du lot modèle (dev1) ; implémentation provisoire, à retirer à la fusion. */
+    @Bean
+    @ConditionalOnMissingBean(ArchivageDocuments.class)
+    public ArchivageDocuments archivageDocuments(JdbcTemplate jdbc) {
+        return new ArchivageDocumentsProvisoire(jdbc);
     }
 
     @Bean

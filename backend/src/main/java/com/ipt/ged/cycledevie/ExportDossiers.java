@@ -138,7 +138,7 @@ public class ExportDossiers {
         dossiers.documents(dossierId).forEach(r -> connus.put(r.documentId(), r.chemins()));
         for (UUID id : documents) chemins.put(id, connus.getOrDefault(id, List.of("")));
         List<Ligne> lignes = details(chemins, FragmentSql.VRAI);
-        return construire(new Dossiers.Dossier(dossierId, dossierNom, false), lignes);
+        return construire(new Dossiers.Dossier(dossierId, dossierNom), lignes);
     }
 
     private List<Ligne> details(Map<UUID, List<String>> chemins, FragmentSql predicat) {

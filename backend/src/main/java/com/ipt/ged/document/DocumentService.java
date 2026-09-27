@@ -1,7 +1,7 @@
 package com.ipt.ged.document;
 
 import com.ipt.ged.common.ActeurCourant;
-import com.ipt.ged.cycledevie.Dossiers;
+import com.ipt.ged.workspace.archivage.ArchivageNoeuds;
 import com.ipt.ged.cycledevie.ErreurCycleDeVie;
 import com.ipt.ged.cycledevie.conservation.CopiesConservation;
 import com.ipt.ged.depot.IssueIndexation;
@@ -91,7 +91,7 @@ public class DocumentService {
     private final StockageChiffre stockage;
     private final EnfilageOcr ocr;
     private final ApplicationEventPublisher evenements;
-    private final Dossiers dossiers;
+    private final ArchivageNoeuds noeuds;
     private final CopiesConservation copies;
 
     public DocumentService(UploadDocumentRepository repo, TypeDocumentRepository typeRepo,
@@ -99,7 +99,7 @@ public class DocumentService {
                            EtiquetteRepository etiquetteRepo, EmployeRepository employeRepo,
                            DocumentVersionRepository versionRepo, ControleFichiers controle,
                            StockageChiffre stockage, EnfilageOcr ocr, ApplicationEventPublisher evenements,
-                           Dossiers dossiers, CopiesConservation copies) {
+                           ArchivageNoeuds noeuds, CopiesConservation copies) {
         this.repo = repo;
         this.typeRepo = typeRepo;
         this.signatureService = signatureService;
@@ -110,7 +110,7 @@ public class DocumentService {
         this.stockage = stockage;
         this.ocr = ocr;
         this.evenements = evenements;
-        this.dossiers = dossiers;
+        this.noeuds = noeuds;
         this.copies = copies;
     }
 
@@ -501,7 +501,10 @@ public class DocumentService {
 
     /** Dossier archivé (D10) : aucun dépôt ni rangement (revue client, question Q7). */
     private void refuserSiDossierArchive(WorkSpace ws) {
-        if (ws != null && dossiers.estArchive(ws.getId())) {
+        if (ws == null) return;
+        // Le contrat lit la base : ce que la transaction a créé doit y être.
+        repo.flush();
+        if (noeuds.statut(ws.getId()) == com.ipt.ged.common.StatutConservation.ARCHIVE) {
             throw new ErreurCycleDeVie(org.springframework.http.HttpStatus.CONFLICT, ErreurCycleDeVie.DOSSIER_ARCHIVE,
                     "Dossier archivé « " + ws.getName() + " » : aucun dépôt n'y est accepté.");
         }

@@ -124,23 +124,24 @@ public class UploadDocument extends Supprimable {
     private IssueIndexation statutIndexation = IssueIndexation.A_INDEXER;
 
     /**
-     * Statut de conservation (§12.6) : un document ARCHIVE refuse toute écriture
-     * (fiche, index, versions, verrou, suppression) ; les versions sont en
-     * outre gelées en base par un déclencheur.
+     * Statut de conservation (§12.6) : porté par le document, donc identique
+     * depuis tous ses emplacements. ARCHIVE = lecture seule
+     * ({@code GardeEcriture} du lot modèle ; ici {@code DocumentService#refuserSiArchive}).
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "statut_conservation", nullable = false, length = 16)
-    private StatutConservation statutConservation = StatutConservation.ACTIF;
+    @Column(name = "statut_conservation", nullable = false, length = 10)
+    private com.ipt.ged.common.StatutConservation statutConservation = com.ipt.ged.common.StatutConservation.ACTIF;
 
     @Column(name = "archive_le")
     private java.time.Instant archiveLe;
 
-    /** Employé qui a archivé le document ; {@code null} s'il est actif. */
+    /** Identité GED de l'archiviste. */
     @Column(name = "archive_par")
     private UUID archivePar;
 
+    /** Document archivé : lecture seule totale (§12.6), désarchivage excepté. */
     public boolean estArchive() {
-        return statutConservation == StatutConservation.ARCHIVE;
+        return statutConservation == com.ipt.ged.common.StatutConservation.ARCHIVE;
     }
 
     public UploadDocument(String name) {

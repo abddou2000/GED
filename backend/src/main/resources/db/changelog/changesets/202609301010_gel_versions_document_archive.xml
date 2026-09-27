@@ -4,7 +4,7 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
-        logicalFilePath="db/changelog/changesets/202609291110_gel_versions_document_archive.xml">
+        logicalFilePath="db/changelog/changesets/202609301010_gel_versions_document_archive.xml">
 
     <!--
         Archivage (§12.6) : « contrôle appliqué dans la couche service et doublé
@@ -15,7 +15,7 @@
         (dev1) : ce déclencheur ne lit que le statut de conservation du document.
     -->
 
-    <changeSet id="202609291110-1" author="ged">
+    <changeSet id="202609301010-1" author="ged">
         <comment>Gel des versions d'un document archivé (§12.6).</comment>
         <sql splitStatements="false">
 CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.ged_version_document_archive() RETURNS trigger

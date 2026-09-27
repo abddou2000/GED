@@ -25,8 +25,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Archivage d'un dossier entier (revue client D10, §12.6) : drapeau posé sur
- * le dossier, job traité par tranches (ici 2 documents par tranche),
+ * Archivage d'un dossier entier (revue client D10, §12.6), selon le contrat
+ * ArchivageNoeuds du lot modèle : job traité par tranches (ici 2 documents par
+ * tranche), drapeau posé sur le dossier une fois toutes les tranches passées,
  * progression, reprise après interruption, annulation entre deux tranches,
  * rapport, un événement d'audit par document archivé.
  */
@@ -95,7 +96,7 @@ class ArchivageDossierApiTest extends BaseCycleDeVieApiTest {
     }
 
     @Test
-    @DisplayName("Dossier et sous-dossier : 5 documents actifs archivés en 3 tranches, corbeille exclue, dépôt refusé")
+    @DisplayName("Dossier et sous-dossier : 5 documents actifs archivés en 3 tranches, corbeille exclue, puis dépôt refusé")
     void dossierEntier() throws Exception {
         UUID a = deposer(typeRacine, "a", "a.pdf", "application/pdf", Echantillons.pdf());
         UUID b = deposer(typeRacine, "b", "b.png", "image/png", Echantillons.image("png"));
@@ -109,11 +110,6 @@ class ArchivageDossierApiTest extends BaseCycleDeVieApiTest {
 
         UUID jobId = demander(racine.getId());
         assertEquals(5, job(jobId).total(), "sélection figée : actifs hors corbeille, sous-dossiers compris");
-        // Drapeau posé : plus aucun dépôt dans le dossier ni dans ses sous-dossiers (Q7).
-        mvc.perform(multipart("/api/v1/documents")
-                        .file(new org.springframework.mock.web.MockMultipartFile("file", "z.pdf", "application/pdf", Echantillons.pdf()))
-                        .param("typeDocumentId", typeSous.toString()))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value(ErreurCycleDeVie.DOSSIER_ARCHIVE));
         // Un seul job à la fois par dossier.
         mvc.perform(post("/api/v1/archivage/dossiers/" + racine.getId())).andExpect(status().isConflict());
 
@@ -141,6 +137,14 @@ class ArchivageDossierApiTest extends BaseCycleDeVieApiTest {
                 .andExpect(jsonPath("$[0].id").value(jobId.toString()));
         assertFalse(archivage.traiterUnJob(), "plus rien à traiter");
 
+        // Dossier archivé en entier : drapeau sur le dossier et sa sous-arborescence,
+        // plus aucun dépôt (Q7).
+        assertEquals("ARCHIVE", jdbc.queryForObject("SELECT status FROM workspace WHERE id = ?", String.class, sous.getId()));
+        mvc.perform(multipart("/api/v1/documents")
+                        .file(new org.springframework.mock.web.MockMultipartFile("file", "z.pdf", "application/pdf", Echantillons.pdf()))
+                        .param("typeDocumentId", typeSous.toString()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value(ErreurCycleDeVie.DOSSIER_ARCHIVE));
+
         // Drapeau retiré : dépôt de nouveau accepté, documents toujours archivés.
         mvc.perform(delete("/api/v1/archivage/dossiers/" + racine.getId())).andExpect(status().isNoContent());
         deposer(typeSous, "z", "z.pdf", "application/pdf", Echantillons.pdf());
@@ -149,7 +153,7 @@ class ArchivageDossierApiTest extends BaseCycleDeVieApiTest {
     }
 
     @Test
-    @DisplayName("Annulation entre deux tranches : les documents archivés le restent, le drapeau est retiré")
+    @DisplayName("Annulation entre deux tranches : les documents archivés le restent, le dossier n'est pas marqué")
     void annulationEntreTranches() throws Exception {
         for (int i = 0; i < 5; i++) deposer(typeRacine, "n" + i, "n" + i + ".pdf", "application/pdf", Echantillons.pdf());
         UUID jobId = demander(racine.getId());

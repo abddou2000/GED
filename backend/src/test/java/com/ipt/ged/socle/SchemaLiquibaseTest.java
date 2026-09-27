@@ -213,8 +213,7 @@ class SchemaLiquibaseTest {
                  WHERE tc.table_schema = ? AND tc.constraint_type = 'FOREIGN KEY'
                    -- version_id : nom imposé par le dossier (document_texte, ocr_job, §4.4),
                    -- vise version_document.
-                   -- archive_par : pendant de supprime_par (§12.6, auteur de l'archivage).
-                   AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'archive_par', 'version_id')
+                   AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'version_id')
                    AND kcu.column_name NOT LIKE '%' || ccu.table_name || '_id'""", schema);
         assertEquals(List.of(), incoherentes, "clés étrangères dont le nom ne désigne pas la table visée");
     }

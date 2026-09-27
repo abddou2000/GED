@@ -2,7 +2,7 @@ package com.ipt.ged.cycledevie;
 
 import com.ipt.ged.cycledevie.conservation.CopiesConservation;
 import com.ipt.ged.document.DocumentVersion;
-import com.ipt.ged.document.StatutConservation;
+import com.ipt.ged.document.archivage.ArchivageDocuments;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
 import com.ipt.ged.document.evenement.Acteur;
@@ -54,18 +54,21 @@ public class ArchivageService {
     private final VerificationIntegrite integrite;
     private final StockageChiffre stockage;
     private final ApplicationEventPublisher evenements;
+    private final ArchivageDocuments statuts;
     private final TransactionTemplate transaction;
     private final TransactionTemplate lecture;
 
     public ArchivageService(UploadDocumentRepository documents, AutorisationsCycleDeVie autorisations,
                             CopiesConservation copies, VerificationIntegrite integrite, StockageChiffre stockage,
-                            ApplicationEventPublisher evenements, PlatformTransactionManager transactions) {
+                            ApplicationEventPublisher evenements, ArchivageDocuments statuts,
+                            PlatformTransactionManager transactions) {
         this.documents = documents;
         this.autorisations = autorisations;
         this.copies = copies;
         this.integrite = integrite;
         this.stockage = stockage;
         this.evenements = evenements;
+        this.statuts = statuts;
         this.transaction = new TransactionTemplate(transactions);
         this.lecture = new TransactionTemplate(transactions);
         this.lecture.setReadOnly(true);
@@ -147,9 +150,8 @@ public class ArchivageService {
                 throw Refus.integriteCompromise("empreinte divergente au désarchivage (" + r.statut() + ")", null);
             }
         }
-        d.setStatutConservation(StatutConservation.ACTIF);
-        d.setArchiveLe(null);
-        d.setArchivePar(null);
+        // Statut porté par le contrat du lot modèle (dev1), dans cette transaction.
+        statuts.desarchiver(documentId);
         evenements.publishEvent(new DocumentDesarchive(d.getId(), v != null ? v.getId() : null, Acteur.courant(),
                 Instant.now(), v != null ? v.getEmpreinte() : null));
     }
@@ -233,9 +235,10 @@ public class ArchivageService {
         UUID par = acteur != null ? acteur.employeId() : null;
         Optional<UUID> remplacee = copies.enregistrer(p.versionId(), p.copie(), par);
         remplacee.ifPresent(this::detruireApresValidation);
-        d.setStatutConservation(StatutConservation.ARCHIVE);
-        d.setArchiveLe(Instant.now());
-        d.setArchivePar(par);
+        // Statut, date et archiviste posés par le contrat du lot modèle (dev1),
+        // dans la transaction de l'appelant. Archiviste : identité de l'acteur
+        // (employé dans cette branche ; identité GED après la fusion d'E2).
+        statuts.archiver(p.documentId(), par);
         CopiesConservation.Production c = p.copie();
         if (!c.valide()) {
             log.warn("Document {} archivé avec son seul original : copie PDF/A en échec ({})", p.documentId(), c.motif());
