@@ -13,4 +13,9 @@ public record OcrEnEchec(UUID documentId, UUID versionId, Acteur acteur, Instant
     public String type() {
         return "OCR_ECHEC";
     }
+
+    @Override
+    public com.ipt.ged.audit.ResultatAudit resultat() {
+        return com.ipt.ged.audit.ResultatAudit.ECHEC;
+    }
 }

@@ -1,6 +1,8 @@
 package com.ipt.ged.document.evenement;
 
 import java.time.Instant;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 
 /**
@@ -17,5 +19,18 @@ public record DocumentDepose(UUID documentId, UUID versionId, Acteur acteur, Ins
     @Override
     public String type() {
         return "DOCUMENT_DEPOSE";
+    }
+
+    /** Valeurs créées, pour l'audit. */
+    @Override
+    public Map<String, Object> apres() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("nom", nom);
+        m.put("typeDocumentId", typeDocumentId);
+        m.put("fichier", nomFichier);
+        m.put("empreinte", empreinte);
+        m.put("typeMime", typeMime);
+        m.put("tailleOctets", tailleOctets);
+        return m;
     }
 }

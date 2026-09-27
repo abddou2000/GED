@@ -2,10 +2,7 @@ package com.ipt.ged.indexation;
 
 import com.ipt.ged.common.Limites;
 import com.ipt.ged.document.ContraintesDepot;
-import com.ipt.ged.document.evenement.Acteur;
-import com.ipt.ged.document.evenement.MetadonneesModifiees;
 import com.ipt.ged.fichier.controle.ControleFichiers;
-import org.springframework.context.ApplicationEventPublisher;
 import com.ipt.ged.fichier.controle.SourceFichier;
 import com.ipt.ged.document.UploadDocument;
 import com.ipt.ged.document.UploadDocumentRepository;
@@ -56,7 +53,6 @@ public class IndexationService {
     /** Le type porte le plan : l'apercu part du type, pas d'un document. */
     private final TypeDocumentRepository typeRepository;
     private final ControleFichiers controleFichiers;
-    private final ApplicationEventPublisher evenements;
 
     /* ===================== Critères ===================== */
 
@@ -172,18 +168,10 @@ public class IndexationService {
         }
 
         // Seconde passe : écriture, plus rien ne peut être refusé ici.
-        Map<String, Object> avant = new LinkedHashMap<>();
-        Map<String, Object> apres = new LinkedHashMap<>();
         for (Map.Entry<UUID, String> ligne : recues.entrySet()) {
             IndexField champ = autorises.get(ligne.getKey());
             String valeur = ligne.getValue();
             DocumentIndex cible = existantes.remove(champ.getId());
-            String ancienne = cible != null ? cible.getValeur() : null;
-            String nouvelle = valeur == null || valeur.isEmpty() ? null : valeur;
-            if (!java.util.Objects.equals(ancienne, nouvelle)) {
-                avant.put("index." + champ.getCode(), ancienne);
-                apres.put("index." + champ.getCode(), nouvelle);
-            }
             if (valeur == null || valeur.isEmpty()) {
                 if (cible != null) valeurRepository.delete(cible);   // valeur effacée
                 continue;
@@ -204,10 +192,6 @@ public class IndexationService {
            détruisait le nom sans qu'aucune donnée n'ait été fournie. */
         if (!recues.isEmpty()) {
             recomposerReference(doc);
-        }
-        if (!avant.isEmpty()) {
-            evenements.publishEvent(new MetadonneesModifiees(doc.getId(), null, Acteur.courant(),
-                    java.time.Instant.now(), avant, apres));
         }
         return valeurs(documentId);
     }

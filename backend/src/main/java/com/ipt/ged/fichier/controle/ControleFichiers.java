@@ -126,7 +126,35 @@ public class ControleFichiers {
     public record Depot(StockageChiffre.ResultatStockage stockage, String typeMime) {
     }
 
-    /** Événement d'audit : fichier infecté refusé (§6.1.5). */
-    public record FichierInfecte(String nomOrigine, String detail, Instant refuseLe) {
+    /**
+     * Événement d'audit : fichier infecté refusé (§6.1.5). Résultat {@code REFUS} ;
+     * l'acteur et l'adresse sont ceux de la requête (complétés par le journal).
+     */
+    public record FichierInfecte(String nomOrigine, String detail, Instant refuseLe)
+            implements com.ipt.ged.audit.EvenementAudit {
+        @Override
+        public String action() {
+            return "FICHIER_INFECTE";
+        }
+
+        @Override
+        public String objetType() {
+            return "FICHIER";
+        }
+
+        @Override
+        public com.ipt.ged.audit.ResultatAudit resultat() {
+            return com.ipt.ged.audit.ResultatAudit.REFUS;
+        }
+
+        @Override
+        public String motif() {
+            return detail;
+        }
+
+        @Override
+        public java.util.Map<String, Object> apres() {
+            return java.util.Map.of("fichier", nomOrigine == null ? "" : nomOrigine);
+        }
     }
 }

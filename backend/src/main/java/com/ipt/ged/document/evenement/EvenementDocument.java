@@ -1,13 +1,19 @@
 package com.ipt.ged.document.evenement;
 
+import com.ipt.ged.audit.EvenementAudit;
+
 import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Événement de domaine sur un document, publié par le service métier
  * ({@code ApplicationEventPublisher}) à chaque opération : c'est la source du
- * journal d'audit (lot traçabilité, dev2), qui les écoute sans que les deux
- * lots modifient le même service.
+ * journal d'audit, qui les écoute sans que les deux lots modifient le même
+ * service.
+ *
+ * <p>Auditables par construction : l'interface étend {@code EvenementAudit}
+ * (contrat du lot traçabilité) — action = {@link #type()}, objet = le document,
+ * acteur = celui de l'opération.
  *
  * <p><b>Contrat de publication</b> :
  * <ul>
@@ -23,7 +29,7 @@ import java.util.UUID;
  *       ({@code ControleFichiers.FichierInfecte}).</li>
  * </ul>
  */
-public sealed interface EvenementDocument permits DocumentDepose, VersionAjoutee, VersionRestauree,
+public sealed interface EvenementDocument extends EvenementAudit permits DocumentDepose, VersionAjoutee, VersionRestauree,
         DocumentTelecharge, ApercuConsulte, MetadonneesModifiees, VerrouModifie, DocumentSupprime,
         DocumentRestaure, ContenuIndexe, OcrEnEchec {
 
@@ -38,4 +44,29 @@ public sealed interface EvenementDocument permits DocumentDepose, VersionAjoutee
     Acteur acteur();
 
     Instant survenuLe();
+
+    @Override
+    default String action() {
+        return type();
+    }
+
+    @Override
+    default String objetType() {
+        return "DOCUMENT";
+    }
+
+    @Override
+    default UUID objetId() {
+        return documentId();
+    }
+
+    @Override
+    default UUID acteurUtilisateurId() {
+        return acteur() != null ? acteur().employeId() : null;
+    }
+
+    @Override
+    default UUID acteurApplicationId() {
+        return acteur() != null ? acteur().applicationId() : null;
+    }
 }

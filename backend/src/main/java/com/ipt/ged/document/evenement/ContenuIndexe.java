@@ -16,4 +16,9 @@ public record ContenuIndexe(UUID documentId, UUID versionId, Acteur acteur, Inst
     public String type() {
         return "CONTENU_INDEXE";
     }
+
+    @Override
+    public String motif() {
+        return nbPages + " page(s), " + provenance + ", interrogeable " + delaiDisponibilite.toMinutes() + " min après le dépôt";
+    }
 }
