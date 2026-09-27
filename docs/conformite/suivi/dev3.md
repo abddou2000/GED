@@ -94,70 +94,52 @@ Pas d'entité JPA pour `cle_fichier` (`DepotClesFichierJdbc`). Champs à ajouter
 @Column(name = "taille_octets") private Long tailleOctets;
 ```
 
-### Plan de branchement E5 (vague 2)
+### Branchement E5 (vague 2) — fait
 
-1. **`DocumentService.upload` et `ajouterVersion`** : remplacer `ContraintesDepot.valider` (format
-   par extension) + `storage.store` par
-   `controleFichiers.deposer(SourceFichier.de(file), controleFichiers.regles(type.getTailleMaxMo(), type.formatsAutorises()))`,
-   puis renseigner sur la version `cleFichierId`, `empreinte`, `typeMime`, `tailleOctets`.
-   `ContraintesDepot.validerTypeVivant` reste. La compensation `supprimerSiTransactionAnnulee`
-   appelle `stockageChiffre.detruire(fichierId)` (clé + fichier) au lieu de `storage.supprimer`.
-   L'enregistrement dans `cle_fichier` participe alors à la transaction du dépôt.
-2. **Téléchargement** (`DocumentController`) : `StreamingResponseBody` sur
-   `stockageChiffre.lire(version.getFichierId())` au lieu de `StorageService.load` (Resource disque).
-3. **Aperçu d'indexation** (`IndexationService`) : `controleFichiers.controler(...)` (mêmes règles
-   que le dépôt, sans écriture).
-4. **OCR** : la chaîne E6 lit déjà le fichier par `StockageChiffre.lire` (bean `SourceFichierOcr`),
-   déchiffré en mémoire ; enfiler le job dans la même transaction (plan E6 ci-dessous).
-5. **Prévisualisation** : implémenter `ResolveurFichierVersion` sur `version_document`, puis
-   `ged.fichiers.previsualisation.api-active=true`. Le lot autorisation remplace
-   `ControleAccesPrevisualisationProvisoire` (bean `controleAccesPrevisualisation` de
-   `ConfigurationFichiers`) par un appel au point unique de droits (hors périmètre → 404).
-   Angular : visionneuse sur `GET /api/v1/versions/{id}/apercu` (blob), repli sur le
-   téléchargement si 415 `APERCU_NON_DISPONIBLE` ou 503 `CONVERSION_INDISPONIBLE`.
-6. **Intégrité** : implémenter `SourceEmpreintes` (parcours paginé de `version_document`), puis
-   `ged.fichiers.integrite.verification-planifiee=true`.
-7. **Purge définitive** (E7, §12.5) : supprimer les lignes métier puis
-   `stockageChiffre.detruire(fichierId)` et `servicePrevisualisation.invaliderCache(fichierId)`.
-8. **Audit** (dev2) : écouter `ControleFichiers.FichierInfecte`,
-   `VerificationIntegrite.AnomalieIntegrite` (+ alerte supervision) et
-   `PrevisualisationController.ApercuConsulte` (événement distinct du téléchargement).
-9. Après reprise en production : changeset « contract », suppression de `StorageService` et de
-   `ged.storage.root`.
+1. Dépôt et nouvelle version : `ControleFichiers.deposer` (taille, type réel, antivirus, chiffrement)
+   puis version renseignée (`cle_fichier_id`, `empreinte`, `type_mime`, `taille_octets`) ;
+   compensation `StockageChiffre.detruire` si la transaction est annulée (838c162).
+2. Téléchargement en flux (`StreamingResponseBody`, déchiffrement segment par segment,
+   `no-store`, `nosniff`).
+3. Aperçu d'indexation : mêmes contrôles taille + type réel que le dépôt, sans écriture.
+4. Prévisualisation : `ResolveurFichierVersionJpa`, `ged.fichiers.previsualisation.api-active=true` ;
+   bouton « Aperçu » sur la fiche document (repli téléchargement si 415/503).
+5. Intégrité : `SourceEmpreintesVersions` (pages par clé sur `version_document`),
+   vérification planifiée activée.
+6. `StorageService` et `ged.storage.*` supprimés ; colonne `file_path` rendue facultative
+   (changeset expand `202609281000`) ; le changeset **contract** (`202609281005` : retrait de
+   `file_path`, `NOT NULL` sur clé/empreinte/taille) est rangé dans
+   `db/changelog/version-suivante/`, **hors du changelog maître** : l'appliquer aurait cassé la
+   reprise de données de dev1 (qui écrit encore `file_path`). À inclure à la version suivante,
+   après la reprise en production (précondition : plus aucune version sans clé, sinon ignoré).
+7. Restent hors lot : purge définitive (E7), contrôle d'accès définitif de l'aperçu (lot
+   autorisation, dev1).
 
 ### Procédure de reprise des fichiers existants (en clair → chiffré)
 
-Outil : `RepriseFichiersEnClair` (+ `LanceurReprise`, activé par `ged.fichiers.reprise.source`).
+Outil : `RepriseVersionsEnClair` (+ `LanceurReprise`, activé par `ged.fichiers.reprise.source`),
+**piloté par la base** : chaque version sans `cle_fichier_id` désigne son fichier par `file_path`.
 
-1. Arrêter l'accès utilisateurs ; sauvegarder la base et `ged.storage.root`.
+1. Arrêter l'accès utilisateurs ; sauvegarder la base et l'ancienne racine de stockage.
 2. Créer le keystore de l'environnement (une fois, `creer-si-absent=true` puis retiré) et le
    **sauvegarder** avec sa phrase secrète (coffre de secrets).
 3. Lancer :
    `java -jar ged.jar --spring.profiles.active=prod --spring.main.web-application-type=none --ged.fichiers.reprise.source=/srv/ged/storage/ged --ged.fichiers.reprise.rapport=/srv/ged/reprise-fichiers.csv`
    (option `--ged.fichiers.reprise.antivirus=true` pour analyser aussi le fonds historique).
-   Pour chaque fichier : type réel (Tika), chiffrement sous une nouvelle DEK, empreinte,
-   **relecture complète de contrôle**, ligne CSV
-   `chemin_relatif;fichier_id;empreinte_sha256;taille_octets;type_mime;kek_identifiant;statut`.
-   Reprenable : les lignes `OK` déjà présentes sont ignorées. Aucun original supprimé.
-4. Appliquer le rapport en base :
-   ```sql
-   CREATE TEMP TABLE reprise (chemin_relatif text, fichier_id uuid, empreinte char(64),
-       taille_octets bigint, type_mime varchar(127), kek_identifiant varchar(64), statut text);
-   \copy reprise FROM 'reprise-fichiers.csv' WITH (FORMAT csv, DELIMITER ';', HEADER true)
-   UPDATE version_document v SET cle_fichier_id = r.fichier_id, empreinte = r.empreinte,
-          taille_octets = r.taille_octets, type_mime = r.type_mime
-     FROM reprise r WHERE r.statut = 'OK' AND v.file_path = r.chemin_relatif;
-   SELECT count(*) FROM version_document WHERE cle_fichier_id IS NULL;  -- doit valoir 0
-   ```
-   (les lignes `cle_fichier` sont déjà écrites par l'outil).
-5. Lancer une vérification d'intégrité complète, traiter les lignes en échec.
-6. Seulement ensuite : effacer l'ancien stockage en clair (outil d'effacement du support ; sur
-   SSD, l'effacement logique ne garantit pas la destruction : prévoir le chiffrement du volume),
-   puis changeset « contract ».
+   Pour chaque version : chemin confiné sous la racine, type réel, chiffrement sous une DEK
+   neuve, empreinte, **relecture complète de contrôle**, puis dans une transaction mise à jour de
+   la version (conditionnelle `cle_fichier_id IS NULL`) et, pour une version courante, envoi à
+   l'OCR. Rapport CSV
+   `version_id;chemin_relatif;fichier_id;empreinte_sha256;taille_octets;type_mime;statut`.
+   Reprenable ; aucun original supprimé.
+4. Contrôle : `SELECT count(*) FROM version_document WHERE cle_fichier_id IS NULL;` → 0.
+5. Vérification d'intégrité complète, traiter les lignes en échec.
+6. Seulement ensuite : effacer l'ancien stockage en clair (sur SSD, prévoir le chiffrement du
+   volume), puis montée incluant le changeset « contract ».
 
-Testé sur un dossier d'exemple (`<espace>/<uuid>.<ext>` : pdf, docx, png, txt) : empreintes
-égales au SHA-256 des originaux, contenu relu à l'identique, originaux intacts, idempotence,
-fichier infecté et fichier trop gros signalés sans interrompre la reprise.
+Testé (`RepriseVersionsEnClairTest`, 4 tests) : empreintes égales au SHA-256 des originaux,
+contenu relu à l'identique, originaux intacts, reprise idempotente, chemin hors racine refusé,
+fichier manquant signalé sans interrompre, job OCR enfilé pour la version courante.
 
 ### Configuration (voir `application.yml`, `backend/.env.example`)
 
@@ -194,10 +176,9 @@ intégrité, prévisualisation service + API, reprise, codes HTTP, garde-fous de
 
 ### Reste à faire E5
 
-- Branchement (plan ci-dessus) : vague 2, sur demande de pm.
 - veraPDF et copie de conservation PDF/A-2 (§6.1.4, E7).
-- Sonde de santé ClamAV (`AnalyseurAntivirus.disponible()` prête) : à brancher par dev2 avec les
-  autres sondes (6.7).
+- Sonde de santé ClamAV (`AnalyseurAntivirus.disponible()` exposée à dev2 par
+  `VerificationAntivirus`).
 
 ---
 
@@ -295,31 +276,23 @@ pas encore intégrée) :
   `@Bean VerificationAntivirus verificationAntivirus(AnalyseurAntivirus a) { return a::disponible; }`
   (commentaire en place ; `ClientClamd.disponible()` fait un `zPING`, testé).
 
-### Plan de branchement E6 (vague 2, avec E5)
+### Branchement E6 (vague 2) — fait
 
-1. **Dépôt** (`DocumentService.upload` / `ajouterVersion`, temps 1 du §12.11) : après l'écriture
-   chiffrée E5, dans la même transaction,
-   `ocrJobQueue.enfiler(new NouveauJob(doc, version, cleFichierId, typeMime, languesOcr.pour(type.getCode()), maintenant))` ;
-   réponse **HTTP 202** avec `EN_ATTENTE_OCR` (API d'intégration, dev2).
-2. `ged.ocr.chaine.actif=true` (workers, jauges, API recherche et supervision) ;
-   `ged.ocr.chaine.workers` selon les cœurs du serveur.
-3. **Restauration d'une version** (`restaurerVersion`) : enfiler un job pour la version restaurée
-   (l'index porte sur la version courante).
-4. **Purge** (E7) : les lignes `ocr_job` et `document_texte` partent en cascade avec le document.
-5. **Recherche** : le lot autorisation remplace `PredicatDroitsProvisoire` (bean `predicatDroits`
-   de `ConfigurationChaineOcr`) ; critères de métadonnées ajoutés en `FragmentSql` ; tri par date,
-   type ou nom par jointure sur `document` ; Angular : écran de recherche avec extraits (segments)
-   et mention « contenu non interrogeable » (via `statutsParVersion`).
-6. **Supervision** : `/api/v1/admin/ocr/*` et `/api/v1/admin/recherche/reindexation` à restreindre
-   au profil Administrateur (lot autorisation) ; écran Angular de supervision.
-7. **Cloisonnement 4.3.3** : appliquer `docs/conformite/correctifs/E6-retrait-preremplissage-ocr.patch`
-   (`git apply`). Il retire de `IndexationService` la lecture du contenu dans l'aperçu et
-   l'analyse (`lireSansDeposer`, `ocr.lire`, `valeurs.deduire`, `manqueUnChamp`, dépendances
-   `OcrService` et `ExtracteurValeurs`) et n'y laisse que le nom de fichier ; adapte les tests 5
-   et 6 d'`OcrApiTest` (qui décrivaient le pré-remplissage) ; retire du front l'encart « Contenu
-   lu » et l'étiquette « lu dans le document » (`document-upload.html`). Ensuite : supprimer
-   `ExtracteurValeurs`, `LecteurPositionnel`, `LectureTsv`, `ged.ocr.langue` / `pages-max` et
-   l'extraction synchrone.
+1. Dépôt / nouvelle version : job `ocr_job` enfilé **dans la même transaction** (`EnfilageOcr`) ;
+   réponse **HTTP 202** avec `statutOcr = EN_ATTENTE_OCR` quand un job est créé, **201** sinon
+   (type sans OCR). Restauration d'une version : nouveau job pour la version restaurée.
+2. `ged.ocr.chaine.actif=true` (workers, jauges, API recherche et supervision). Chaîne OCR
+   synchrone supprimée (`OcrService`, extracteurs, `LecteurPositionnel`…).
+3. Cloisonnement §4.3.3 : correctif appliqué (177bbd4) — l'OCR n'alimente plus aucun champ
+   d'index ; l'aperçu d'indexation ne lit plus le contenu.
+4. Recherche : critères de métadonnées (type, espace, période de dépôt) et tris (pertinence,
+   date, nom, type, indexation récente) par jointure sur `document`, documents en corbeille
+   exclus (181b7f0).
+5. Angular (6ab8ca4) : écran « Recherche » (extraits en segments surlignés, mention « contenu non
+   interrogeable »), écran « Traitements OCR » (supervision, relance, réindexation), bandeau d'état
+   OCR sur la fiche document.
+6. Restent au lot autorisation : `PredicatDroitsProvisoire` et restriction des écrans
+   d'administration OCR au profil Administrateur.
 
 ### Tests E6 (PostgreSQL 16, schéma jetable portant tout le changelog maître)
 
@@ -359,28 +332,67 @@ Aucun. À signaler à dev1 et pm : `preparer-base.sql` crée maintenant l'extens
 
 ## Vague 2 — événements de domaine des documents (pour l'audit de dev2)
 
-Paquet `com.ipt.ged.document.evenement`, interface scellée `EvenementDocument`
-(`type()`, `documentId()`, `versionId()`, `acteur()`, `survenuLe()`), acteur
-`Acteur(employeId, applicationId)` (`Acteur.courant()` depuis le jeton, `Acteur.SYSTEME` pour
-les traitements de fond). Publiés par `ApplicationEventPublisher` :
+Paquet `com.ipt.ged.document.evenement`, interface scellée `EvenementDocument` qui **étend
+`com.ipt.ged.audit.EvenementAudit`** (contrat de dev2 ; `EvenementAudit`, `ResultatAudit` et
+`common/erreur/ExceptionMetier` repris à l'identique de `ct/dev2`, mêmes blobs git : fusion sans
+conflit). Valeurs par défaut : `action() = type()` (codes du catalogue `ActionAudit`),
+`objetType() = "DOCUMENT"`, `objetId() = documentId()`, acteur utilisateur / application tiré de
+`Acteur(employeId, applicationId)` (`Acteur.courant()` depuis le jeton, `Acteur.SYSTEME` pour les
+traitements de fond : acteur nul, complété par le journal), résultat `SUCCES`.
 
-| Record | `type()` | Publié par | Champs propres |
+| Record | `action()` | Publié par | avant / après / motif |
 |---|---|---|---|
-| `DocumentDepose` | `DOCUMENT_DEPOSE` | `DocumentService.upload` | nom, typeDocumentId, workspaceId, nomFichier, cleFichierId, empreinte, typeMime, tailleOctets, statutOcr |
-| `VersionAjoutee` | `VERSION_AJOUTEE` | `DocumentService.ajouterVersion` | versionPrecedenteId, nomFichier, observation, cleFichierId, empreinte, typeMime, tailleOctets, statutOcr |
-| `VersionRestauree` | `VERSION_RESTAUREE` | `DocumentService.restaurerVersion` | versionPrecedenteId, statutOcr |
-| `DocumentTelecharge` | `DOCUMENT_TELECHARGE` | téléchargement | nomFichier |
-| `ApercuConsulte` | `APERCU_CONSULTE` | prévisualisation | cleFichierId |
-| `MetadonneesModifiees` | `METADONNEES_MODIFIEES` | `DocumentService.update`, enregistrement des index | `avant` / `apres` (champs modifiés seulement) |
-| `VerrouModifie` | `DOCUMENT_VERROUILLE` / `DOCUMENT_DEVERROUILLE` | `DocumentService.setVerrou` | avant, apres |
-| `DocumentSupprime` | `DOCUMENT_SUPPRIME` | corbeille (unitaire et multiple) | nom |
-| `DocumentRestaure` | `DOCUMENT_RESTAURE` | sortie de corbeille (unitaire et multiple) | nom |
-| `ContenuIndexe` | `CONTENU_INDEXE` | worker OCR | nbPages, provenance, delaiDisponibilite |
-| `OcrEnEchec` | `OCR_ECHEC` | worker OCR | jobId, motif |
+| `DocumentDepose` | `DOCUMENT_DEPOSE` | `DocumentService.upload` | après : fichier, empreinte, type, taille |
+| `VersionAjoutee` | `VERSION_AJOUTEE` | `DocumentService.ajouterVersion` | avant/après : version courante ; motif : observation |
+| `VersionRestauree` | `VERSION_RESTAUREE` | `DocumentService.restaurerVersion` | avant/après : version courante |
+| `DocumentTelecharge` | `DOCUMENT_TELECHARGE` | téléchargement | — |
+| `ApercuConsulte` | `APERCU_CONSULTE` | prévisualisation | — |
+| `MetadonneesModifiees` | `METADONNEES_MODIFIEES` | `DocumentService.update` | champs modifiés seulement |
+| `VerrouModifie` | `DOCUMENT_VERROUILLE` / `DOCUMENT_DEVERROUILLE` | `DocumentService.setVerrou` | `{verrouille}` avant/après |
+| `DocumentSupprime` | `DOCUMENT_SUPPRIME` | corbeille (unitaire et multiple) | — |
+| `DocumentRestaure` | `DOCUMENT_RESTAURE` | sortie de corbeille | — |
+| `ContenuIndexe` | `CONTENU_INDEXE` | worker OCR | motif : pages, provenance, délai |
+| `OcrEnEchec` | `OCR_ECHEC` | worker OCR | résultat `ECHEC`, motif |
 
-Contrat : une écriture publie **dans sa transaction**, avant validation (écouteur
-`@TransactionalEventListener(BEFORE_COMMIT)` = audit tout-ou-rien, `AFTER_COMMIT` = seulement ce
-qui a eu lieu) ; une lecture publie après le contrôle d'accès, avant de servir le contenu ; un
-refus ne publie pas d'événement document. Événements de fichier déjà disponibles hors de ce
-paquet : `ControleFichiers.FichierInfecte` (refus antivirus, §6.1.5) et
-`VerificationIntegrite.AnomalieIntegrite` (§6.1.4).
+L'enregistrement des index (`IndexationService.enregistrer`) ne publie plus
+`MetadonneesModifiees` : dev2 l'audite déjà (`INDEXATION_ENREGISTREE`).
+
+Événements de fichier, eux aussi `EvenementAudit` (objet `FICHIER`) :
+`ControleFichiers.FichierInfecte` (`FICHIER_INFECTE`, résultat `REFUS`, §6.1.5) et
+`VerificationIntegrite.AnomalieIntegrite` (`INTEGRITE_ANOMALIE`, résultat `ECHEC`, §6.1.4).
+
+Contrat : une écriture publie **dans sa transaction**, avant validation ; une lecture publie après
+le contrôle d'accès, avant de servir le contenu ; un refus ne publie pas d'événement document.
+
+### Erreurs : contrat `ExceptionMetier`
+
+`ErreurFichierException` étend `ExceptionMetier` (problem+json de dev2) ; codes et statuts
+inchangés : `FICHIER_TROP_VOLUMINEUX` 413, `FORMAT_NON_AUTORISE` / `APERCU_NON_DISPONIBLE` 415,
+`FICHIER_INFECTE` 422, `FICHIER_INTROUVABLE` 404, `ANTIVIRUS_INDISPONIBLE` / `CONVERSION_INDISPONIBLE` 503,
+`INTEGRITE_COMPROMISE` 500. `GlobalExceptionHandler` non modifié.
+
+### Garde-fou antivirus
+
+Refus de démarrer avec l'antivirus désactivé hors des profils `dev` et `test`, et dans tous les
+cas sous `prod` ou `uat` (006370c ; `ConfigurationFichiersTest`).
+
+### Tests vague 2
+
+Suite complète `DB_NAME=ged_dev3 mvn test` : **351 tests, 0 échec**. Nouveaux / réécrits :
+`EvenementsAuditTest` (3), `EvenementsDocumentApiTest` (4, faux clamd, EICAR → 422 + événement),
+`ApercuTelechargementApiTest` (7), `OcrApiTest` (7 : 202/201, job enfilé, re-OCR à la
+restauration), `RepriseVersionsEnClairTest` (4), `SearchIndexerPostgresTest` (16, critères et
+tris), `DepotRobustesseApiTest` (compensation : fichier détruit si la transaction échoue).
+Front : `ng build` sans erreur. Aucun schéma `ged_verif_*` résiduel dans `ged_dev3_test`.
+
+### Vérifié uniquement par simulateur (inchangé)
+
+ClamAV (`FauxClamd`) et LibreOffice (`FauxSoffice`) : aucun binaire réel sur le poste.
+
+### Notes pour dev2 / dev1
+
+- dev2 : `GED_STORAGE_TEMP` (`ged.env.exemple`) et la mention de `ged.storage.root` dans
+  `DEPLOIEMENT.md` sont obsolètes (stockage E5 : `GED_STOCKAGE_RACINE`, keystore).
+- dev1 / pm : la reprise de données doit renseigner la version par `RepriseVersionsEnClair`
+  (chemins `file_path` → stockage chiffré) avant d'inclure le changeset contract ;
+  `preparer-base.sql` crée l'extension `unaccent` (à rejouer sur les bases existantes).
