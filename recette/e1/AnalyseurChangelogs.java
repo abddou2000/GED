@@ -54,8 +54,16 @@ public class AnalyseurChangelogs {
     static final Set<String> CHANGEMENTS_DONNEES = Set.of("insert", "update", "delete", "loadData", "loadUpdateData");
     static final Set<String> DESTRUCTIFS = Set.of("dropTable", "dropColumn", "modifyDataType", "renameColumn",
             "renameTable", "mergeColumns", "dropView");
-    static final Pattern SQL_DONNEES = Pattern.compile("\\b(insert\\s+into|update\\s+\\w|delete\\s+from|merge\\s+into|copy\\s+\\w)",
+    /**
+     * Amorçage de valeurs fixes (ce que §4.2.1 réserve aux changesets data-initial) :
+     * INSERT … VALUES et COPY. Les transformations de données existantes (INSERT … SELECT,
+     * UPDATE, DELETE d'une reprise ou d'un changement de structure) sont des migrations, pas
+     * un amorçage : elles ne portent pas l'étiquette et ne sont pas signalées.
+     */
+    static final Pattern SQL_DONNEES = Pattern.compile("\\b(insert\\s+into\\s+[\\w.${}\"]+\\s*(\\([^)]*\\))?\\s*values|copy\\s+\\w)",
             Pattern.CASE_INSENSITIVE);
+    /** Corps de fonctions ($$ … $$) : leur SQL s'exécute plus tard, pas pendant la migration. */
+    static final Pattern CORPS_FONCTION = Pattern.compile("\\$([a-z_]*)\\$.*?\\$\\1\\$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     /** Référentiels métier : créés depuis l'interface seulement (DAT §4.2.1, principe P1). */
     static final Set<String> REFERENTIELS = Set.of("type_document", "index_def", "plan_indexation", "plan_index", "noeud",
             "regle_workflow", "regle_validateur", "groupe_ged", "groupe_membre", "habilitation", "application", "cle_api",
@@ -293,8 +301,9 @@ public class AnalyseurChangelogs {
             }
             String contextes = (cs.getAttribute("context") + " " + cs.getAttribute("contextFilter") + " "
                     + cs.getAttribute("labels")).toLowerCase(Locale.ROOT);
-            String sql = changements.stream().filter(e -> local(e).equals("sql")).map(Element::getTextContent)
-                    .collect(Collectors.joining(" "));
+            String sql = CORPS_FONCTION.matcher(changements.stream()
+                    .filter(e -> local(e).equals("sql") || local(e).equals("createProcedure"))
+                    .map(Element::getTextContent).collect(Collectors.joining(" "))).replaceAll(" ");
             boolean donnees = noms.stream().anyMatch(CHANGEMENTS_DONNEES::contains) || SQL_DONNEES.matcher(sql).find();
             if (donnees && !contextes.contains("data-initial")) {
                 ajouter("E1-A07", "ERREUR", ref + " : changement de données sans contexte ni label data-initial");

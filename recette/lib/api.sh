@@ -73,7 +73,15 @@ api_connexion() {
   id="$(printf '%s' "$GED_RECETTE_IDENTIFIANT" | sed -e 's/[\\]/&&/g' -e 's/"/\\"/g')"
   mdp="$(printf '%s' "$GED_RECETTE_MOT_DE_PASSE" | sed -e 's/[\\]/&&/g' -e 's/"/\\"/g')"
   corps="$(printf '{"%s":"%s","%s":"%s"}' "$GED_CHAMP_IDENTIFIANT" "$id" "$GED_CHAMP_MOT_DE_PASSE" "$mdp")"
-  api_appel POST "$GED_API_CONNEXION" -H 'Content-Type: application/json' --data-binary @- <<< "$corps"
+  local essai attente
+  for essai in 1 2 3; do
+    api_appel POST "$GED_API_CONNEXION" -H 'Content-Type: application/json' --data-binary @- <<< "$corps"
+    [[ "$HTTP_CODE" != 429 ]] && break
+    # Limitation de débit de la connexion (§3.4.1 : 5 par minute et par IP) : on attend.
+    attente="$(grep -i '^retry-after:' "$HTTP_ENTETES" | tr -dc '0-9')"
+    printf '# limitation de débit : attente de %s s\n' "$(( ${attente:-60} + 1 ))" >&2
+    sleep $(( ${attente:-60} + 1 ))
+  done
   [[ "$HTTP_CODE" == 200 ]] || return 1
   _JETON="$(json_champ accessToken)"; [[ -z "$_JETON" ]] && _JETON="$(json_champ token)"
   [[ -z "$_JETON" ]] && _JETON="$(json_champ access_token)"
