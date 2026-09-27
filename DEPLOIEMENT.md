@@ -321,6 +321,23 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
   - `version_habilitations` est tenu par des déclencheurs (séquence
     `version_habilitations_seq`) : `ged_app` doit avoir `USAGE` sur les
     séquences du schéma, ce que `preparer-base.sql` accorde déjà par défaut.
+- **Passage au lot E7, partie modèle** (`modele-e7`) :
+  - `version_document.is_default` devient `courante` ; les versions reçoivent
+    un numéro dans l'ordre de dépôt ; un document qui avait plusieurs versions
+    « principales », ou aucune, garde la plus récente comme courante (index
+    unique partiel ensuite) ; l'historique est en lecture seule (déclencheur) ;
+  - chaque plan d'indexation reçoit sa version 1, et chaque document la
+    version 1 du plan de son type ; `date_document` reprend la date de dépôt ;
+  - les échéances de conservation se calculent dès qu'un type reçoit une durée.
+- **Index d'expression d'une métadonnée fréquente** (§12.7) : un changeset par
+  champ, sur les fonctions immuables de la base, par exemple :
+  ```sql
+  CREATE INDEX idx_document_meta_date_facture ON ged.document (ged.meta_date(metadonnees, 'DATE_FACTURE'));
+  CREATE INDEX idx_document_meta_montant ON ged.document (ged.meta_nombre(metadonnees, 'MONTANT'));
+  ```
+  La recherche (`POST /api/v1/documents/recherche`) emploie ces mêmes
+  expressions : l'index sert sans autre changement. Les critères liste et
+  booléen passent par l'index GIN existant (`idx_document_metadonnees`).
 - **Retour arrière** avec la Liquibase CLI 4.29 (compte `ged_owner`), depuis le
   dossier `backend/src/main/resources` ou le contenu `BOOT-INF/classes` du JAR :
   ```bash

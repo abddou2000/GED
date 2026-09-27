@@ -29,9 +29,63 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
-**E3 — Autorisation et confidentialité (vague 3)** : terminé côté développement,
-branche `ct/dev1`, en attente d'intégration (fusions suspendues). E2 : accepté
-(ea2f936), non encore fusionné. E1 : fusionné par pm (fbb951c).
+**E7 — partie modèle (vague 4)** : terminé côté développement, branche
+`ct/dev1`, en attente d'intégration (fusions suspendues). E3 : accepté
+(483eb40). E2 : accepté (ea2f936). Aucun des deux n'est encore fusionné.
+E1 : fusionné par pm (fbb951c).
+
+## E7 (modèle) — exigences traitées
+
+| Réf. | Exigence | Statut proposé | Preuve |
+|---|---|---|---|
+| 12.7 (T-102) | Méta-modèle : nature booléenne, obligatoire, défaut, liste, recherche | Identique | `IndexFieldType.BOOLEEN` (ck en base, OCR : jamais déduit), `ValidateurMetadonnees` (nature, obligatoire, liste, défaut, appartenance au plan). |
+| 12.7 (T-104) | Métadonnées JSONB validées, GIN, index d'expression, recherche | Identique | `document.metadonnees` normalisé par code d'index (nombre JSON, booléen JSON, date ISO) ; validé au dépôt et à la modification (400 `METADONNEES_INVALIDES` + dictionnaire `erreurs`) ; dépôt sans métadonnées = deux temps (§12.11), obligatoires exigés à l'indexation. Fonctions IMMUTABLE `meta_texte` / `meta_nombre` / `meta_date` : support des index d'expression (un changeset par champ fréquent, procédure `DEPLOIEMENT.md` §8). `POST /documents/recherche` : containment `@>` (GIN) pour liste et booléen, bornes pour date et nombre, texte contient ; **date du document en tri prioritaire** ; périmètre par le prédicat SQL d'`AccessPredicate`. |
+| 12.7 (T-105) | Type : conservation, confidentialité par défaut, plan versionné, `RESTRICT`, re-typologisation | Identique | `duree_conservation_mois`, `point_depart` (DATE_DOCUMENT / DATE_DEPOT / METADONNEE + index date du plan, contrôlé) ; `plan_indexation_version` (définition figée JSONB ; version créée à chaque modification d'un plan, d'un index ou d'un type ; le document référence la version de son dépôt et est validé contre elle) ; FK `document → type_document` RESTRICT + 409 `TYPE_UTILISE`, `actif` (désactivé = plus de dépôt) ; `job_retypage` (correspondance ancien → nouveau champ, un document par transaction, verrouillés / archivés / invalides en échec isolé, déplacement vers le dossier du type cible, rapport, événement `DOCUMENT_RETYPE` par document, prise atomique). |
+| 12.7 (P-21) | Socle commun : objet, date du document, confidentialité, conservation déduite du type | Identique | Colonnes `objet`, `date_document` (reprise = date de dépôt), `echeance_conservation` calculée **par la base** (déclencheurs) au dépôt, au changement de type, de date ou de métadonnée, et pour tous les documents du type quand sa durée ou son point de départ change. |
+| 12.8 (T-106) | Versions : numéro, empreinte, auteur, une seule courante ; D9 ; Q6 | Identique | `numero`, `auteur_id`, `empreinte` (SHA-256 calculé au versement ; colonne de dev3 réutilisée : changeset gardé `MARK_RAN` si elle existe) ; `is_default` → `courante` avec **index unique partiel** `uk_version_document_courante` ; `ServiceVersions` (démission écrite avant promotion) ; D9 : la nouvelle version devient courante, l'ancienne reste en lecture seule (déclencheur `trg_version_document_lecture_seule`) ; désignation d'une ancienne version avec Modifier (Q6 : V3) ; téléchargement de toute version. |
+| 12.8 (T-107) | Verrou : auteur, date, motif ; 409 partout ; Administrateur ; audit | Identique | `verrou_par`, `verrou_le`, `verrou_motif` (ck) ; pose / levée par l'Administrateur (rôle global), 403 sinon ; `GardeEcriture` : 409 `DOCUMENT_VERROUILLE` (motif dans le message) sur fiche, métadonnées, versement, version courante, déplacement, rattachement, suppression, réindexation (routes indexation par l'intercepteur) et archivage (contrat dev3) ; 409 `DOCUMENT_ARCHIVE` pour un document archivé. Événements `DOCUMENT_VERROUILLE` / `DOCUMENT_DEVERROUILLE`. |
+| 12.5 (T-098) | Déplacement de document et de dossier, droits, 409 verrouillé, audit | Identique | Dossier : chemin de la sous-arborescence recalculé par la base (E3) ; document : `PATCH /documents/{id}/emplacement` et changement de type — Déplacer sur l'origine, Déposer sur la destination, 409 si verrouillé ou archivé, rattachement doublon retiré, événement `DOCUMENT_DEPLACE` avec origine et destination. L'audit des déplacements de dossiers est celui de dev2 (`ESPACE_DEPLACE`, vague 2). |
+| 12.5 (P-20) | Renommage : Modifier, unicité dans le dossier (409), audit | Identique | Documents (même emplacement principal) et nœuds (même parent) : 409 `NOM_DEJA_UTILISE` ; `DOCUMENT_RENOMME` avant / après. |
+| 12.6 (T-101, D10) | Drapeau d'archivage sur documents et nœuds | Identique pour le modèle | `statut_conservation`, `archive_le`, `archive_par` sur `noeud` et `document` ; contrats `ArchivageNoeuds` / `ArchivageDocuments` livrés en premier (voir plus haut) ; le traitement (PDF/A, job) est au lot de dev3. |
+| R-03 (D12) | Espace de partage simple | Identique | `noeud.usage_espace` METIER / ECHANGE, hérité par les dossiers (déclencheurs) ; en espace d'échange, Déposer sur le parent suffit pour créer dossiers et sous-dossiers ; en espace métier, gestion des espaces requise ; aucune édition en ligne (télécharger, modifier localement, verser). |
+
+Tests : `mvn test` → **337 verts** (dont `ModeleDocumentApiTest` 11, `RetypageTest`,
+`ContratArchivageTest` 3 ; `SchemaLiquibaseTest` : jalon `modele-e7` et retour
+arrière complet ; reprise adaptée : numéros, une version courante, verrou daté).
+Front : build et tests verts. Vérifié en exécution sur `ged_dev1` (données E3
+migrées, backend 18081 arrêté ensuite) : dépôt avec objet et date, version 1 avec
+empreinte, verrou avec motif, 409 sur écriture, recherche triée par date.
+
+Pour dev3 à la fusion : `DocumentService` a été modifié des deux côtés (versement
+→ appeler `ServiceVersions.verser`, métadonnées au dépôt →
+`ServiceModeleDocument.appliquerAuDepot`) ; `ValidationPlan` (dev3) et
+`ValidateurMetadonnees` (dev1) font la même validation : garder la mienne (versions
+de plan, booléen, normalisation) et y brancher `MetadonneesDepot` ; les événements
+de dev3 `VersionAjoutee`, `VersionRestauree`, `VerrouModifie` doublonnent ceux du
+lot modèle (versions et verrou sont à dev1) : n'en garder qu'une publication par
+action. Changeset `202609301045` (empreinte) : `MARK_RAN` une fois `202609271205`
+présent — ne jamais réordonner ces deux fichiers.
+
+Tests en parallèle : le simulateur d'annuaire des tests écoute sur
+`GED_TEST_ANNUAIRE_PORT` (défaut 33390) ; deux copies de travail qui testent en
+même temps doivent prendre des ports différents (dev1 : 33391).
+
+**Point à trancher (demandé par le coordinateur) — droits des administrateurs
+sur les espaces des anciens groupes.** Constaté sur `ged_dev1` : `sbennani`,
+Administrateur de portée globale et membre du groupe repris AG-ADMIN, reçoit
+**403 en supprimant un document** d'un espace que ce groupe « couvrait » — la
+reprise a fait de chaque lien groupe / espace une habilitation « Utilisateur
+standard », et la règle « le plus spécifique prévaut » (§12.2.2, D14) la fait
+passer devant sa portée globale. Or dans l'ancienne application ces groupes
+**n'autorisaient rien** (commentaire d'origine : « il ne conditionne aucune
+autorisation ») : la reprise crée une restriction qui n'existait pas.
+Recommandation : **ne pas convertir `access_group_workspace` en habilitations**
+dans le changeset 202609281030-2 ; conserver groupes et membres, et consigner les
+anciens liens groupe / espace dans un rapport (table ou export) pour que
+l'Administrateur pose lui-même les habilitations voulues depuis l'écran. À
+défaut, variante minimale : ne créer ces habilitations que pour les groupes
+dont aucun membre n'a de rôle global. La correction est un changeset de plus
+(le changeset appliqué ne se modifie pas) et une ligne du script de reprise.
 
 ## E3 — exigences traitées (Réf. de MATRICE-TECHNIQUE.md, lignes T/P de SUIVI.md)
 
