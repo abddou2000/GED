@@ -97,5 +97,6 @@
     <include file="changesets/202609301060_creation_table_job_retypage.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301070_usage_espace_noeud.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301200_jalon_modele.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610011000_reprise_liens_groupe_espace.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

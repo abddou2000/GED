@@ -35,7 +35,7 @@ DECLARE
     n bigint;
 BEGIN
     FOREACH t IN ARRAY ARRAY['employe', 'utilisateur', 'workflow_ged', 'workflow_ged_etape',
-        'noeud', 'groupe_ged', 'habilitation', 'groupe_membre', 'etiquette',
+        'noeud', 'groupe_ged', 'habilitation', 'reprise_lien_groupe_espace', 'groupe_membre', 'etiquette',
         'index_def', 'plan_indexation', 'plan_index', 'type_document', 'document', 'version_document',
         'document_etiquette', 'document_index_valeur', 'workflow_ged_signature']
     LOOP
@@ -190,15 +190,15 @@ SELECT reprise_source.nouvel_id('access_groups', s.id), s.code, s.name,
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.access_groups s;
 
--- Un groupe « couvrait » des espaces : c'est désormais une habilitation du
--- groupe sur chaque nœud, avec le rôle Utilisateur standard (même sens que la
--- reprise des rattachements existants, changeset 202609281030-2). Les
--- colonnes droit_* de l'ancien modèle restent inertes.
-INSERT INTO habilitation (id, sujet_type, groupe_ged_id, role_id, noeud_id, rupture_heritage)
-SELECT uuid_v7(), 'GROUPE', x.groupe_ged_id, '0192a000-0000-7000-8000-000000000004'::uuid, x.noeud_id, false
-  FROM (SELECT DISTINCT reprise_source.nouvel_id('access_groups', s.access_group_id) AS groupe_ged_id,
-                        reprise_source.nouvel_id('work_spaces', s.workspace_id) AS noeud_id
-          FROM reprise_source.pivot_workspace_groups s) x;
+-- Un groupe « couvrait » des espaces, sans rien autoriser dans l'ancienne
+-- application. Ces liens ne deviennent PAS des habilitations (décision du
+-- point 9, lot E7 : ils restreindraient un Administrateur membre du groupe) :
+-- ils sont consignés dans le rapport de reprise, que l'écran Habilitations
+-- présente à l'Administrateur pour qu'il pose lui-même les droits voulus.
+INSERT INTO reprise_lien_groupe_espace (groupe_ged_id, noeud_id)
+SELECT DISTINCT reprise_source.nouvel_id('access_groups', s.access_group_id),
+                reprise_source.nouvel_id('work_spaces', s.workspace_id)
+  FROM reprise_source.pivot_workspace_groups s;
 
 INSERT INTO groupe_membre (groupe_ged_id, employe_id)
 SELECT reprise_source.nouvel_id('access_groups', s.access_group_id),

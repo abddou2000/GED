@@ -14,8 +14,8 @@ WITH controles(ordre, controle, attendu, obtenu) AS (
     UNION ALL SELECT 4, 'lignes workflow_ged_etape',      (SELECT count(*) FROM reprise_source.workflow_ged_steps),     (SELECT count(*) FROM workflow_ged_etape)
     UNION ALL SELECT 5, 'lignes noeud',                   (SELECT count(*) FROM reprise_source.work_spaces),            (SELECT count(*) FROM noeud)
     UNION ALL SELECT 6, 'lignes groupe_ged',              (SELECT count(*) FROM reprise_source.access_groups),          (SELECT count(*) FROM groupe_ged)
-    UNION ALL SELECT 7, 'habilitations de groupe',        (SELECT count(*) FROM (SELECT DISTINCT access_group_id, workspace_id FROM reprise_source.pivot_workspace_groups) p),
-                                                          (SELECT count(*) FROM habilitation WHERE sujet_type = 'GROUPE' AND noeud_id IS NOT NULL)
+    UNION ALL SELECT 7, 'liens groupe / espace au rapport', (SELECT count(*) FROM (SELECT DISTINCT access_group_id, workspace_id FROM reprise_source.pivot_workspace_groups) p),
+                                                          (SELECT count(*) FROM reprise_lien_groupe_espace)
     UNION ALL SELECT 8, 'lignes groupe_membre',           (SELECT count(*) FROM reprise_source.pivot_employe_groups),   (SELECT count(*) FROM groupe_membre)
     UNION ALL SELECT 9, 'lignes etiquette',               (SELECT count(*) FROM reprise_source.etiquettes),             (SELECT count(*) FROM etiquette)
     UNION ALL SELECT 10, 'lignes index_def',              (SELECT count(*) FROM reprise_source.indices),                (SELECT count(*) FROM index_def)

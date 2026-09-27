@@ -79,11 +79,19 @@ class SchemaLiquibaseTest {
         TABLES_E3 = Set.copyOf(t);
     }
 
-    /** Tables du modèle courant : E3 plus le méta-modèle du lot E7 (plans versionnés, re-typologisation). */
-    private static final Set<String> TABLES_ATTENDUES;
+    /** Tables au jalon modele-e7 : E3 plus le méta-modèle (plans versionnés, re-typologisation). */
+    private static final Set<String> TABLES_E7;
     static {
         Set<String> t = new TreeSet<>(TABLES_E3);
         t.addAll(Set.of("plan_indexation_version", "job_retypage"));
+        TABLES_E7 = Set.copyOf(t);
+    }
+
+    /** Tables du modèle courant : E7 plus le rapport de reprise des liens groupe / espace. */
+    private static final Set<String> TABLES_ATTENDUES;
+    static {
+        Set<String> t = new TreeSet<>(TABLES_E7);
+        t.add("reprise_lien_groupe_espace");
         TABLES_ATTENDUES = Set.copyOf(t);
     }
 
@@ -164,9 +172,9 @@ class SchemaLiquibaseTest {
                         "neuf permissions élémentaires, sept d'administration, deux de confidentialité");
                 assertEquals(1, compter(c, "SELECT count(*) FROM " + schema + ".version_habilitations"));
 
-                // Rien n'est postérieur au jalon E7 (modèle) : le schéma ne bouge pas.
+                // Retour au jalon E7 (modèle) : le rapport de reprise se défait.
                 liquibase.rollback("modele-e7", (String) null);
-                assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
+                assertEquals(new TreeSet<>(TABLES_E7), tablesMetier(c, schema));
 
                 // Retour au jalon E3 : plans versionnés et re-typologisation se défont.
                 liquibase.rollback("autorisation-e3", (String) null);
@@ -187,6 +195,56 @@ class SchemaLiquibaseTest {
                 assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
                 assertEquals(4, compter(c, "SELECT count(*) FROM " + schema
                         + ".databasechangelog WHERE tag IN ('socle-e1', 'identite-e2', 'autorisation-e3', 'modele-e7')"));
+            } finally {
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Point 9 (E7) : les liens groupe / espace d'avant E3 finissent au rapport de reprise, jamais en habilitations")
+    void liensGroupeEspaceAuRapport() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                liquibase.update("identite-e2", new Contexts(), new LabelExpression());
+                // État E2 : un Administrateur de portée globale, membre d'un groupe qui « couvre » un espace.
+                String s = schema + ".";
+                executer(c, "INSERT INTO " + s + "employe (id, first_name, last_name, has_user) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000e001', 'Sara', 'Bennani', true)");
+                executer(c, "INSERT INTO " + s + "workflow_ged (id, name) VALUES ('01920000-0000-7000-8000-00000000f001', 'WF')");
+                executer(c, "INSERT INTO " + s + "workspace (id, name, code, status, employe_id, workflow_ged_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000a001', 'Compta', 'WS-C', 'ACTIF',"
+                        + " '01920000-0000-7000-8000-00000000e001', '01920000-0000-7000-8000-00000000f001')");
+                executer(c, "INSERT INTO " + s + "access_group (id, code, name) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000b001', 'AG-ADMIN', 'Administrateurs')");
+                executer(c, "INSERT INTO " + s + "access_group_employe (access_group_id, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000b001', '01920000-0000-7000-8000-00000000e001')");
+                executer(c, "INSERT INTO " + s + "access_group_workspace (access_group_id, workspace_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000b001', '01920000-0000-7000-8000-00000000a001')");
+                executer(c, "INSERT INTO " + s + "utilisateur (id, object_guid, identifiant, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000c001', '01920000-0000-7000-8000-00000000c0aa', 'sbennani',"
+                        + " '01920000-0000-7000-8000-00000000e001')");
+                executer(c, "INSERT INTO " + s + "utilisateur_role (utilisateur_id, role_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000c001', '0192a000-0000-7000-8000-000000000001')");
+
+                liquibase.update(new Contexts(), new LabelExpression());
+
+                assertEquals(0, compter(c, "SELECT count(*) FROM " + s + "habilitation WHERE sujet_type = 'GROUPE'"),
+                        "aucune habilitation de groupe issue de la reprise");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "reprise_lien_groupe_espace"
+                        + " WHERE groupe_ged_id = '01920000-0000-7000-8000-00000000b001'"
+                        + " AND noeud_id = '01920000-0000-7000-8000-00000000a001'"));
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "habilitation WHERE sujet_type = 'UTILISATEUR'"
+                        + " AND noeud_id IS NULL AND role_id = '0192a000-0000-7000-8000-000000000001'"),
+                        "le rôle global de l'Administrateur est intact");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "groupe_membre"), "groupes et membres conservés");
+
+                // Retour arrière du seul changeset : les habilitations reviennent, le rapport disparaît.
+                liquibase.rollback(1, (String) null);
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "habilitation WHERE sujet_type = 'GROUPE'"));
             } finally {
                 supprimerSchema(c, schema);
             }

@@ -555,6 +555,23 @@ class CheminsAccesApiTest {
         assertEquals(0, conf.get("permissions").size());
     }
 
+    @Test
+    @DisplayName("Point 9 (E7) : un Administrateur global membre d'un groupe repris garde ses droits ; le lien est au rapport")
+    void administrateurMembreDUnGroupeRepris() throws Exception {
+        var groupe = new com.ipt.ged.accessgroup.AccessGroup("AG-REPRIS", "Groupe repris");
+        groupe.getUsers().add(em.find(com.ipt.ged.employe.Employe.class, jeu.employeId(Comptes.ADMIN)));
+        em.persist(groupe);
+        em.flush();
+        // Ce que la reprise écrit désormais : un lien au rapport, aucune habilitation.
+        jdbc.update("INSERT INTO reprise_lien_groupe_espace (groupe_ged_id, noeud_id) VALUES (?, ?)", groupe.getId(), a);
+
+        mvc.perform(get("/api/v1/admin/reprise/liens-groupes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.groupe == 'Groupe repris')].noeud").value("A"))
+                .andExpect(jsonPath("$[?(@.groupe == 'Groupe repris')].habilitationPosee").value(false));
+        mvc.perform(delete("/api/v1/documents/" + dA)).andExpect(status().isNoContent());
+    }
+
     /* ---------------------------------------------------------------- points d'extension */
 
     @Test
