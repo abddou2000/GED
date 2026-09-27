@@ -1,0 +1,31 @@
+# =====================================================================
+#  Alertmanager : notification de l'équipe d'exploitation par le relais SMTP
+#  de MMED (DAT 6.7). Aucun secret ici : le mot de passe SMTP, s'il en faut
+#  un, est lu dans un fichier (smtp_auth_password_file).
+#  Contrôle : amtool check-config alertmanager.yml
+# =====================================================================
+global:
+  smtp_smarthost: "relais-smtp.marchica.local:587"
+  smtp_from: "supervision-ged@marchica.ma"
+  smtp_require_tls: true
+  # smtp_auth_username: "supervision-ged"
+  # smtp_auth_password_file: /etc/alertmanager/smtp.mdp
+
+route:
+  receiver: exploitation
+  group_by: [alertname, environnement]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: [severite="critique"]
+      receiver: exploitation
+      repeat_interval: 1h
+
+receivers:
+  - name: exploitation
+    email_configs:
+      - to: "exploitation-si@marchica.ma"
+        send_resolved: true
+        headers:
+          Subject: '[GED {{ .CommonLabels.environnement }}] {{ .CommonLabels.alertname }} ({{ .Status }})'
