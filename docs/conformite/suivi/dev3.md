@@ -354,3 +354,33 @@ français, arabe, mixte, websearch, pertinence et pagination, extraits, droits, 
 
 Aucun. À signaler à dev1 et pm : `preparer-base.sql` crée maintenant l'extension `unaccent`
 (à rejouer sur les bases existantes avant la prochaine montée Liquibase).
+
+---
+
+## Vague 2 — événements de domaine des documents (pour l'audit de dev2)
+
+Paquet `com.ipt.ged.document.evenement`, interface scellée `EvenementDocument`
+(`type()`, `documentId()`, `versionId()`, `acteur()`, `survenuLe()`), acteur
+`Acteur(employeId, applicationId)` (`Acteur.courant()` depuis le jeton, `Acteur.SYSTEME` pour
+les traitements de fond). Publiés par `ApplicationEventPublisher` :
+
+| Record | `type()` | Publié par | Champs propres |
+|---|---|---|---|
+| `DocumentDepose` | `DOCUMENT_DEPOSE` | `DocumentService.upload` | nom, typeDocumentId, workspaceId, nomFichier, cleFichierId, empreinte, typeMime, tailleOctets, statutOcr |
+| `VersionAjoutee` | `VERSION_AJOUTEE` | `DocumentService.ajouterVersion` | versionPrecedenteId, nomFichier, observation, cleFichierId, empreinte, typeMime, tailleOctets, statutOcr |
+| `VersionRestauree` | `VERSION_RESTAUREE` | `DocumentService.restaurerVersion` | versionPrecedenteId, statutOcr |
+| `DocumentTelecharge` | `DOCUMENT_TELECHARGE` | téléchargement | nomFichier |
+| `ApercuConsulte` | `APERCU_CONSULTE` | prévisualisation | cleFichierId |
+| `MetadonneesModifiees` | `METADONNEES_MODIFIEES` | `DocumentService.update`, enregistrement des index | `avant` / `apres` (champs modifiés seulement) |
+| `VerrouModifie` | `DOCUMENT_VERROUILLE` / `DOCUMENT_DEVERROUILLE` | `DocumentService.setVerrou` | avant, apres |
+| `DocumentSupprime` | `DOCUMENT_SUPPRIME` | corbeille (unitaire et multiple) | nom |
+| `DocumentRestaure` | `DOCUMENT_RESTAURE` | sortie de corbeille (unitaire et multiple) | nom |
+| `ContenuIndexe` | `CONTENU_INDEXE` | worker OCR | nbPages, provenance, delaiDisponibilite |
+| `OcrEnEchec` | `OCR_ECHEC` | worker OCR | jobId, motif |
+
+Contrat : une écriture publie **dans sa transaction**, avant validation (écouteur
+`@TransactionalEventListener(BEFORE_COMMIT)` = audit tout-ou-rien, `AFTER_COMMIT` = seulement ce
+qui a eu lieu) ; une lecture publie après le contrôle d'accès, avant de servir le contenu ; un
+refus ne publie pas d'événement document. Événements de fichier déjà disponibles hors de ce
+paquet : `ControleFichiers.FichierInfecte` (refus antivirus, §6.1.5) et
+`VerificationIntegrite.AnomalieIntegrite` (§6.1.4).
