@@ -1,5 +1,8 @@
 package com.ipt.ged.common;
 
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.AuditService;
+import com.ipt.ged.audit.EntreeAudit;
 import com.ipt.ged.common.erreur.CodesErreur;
 import com.ipt.ged.common.erreur.ExceptionMetier;
 import com.ipt.ged.common.erreur.Problemes;
@@ -14,6 +17,7 @@ import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
@@ -67,6 +71,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger journal = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /** Journal d'audit, pour tracer les refus de droits (DAT §7.4.1) ; absent dans les tests unitaires. */
+    private AuditService audit;
+
+    @Autowired(required = false)
+    void setAudit(AuditService audit) {
+        this.audit = audit;
+    }
+
     // ------------------------------------------------------------------
     // Exceptions métier : le contrat des lots
     // ------------------------------------------------------------------
@@ -80,6 +92,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail probleme = probleme(ex.statut(), ex.code(), ex.getMessage(), requete);
         Problemes.ajouter(probleme, ex.proprietes());
         tracer(ex.statut(), ex.code(), ex);
+        if (ex.statut() == HttpStatus.FORBIDDEN) {
+            tracerRefusDeDroits(ex.code(), ex.getMessage(), requete);
+        }
         return ResponseEntity.status(ex.statut()).headers(entetes).body(probleme);
     }
 
@@ -111,6 +126,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     /** Accès refusé levé dans un contrôleur ou un service → 403. */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ProblemDetail> accesRefuse(AccessDeniedException ex, HttpServletRequest requete) {
+        tracerRefusDeDroits(CodesErreur.ACCES_REFUSE, ex.getMessage(), requete);
         return reponse(HttpStatus.FORBIDDEN, CodesErreur.ACCES_REFUSE, "Accès refusé.", requete, ex);
     }
 
@@ -251,6 +267,23 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     // ------------------------------------------------------------------
+
+    /**
+     * Refus de droits tracé au journal d'audit (DAT §7.4.1 : « les refus de
+     * droits sont tracés »), dans une transaction propre : l'opération refusée
+     * est annulée, sa trace demeure. Un échec d'écriture de la trace n'empêche
+     * pas la réponse 403.
+     */
+    private void tracerRefusDeDroits(String code, String motif, HttpServletRequest requete) {
+        if (audit == null) return;
+        try {
+            audit.enregistrer(EntreeAudit.de(ActionAudit.ACCES_REFUSE)
+                    .refus(code + " " + (requete != null ? requete.getMethod() + " " + requete.getRequestURI() : "")
+                            + (motif != null ? " : " + motif : "")));
+        } catch (RuntimeException e) {
+            journal.error("Refus de droits non tracé au journal d'audit", e);
+        }
+    }
 
     private ResponseEntity<ProblemDetail> reponse(HttpStatus statut, String code, @Nullable String detail,
                                                   HttpServletRequest requete, Exception cause) {

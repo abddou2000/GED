@@ -47,13 +47,30 @@ class SchemaLiquibaseTest {
 
     private static final String CHANGELOG = "db/changelog/db.changelog-master.xml";
 
-    /** Tables du modèle à l'issue du lot E1. */
-    private static final Set<String> TABLES_ATTENDUES = Set.of(
+    /** Tables du modèle à l'issue du lot E1 (jalon socle-e1). */
+    private static final Set<String> TABLES_E1 = Set.of(
             "employe", "compte_utilisateur", "workflow_ged", "workflow_ged_etape", "workspace",
             "access_group", "access_group_workspace", "access_group_employe", "etiquette",
             "index_def", "plan_indexation", "plan_index", "type_document", "document",
             "version_document", "document_etiquette", "document_index_valeur",
             "workflow_ged_signature");
+
+    /**
+     * Tables du journal d'audit (lot E4). Leur clé {@code id} est un bigint
+     * SÉQUENTIEL, comme le prescrit le §7.4.1 : c'est l'ordre du scellement
+     * chaîné. Les partitions mensuelles de journal_audit (journal_audit_AAAAMM)
+     * dépendent de la date de migration et sont écartées des comparaisons.
+     */
+    private static final Set<String> TABLES_AUDIT = Set.of("journal_audit", "journal_audit_scellement");
+
+    /** Tables du modèle complet. */
+    private static final Set<String> TABLES_ATTENDUES = union(TABLES_E1, TABLES_AUDIT);
+
+    private static Set<String> union(Set<String> a, Set<String> b) {
+        Set<String> u = new TreeSet<>(a);
+        u.addAll(b);
+        return Set.copyOf(u);
+    }
 
     /** Tables d'association, à clé composite : les seules sans colonne {@code id}. */
     private static final Set<String> ASSOCIATIONS = Set.of(
@@ -122,16 +139,18 @@ class SchemaLiquibaseTest {
             try {
                 Liquibase liquibase = liquibase(c, schema);
                 liquibase.update(new Contexts(), new LabelExpression());
-                String horsJalon = " WHERE tag IS DISTINCT FROM 'socle-e1'";
-                int avant = compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog" + horsJalon);
-                // Rien n'est postérieur au jalon : le retour arrière ne défait que
-                // le jalon lui-même (Liquibase inclut la ligne étiquetée) et laisse
-                // intact tout le schéma du lot.
+                // Changesets antérieurs au jalon : ceux que le retour arrière doit laisser.
+                String anterieurs = " WHERE orderexecuted < (SELECT orderexecuted FROM " + schema
+                        + ".databasechangelog WHERE tag = 'socle-e1')";
+                int avant = compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog" + anterieurs);
+                // Le retour arrière défait les lots postérieurs (journal d'audit) et
+                // le jalon lui-même (Liquibase inclut la ligne étiquetée), et laisse
+                // intact tout le schéma du lot E1.
                 liquibase.rollback("socle-e1", (String) null);
-                assertEquals(avant, compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog" + horsJalon));
+                assertEquals(avant, compter(c, "SELECT count(*) FROM " + schema + ".databasechangelog"));
                 Set<String> tables = tables(c, schema);
                 tables.removeAll(Set.of("databasechangelog", "databasechangeloglock"));
-                assertEquals(new TreeSet<>(TABLES_ATTENDUES), tables);
+                assertEquals(new TreeSet<>(TABLES_E1), tables);
                 // Rejouer la montée repose le jalon.
                 liquibase.update(new Contexts(), new LabelExpression());
                 assertEquals(1, compter(c, "SELECT count(*) FROM " + schema
@@ -146,7 +165,7 @@ class SchemaLiquibaseTest {
 
     /** Clé primaire {@code id} de type uuid sur toute table qui n'est pas une association. */
     private void verifierClesUuid(Connection c, String schema) throws SQLException {
-        for (String table : TABLES_ATTENDUES) {
+        for (String table : TABLES_E1) {
             if (ASSOCIATIONS.contains(table)) continue;
             String type = texte(c, "SELECT data_type FROM information_schema.columns"
                     + " WHERE table_schema = ? AND table_name = ? AND column_name = 'id'", schema, table);
@@ -233,7 +252,8 @@ class SchemaLiquibaseTest {
 
     private static Set<String> tables(Connection c, String schema) throws SQLException {
         return new TreeSet<>(lignes(c, "SELECT table_name FROM information_schema.tables"
-                + " WHERE table_schema = ? AND table_type = 'BASE TABLE'", schema));
+                + " WHERE table_schema = ? AND table_type = 'BASE TABLE'"
+                + " AND table_name !~ '^journal_audit_[0-9]{6}$'", schema));
     }
 
     private static void executer(Connection c, String sql) throws SQLException {

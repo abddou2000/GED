@@ -1,6 +1,12 @@
 package com.ipt.ged.common.erreur;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ipt.ged.audit.ActionAudit;
+import com.ipt.ged.audit.AuditService;
+import com.ipt.ged.audit.EntreeAudit;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -38,12 +44,21 @@ public class ReponsesSecuriteProblem implements AuthenticationEntryPoint, Access
     static final MediaType PROBLEM_JSON = MediaType.APPLICATION_PROBLEM_JSON;
 
     private final ObjectMapper json;
+    private final ObjectProvider<AuditService> audit;
 
-    public ReponsesSecuriteProblem(ObjectMapper json) {
+    @Autowired
+    public ReponsesSecuriteProblem(ObjectMapper json, ObjectProvider<AuditService> audit) {
+        this.audit = audit;
         // Le mixin met à plat les propriétés d'extension (code, traceId) comme
         // le fait Spring MVC ; ajouté ici pour ne pas dépendre de la façon dont
         // l'ObjectMapper reçu a été construit.
         this.json = json.copy().addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class);
+    }
+
+    /** Sans journal d'audit (tests unitaires). */
+    public ReponsesSecuriteProblem(ObjectMapper json) {
+        this.json = json.copy().addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class);
+        this.audit = null;
     }
 
     @Override
@@ -56,6 +71,16 @@ public class ReponsesSecuriteProblem implements AuthenticationEntryPoint, Access
     @Override
     public void handle(HttpServletRequest requete, HttpServletResponse reponse,
                        AccessDeniedException exception) throws IOException {
+        // Refus de droits tracé (DAT §7.4.1), comme ceux des contrôleurs.
+        AuditService journalAudit = audit != null ? audit.getIfAvailable() : null;
+        if (journalAudit != null) {
+            try {
+                journalAudit.enregistrer(EntreeAudit.de(ActionAudit.ACCES_REFUSE)
+                        .refus(CodesErreur.ACCES_REFUSE + " " + requete.getMethod() + " " + requete.getRequestURI()));
+            } catch (RuntimeException e) {
+                LoggerFactory.getLogger(ReponsesSecuriteProblem.class).error("Refus de droits non tracé", e);
+            }
+        }
         ecrire(requete, reponse, HttpStatus.FORBIDDEN, CodesErreur.ACCES_REFUSE, "Accès refusé.");
     }
 
