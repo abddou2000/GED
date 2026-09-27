@@ -14,8 +14,11 @@ import java.util.UUID;
  * Règle de workflow applicable à un dépôt (§12.8) : la plus SPÉCIFIQUE
  * l'emporte. Le type de document est plus précis que tout emplacement (il
  * désigne la nature même de la pièce) ; à défaut, le nœud le plus proche en
- * remontant de l'emplacement principal vers l'espace. Une règle en corbeille
- * est ignorée, comme si elle n'était pas rattachée : on continue de remonter.
+ * remontant de l'emplacement principal vers l'espace. Une règle en corbeille,
+ * ou sans aucun validateur, est ignorée comme si elle n'était pas rattachée :
+ * on continue de remonter. (Les nœuds repris portent tous une règle, souvent
+ * vide, l'ancienne application l'imposant : elle ne doit pas masquer celle
+ * d'un ancêtre.)
  */
 @Component
 public class ReglesApplicables {
@@ -39,6 +42,6 @@ public class ReglesApplicables {
     }
 
     private static boolean vivante(WorkflowGed r) {
-        return r != null && !r.isSupprime();
+        return r != null && !r.isSupprime() && !r.getSteps().isEmpty();
     }
 }

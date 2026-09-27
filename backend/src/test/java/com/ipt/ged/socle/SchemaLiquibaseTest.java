@@ -262,6 +262,65 @@ class SchemaLiquibaseTest {
         }
     }
 
+    @Test
+    @DisplayName("E8 : les signatures séquentielles deviennent un circuit, ses validateurs et ses décisions ; retour arrière fidèle")
+    void signaturesRepriseEnCircuits() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                liquibase.update("modele-e7", new Contexts(), new LabelExpression());
+                // État E7 : un document, sa version courante, deux étapes (l'une signée, l'autre en attente).
+                String s = schema + ".";
+                executer(c, "INSERT INTO " + s + "employe (id, first_name, last_name, has_user) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000e001', 'Karim', 'El Fassi', true),"
+                        + " ('01920000-0000-7000-8000-00000000e002', 'Yasmine', 'Alaoui', true)");
+                executer(c, "INSERT INTO " + s + "workflow_ged (id, name) VALUES ('01920000-0000-7000-8000-00000000f001', 'WF')");
+                executer(c, "INSERT INTO " + s + "noeud (id, name, code, status, employe_id, workflow_ged_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000a001', 'Compta', 'WS-C', 'ACTIF',"
+                        + " '01920000-0000-7000-8000-00000000e001', '01920000-0000-7000-8000-00000000f001')");
+                executer(c, "INSERT INTO " + s + "type_document (id, code, type_de_document, description, noeud_id,"
+                        + " type_autorise, taille_max_mo) VALUES ('01920000-0000-7000-8000-00000000d001', 'TD', 'Facture',"
+                        + " 'd', '01920000-0000-7000-8000-00000000a001', 'pdf', 5)");
+                executer(c, "INSERT INTO " + s + "document (id, name, noeud_principal_id, type_document_id, active)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000b001', 'Facture 1',"
+                        + " '01920000-0000-7000-8000-00000000a001', '01920000-0000-7000-8000-00000000d001', false)");
+                executer(c, "INSERT INTO " + s + "version_document (id, document_id, file_name, file_path, courante, numero)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000b101', '01920000-0000-7000-8000-00000000b001',"
+                        + " 'f.pdf', 'x/f.pdf', true, 1)");
+                executer(c, "INSERT INTO " + s + "workflow_ged_signature (id, document_id, employe_id, step_label,"
+                        + " step_order, status, signed_at, motif) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000c001', '01920000-0000-7000-8000-00000000b001',"
+                        + " '01920000-0000-7000-8000-00000000e001', 'Comptable', 1, 'SIGNED', now(), 'ok'),"
+                        + " ('01920000-0000-7000-8000-00000000c002', '01920000-0000-7000-8000-00000000b001',"
+                        + " '01920000-0000-7000-8000-00000000e002', 'Directeur', 2, 'PENDING', NULL, NULL)");
+
+                liquibase.update(new Contexts(), new LabelExpression());
+
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "circuit WHERE statut = 'EN_COURS'"
+                        + " AND document_id = '01920000-0000-7000-8000-00000000b001'"
+                        + " AND regle_workflow_id = '01920000-0000-7000-8000-00000000f001'"));
+                assertEquals(2, compter(c, "SELECT count(*) FROM " + s + "circuit_validateur WHERE id IN"
+                        + " ('01920000-0000-7000-8000-00000000c001', '01920000-0000-7000-8000-00000000c002')"),
+                        "un validateur par signature, même identifiant");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "decision WHERE decision = 'VALIDE'"
+                        + " AND circuit_validateur_id = '01920000-0000-7000-8000-00000000c001'"
+                        + " AND version_id = '01920000-0000-7000-8000-00000000b101' AND motif = 'ok'"),
+                        "la signature devient une décision sur la version courante");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "decision"), "l'étape en attente n'a pas de décision");
+
+                liquibase.rollback("modele-e7", (String) null);
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "workflow_ged_signature WHERE status = 'SIGNED'"
+                        + " AND id = '01920000-0000-7000-8000-00000000c001'"));
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "workflow_ged_signature WHERE status = 'PENDING'"
+                        + " AND id = '01920000-0000-7000-8000-00000000c002'"));
+            } finally {
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
     private static Set<String> tablesMetier(Connection c, String schema) throws SQLException {
         Set<String> t = tables(c, schema);
         t.removeAll(Set.of("databasechangelog", "databasechangeloglock"));
