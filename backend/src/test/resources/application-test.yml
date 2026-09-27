@@ -37,16 +37,19 @@ ged:
   # Identité : simulateur d'annuaire embarqué (UnboundID) chargé du LDIF de
   # test ; comptes à mot de passe « test-only-password », jetables, qui
   # n'existent que dans ce simulateur. Clé JWT : paire RSA tirée par exécution.
+  # Port du simulateur réglable (GED_TEST_ANNUAIRE_PORT) : deux copies de
+  # travail qui lancent leurs tests en même temps sur un poste ne se
+  # disputent plus le port 33390.
   identite:
     annuaire:
-      urls: ldap://localhost:33390
+      urls: ldap://localhost:${GED_TEST_ANNUAIRE_PORT:33390}
       base: DC=marchicamed,DC=ma
       compte-service: CN=svc-ged-ldap,OU=Services,DC=marchicamed,DC=ma
       mot-de-passe-service: test-only-password
       exiger-ldaps: false
       pool: false
       embarque:
-        port: 33390
+        port: ${GED_TEST_ANNUAIRE_PORT:33390}
         ldif: classpath:annuaire/annuaire-test.ldif
     jeton:
       cle-ephemere-autorisee: true

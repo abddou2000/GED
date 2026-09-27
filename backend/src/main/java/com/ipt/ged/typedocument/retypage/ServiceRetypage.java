@@ -71,6 +71,13 @@ public class ServiceRetypage {
     private final TaskExecutor executeur;
     private final TransactionTemplate parDocument;
 
+    /**
+     * Lancement en arrière-plan après validation de la création (défaut). Faux :
+     * l'appelant exécute lui-même le travail ({@link #executer}) — tests.
+     */
+    @org.springframework.beans.factory.annotation.Value("${ged.retypage.asynchrone:true}")
+    private boolean asynchrone = true;
+
     public ServiceRetypage(JobRetypageRepository jobs, TypeDocumentRepository types, UploadDocumentRepository documents,
                            ServiceModeleDocument modele, GardeEcriture garde, ControleAcces controle, JdbcTemplate jdbc,
                            ApplicationEventPublisher evenements, TaskExecutor executeur,
@@ -130,7 +137,7 @@ public class ServiceRetypage {
         JobRetypage enregistre = jobs.saveAndFlush(job);
 
         UUID id = enregistre.getId();
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+        if (asynchrone && TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
@@ -159,14 +166,12 @@ public class ServiceRetypage {
      * un document déjà retypé n'est plus du type source et se signale ignoré).
      */
     public void executer(UUID jobId) {
-        JobRetypage job = parDocument.execute(s -> {
-            JobRetypage j = jobs.findById(jobId).orElseThrow();
-            if (j.getStatut() == JobRetypage.Statut.TERMINE) return null;
-            j.setStatut(JobRetypage.Statut.EN_COURS);
-            j.setDebutLe(Instant.now());
-            return jobs.save(j);
-        });
-        if (job == null) return;
+        // Prise du travail atomique : une seule exécution, même si deux
+        // déclenchements se croisent (lancement asynchrone et reprise).
+        Integer pris = parDocument.execute(s -> jdbc.update("UPDATE job_retypage SET statut = 'EN_COURS',"
+                + " debut_le = now() WHERE id = ? AND statut = 'EN_ATTENTE'", jobId));
+        if (pris == null || pris == 0) return;
+        JobRetypage job = parDocument.execute(s -> jobs.findById(jobId).orElseThrow());
         try {
             for (UUID documentId : job.getSelection()) {
                 Map<String, Object> ligne = traiter(job, documentId);
