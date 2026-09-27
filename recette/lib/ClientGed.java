@@ -99,8 +99,17 @@ public class ClientGed {
     // ------------------------------------------------------------------ HTTP
 
     public Rep appel(String methode, String chemin, String jeton, String type, byte[] corps) throws Exception {
+        Map<String, String> h = new LinkedHashMap<>();
+        if (jeton != null) h.put("Authorization", "Bearer " + jeton);
+        // Idempotency-Key obligatoire sur les créations (§5.3.2) : une clé neuve par appel.
+        if (methode.equals("POST")) h.put("Idempotency-Key", UUID.randomUUID().toString());
+        return appel(methode, chemin, h, type, corps);
+    }
+
+    /** Appel avec en-têtes libres (X-API-Key, Idempotency-Key, X-On-Behalf-Of, X-Forwarded-For…). */
+    public Rep appel(String methode, String chemin, Map<String, String> entetes, String type, byte[] corps) throws Exception {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url + chemin)).timeout(Duration.ofSeconds(300));
-        if (jeton != null) b.header("Authorization", "Bearer " + jeton);
+        entetes.forEach(b::header);
         if (type != null) b.header("Content-Type", type);
         b.method(methode, corps == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofByteArray(corps));
         HttpResponse<byte[]> r = HTTP.send(b.build(), HttpResponse.BodyHandlers.ofByteArray());
@@ -131,6 +140,20 @@ public class ClientGed {
     /** Dépôt multipart : champs simples, fichier, et partie JSON « metadonnees » facultative. */
     public Rep deposer(String jeton, byte[] contenu, String nomFichier, String typeContenu, Map<String, String> champs,
                        String metadonneesJson) throws Exception {
+        Object[] m = multipart(contenu, nomFichier, typeContenu, champs, metadonneesJson);
+        return appel("POST", "/api/v1/documents", jeton, "multipart/form-data; boundary=" + m[0], (byte[]) m[1]);
+    }
+
+    /** Dépôt avec en-têtes libres (clé d'API, délégation, clé d'idempotence imposée). */
+    public Rep deposer(Map<String, String> entetes, byte[] contenu, String nomFichier, String typeContenu,
+                       Map<String, String> champs) throws Exception {
+        Object[] m = multipart(contenu, nomFichier, typeContenu, champs, null);
+        return appel("POST", "/api/v1/documents", entetes, "multipart/form-data; boundary=" + m[0], (byte[]) m[1]);
+    }
+
+    /** Corps multipart d'un dépôt : {frontière, octets}. */
+    public static Object[] multipart(byte[] contenu, String nomFichier, String typeContenu, Map<String, String> champs,
+                                     String metadonneesJson) {
         String f = "----qa" + UUID.randomUUID();
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
         for (var e : champs.entrySet()) {
@@ -145,7 +168,7 @@ public class ClientGed {
                 + "\"\r\nContent-Type: " + typeContenu + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
         buf.writeBytes(contenu);
         buf.writeBytes(("\r\n--" + f + "--\r\n").getBytes(StandardCharsets.UTF_8));
-        return appel("POST", "/api/v1/documents", jeton, "multipart/form-data; boundary=" + f, buf.toByteArray());
+        return new Object[]{f, buf.toByteArray()};
     }
 
     public Rep deposer(String jeton, Path fichier, String nom, String typeId, String confidentialite) throws Exception {
