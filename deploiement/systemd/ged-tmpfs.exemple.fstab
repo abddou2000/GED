@@ -1,0 +1,16 @@
+# =====================================================================
+#  tmpfs des fichiers en clair éphémères de la GED (DAT 4.3.4, 6.1.3)
+#  Ligne à ajouter à /etc/fstab du serveur d'application, puis :
+#    mkdir -p /var/lib/ged/tmpfs && mount /var/lib/ged/tmpfs
+#
+#  uid/gid : identifiants NUMÉRIQUES du compte ged (id -u ged ; id -g ged),
+#  le noyau n'accepte pas de nom ici.
+#  size : 2 Go couvrent une dizaine de dépôts simultanés de 210 Mo plus les
+#  pages OCR et les conversions d'aperçu ; à recaler sur la mémoire du
+#  serveur (8 Go, DAT 6.6). Un tmpfs plein fait échouer le dépôt en cours,
+#  jamais écrire sur disque.
+#  ATTENTION : un tmpfs peut être paginé vers la partition d'échange. Sur ce
+#  serveur, la swap doit être chiffrée (ou désactivée), sinon des pages en
+#  clair peuvent atterrir sur disque.
+# =====================================================================
+tmpfs  /var/lib/ged/tmpfs  tmpfs  size=2G,mode=0700,uid=UID_GED,gid=GID_GED,nosuid,nodev,noexec  0  0

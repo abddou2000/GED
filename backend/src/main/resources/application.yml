@@ -6,6 +6,9 @@
 spring:
   application:
     name: ged
+  # Journalisation, supervision et sondes : fichier dédié (DAT 6.7, 7.3).
+  config:
+    import: classpath:exploitation.yml
   profiles:
     active: dev
   servlet:
@@ -187,19 +190,6 @@ springdoc:
     path: /swagger-ui.html
 
 # ---------------------------------------------------------------
-# Sonde de vie
+# Sondes de santé et métriques : voir exploitation.yml (port de
+# management séparé, réservé au réseau interne, DAT 6.7).
 # ---------------------------------------------------------------
-# On n'expose QUE `health`, et sans son detail : les autres points de
-# l'actuator (env, beans, mappings, heapdump) racontent l'interieur de
-# l'application a qui sait demander. Une supervision n'a besoin que de
-# savoir si le service repond.
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health
-  endpoint:
-    health:
-      show-details: never
-      probes:
-        enabled: true

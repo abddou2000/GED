@@ -1,0 +1,94 @@
+# =====================================================================
+#  GED Marchica Med — back-end Spring Boot en service système (DAT 10.2)
+#
+#  Installation (voir docs/exploitation/EXPLOITATION.md) :
+#    useradd --system --home-dir /opt/ged --shell /usr/sbin/nologin ged
+#    install -o root -g root -m 0644 ged-backend.service /etc/systemd/system/
+#    install -o ged  -g ged  -m 0400 ged.env /etc/ged/ged.env
+#    systemctl daemon-reload && systemctl enable --now ged-backend
+#
+#  Le JAR est déployé par deploiement/scripts/deployer.sh : /opt/ged/backend/ged.jar
+#  est un lien symbolique vers la version active, ce qui rend le retour
+#  arrière instantané.
+# =====================================================================
+[Unit]
+Description=GED Marchica Med - back-end (Spring Boot)
+Documentation=file:///opt/ged/docs/exploitation/EXPLOITATION.md
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/var/lib/ged/tmpfs
+# Au-delà de 5 échecs de démarrage en 10 minutes, le service reste arrêté et
+# l'alerte « sonde indisponible » part (deploiement/prometheus/alertes.yml).
+StartLimitIntervalSec=600
+StartLimitBurst=5
+# Pas de dépendance à postgresql.service : la base est sur un serveur
+# distinct (DAT 10.2). L'application attend la base au démarrage (Hikari).
+
+[Service]
+Type=simple
+# Compte de service dédié, sans shell ni droit d'administration.
+User=ged
+Group=ged
+
+# Secrets et configuration de l'environnement (DAT 10.1) : fichier propriété
+# de ged, permissions 0400, jamais versionné. Modèle : ged.env.exemple.
+EnvironmentFile=/etc/ged/ged.env
+# Surcharges facultatives sans redéploiement (niveau de log, par exemple) :
+# un application.yml déposé dans /etc/ged/ est lu en plus de celui du JAR.
+Environment=SPRING_CONFIG_ADDITIONAL_LOCATION=optional:file:/etc/ged/
+
+WorkingDirectory=/opt/ged/backend
+# $JAVA_OPTS sans accolades : systemd le découpe en arguments distincts.
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/ged/backend/ged.jar --spring.profiles.active=${GED_PROFIL}
+
+# Arrêt progressif : SIGTERM, puis Spring Boot termine les requêtes en cours
+# (server.shutdown: graceful, 45 s). Au-delà de 60 s, systemd tue le processus.
+KillSignal=SIGTERM
+TimeoutStopSec=60
+# Code de sortie de la JVM sur SIGTERM : un arrêt demandé n'est pas un échec.
+SuccessExitStatus=143
+
+# Redémarrage automatique sur panne (garde-fou contre les boucles : voir
+# StartLimit* dans [Unit]).
+Restart=on-failure
+RestartSec=10
+
+# Fichiers EN CLAIR éphémères — corps multipart reçus par Tomcat, pages
+# rendues pour l'OCR, conversions d'aperçu LibreOffice, temporaires de la JVM :
+# tous sur le tmpfs /var/lib/ged/tmpfs (voir ged-tmpfs.exemple.fstab), jamais
+# sur un disque persistant (DAT 4.3.4, 6.1.3). Le service ne démarre pas si
+# ce tmpfs n'est pas monté.
+ExecStartPre=/usr/bin/mkdir -p /var/lib/ged/tmpfs/multipart /var/lib/ged/tmpfs/ocr /var/lib/ged/tmpfs/apercu /var/lib/ged/tmpfs/java
+
+LimitNOFILE=65536
+UMask=0027
+
+# --- Durcissement ------------------------------------------------------
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+# Seuls /var/lib/ged (référentiel chiffré, keystore réécrit à la rotation des
+# KEK, tmpfs) et les journaux sont inscriptibles ; tout le reste du système,
+# /etc/ged compris, est en lecture seule pour le service.
+ReadWritePaths=/var/lib/ged /var/log/ged
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+# MemoryDenyWriteExecute n'est PAS activé : le compilateur JIT de la JVM
+# a besoin de pages à la fois inscriptibles et exécutables.
+
+[Install]
+WantedBy=multi-user.target

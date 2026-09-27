@@ -1,0 +1,30 @@
+# ============================================================
+#  Profil UAT — environnement de recette métier (DAT 9.3, 10.1)
+#  Lancer avec : --spring.profiles.active=uat
+#
+#  MÊME MÉCANIQUE QUE LA PRODUCTION, par construction : ce profil importe
+#  application-prod.yml. Base, migrations, validation du schéma, secrets :
+#  tout vient des mêmes variables d'environnement qu'en production
+#  (backend/.env.example, deploiement/systemd/ged.env.exemple), avec les
+#  valeurs PROPRES à l'UAT (base, annuaire de recette, keystore distinct).
+#  Une évolution du profil prod s'applique donc d'office à l'UAT : un écart
+#  entre les deux ne peut pas s'installer par oubli (DAT 10.1 : même
+#  artefact, seule la configuration varie).
+#
+#  ATTENTION : un fichier importé l'emporte sur celui qui l'importe. Une clé
+#  définie ici ET dans application-prod.yml prendrait la valeur de prod. Ce
+#  fichier ne porte donc que des clés que le profil prod ne définit pas ; les
+#  différences de valeur passent par les variables d'environnement.
+#
+#  Différences assumées avec la production :
+#    - niveau DEBUG activable (LOGGING_LEVEL_COM_IPT_GED=DEBUG, DAT 7.3.1) ;
+#    - documentation OpenAPI ouverte aux recetteurs (fermée en profil prod).
+# ============================================================
+spring:
+  config:
+    import: classpath:application-prod.yml
+
+management:
+  metrics:
+    tags:
+      environnement: uat

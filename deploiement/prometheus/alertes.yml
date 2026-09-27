@@ -1,0 +1,134 @@
+# =====================================================================
+#  GED Marchica Med — règles d'alerte Prometheus (DAT 6.7)
+#
+#  Seuils initiaux du DAT, à ajuster avec l'équipe d'exploitation de MMED :
+#    - sonde indisponible plus de 2 minutes ;
+#    - taux d'erreurs 5xx supérieur à 2 % sur 5 minutes ;
+#    - disque au-delà de 80 % ;
+#    - délai OCR au-delà de l'objectif : 24 heures (revue technique, D6),
+#      publié par l'application (ged_ocr_objectif_disponibilite_seconds) et
+#      réglable par GED_OCR_OBJECTIF_DISPONIBILITE, sans toucher à ce fichier.
+#
+#  Chargement : rule_files dans prometheus.yml (voir prometheus.exemple.yml).
+#  Contrôle avant chargement : promtool check rules alertes.yml
+#  Les alertes partent par Alertmanager vers le relais SMTP de MMED
+#  (alertmanager.exemple.yml).
+# =====================================================================
+groups:
+  - name: ged-disponibilite
+    rules:
+      - alert: GedServiceInjoignable
+        # Prometheus n'arrive plus à collecter les métriques : processus
+        # arrêté, bloqué, ou port de management inaccessible.
+        expr: up{job="ged"} == 0
+        for: 2m
+        labels:
+          severite: critique
+        annotations:
+          resume: "GED injoignable sur {{ $labels.instance }}"
+          description: "Aucune collecte depuis plus de 2 minutes. Vérifier : systemctl status ged-backend ; journalctl -u ged-backend."
+
+      - alert: GedSondeIndisponible
+        # Une brique dont dépend le service est tombée : base, référentiel de
+        # fichiers, annuaire, antivirus (dépôts refusés, échec fermé) ou file
+        # de traitement débordée.
+        expr: ged_sante == 0
+        for: 2m
+        labels:
+          severite: critique
+        annotations:
+          resume: "Sonde « {{ $labels.composant }} » indisponible ({{ $labels.environnement }})"
+          description: "La sonde {{ $labels.composant }} est DOWN depuis plus de 2 minutes. Détail : GET /actuator/health sur le port de management."
+
+      - alert: GedControleurAnnuaireIndisponible
+        # Un contrôleur de domaine ne répond plus. Tant qu'un autre répond, les
+        # connexions fonctionnent (sonde annuaire UP) : avertissement, pas
+        # critique. Avec un seul contrôleur (situation actuelle, D4), c'est
+        # GedSondeIndisponible qui part en même temps.
+        expr: ged_annuaire_controleur == 0
+        for: 2m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Contrôleur de domaine {{ $labels.controleur }} injoignable"
+          description: "La GED ne joint plus {{ $labels.controleur }} depuis 2 minutes."
+
+  - name: ged-erreurs
+    rules:
+      - alert: GedTauxErreurs5xx
+        expr: |
+          sum by (environnement) (rate(http_server_requests_seconds_count{application="ged", status=~"5.."}[5m]))
+            /
+          sum by (environnement) (rate(http_server_requests_seconds_count{application="ged"}[5m]))
+            > 0.02
+        labels:
+          severite: critique
+        annotations:
+          resume: "Plus de 2 % d'erreurs serveur sur 5 minutes ({{ $labels.environnement }})"
+          description: "Taux de réponses 5xx : {{ $value | humanizePercentage }}. Consulter /var/log/ged/ged.log (le traceId relie chaque erreur à sa requête)."
+
+  - name: ged-capacite
+    rules:
+      - alert: GedReferentielFichiers80
+        expr: 1 - (ged_stockage_libre_bytes / ged_stockage_total_bytes) > 0.80
+        for: 5m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Référentiel de fichiers occupé à plus de 80 % ({{ $labels.environnement }})"
+          description: "Occupation : {{ $value | humanizePercentage }}. À 95 %, la sonde passe DOWN. Le fonds ne fait que croître (aucune purge automatique, DAT 6.6)."
+
+      - alert: GedDisqueServeur80
+        # Autres volumes (base, WAL archivés, journaux, sauvegardes), mesurés
+        # par node_exporter sur chaque serveur de la GED.
+        expr: |
+          1 - (node_filesystem_avail_bytes{job=~"ged-noeuds", fstype!~"tmpfs|overlay|squashfs"}
+               / node_filesystem_size_bytes{job=~"ged-noeuds", fstype!~"tmpfs|overlay|squashfs"}) > 0.80
+        for: 5m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Disque {{ $labels.mountpoint }} à plus de 80 % sur {{ $labels.instance }}"
+          description: "Occupation : {{ $value | humanizePercentage }}."
+
+  - name: ged-ocr
+    rules:
+      - alert: GedOcrDelaiAuDelaDeLObjectif
+        # Un document attend son OCR depuis plus longtemps que l'objectif
+        # (24 h) : son contenu n'est toujours pas interrogeable en recherche.
+        expr: |
+          max by (environnement) (ged_file_age_plus_ancien_seconds{file="ocr"})
+            > max by (environnement) (ged_ocr_objectif_disponibilite_seconds)
+        for: 5m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Délai OCR au-delà de l'objectif ({{ $labels.environnement }})"
+          description: "Le plus ancien document en attente d'OCR attend depuis {{ $value | humanizeDuration }}, au-delà de l'objectif de disponibilité en recherche."
+
+      - alert: GedOcrDelaiMesureAuDelaDeLObjectif
+        # Délais effectivement mesurés sur les documents traités (95e centile
+        # sur 6 heures), au cas où la file se viderait par à-coups.
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, environnement) (rate(ged_ocr_delai_disponibilite_seconds_bucket[6h])))
+            > max by (environnement) (ged_ocr_objectif_disponibilite_seconds)
+        for: 15m
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "95 % des documents OCRisés hors objectif ({{ $labels.environnement }})"
+          description: "95e centile du délai dépôt -> disponibilité en recherche : {{ $value | humanizeDuration }}."
+
+  - name: ged-certificats
+    rules:
+      - alert: GedCertificatExpireBientot
+        # DAT 6.2.1 : l'expiration du certificat TLS est surveillée. Mesure par
+        # blackbox_exporter (module http_2xx sur l'URL publique).
+        expr: probe_ssl_earliest_cert_expiry{job="ged-tls"} - time() < 30 * 86400
+        for: 1h
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Certificat de {{ $labels.instance }} expirant dans moins de 30 jours"
+          description: "Expiration dans {{ $value | humanizeDuration }}."
