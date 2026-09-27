@@ -70,8 +70,17 @@ Tests en parallèle : le simulateur d'annuaire des tests écoute sur
 `GED_TEST_ANNUAIRE_PORT` (défaut 33390) ; deux copies de travail qui testent en
 même temps doivent prendre des ports différents (dev1 : 33391).
 
-**Point à trancher (demandé par le coordinateur) — droits des administrateurs
-sur les espaces des anciens groupes.** Constaté sur `ged_dev1` : `sbennani`,
+**Point 9 — TRANCHÉ par le coordinateur (recommandation adoptée), livré en
+325716f** : changeset `202610011000` (rapport `reprise_lien_groupe_espace`,
+retrait des habilitations de groupe issues de la reprise, retour arrière),
+script de reprise, `DEPLOIEMENT.md` §8, rapport affiché dans l'écran
+Habilitations (`GET /api/v1/admin/reprise/liens-groupes`), tests de migration
+depuis l'état E2 et de non-régression (Administrateur global membre d'un groupe
+repris : suppression 204). Appliqué à `ged_dev1` ; le document d'essai y est
+passé en corbeille (la purge, définitive, relève du lot de dev3).
+
+Constat d'origine — droits des administrateurs sur les espaces des anciens
+groupes. Constaté sur `ged_dev1` : `sbennani`,
 Administrateur de portée globale et membre du groupe repris AG-ADMIN, reçoit
 **403 en supprimant un document** d'un espace que ce groupe « couvrait » — la
 reprise a fait de chaque lien groupe / espace une habilitation « Utilisateur
