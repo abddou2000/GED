@@ -9,16 +9,24 @@ import java.util.List;
  *                expressions entre guillemets, {@code -exclusion}, {@code or} ;
  * @param page    rang de page, à partir de 0 ;
  * @param taille  lignes par page (bornée à {@link #TAILLE_MAX}) ;
- * @param filtres critères multicritères combinés en ET avec le plein texte
- *                (fournis par l'appelant sur le modèle documentaire).
+ * @param filtres critères multicritères combinés en ET avec le plein texte ;
+ *                le document est accessible sous l'alias {@code d}, son type
+ *                sous {@code t}, son espace sous {@code w} (voir {@link CriteresMetadonnees}).
  */
 public record RequeteRecherche(String texte, int page, int taille, Tri tri, List<FragmentSql> filtres) {
 
     public static final int TAILLE_MAX = 200;
 
+    /** Tris du §4.4 : pertinence, date du document, type ou nom (liste blanche). */
     public enum Tri {
         /** {@code ts_rank_cd} décroissant. */
         PERTINENCE,
+        /** Dépôt le plus récent d'abord. */
+        DATE_DEPOT,
+        /** Nom du document, alphabétique. */
+        NOM,
+        /** Type documentaire, puis pertinence. */
+        TYPE,
         /** Indexation la plus récente d'abord. */
         INDEXATION_RECENTE
     }

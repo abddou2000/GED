@@ -62,6 +62,7 @@ class OcrApiTest {
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper om;
     @Autowired private com.ipt.ged.ocr.file.OcrJobQueue file;
+    @Autowired private com.ipt.ged.recherche.SearchIndexer indexer;
     @Autowired private WorkflowRepository workflowRepository;
     @Autowired private EmployeRepository employeRepository;
     @Autowired private WorkSpaceRepository workspaceRepository;
@@ -231,5 +232,51 @@ class OcrApiTest {
 
         assertTrue(res.contains("§4.3.3"), "le motif du cloisonnement est donné à l'opérateur");
         assertFalse(res.contains("Autre Societe"));
+    }
+
+    @Test
+    @DisplayName("6. Recherche plein texte par l'API : critère de type, extraits en segments, texte indexé consultable")
+    void recherchePleinTexte() throws Exception {
+        UUID doc = depose("bail.pdf", pdfAvecTexte("Bail commercial"));
+        UUID version = versionCourante(doc);
+        // Le worker n'est pas démarré dans ce contexte : l'indexation est faite comme il la ferait.
+        indexer.indexer(new com.ipt.ged.recherche.SearchIndexer.TexteAIndexer(doc, version, "fra+ara",
+                "Bail commercial du port de plaisance, <b>clause</b> résolutoire", "COUCHE_TEXTE", 1));
+
+        mvc.perform(get("/api/v1/recherche/plein-texte").param("q", "résolutoire").param("typeDocumentId", typeId.toString())
+                        .param("tri", "DATE_DEPOT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total", is(1)))
+                .andExpect(jsonPath("$.resultats[0].documentId", is(doc.toString())))
+                .andExpect(jsonPath("$.resultats[0].nom", is("Document")))
+                .andExpect(jsonPath("$.resultats[0].extrait[?(@.surligne == true)].texte", hasItem("résolutoire")));
+        mvc.perform(get("/api/v1/recherche/plein-texte").param("q", "résolutoire")
+                        .param("typeDocumentId", UUID.randomUUID().toString()))
+                .andExpect(jsonPath("$.total", is(0)));
+        mvc.perform(get("/api/v1/recherche/plein-texte").param("q", "x").param("tri", "INCONNU"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte"))
+                .andExpect(jsonPath("$.interrogeable", is(true)))
+                .andExpect(jsonPath("$.texte", containsString("<b>clause</b>")));
+    }
+
+    @Test
+    @DisplayName("7. Supervision : compteurs, liste des jobs en attente, relance refusée hors échec, réindexation lancée")
+    void supervision() throws Exception {
+        depose("sup.pdf", pdfAvecTexte("Supervision"));
+        mvc.perform(get("/api/v1/admin/ocr/compteurs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.EN_ATTENTE_OCR", greaterThanOrEqualTo(1)));
+        String jobs = mvc.perform(get("/api/v1/admin/ocr/jobs").param("statut", "EN_ATTENTE_OCR"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String jobId = om.readTree(jobs).get(0).get("id").asText();
+        mvc.perform(post("/api/v1/admin/ocr/jobs/" + jobId + "/relance"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/admin/recherche/reindexation"))
+                .andExpect(status().is2xxSuccessful());
+        mvc.perform(get("/api/v1/admin/recherche/reindexation"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.etat").exists());
     }
 }

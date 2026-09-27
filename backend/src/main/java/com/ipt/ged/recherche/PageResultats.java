@@ -13,7 +13,14 @@ import java.util.UUID;
  */
 public record PageResultats(List<Resultat> resultats, long total, int page, int taille) {
 
-    public record Resultat(UUID documentId, UUID versionId, double pertinence, List<Segment> extrait) {
+    /**
+     * @param nom          nom du document ;
+     * @param typeDocument libellé du type documentaire ;
+     * @param espace       dossier (espace) du document ;
+     * @param deposeLe     date de dépôt.
+     */
+    public record Resultat(UUID documentId, UUID versionId, double pertinence, List<Segment> extrait,
+                           String nom, String typeDocument, String espace, java.time.Instant deposeLe) {
     }
 
     public record Segment(String texte, boolean surligne) {

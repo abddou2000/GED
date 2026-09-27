@@ -73,7 +73,9 @@ public class SearchIndexerPostgres implements SearchIndexer {
                 .addValue("taille", r.taille())
                 .addValue("decalage", (long) r.page() * r.taille())
                 .addValue("options", OPTIONS_EXTRAIT);
-        StringBuilder where = new StringBuilder("dt.tsv @@ q.requete");
+        // Corbeille exclue : un document supprimé est invisible de tous ses
+        // emplacements (§12.5), recherche comprise.
+        StringBuilder where = new StringBuilder("dt.tsv @@ q.requete AND NOT d.deleted");
         List<FragmentSql> fragments = new ArrayList<>();
         fragments.add(droits.predicat("dt.document_id", utilisateur));
         fragments.addAll(r.filtres());
@@ -86,31 +88,44 @@ public class SearchIndexerPostgres implements SearchIndexer {
                 p.addValue(e.getKey(), e.getValue());
             }
         }
-        String ordreInterne = r.tri() == RequeteRecherche.Tri.INDEXATION_RECENTE
-                ? "dt.indexe_le DESC, dt.version_id" : "rang DESC, dt.version_id";
-        String ordreExterne = r.tri() == RequeteRecherche.Tri.INDEXATION_RECENTE
-                ? "p.indexe_le DESC, p.version_id" : "p.rang DESC, p.version_id";
-        String sql = "SELECT p.document_id, p.version_id, p.rang, p.total, "
+        // Colonnes de tri en liste blanche : jamais de texte de l'appelant dans l'ORDER BY.
+        String ordre = switch (r.tri()) {
+            case INDEXATION_RECENTE -> "indexe_le DESC";
+            case DATE_DEPOT -> "cree_le DESC NULLS LAST";
+            case NOM -> "lower(nom) ASC";
+            case TYPE -> "lower(type_document) ASC, rang DESC";
+            case PERTINENCE -> "rang DESC";
+        };
+        String depuis = "FROM document_texte dt "
+                + "JOIN document d ON d.id = dt.document_id "
+                + "LEFT JOIN type_document t ON t.id = d.type_document_id "
+                + "LEFT JOIN workspace w ON w.id = d.workspace_id "
+                + "CROSS JOIN (SELECT ged_requete_texte(:q) AS requete) q ";
+        String sql = "SELECT p.*, "
                 + "ts_headline('ged_francais', ged_normaliser_arabe(dt.texte), "
                 + "            websearch_to_tsquery('ged_francais', ged_normaliser_arabe(:q)), :options) AS extrait "
-                + "FROM (SELECT dt.document_id, dt.version_id, dt.indexe_le, "
+                + "FROM (SELECT * FROM (SELECT dt.document_id, dt.version_id, dt.indexe_le, d.name AS nom, "
+                + "             d.created_at AS cree_le, t.type_de_document AS type_document, w.name AS espace, "
                 + "             ts_rank_cd(dt.tsv, q.requete) AS rang, count(*) OVER () AS total "
-                + "      FROM document_texte dt CROSS JOIN (SELECT ged_requete_texte(:q) AS requete) q "
-                + "      WHERE " + where
-                + "      ORDER BY " + ordreInterne
+                + "      " + depuis + "WHERE " + where + ") a "
+                + "      ORDER BY " + ordre + ", version_id "
                 + "      LIMIT :taille OFFSET :decalage) p "
                 + "JOIN document_texte dt ON dt.version_id = p.version_id "
-                + "ORDER BY " + ordreExterne;
+                + "ORDER BY " + ordre.replace("lower(nom)", "lower(p.nom)").replace("lower(type_document)", "lower(p.type_document)")
+                        .replace("indexe_le", "p.indexe_le").replace("cree_le", "p.cree_le").replace("rang", "p.rang")
+                + ", p.version_id";
         long[] total = {-1};
         List<PageResultats.Resultat> resultats = nomme.query(sql, p, (rs, i) -> {
             total[0] = rs.getLong("total");
+            java.time.OffsetDateTime cree = rs.getObject("cree_le", java.time.OffsetDateTime.class);
             return new PageResultats.Resultat(rs.getObject("document_id", UUID.class),
-                    rs.getObject("version_id", UUID.class), rs.getDouble("rang"), segments(rs.getString("extrait")));
+                    rs.getObject("version_id", UUID.class), rs.getDouble("rang"), segments(rs.getString("extrait")),
+                    rs.getString("nom"), rs.getString("type_document"), rs.getString("espace"),
+                    cree != null ? cree.toInstant() : null);
         });
         if (total[0] < 0) {
             // Page au-delà de la fin : le total n'a pas pu être lu sur une ligne.
-            total[0] = r.page() == 0 ? 0 : nomme.queryForObject("SELECT COUNT(*) FROM document_texte dt "
-                    + "CROSS JOIN (SELECT ged_requete_texte(:q) AS requete) q WHERE " + where, p, Long.class);
+            total[0] = r.page() == 0 ? 0 : nomme.queryForObject("SELECT COUNT(*) " + depuis + "WHERE " + where, p, Long.class);
         }
         return new PageResultats(resultats, total[0], r.page(), r.taille());
     }

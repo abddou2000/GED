@@ -270,4 +270,41 @@ class SearchIndexerPostgresTest {
         assertEquals(0, indexer.rechercher(RequeteRecherche.simple("  ", 0, 10), UTILISATEUR).total());
         assertEquals(0, indexer.rechercher(RequeteRecherche.simple("le la", 0, 10), UTILISATEUR).total());
     }
+
+    @Test
+    @DisplayName("Critères de métadonnées (type, période) en ET, tris date / nom / type, corbeille exclue, champs du résultat")
+    void criteresEtTris() {
+        UUID a = indexer("bail commercial du port de plaisance");
+        UUID b = indexer("bail emphytéotique de la lagune");
+        UUID c = indexer("bail de la marina, mis en corbeille");
+        jdbc.update("UPDATE document SET name = 'Zeta', created_at = '2026-01-10T10:00:00Z' WHERE id = ?", a);
+        jdbc.update("UPDATE document SET name = 'Alpha', created_at = '2026-03-05T10:00:00Z' WHERE id = ?", b);
+        jdbc.update("UPDATE document SET deleted = true, supprime_le = now() WHERE id = ?", c);
+        UUID autreType = UUID.randomUUID();
+        jdbc.update("INSERT INTO type_document (id, code, type_de_document, description, workspace_id) "
+                + "SELECT ?, 'TD-AUTRE', 'Avenant', 'x', workspace_id FROM document WHERE id = ?", autreType, a);
+        jdbc.update("UPDATE document SET type_document_id = ? WHERE id = ?", autreType, a);
+
+        PageResultats tous = indexer.rechercher(RequeteRecherche.simple("bail", 0, 10), UTILISATEUR);
+        assertEquals(2, tous.total(), "le document en corbeille n'apparaît pas");
+        PageResultats.Resultat ra = tous.resultats().stream().filter(r -> r.documentId().equals(a)).findFirst().orElseThrow();
+        assertEquals("Zeta", ra.nom());
+        assertEquals("Avenant", ra.typeDocument());
+        assertEquals("espace de test", ra.espace());
+        assertEquals(java.time.Instant.parse("2026-01-10T10:00:00Z"), ra.deposeLe());
+
+        assertEquals(List.of(a), chercherAvec(new CriteresMetadonnees(autreType, null, null, null), RequeteRecherche.Tri.PERTINENCE));
+        assertEquals(List.of(b), chercherAvec(new CriteresMetadonnees(null, null,
+                java.time.LocalDate.parse("2026-03-01"), java.time.LocalDate.parse("2026-03-05")), RequeteRecherche.Tri.PERTINENCE));
+        assertEquals(List.of(b, a), chercherAvec(CriteresMetadonnees.AUCUN, RequeteRecherche.Tri.DATE_DEPOT));
+        assertEquals(List.of(b, a), chercherAvec(CriteresMetadonnees.AUCUN, RequeteRecherche.Tri.NOM));
+        assertEquals(List.of(a, b), chercherAvec(CriteresMetadonnees.AUCUN, RequeteRecherche.Tri.TYPE), "Avenant < Type de test");
+        assertThrows(IllegalArgumentException.class, () -> new CriteresMetadonnees(null, null,
+                java.time.LocalDate.parse("2026-03-05"), java.time.LocalDate.parse("2026-03-01")));
+    }
+
+    private List<UUID> chercherAvec(CriteresMetadonnees c, RequeteRecherche.Tri tri) {
+        return indexer.rechercher(new RequeteRecherche("bail", 0, 10, tri, c.fragments()), UTILISATEUR)
+                .resultats().stream().map(PageResultats.Resultat::documentId).toList();
+    }
 }
