@@ -64,8 +64,14 @@ leurs lots (il n'y a pas de développeur front dans l'équipe).
    | pm | 33395 | `ldap://localhost:33395` | 3035 |
    | instance manuelle de l'utilisateur | 33389 (ne pas utiliser) | — | — |
 
-   et `SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE=3`. Exemple (dev2, Git Bash) :
-   `DB_NAME=ged_dev2 GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT=33392 GED_IDENTITE_ANNUAIRE_URLS=ldap://localhost:33392 GED_SMTP_PORT_TEST=3032 SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE=3 mvn -q test`.
+   et `SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE=3`, ainsi que **toujours `DB_NAME` et
+   `DB_NAME_TEST`**, tous deux explicites et à ses propres bases. Sans eux, le profil `test`
+   vise la base par défaut `ged_dev1_test` : une suite lancée par un autre membre y prend le
+   verrou Liquibase pendant que dev1 l'utilise et bloque les deux suites (incident de qa,
+   recette de la vague 5). Exemple (dev2, Git Bash) :
+   `DB_NAME=ged_dev2 DB_NAME_TEST=ged_dev2_test GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT=33392 GED_IDENTITE_ANNUAIRE_URLS=ldap://localhost:33392 GED_SMTP_PORT_TEST=3032 SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE=3 mvn -q test`.
+   Une base de test d'un autre membre ne se touche jamais, même pour libérer un verrou : on
+   prévient son propriétaire (ou pm).
 
    `GED_SMTP_PORT_TEST` fixe le port du SMTP simulé des tests de notification (GreenMail) :
    `NotificationsTest` le démarre sur ce port et `application-test.yml` y adresse
