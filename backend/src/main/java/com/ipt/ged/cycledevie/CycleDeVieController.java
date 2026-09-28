@@ -138,6 +138,10 @@ public class CycleDeVieController {
         if (exports.enTraitementDeFond(s)) {
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(exports.differer(s, ActeurCourant.employeId()));
         }
+        // Intégrité vérifiée avant d'engager la réponse (ANO-E5-003) : ensuite
+        // seulement le statut 200 part, et l'audit n'enregistre que des
+        // documents réellement servis.
+        exports.verifierIntegrite(s);
         exports.journaliser(s, Acteur.courant(), null);
         // Archive produite par un fil dédié dans un tube, lu et servi dans le
         // fil de la requête : seul ce dernier touche à la réponse.

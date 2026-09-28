@@ -75,6 +75,49 @@ class ExportApiTest extends BaseCycleDeVieApiTest {
         return entrees;
     }
 
+    /** PDF de ~1,6 Mo (deux segments chiffrés de 1 Mio) au contenu incompressible. */
+    private static byte[] pdfDeuxSegments() {
+        byte[] alea = new byte[1_600_000];
+        new java.util.Random(12).nextBytes(alea);
+        byte[] debut = "%PDF-1.4\n1 0 obj << /Length 1600000 >> stream\n".getBytes(StandardCharsets.ISO_8859_1);
+        byte[] fin = "\nendstream endobj\ntrailer << >>\n%%EOF\n".getBytes(StandardCharsets.ISO_8859_1);
+        byte[] pdf = new byte[debut.length + alea.length + fin.length];
+        System.arraycopy(debut, 0, pdf, 0, debut.length);
+        System.arraycopy(alea, 0, pdf, debut.length, alea.length);
+        System.arraycopy(fin, 0, pdf, debut.length + alea.length, fin.length);
+        return pdf;
+    }
+
+    @Test
+    @DisplayName("ANO-E5-003 : fichier altéré au-delà du premier segment → 500 problem+json INTEGRITE_COMPROMISE "
+            + "avant tout envoi, aucune archive tronquée, aucun DOCUMENT_EXPORTE, anomalie publiée")
+    void exportAvecFichierAltere() throws Exception {
+        deposer(typeRacine, "Sain", "sain.pdf", "application/pdf", Pdfs.pdf("sain"));
+        UUID altere = deposer(typeSous, "Altéré", "altere.pdf", "application/pdf", pdfDeuxSegments());
+        java.nio.file.Path enc = fichierChiffre(fichierCourant(altere));
+        byte[] octets = java.nio.file.Files.readAllBytes(enc);
+        assertTrue(octets.length > 1_200_000, "deux segments");
+        octets[1_300_000] ^= 0x5A; // second segment : le premier reste authentique
+        java.nio.file.Files.write(enc, octets);
+
+        mvc.perform(post("/api/v1/exports/dossiers/" + racine.getId()))
+                .andExpect(status().isInternalServerError())
+                .andExpect(header().doesNotExist("Content-Disposition"))
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.code").value("INTEGRITE_COMPROMISE"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(altere.toString())));
+        assertEquals(0, evenements.stream(DocumentExporte.class).count(), "rien n'a été servi, rien n'est audité");
+        assertTrue(evenements.stream(com.ipt.ged.fichier.integrite.VerificationIntegrite.AnomalieIntegrite.class)
+                .anyMatch(a -> a.statut() == com.ipt.ged.fichier.integrite.VerificationIntegrite.Statut.ALTERE),
+                "anomalie publiée pour l'exploitation");
+
+        // Le document altéré mis à la corbeille, l'export repart normalement.
+        mvc.perform(delete("/api/v1/documents/" + altere)).andExpect(status().isNoContent());
+        MvcResult r = mvc.perform(post("/api/v1/exports/dossiers/" + racine.getId()))
+                .andExpect(status().isOk()).andReturn();
+        assertTrue(lire(r.getResponse().getContentAsByteArray()).keySet().stream().anyMatch(n -> n.endsWith("Sain.pdf")));
+    }
+
     @Test
     @DisplayName("Export en flux : arborescence, version courante, doublons de nom, manifeste, droits, audit")
     void exportEnFlux() throws Exception {
