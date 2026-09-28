@@ -16,7 +16,8 @@
 #   A07 après restauration, téléchargement de nouveau identique (le refus venait bien de
 #       l'altération) ;
 #   A08 (GED_API_VERIF_INTEGRITE, gabarit avec {id}) la vérification à la demande signale
-#       la divergence ; A09 (GED_API_AUDIT) événement d'audit d'intégrité.
+#       la divergence ; A09 (GED_E5_AUDITEUR) événement d'audit INTEGRITE_ANOMALIE ;
+#   A10 aperçu du fichier altéré : même refus propre (problem+json, sans Content-Disposition).
 # Usage : verifier-alteration.sh --url URL --racine STOCKAGE [--nettoyer]
 
 source "$(dirname "${BASH_SOURCE[0]}")/commun-e5.sh" "$@"
@@ -45,7 +46,14 @@ telechargement_refuse() {  # telechargement_refuse ID LIBELLE DOC_ID SHA_ORIGINA
   elif [[ "$HTTP_CODE" == 200 && "$sha" == "$4" ]]; then
     resultat "$1" ECHEC "$2" "HTTP 200, contenu identique : l'altération n'a pas porté sur le fichier lu"
   elif [[ "$HTTP_CODE" =~ ^[45] ]]; then
-    resultat "$1" OK "$2" "HTTP $HTTP_CODE $(code_metier)"
+    # Refus propre (ANO-E5-002) : problem+json INTEGRITE_COMPROMISE, sans en-têtes de fichier.
+    local type disposition; type="$(grep -i '^content-type:' "$HTTP_ENTETES" | tr -d '' | cut -d' ' -f2-)"
+    disposition="$(grep -ic '^content-disposition:' "$HTTP_ENTETES")"
+    if [[ "$(code_metier)" == INTEGRITE_COMPROMISE && "$type" == application/problem+json* && "$disposition" == 0 ]]; then
+      resultat "$1" OK "$2" "HTTP $HTTP_CODE INTEGRITE_COMPROMISE, problem+json, sans Content-Disposition"
+    else
+      resultat "$1" AVERT "$2" "refusé (HTTP $HTTP_CODE) mais réponse impropre : code « $(code_metier) », type « $type », Content-Disposition $disposition [ANO-E5-002]"
+    fi
   else
     resultat "$1" OK "$2" "transfert interrompu (HTTP $HTTP_CODE, $(wc -c < "$API_TMP/recu") octets reçus, empreinte différente)"
   fi
@@ -78,6 +86,33 @@ if [[ -n "${GED_API_VERIF_INTEGRITE:-}" ]]; then
   fi
 else
   resultat E5-A08 NA "Vérification d'intégrité à la demande" "GED_API_VERIF_INTEGRITE non défini (point d'entrée à fixer avec dev3)"
+fi
+# Aperçu du même fichier altéré : même refus propre que le téléchargement (§6.1.6, ANO-E5-002).
+api_appel GET "/api/v1/documents/$DOC_ID"
+VERSION_ID="$(tr -d '\r\n' < "$HTTP_CORPS" | grep -o '"versions":\[{"id":"[^"]*"' | grep -o '[0-9a-f-]\{36\}' | head -1)"
+if [[ -n "$VERSION_ID" ]]; then
+  api_appel GET "/api/v1/versions/$VERSION_ID/apercu"
+  type="$(grep -i '^content-type:' "$HTTP_ENTETES" | tr -d '\r' | cut -d' ' -f2-)"; disp="$(grep -ic '^content-disposition:' "$HTTP_ENTETES")"
+  [[ "$HTTP_CODE" == 500 && "$(code_metier)" == INTEGRITE_COMPROMISE && "$type" == application/problem+json* && "$disp" == 0 ]] \
+    && resultat E5-A10 OK "Aperçu d'un fichier altéré : 500 INTEGRITE_COMPROMISE en problem+json, sans Content-Disposition [6.1.6]" \
+    || resultat E5-A10 ECHEC "Aperçu d'un fichier altéré : refus propre [6.1.6]" "HTTP $HTTP_CODE « $(code_metier) » type « $type » Content-Disposition $disp"
+fi
+# Export ZIP (synchrone) du dossier qui contient le fichier altéré : même refus propre attendu,
+# pas une archive 200 tronquée présentée comme un téléchargement (§12.10, ANO-E5-002).
+api_appel GET "/api/v1/documents/$DOC_ID"
+DOSSIER_ID="$(tr -d '\r\n' < "$HTTP_CORPS" | grep -o '"workspace":{"id":"[^"]*"' | grep -o '[0-9a-f-]\{36\}')"
+if [[ -n "$DOSSIER_ID" ]]; then
+  api_appel POST "/api/v1/exports/dossiers/$DOSSIER_ID" -H "Idempotency-Key: $(uuid_aleatoire)"
+  type="$(grep -i '^content-type:' "$HTTP_ENTETES" | tr -d '\r' | cut -d' ' -f2-)"; disp="$(grep -ic '^content-disposition:' "$HTTP_ENTETES")"
+  zip_complet=non; unzip -tq "$HTTP_CORPS" >/dev/null 2>&1 && zip_complet=oui
+  if [[ "$HTTP_CODE" == 500 && "$(code_metier)" == INTEGRITE_COMPROMISE && "$type" == application/problem+json* && "$disp" == 0 ]]; then
+    resultat E5-A11 OK "Export d'un dossier contenant un fichier altéré : 500 INTEGRITE_COMPROMISE, problem+json [12.10, 6.1.2]"
+  elif [[ "$HTTP_CODE" == 202 ]]; then
+    resultat E5-A11 NA "Export d'un dossier contenant un fichier altéré" "export de fond (202) : refus à constater sur le travail d'export"
+  else
+    resultat E5-A11 ECHEC "Export d'un dossier contenant un fichier altéré : refus propre [12.10, 6.1.2]" \
+      "HTTP $HTTP_CODE, type « $type », Content-Disposition $disp, $(wc -c < "$HTTP_CORPS") octets, archive lisible : $zip_complet"
+  fi
 fi
 restaurer "$F"
 
@@ -112,11 +147,15 @@ api_telecharger "$DOC_A" "$API_TMP/recu"
   && resultat E5-A07 OK "Après restauration : téléchargement de nouveau identique" \
   || resultat E5-A07 ECHEC "Après restauration : téléchargement de nouveau identique" "HTTP $HTTP_CODE"
 
-if [[ -n "${GED_API_AUDIT:-}" ]]; then
-  api_appel GET "$GED_API_AUDIT"
-  grep -q 'INTEGRITE' "$HTTP_CORPS" && resultat E5-A09 OK "Altération auditée [6.1.4, 7.4.1]" \
-                                    || resultat E5-A09 ECHEC "Altération auditée [6.1.4, 7.4.1]" "aucun événement INTEGRITE dans $GED_API_AUDIT"
+if [[ -n "${GED_E5_AUDITEUR:-}" ]]; then
+  # Journal d'audit (E4) lu par un compte habilité (GED_E5_AUDITEUR), filtré sur le fichier altéré (A03).
+  FICHIER_A03="$(basename "$F" .enc)"
+  _JETON=""; GED_RECETTE_IDENTIFIANT="$GED_E5_AUDITEUR" api_connexion || fatal "connexion de $GED_E5_AUDITEUR"
+  api_appel GET "/api/v1/audit/evenements?action=INTEGRITE_ANOMALIE&objetId=$FICHIER_A03"
+  grep -q '"action":"INTEGRITE_ANOMALIE"' "$HTTP_CORPS" && grep -q '"acteurNom":"[^"]' "$HTTP_CORPS" \
+    && resultat E5-A09 OK "Altération auditée : INTEGRITE_ANOMALIE sur le fichier, acteur et motif [6.1.4, 7.4.1]" "$(grep -o '"motif":"[^"]*"' "$HTTP_CORPS" | head -1)" \
+    || resultat E5-A09 ECHEC "Altération auditée [6.1.4, 7.4.1]" "HTTP $HTTP_CODE, aucun INTEGRITE_ANOMALIE pour le fichier $FICHIER_A03"
 else
-  resultat E5-A09 NA "Altération auditée" "journal d'audit livré en E4 (GED_API_AUDIT)"
+  resultat E5-A09 NA "Altération auditée" "GED_E5_AUDITEUR (compte habilité à lire le journal d'audit) non défini"
 fi
 bilan "E5 altération"
