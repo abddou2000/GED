@@ -309,7 +309,7 @@ SELECT reprise_source.nouvel_id('document_index_values', s.id),
   FROM reprise_source.document_index_values s;
 
 -- Signatures séquentielles -> circuits de validation (lot E8, §12.8), comme
--- le changeset 202610021020 pour une base déjà migrée : un circuit par
+-- le changeset 202610021120 pour une base déjà migrée : un circuit par
 -- document (REFUSE s'il y a un rejet, VALIDE si tout est signé, EN_COURS
 -- sinon), un validateur nommé par ancienne signature (identifiant de
 -- correspondance de la signature), une décision par signature traitée, sur la

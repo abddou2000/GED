@@ -4,7 +4,7 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
-        logicalFilePath="db/changelog/changesets/202610021020_reprise_signatures_circuits.xml">
+        logicalFilePath="db/changelog/changesets/202610021120_reprise_signatures_circuits.xml">
 
     <!--
         Reprise des signatures séquentielles (workflow_ged_signature) dans le
@@ -16,7 +16,7 @@
         rejet, VALIDE si tout est signé, EN_COURS sinon. La table
         d'origine est ensuite supprimée (le retour arrière la recrée).
     -->
-    <changeSet id="202610021020-1" author="ged">
+    <changeSet id="202610021120-1" author="ged">
         <comment>Reprise des signatures en circuits, validateurs et décisions.</comment>
         <sql>INSERT INTO ${database.defaultSchemaName}.circuit (id, document_id, regle_workflow_id, statut, ouvert_le, clos_le, initiateur_id)
              SELECT ${database.defaultSchemaName}.uuid_v7(), d.id, max(n.regle_workflow_id::text)::uuid,

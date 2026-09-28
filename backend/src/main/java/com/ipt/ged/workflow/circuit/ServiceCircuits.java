@@ -485,7 +485,7 @@ public class ServiceCircuits {
             throw new IllegalArgumentException("Désignez au moins une personne ou un groupe.");
         }
         Role lecteur = roles.findByCode(LECTEUR)
-                .orElseThrow(() -> new IllegalStateException("Rôle LECTEUR absent : changeset 202610021030 non appliqué"));
+                .orElseThrow(() -> new IllegalStateException("Rôle LECTEUR absent : changeset 202610021130 non appliqué"));
         int posees = 0;
         for (UUID u : new LinkedHashSet<>(personnes)) {
             posees += poser(TypeSujet.UTILISATEUR, u, lecteur, documentId, acteur);

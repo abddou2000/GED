@@ -135,6 +135,26 @@ fusion ci-dessous). E8 workflow : terminé (0a6a33e). E7 modèle : accepté
   seule des versions (falsification simulée en le désactivant), numéro de
   version dans les insertions SQL de dev3.
 
+### Seconde fusion (4d28528 : dev3 T-040, ANO-E7-001, ANO-E5-002 ; dev2 contrat §5.3.1, ANO-E4-004, ANO-E1-005)
+
+- Changesets du workflow renommés (demande du coordinateur, aucun n'était
+  intégré) : `202610021000/1010/1020/1030` → `202610021100/1110/1120/1130`
+  (fichiers, `logicalFilePath`, identifiants), exécutés après
+  `202610021000_alignement_cles_uuid` de dev2 ; jalon `202610021200` inchangé.
+  Références mises à jour (`ServiceCircuits`, `02_reprise.sql`).
+  À signaler : `202610011000_reprise_liens_groupe_espace` (point 9) partage son
+  horodatage avec `202610011000_portee_cles_api_noeud` (dev2) et
+  `202610011000_ajout_source_depot_document` (dev3) — pas de collision
+  Liquibase, renommable de la même façon si le coordinateur le souhaite.
+- `DocumentResponse` : socle commun E7 + source du dépôt T-040 ; dépôt : origine
+  (canal, application, déposant délégué) au temps 1 avec le modèle E7.
+- Téléchargement d'une version : méthode de l'intégration conservée (contrat
+  §5.3.1), passée par `LectureControlee` comme la version courante.
+- `ServiceContratApi.creerDossier` : plus de règle copiée du parent (E8 : le
+  dossier suit la règle du nœud le plus proche). `ContratApiTest.creationDeDossier`
+  (dev2) adapté : aucune règle propre au dossier, et `ReglesApplicables` y
+  résout la règle de l'espace (origine NOEUD).
+
 ### Correctifs de recette inclus
 
 | Anomalie | Correction | Test |
@@ -144,7 +164,7 @@ fusion ci-dessous). E8 workflow : terminé (0a6a33e). E7 modèle : accepté
 | ANO-E4-002 | `ControleAcces.horsPerimetre` : 404 inchangé pour le client, `ACCES_HORS_PERIMETRE` (REFUS, transaction propre) au journal si l'objet existe ; identifiant inexistant non tracé | `.horsPerimetreTrace` |
 | ANO-E4-003 | Déconnexion tracée `DECONNEXION` ; `DESIGNATION_AJOUTEE`, `DESIGNATION_RETIREE`, `CONFIDENTIALITE_MODIFIEE`, `ACCES_HORS_PERIMETRE`, `DOCUMENT_RETYPE` et codes E8 au catalogue | `.designationAuCatalogue`, `AuthentificationApiTest.deconnexion` |
 
-Tests : voir « Tests de la fusion » plus bas. Point d'attention : la base de
+Tests : première fusion 561 verts ; seconde fusion **579 verts, 0 échec**, `ng build` vert. Point d'attention : la base de
 développement `ged_dev1` a exécuté `202609301045` (empreinte) avant l'existence
 de `202609271205` ; ce dernier y échouera (colonne déjà présente). La recréer
 depuis la reprise, ou y marquer `202609271205-1` exécuté après avoir ajouté à
@@ -165,7 +185,7 @@ Aucune autre base n'est concernée (les lots E7/E8 de dev1 n'étaient pas intég
 | 12.8 / 4.5.3 | Diffusion du document validé, sans copie | `POST /workflow/documents/{id}/diffusion` : habilitations de document au rôle `LECTEUR` (nouveau, Consulter) pour personnes et groupes ; Diffuser exigée ; 409 `DOCUMENT_NON_VALIDE` |
 | 4.5.3 / 4.6.6 | Notification des validateurs et du déposant ; audit | `EvenementWorkflow` implémente `EvenementAudit` et `EvenementNotifiable` (copies conformes de dev2) : CIRCUIT_OUVERT, VALIDATION_RELANCEE, VALIDATION_APPROUVEE / REJETEE, DECISION_ANNULEE, CIRCUIT_ANNULE, VALIDATEUR_REAFFECTE, DOCUMENT_DIFFUSE, REGLE_WORKFLOW_RATTACHEE ; une publication par action |
 | D8 (E8-API) | Pilotage par API, décision pour le compte d'un validateur | contrat publié ci-dessus ; `AccesApiWorkflow` (acteur délégué, portée PILOTAGE / DECISION) ; double identité (auteur + `application_id`) tracée |
-| Reprise | Anciennes tables et signatures séquentielles | changesets `202610021000` (renommages), `202610021010` (circuit, décision), `202610021020` (signatures → circuits, retour arrière), `202610021030` (rôle LECTEUR), jalon `workflow-e8` ; scripts `02_reprise.sql` / `03_controles.sql` ; paquet `signature` supprimé |
+| Reprise | Anciennes tables et signatures séquentielles | changesets `202610021100` (renommages), `202610021110` (circuit, décision), `202610021120` (signatures → circuits, retour arrière), `202610021130` (rôle LECTEUR), jalon `workflow-e8` ; scripts `02_reprise.sql` / `03_controles.sql` ; paquet `signature` supprimé |
 | Écrans | Validation sans étapes, statut sur la fiche, règles, réaffectation | « Mes validations » (à traiter, historique, validateurs défaillants) ; carte « Validation » de la fiche document ; formulaire de règle nommé / par rôle ; règle du type sur sa fiche ; règle facultative du nœud |
 
 Tests : `mvn test` → **344 tests, 0 échec** (dont `CircuitApiTest`, 12 cas,

@@ -1,0 +1,54 @@
+# Comptes supplémentaires de l'annuaire SIMULÉ (UnboundID, profil dev uniquement) pour la
+# recette E2 : identités jamais connectées, pour rejouer le provisionnement sans rôle (§3.3).
+# À concaténer au LDIF de démonstration du backend (voir recette/e2/README.md).
+# Mot de passe : celui des comptes de démonstration du profil dev (valeur de poste, non secrète).
+# Chaque exécution de recette E2 consomme un compte « jamais connecté » : qanouveau1 à 5.
+
+dn: CN=QA Nouveau 1,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: QA Nouveau 1
+sAMAccountName: qanouveau1
+userPrincipalName: qanouveau1@marchicamed.ma
+objectGUID:: cWEAAAAAAEAAgAAAAAAAAQ==
+givenName: QA
+sn: Nouveau1
+displayName: QA Nouveau 1
+mail: qa.nouveau1@marchica.ma
+userAccountControl: 512
+memberOf: CN=GED-Administrateurs,OU=Groupes,DC=marchicamed,DC=ma
+userPassword: dev-local-only
+
+dn: CN=QA Nouveau 2,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: QA Nouveau 2
+sAMAccountName: qanouveau2
+userPrincipalName: qanouveau2@marchicamed.ma
+objectGUID:: cWEAAAAAAEAAgAAAAAAAAg==
+givenName: QA
+sn: Nouveau2
+displayName: QA Nouveau 2
+mail: qa.nouveau2@marchica.ma
+userAccountControl: 512
+userPassword: dev-local-only
+
+dn: CN=QA Nouveau 3,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: QA Nouveau 3
+sAMAccountName: qanouveau3
+userPrincipalName: qanouveau3@marchicamed.ma
+objectGUID:: cWEAAAAAAEAAgAAAAAAAAw==
+givenName: QA
+sn: Nouveau3
+displayName: QA Nouveau 3
+mail: qa.nouveau3@marchica.ma
+userAccountControl: 512
+userPassword: dev-local-only

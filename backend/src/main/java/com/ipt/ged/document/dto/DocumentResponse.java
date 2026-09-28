@@ -69,7 +69,14 @@ public record DocumentResponse(
         String echeanceConservation,
         /** Verrou (§12.8) : motif et date ; absents si le document est libre. */
         String verrouMotif,
-        Instant verrouLe
+        Instant verrouLe,
+        /** Canal du dépôt (T-040) : INTERFACE, API, BUREAU_ORDRE, REPRISE. */
+        String canalDepot,
+        /** Application appelante (clé d'API), {@code null} depuis l'interface. */
+        UUID applicationId,
+        /** Identité GED du déposant ; déposant délégué si {@code depotDelegue}. */
+        UUID deposantUtilisateurId,
+        boolean depotDelegue
 ) {
     public record Ref(UUID id, String label) {}
 
@@ -126,7 +133,9 @@ public record DocumentResponse(
                 d.getObjet(), d.getDateDocument() != null ? d.getDateDocument().toString() : null,
                 d.getMetadonnees(),
                 d.getEcheanceConservation() != null ? d.getEcheanceConservation().toString() : null,
-                d.getVerrouMotif(), d.getVerrouLe());
+                d.getVerrouMotif(), d.getVerrouLe(),
+                d.getCanalDepot() != null ? d.getCanalDepot().name() : null,
+                d.getApplicationId(), d.getDeposantUtilisateurId(), d.isDepotDelegue());
     }
 
     /** Même réponse, avec l'issue d'indexation établie par le dépôt et son motif. */
@@ -134,7 +143,8 @@ public record DocumentResponse(
         return new DocumentResponse(id, name, workspace, typeDocument, fileName, extension, sizeKo, sizeLabel,
                 expirationDate, active, verrouille, supprime, chemin, createdBy, etiquettes, versions, createdAt,
                 confidentialite, permissions, rattachements, statutOcr, statut, motif, statutConservation, archiveLe,
-                objet, dateDocument, metadonnees, echeanceConservation, verrouMotif, verrouLe);
+                objet, dateDocument, metadonnees, echeanceConservation, verrouMotif, verrouLe,
+                canalDepot, applicationId, deposantUtilisateurId, depotDelegue);
     }
 
     /**

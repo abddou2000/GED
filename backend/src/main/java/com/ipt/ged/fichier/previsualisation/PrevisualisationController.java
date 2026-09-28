@@ -39,13 +39,16 @@ public class PrevisualisationController {
     private final ControleAccesPrevisualisation controleAcces;
     private final ServicePrevisualisation service;
     private final ApplicationEventPublisher evenements;
+    private final com.ipt.ged.fichier.integrite.LectureControlee lectures;
 
     public PrevisualisationController(ResolveurFichierVersion resolveur, ControleAccesPrevisualisation controleAcces,
-                                      ServicePrevisualisation service, ApplicationEventPublisher evenements) {
+                                      ServicePrevisualisation service, ApplicationEventPublisher evenements,
+                                      com.ipt.ged.fichier.integrite.LectureControlee lectures) {
         this.resolveur = resolveur;
         this.controleAcces = controleAcces;
         this.service = service;
         this.evenements = evenements;
+        this.lectures = lectures;
     }
 
     @GetMapping("/{versionId}/apercu")
@@ -56,6 +59,9 @@ public class PrevisualisationController {
         controleAcces.verifierLecture(version, utilisateur);
 
         ServicePrevisualisation.Apercu apercu = service.ouvrir(version.fichierId(), version.typeMime());
+        // Premier segment authentifié avant d'engager la réponse (ANO-E5-002).
+        java.io.InputStream flux = lectures.controler(apercu.flux(), version.fichierId(),
+                "aperçu de la version " + version.versionId());
         evenements.publishEvent(new ApercuConsulte(version.documentId(), version.versionId(), Acteur.courant(),
                 Instant.now(), version.fichierId()));
 
@@ -71,6 +77,6 @@ public class PrevisualisationController {
         if (apercu.taille() >= 0) entetes.setContentLength(apercu.taille());
 
         // Flux servi dans le fil de la requête (voir DocumentController#servir).
-        return ResponseEntity.ok().headers(entetes).body(new InputStreamResource(apercu.flux()));
+        return ResponseEntity.ok().headers(entetes).body(new InputStreamResource(flux));
     }
 }

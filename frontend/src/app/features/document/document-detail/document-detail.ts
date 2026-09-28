@@ -13,7 +13,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTableModule } from '@angular/material/table';
 import { DocumentService, messageErreurTelechargement } from '../document.service';
-import { DocumentItem, Version, Confidentialite, NIVEAUX_CONFIDENTIALITE } from '../document.model';
+import { CanalDepot, DocumentItem, LIBELLES_CANAL, Version, Confidentialite, NIVEAUX_CONFIDENTIALITE } from '../document.model';
 import { EtiquetteService } from '../../etiquette/etiquette.service';
 import { Etiquette } from '../../etiquette/etiquette.model';
 import { TypeDocumentService } from '../../type-document/type-document.service';
@@ -386,6 +386,10 @@ export class DocumentDetail implements OnInit {
 
   /** Date lisible ; mutualisée pour que tous les écrans lisent pareil. */
   readonly dateCourte = formaterDate;
+
+  libelleCanal(c: CanalDepot): string {
+    return LIBELLES_CANAL[c] ?? c;
+  }
 
   retour(): void {
     this.router.navigate(['/televerser']);

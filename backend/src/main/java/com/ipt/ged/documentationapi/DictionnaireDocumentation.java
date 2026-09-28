@@ -74,6 +74,17 @@ public class DictionnaireDocumentation {
     /** Surcharge « Schema.champ » d'abord, puis l'entrée commune du nom de champ. */
     public Optional<Entree> champ(String schema, String champ) {
         Entree e = surcharges.get(schema + "." + champ);
+        if (e == null) {
+            // Schéma homonyme préfixé (NomsSchemasDistincts) : surcharge de son nom simple.
+            e = surcharges.entrySet().stream()
+                    .filter(s -> s.getKey().endsWith("." + champ))
+                    .filter(s -> {
+                        String nom = s.getKey().substring(0, s.getKey().length() - champ.length() - 1);
+                        return schema.endsWith(nom) && schema.length() > nom.length();
+                    })
+                    .max(java.util.Comparator.comparingInt(s -> s.getKey().length()))
+                    .map(Map.Entry::getValue).orElse(null);
+        }
         return Optional.ofNullable(e != null ? e : champs.get(champ));
     }
 

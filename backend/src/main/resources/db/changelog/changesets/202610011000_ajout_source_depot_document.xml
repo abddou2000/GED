@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610011000_ajout_source_depot_document.xml">
+
+    <!--
+        T-040 (§5.1, §12.11 temps 1, fonctionnel §4.1.3) : canal et source du
+        dépôt, enregistrés avec le document dès le temps 1.
+        - canal_depot : INTERFACE, API, BUREAU_ORDRE, REPRISE ; les documents
+          existants, antérieurs à l'enregistrement du canal, passent en REPRISE ;
+        - application_id : application appelante identifiée par sa clé d'API
+          (clé étrangère vers `application` posée avec la table, lot intégration) ;
+        - deposant_utilisateur_id : identité GED du déposant, utilisateur de
+          l'interface ou personne déléguée par l'application (X-On-Behalf-Of) ;
+        - depot_delegue : dépôt d'une application pour le compte d'une personne.
+    -->
+    <changeSet id="202610011000-1" author="ged">
+        <comment>Canal, application, déposant et délégation du dépôt sur document.</comment>
+        <addColumn tableName="document">
+            <column name="canal_depot" type="VARCHAR(16)" defaultValue="INTERFACE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="application_id" type="UUID"/>
+            <column name="deposant_utilisateur_id" type="UUID"/>
+            <column name="depot_delegue" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <sql>UPDATE ${database.defaultSchemaName}.document SET canal_depot = 'REPRISE'</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_canal_depot
+            CHECK (canal_depot IN ('INTERFACE', 'API', 'BUREAU_ORDRE', 'REPRISE'))</sql>
+        <!-- Une délégation n'existe que pour une application qui désigne une personne. -->
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document ADD CONSTRAINT ck_document_depot_delegue
+            CHECK (NOT depot_delegue OR (canal_depot IN ('API', 'BUREAU_ORDRE') AND deposant_utilisateur_id IS NOT NULL))</sql>
+        <addForeignKeyConstraint constraintName="fk_document_deposant_utilisateur" baseTableName="document"
+                                 baseColumnNames="deposant_utilisateur_id" referencedTableName="utilisateur"
+                                 referencedColumnNames="id" onDelete="SET NULL"/>
+        <createIndex indexName="idx_document_canal_depot" tableName="document">
+            <column name="canal_depot"/>
+        </createIndex>
+        <createIndex indexName="idx_document_application_id" tableName="document">
+            <column name="application_id"/>
+        </createIndex>
+        <createIndex indexName="idx_document_deposant_utilisateur_id" tableName="document">
+            <column name="deposant_utilisateur_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex indexName="idx_document_deposant_utilisateur_id" tableName="document"/>
+            <dropIndex indexName="idx_document_application_id" tableName="document"/>
+            <dropIndex indexName="idx_document_canal_depot" tableName="document"/>
+            <dropForeignKeyConstraint baseTableName="document" constraintName="fk_document_deposant_utilisateur"/>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_depot_delegue</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document DROP CONSTRAINT ck_document_canal_depot</sql>
+            <dropColumn tableName="document">
+                <column name="depot_delegue"/>
+                <column name="deposant_utilisateur_id"/>
+                <column name="application_id"/>
+                <column name="canal_depot"/>
+            </dropColumn>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

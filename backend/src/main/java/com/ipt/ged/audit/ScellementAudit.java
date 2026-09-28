@@ -63,7 +63,15 @@ public class ScellementAudit {
     private static final long VERROU = 0x6765645f61756469L; // « ged_audi »
     private static final HexFormat HEX = HexFormat.of();
 
-    /** Enregistrements d'une période, chaque valeur en texte, dans l'ordre des identifiants. */
+    /**
+     * Enregistrements d'une période, chaque valeur en texte.
+     *
+     * Ordre canonique de la chaîne (version 1) : identifiant en TEXTE (colonne 1).
+     * « ORDER BY id » désignait déjà la colonne de sortie id::text : l'ordre est
+     * explicité, pas changé, sans quoi les scellements existants ne se
+     * vérifieraient plus. Les bornes (premier et dernier numéro) sont, elles,
+     * calculées numériquement (ANO-E4-004).
+     */
     static final String LIGNES_PERIODE = """
             SELECT id::text, to_char(horodatage AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
                    acteur_utilisateur_id::text, acteur_application_id::text, acteur_nom, adresse_ip,
@@ -71,7 +79,7 @@ public class ScellementAudit {
                    trace_id::text
               FROM journal_audit
              WHERE horodatage >= ? AND horodatage < ?
-             ORDER BY id""";
+             ORDER BY 1""";
     private static final int COLONNES = 14;
 
     private final JdbcTemplate jdbc;
@@ -171,8 +179,8 @@ public class ScellementAudit {
                 champ(sha, rs.getString(i));
             }
             long id = Long.parseLong(rs.getString(1));
-            if (bornes[0] == null) bornes[0] = id;
-            bornes[1] = id;
+            if (bornes[0] == null || id < bornes[0]) bornes[0] = id;
+            if (bornes[1] == null || id > bornes[1]) bornes[1] = id;
             compte[0]++;
         }, Timestamp.from(debut), Timestamp.from(fin));
         champ(sha, Long.toString(compte[0]));

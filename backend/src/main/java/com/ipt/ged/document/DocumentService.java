@@ -138,6 +138,8 @@ public class DocumentService {
     private final WorkSpaceRepository noeuds;
     private final com.ipt.ged.document.modele.ServiceModeleDocument modele;
     private final com.ipt.ged.document.version.ServiceVersions versions;
+    private final com.ipt.ged.depot.source.ResolutionOrigineDepot origines;
+    private final com.ipt.ged.fichier.integrite.LectureControlee lectures;
 
     public DocumentService(UploadDocumentRepository repo, TypeDocumentRepository typeRepo,
                            ServiceCircuits circuits,
@@ -150,7 +152,9 @@ public class DocumentService {
                            DocumentConfidentielDesigneRepository designes, UtilisateurRepository utilisateurs,
                            WorkSpaceRepository noeuds,
                            com.ipt.ged.document.modele.ServiceModeleDocument modele,
-                           com.ipt.ged.document.version.ServiceVersions versions) {
+                           com.ipt.ged.document.version.ServiceVersions versions,
+                           com.ipt.ged.depot.source.ResolutionOrigineDepot origines,
+                           com.ipt.ged.fichier.integrite.LectureControlee lectures) {
         this.repo = repo;
         this.typeRepo = typeRepo;
         this.circuits = circuits;
@@ -172,6 +176,8 @@ public class DocumentService {
         this.designes = designes;
         this.utilisateurs = utilisateurs;
         this.noeuds = noeuds;
+        this.origines = origines;
+        this.lectures = lectures;
     }
 
     private static Authentication appelant() {
@@ -368,6 +374,12 @@ public class DocumentService {
         doc.setExtension(ext);
         doc.setSizeKo(depot.stockage().tailleOctets() / 1024);
         doc.setExpirationDate(expiration);
+        // Source et déposant enregistrés au temps 1 (T-040, §12.11).
+        var origine = origines.courante();
+        doc.setCanalDepot(origine.canal());
+        doc.setApplicationId(origine.applicationId());
+        doc.setDeposantUtilisateurId(origine.deposantUtilisateurId());
+        doc.setDepotDelegue(origine.delegue());
         doc.setConfidentialite(confidentialite != null ? confidentialite
                 : type.getConfidentialiteDefaut() != null ? type.getConfidentialiteDefaut() : Confidentialite.PUBLIC);
         if (createdById != null) {
@@ -578,25 +590,6 @@ public class DocumentService {
         return reponse(saved, statut);
     }
 
-    /**
-     * Toute version est téléchargeable (§12.8), déchiffrée en flux, avec
-     * Consulter ; une version d'un autre document est « introuvable ».
-     */
-    @Transactional(readOnly = true)
-    public FichierTelecharge telechargerVersion(UUID documentId, UUID versionId) {
-        controle.exigerLectureDocument(documentId);
-        DocumentVersion v = versionRepo.findById(versionId)
-                .filter(x -> x.getDocument().getId().equals(documentId))
-                .orElseThrow(() -> new EntityNotFoundException("Version introuvable : " + versionId));
-        if (v.getCleFichierId() == null) {
-            throw Refus.introuvable("version " + v.getId() + " non reprise dans le stockage chiffré");
-        }
-        InputStream flux = stockage.lire(v.getCleFichierId());
-        evenements.publishEvent(new DocumentTelecharge(documentId, v.getId(), Acteur.courant(), Instant.now(),
-                v.getFileName()));
-        return new FichierTelecharge(v.getFileName(), v.getTailleOctets() != null ? v.getTailleOctets() : -1, flux);
-    }
-
     private void appliquerEtiquettes(UploadDocument d, List<UUID> ids) {
         if (ids == null) return;
         List<Etiquette> tags = ids.isEmpty() ? List.of() : etiquetteRepo.findAllById(ids);
@@ -630,17 +623,41 @@ public class DocumentService {
         if (d.estArchive() && !original) {
             Optional<CopiesConservation.CopieValide> copie = copies.valide(v.getId());
             if (copie.isPresent()) {
-                InputStream flux = stockage.lire(copie.get().cleFichierId());
+                // Premier segment authentifié avant la réponse (ANO-E5-002).
+                InputStream flux = lectures.ouvrir(copie.get().cleFichierId(), "copie de conservation du document " + id);
                 evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
                         "copie de conservation PDF/A de " + v.getFileName()));
                 return new FichierTelecharge(d.getName() + ".pdf", copie.get().tailleOctets(), flux);
             }
         }
-        InputStream flux = stockage.lire(v.getCleFichierId());
+        InputStream flux = lectures.ouvrir(v.getCleFichierId(), "téléchargement du document " + id);
         String nom = d.getName() + (d.getExtension() != null && !d.getExtension().isBlank() ? "." + d.getExtension() : "");
         evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
                 v.getFileName()));
         return new FichierTelecharge(nom, v.getTailleOctets() != null ? v.getTailleOctets() : -1, flux);
+    }
+
+    /**
+     * Téléchargement d'une version donnée du document (contrat d'API §5.3.1,
+     * {@code GET /documents/{id}/contenu?version=}) ; sans version, la version
+     * courante ({@link #telecharger(UUID, boolean)}). Une version d'un autre
+     * document est « introuvable » (P5).
+     */
+    @Transactional(readOnly = true)
+    public FichierTelecharge telechargerVersion(UUID id, UUID versionId) {
+        if (versionId == null) return telecharger(id, false);
+        controle.exigerLectureDocument(id);
+        UploadDocument d = load(id);
+        DocumentVersion v = d.getVersions().stream().filter(x -> versionId.equals(x.getId())).findFirst()
+                .orElseThrow(() -> Refus.introuvable("version " + versionId));
+        if (v.getCleFichierId() == null) {
+            throw Refus.introuvable("version " + v.getId() + " non reprise dans le stockage chiffré");
+        }
+        // Toute version est téléchargeable (§12.8) : même lecture contrôlée que la courante.
+        InputStream flux = lectures.ouvrir(v.getCleFichierId(), "téléchargement de la version " + v.getId());
+        evenements.publishEvent(new DocumentTelecharge(d.getId(), v.getId(), Acteur.courant(), Instant.now(),
+                v.getFileName()));
+        return new FichierTelecharge(v.getFileName(), v.getTailleOctets() != null ? v.getTailleOctets() : -1, flux);
     }
 
     /** Fichier prêt à servir ; {@code taille} en octets, -1 si inconnue. */

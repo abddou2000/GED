@@ -4,7 +4,7 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
-        logicalFilePath="db/changelog/changesets/202610021000_regle_workflow.xml">
+        logicalFilePath="db/changelog/changesets/202610021100_regle_workflow.xml">
 
     <!--
         Règles de workflow (§12.8, décision D7) : l'ancien « workflow à étapes »
@@ -19,7 +19,7 @@
         qui en porte une (noeud.regle_workflow_id, désormais facultatif :
         un dossier sans règle hérite de celle de ses ancêtres).
     -->
-    <changeSet id="202610021000-1" author="ged">
+    <changeSet id="202610021100-1" author="ged">
         <comment>Renommage workflow_ged en regle_workflow, étapes en validateurs.</comment>
         <sql>ALTER TABLE ${database.defaultSchemaName}.workflow_ged RENAME TO regle_workflow</sql>
         <sql>ALTER TABLE ${database.defaultSchemaName}.workflow_ged_etape RENAME TO regle_validateur</sql>
@@ -55,7 +55,7 @@
         </rollback>
     </changeSet>
 
-    <changeSet id="202610021000-2" author="ged">
+    <changeSet id="202610021100-2" author="ged">
         <comment>Validateur par rôle sur un périmètre ; rattachement facultatif au nœud, possible au type.</comment>
         <dropNotNullConstraint tableName="regle_validateur" columnName="employe_id" columnDataType="UUID"/>
         <addColumn tableName="regle_validateur">

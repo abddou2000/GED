@@ -63,6 +63,7 @@ class ApercuTelechargementApiTest {
     @Autowired private TypeDocumentRepository typeRepository;
 
     @Value("${ged.fichiers.racine}") private String racine;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private UUID typeId;
 
@@ -189,5 +190,36 @@ class ApercuTelechargementApiTest {
     void anonyme() throws Exception {
         mvc.perform(get("/api/v1/versions/{id}/apercu", UUID.randomUUID()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    /** Altère le fichier chiffré d'une version (octet du premier segment). */
+    private void alterer(UUID versionId) throws Exception {
+        UUID fichier = jdbc.queryForObject("SELECT cle_fichier_id FROM version_document WHERE id = ?", UUID.class,
+                versionId);
+        try (Stream<Path> s = Files.walk(Path.of(racine).toAbsolutePath().normalize())) {
+            Path enc = s.filter(p -> p.getFileName().toString().equals(fichier + ".enc")).findFirst().orElseThrow();
+            byte[] octets = Files.readAllBytes(enc);
+            octets[octets.length - 20] ^= 0x5A;
+            Files.write(enc, octets);
+        }
+    }
+
+    @Test
+    @WithUserDetails(Comptes.ADMIN)
+    @DisplayName("ANO-E5-002 : fichier altéré → 500 problem+json INTEGRITE_COMPROMISE avant tout envoi, anomalie publiée")
+    void fichierAltere() throws Exception {
+        UUID[] ids = deposer("altere.pdf", Echantillons.pdf());
+        alterer(ids[1]);
+        mvc.perform(get("/api/v1/documents/" + ids[0] + "/download"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(header().doesNotExist("Content-Disposition"))
+                .andExpect(jsonPath("$.code").value("INTEGRITE_COMPROMISE"));
+        mvc.perform(get("/api/v1/versions/{id}/apercu", ids[1]))
+                .andExpect(status().isInternalServerError())
+                .andExpect(header().doesNotExist("Content-Disposition"))
+                .andExpect(jsonPath("$.code").value("INTEGRITE_COMPROMISE"));
+        assertEquals(2, evenements.stream(com.ipt.ged.fichier.integrite.VerificationIntegrite.AnomalieIntegrite.class)
+                .count(), "une anomalie d'intégrité par lecture refusée");
+        assertEquals(0, evenements.stream(DocumentTelecharge.class).count(), "rien n'a été servi");
     }
 }

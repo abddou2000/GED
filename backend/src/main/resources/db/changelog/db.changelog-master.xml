@@ -93,6 +93,8 @@
     <include file="changesets/202609281000_creation_cles_api.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609291000_creation_notifications.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202610011000_portee_cles_api_noeud.xml" relativeToChangelogFile="true"/>
+    <!-- ANO-E1-005 : clés UUID (préférence de notification, scellement). -->
+    <include file="changesets/202610021000_alignement_cles_uuid.xml" relativeToChangelogFile="true"/>
 
     <!-- Lots E5 (stockage chiffré) et E6 (OCR asynchrone, recherche plein texte) -->
     <include file="changesets/202609271200_creation_table_cle_fichier.xml" relativeToChangelogFile="true"/>
@@ -119,9 +121,13 @@
     <!-- Après le statut de conservation du document (202609301000, lot modèle). -->
     <include file="changesets/202609301020_gel_versions_document_archive.xml" relativeToChangelogFile="true"/>
 
+    <!-- Source et canal du dépôt (T-040, §5.1). -->
+    <include file="changesets/202610011000_ajout_source_depot_document.xml" relativeToChangelogFile="true"/>
+
     <!--
         Lot E7 (partie modèle), point 9 et lot E8 (workflow) de dev1 : ajoutés
-        après les lots stockage, OCR, cycle de vie et exploitation. Le
+        après les lots stockage, OCR, cycle de vie, exploitation et source du dépôt ;
+        workflow en 2026100211xx, après l'alignement des clés de dev2 (202610021000). Le
         202609301045 (empreinte) est marqué exécuté sans effet quand la colonne
         du lot stockage (202609271205) existe déjà.
     -->
@@ -134,10 +140,10 @@
     <include file="changesets/202609301070_usage_espace_noeud.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301200_jalon_modele.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202610011000_reprise_liens_groupe_espace.xml" relativeToChangelogFile="true"/>
-    <include file="changesets/202610021000_regle_workflow.xml" relativeToChangelogFile="true"/>
-    <include file="changesets/202610021010_circuit_decision.xml" relativeToChangelogFile="true"/>
-    <include file="changesets/202610021020_reprise_signatures_circuits.xml" relativeToChangelogFile="true"/>
-    <include file="changesets/202610021030_role_lecteur_diffusion.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021100_regle_workflow.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021110_circuit_decision.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021120_reprise_signatures_circuits.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021130_role_lecteur_diffusion.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202610021200_jalon_workflow.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

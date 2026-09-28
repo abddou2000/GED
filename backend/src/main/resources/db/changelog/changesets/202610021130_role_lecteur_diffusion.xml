@@ -4,7 +4,7 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
-        logicalFilePath="db/changelog/changesets/202610021030_role_lecteur_diffusion.xml">
+        logicalFilePath="db/changelog/changesets/202610021130_role_lecteur_diffusion.xml">
 
     <!--
         Diffusion d'un document validé (§12.8) : « ajout d'habilitations de
@@ -13,7 +13,7 @@
         (diffusion) », composé de la seule permission Consulter, est livré ;
         il reste modifiable depuis l'écran des rôles.
     -->
-    <changeSet id="202610021030-1" author="ged" labels="data-initial">
+    <changeSet id="202610021130-1" author="ged" labels="data-initial">
         <comment>Rôle de lecture utilisé par la diffusion.</comment>
         <insert tableName="role">
             <column name="id" value="0192a000-0000-7000-8000-000000000005"/>

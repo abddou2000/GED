@@ -1,0 +1,30 @@
+# ============================================================
+#  pgaudit — traçabilité des sessions d'ADMINISTRATION de la base (P-16,
+#  DAT §7.4.2 : un superutilisateur peut contourner les privilèges et les
+#  déclencheurs du journal d'audit ; pgaudit permet de le tracer).
+#
+#  À inclure dans postgresql.conf :
+#     include_if_exists = 'conf.d/pgaudit.conf'
+#  Paquet : postgresql-16-pgaudit (Debian/Ubuntu) ou pgaudit16_16 (RHEL/PGDG).
+#  Redémarrage de PostgreSQL requis (shared_preload_libraries).
+#
+#  Principe : RIEN n'est journalisé par défaut (le trafic de l'application,
+#  ged_app, déjà tracé par le journal d'audit applicatif, noierait le reste) ;
+#  les rôles d'administration reçoivent leur réglage par ALTER ROLE
+#  (pgaudit-roles.sql). Les valeurs des paramètres ne sont jamais écrites :
+#  une requête peut porter un mot de passe ou une donnée personnelle.
+# ============================================================
+shared_preload_libraries = 'pgaudit'
+
+pgaudit.log = 'none'
+pgaudit.log_catalog = off
+pgaudit.log_client = off
+pgaudit.log_level = 'log'
+pgaudit.log_parameter = off
+pgaudit.log_relation = on
+pgaudit.log_statement_once = on
+
+# Qui, d'où, quand : indispensable pour exploiter la trace.
+log_line_prefix = '%m [%p] user=%u db=%d client=%h app=%a '
+log_connections = on
+log_disconnections = on

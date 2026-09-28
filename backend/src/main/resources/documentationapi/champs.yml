@@ -100,6 +100,12 @@ objets:
   Element: Ligne du rapport d'archivage d'un dossier.
   Export: Export ZIP d'un dossier en traitement de fond (§12.10).
   Texte: Texte extrait de la version courante d'un document et état de l'OCR (§4.3.4).
+  DossierRequest: Création d'un dossier dans un espace ou un dossier parent (contrat §5.3.1).
+  RechercheContratRequest: "Recherche multicritère et/ou plein texte, filtrée à la source par les droits de l'appelant (contrat §5.3.1)."
+  PageResultats: Page de résultats de recherche ; le total est calculé sur le seul périmètre autorisé.
+  PageResultatsResultat: Document trouvé, avec son extrait surligné (plein texte).
+  ArchivageServiceResultat: Issue de l'archivage d'un document.
+  Segment: Morceau d'extrait ; à afficher comme du texte, surligné s'il correspond à la recherche.
   # --- Modèle (E7) et workflow de validation (E8), dev1 ----------------------
   Critere: Critère de recherche sur une métadonnée du plan (valeur, ou bornes pour une date ou un nombre).
   Requete: Recherche de documents par métadonnées (§12.7), date du document en tri prioritaire.
@@ -125,10 +131,26 @@ champs:
   file: {description: "Fichier envoyé (multipart/form-data) ; type réel, taille et antivirus contrôlés.", exemple: null}
 
   # --- Stockage, OCR et cycle de vie (lots E5 à E7, dev3) -------------------
+  deposeDu: {description: "Date de dépôt minimale (incluse, AAAA-MM-JJ).", exemple: "2026-01-01"}
+  deposeAu: {description: "Date de dépôt maximale (incluse, AAAA-MM-JJ).", exemple: "2026-12-31"}
+  taille: {description: "Taille de page : 50 par défaut, plafonnée à 200.", exemple: 50}
+  tri: {description: "Tri en liste blanche : PERTINENCE (défaut avec texte), DATE_DEPOT (défaut sans texte), NOM, TYPE, INDEXATION_RECENTE.", exemple: PERTINENCE}
+  pertinence: {description: "Score de pertinence plein texte (0 sans texte).", exemple: 0.42}
+  deposeLe: {description: "Date de dépôt du document.", exemple: "2026-09-27T09:30:00Z"}
+  espace: {description: "Nom de l'espace (emplacement principal) du document.", exemple: "Marchés"}
+  extrait: {description: "Extrait du texte en segments (jamais de HTML).", exemple: null}
+  resultats: {description: "Résultats de la page.", exemple: null}
+  surligne: {description: "Vrai si le segment correspond à la recherche.", exemple: true}
+
   metadonnees: {description: "Métadonnées du dépôt en un seul appel : objet JSON {CODE_INDEX: valeur} (64 Ko au plus).", exemple: "{\"NUM_MARCHE\":\"2026-014\"}"}
   statutOcr: {description: "État OCR de la version courante : EN_ATTENTE_OCR, EN_COURS_OCR, OCR_TERMINE ou OCR_ECHEC ; nul si sans objet.", exemple: OCR_TERMINE}
   statutIndexation: {description: "Issue de l'indexation (§12.11) : INDEXE, SANS_PLAN ou A_INDEXER.", exemple: INDEXE}
   motifIndexation: {description: "Pourquoi l'indexation du dépôt n'a pas abouti ; nul sinon.", exemple: "Index NUM_MARCHE obligatoire manquant"}
+  # --- Source et canal du dépôt (T-040, §5.1, dev3) ------------------------
+  canalDepot: {description: "Canal du dépôt : INTERFACE, API, BUREAU_ORDRE ou REPRISE.", exemple: INTERFACE}
+  deposantUtilisateurId: {description: "Identité GED du déposant : utilisateur de l'interface ou personne déléguée par l'application (X-On-Behalf-Of).", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  depotDelegue: {description: "Vrai si une application a déposé pour le compte d'une personne (§5.5).", exemple: false}
+  canal: {description: "Canal du dépôt (INTERFACE, API, BUREAU_ORDRE, REPRISE) ; tous si absent.", exemple: BUREAU_ORDRE}
   statutConservation: {description: "ACTIF ou ARCHIVE (§12.6) : un document archivé est en lecture seule.", exemple: ACTIF}
   archiveLe: {description: "Date d'archivage ; nulle pour un document actif.", exemple: "2026-09-30T08:00:00Z"}
   archivePar: {description: "Identité GED qui a archivé.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
@@ -500,6 +522,7 @@ champs:
   depuis: {description: "Depuis quand l'anomalie est constatée.", exemple: "2026-09-01T00:00:00Z"}
 
 surcharges:
+  DocumentResponse.applicationId: {description: "Application appelante (clé d'API) ; nulle pour un dépôt par l'interface (T-040).", exemple: null}
   CircuitResponse.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}
   DecisionRendue.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}
   VuesWorkflowAnomalie.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}
@@ -560,6 +583,17 @@ surcharges:
   DemandeRole.permissions: {description: "Codes des permissions du rôle.", exemple: [CONSULTER, DEPOSER]}
   ConfidentialiteVue.motif: {description: "Raison de la décision.", exemple: "Déposant du document"}
   RechercheRequest.archives: {description: "Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6).", exemple: INCLURE}
+  RechercheContratRequest.archives: {description: "Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6).", exemple: INCLURE}
+  RechercheContratRequest.criteres: {description: "Filtres sur les index (TEXTE, LISTE : valeur ; DATE, NOMBRE : de / a), combinés en ET avec le plein texte.", exemple: null}
+  RechercheContratRequest.noeudId: {description: "Restreindre à un espace ou un dossier (emplacement principal ou rattachement).", exemple: "0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f"}
+  DossierRequest.nom: {description: "Nom du dossier.", exemple: "Offres 2026"}
+  DossierRequest.code: {description: "Code unique du dossier ; attribué (DOS-…) s'il est absent.", exemple: "DOS-OFFRES-2026"}
+  DossierRequest.description: {description: "Description du dossier.", exemple: "Offres reçues pour l'appel d'offres 2026-014."}
+  PageResultats.taille: {description: "Taille de page appliquée.", exemple: 50}
+  PageResultats.page: {description: "Numéro de page (à partir de 0).", exemple: 0}
+  PageResultats.total: {description: "Nombre total de documents trouvés dans le périmètre autorisé.", exemple: 128}
+  PageResultatsResultat.typeDocument: {description: "Libellé du type documentaire.", exemple: "Marché public"}
+  PageResultatsResultat.nom: {description: "Nom du document.", exemple: MAR_2026_014}
   Job.archives: {description: "Documents archivés.", exemple: 118}
   Element.resultat: {description: "Issue pour ce document (ARCHIVE, ANOMALIE, ECHEC…).", exemple: ARCHIVE}
   Export.etat: {description: "État de l'export (EN_ATTENTE, EN_COURS, TERMINE, ECHEC, EXPIRE…).", exemple: TERMINE}
@@ -612,6 +646,8 @@ parametres:
   sujetId: Identifiant du sujet (identité, groupe ou application).
   sujetType: "Nature du sujet : UTILISATEUR, GROUPE ou APPLICATION."
   utilisateurId: Identifiant de l'identité GED.
+  version: "Identifiant de la version à télécharger ; version courante par défaut."
+  pourUtilisateur: "Identité dont on consulte les droits (identifiant d'annuaire ou UUID) : soi-même, l'utilisateur délégué, ou tout tiers avec la permission d'administration des droits."
   dossierId: Identifiant du dossier.
   limite: "Nombre maximal de traitements listés (50 par défaut)."
   original: "Vrai pour télécharger l'original plutôt que la copie de conservation (document archivé)."

@@ -131,9 +131,13 @@ class SchemaLiquibaseTest {
         TABLES_ATTENDUES = Set.copyOf(t);
     }
 
-    /** Tables dont la clé primaire n'est pas un {@code id} uuid : audit (bigint séquentiel), préférence (utilisateur). */
-    private static final Set<String> CLES_PARTICULIERES = Set.of("journal_audit", "journal_audit_scellement",
-            "preference_notification");
+    /**
+     * Seule exception à la clé {@code id} UUID (§12.1) : {@code journal_audit}, dont
+     * l'identifiant est séquentiel par exigence du §7.4.1 (« id, horodatage :
+     * identifiant séquentiel »). Le scellement et la préférence de notification
+     * ont une clé UUID depuis ANO-E1-005.
+     */
+    private static final Set<String> CLES_PARTICULIERES = Set.of("journal_audit");
 
     /**
      * Tables sans colonne {@code id} : aucune depuis ANO-E1-001 (§4.2.2), les

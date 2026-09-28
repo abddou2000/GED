@@ -160,7 +160,7 @@ class ScellementAuditTest {
                     ((Timestamp) scelle.get("periode_fin")).toInstant(),
                     ((String) scelle.get("empreinte_precedente")).trim()).empreinte();
             contourner(c, "journal_audit_scellement",
-                    "UPDATE journal_audit_scellement SET empreinte = '" + fausse + "' WHERE id = " + scelle.get("id"));
+                    "UPDATE journal_audit_scellement SET empreinte = '" + fausse + "' WHERE id = '" + scelle.get("id") + "'");
 
             List<String> types = verification.verifier().anomalies().stream()
                     .map(VerificationAudit.Anomalie::type).toList();
@@ -168,9 +168,34 @@ class ScellementAuditTest {
 
             contourner(c, partition, "UPDATE " + partition + " SET motif = 'troisième' WHERE id = " + cible.get("id"));
             contourner(c, "journal_audit_scellement", "UPDATE journal_audit_scellement SET empreinte = '"
-                    + empreinteOrigine + "' WHERE id = " + scelle.get("id"));
+                    + empreinteOrigine + "' WHERE id = '" + scelle.get("id") + "'");
         }
         assertThat(verification.verifier().anomalies()).isEmpty();
+    }
+
+    @Test
+    @Order(10)
+    @DisplayName("Bornes numériques d'une période de plus de 100 lignes (ANO-E4-004) ; chaîne inchangée")
+    void bornesNumeriques() {
+        // Période à venir (dans trois heures : aucune autre ligne pendant la suite) : 150 lignes.
+        // Les numéros sont posés explicitement pour franchir à coup sûr des changements
+        // de nombre de chiffres (-1 à -150 : « -99 » > « -150 » en ordre textuel, comme
+        // « 99 » > « 274 » dans l'anomalie), quel que soit l'état de la séquence ; négatifs,
+        // ils ne croisent ni la séquence ni les tests qui lisent le dernier événement.
+        Instant debut = Instant.now().truncatedTo(ChronoUnit.HOURS).plus(3, ChronoUnit.HOURS);
+        Instant fin = debut.plus(1, ChronoUnit.HOURS);
+        for (int i = 1; i <= 150; i++) {
+            jdbc.update("""
+                    INSERT INTO journal_audit (id, horodatage, action, objet_type, objet_id, resultat, motif)
+                    VALUES (?, ?, 'ESPACE_MODIFIE', 'ESSAI', ?, 'SUCCES', 'bornes')""",
+                    -i, Timestamp.from(debut.plusMillis(i)), OBJET);
+        }
+        ScellementAudit.Scellement s = scellement.calculer(debut, fin, "0".repeat(64));
+        assertThat(s.nombre()).isEqualTo(150);
+        assertThat(s.premierNumero()).isEqualTo(-150L);
+        assertThat(s.dernierNumero()).isEqualTo(-1L);
+        // Bornes réparées sans toucher à l'ordre canonique de la chaîne (scellements existants vérifiables).
+        assertThat(ScellementAudit.LIGNES_PERIODE).contains("ORDER BY 1");
     }
 
     /** Ce que peut faire le propriétaire des tables : désactiver le déclencheur le temps d'une requête. */
