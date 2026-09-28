@@ -1,8 +1,21 @@
 # Suivi — dev2 (qualité, exploitation, traçabilité, API)
 
-Branche `ct/dev2`. Mise à jour : 27/09/2026.
+Branche `ct/dev2`. Mise à jour : 28/09/2026.
 
-## Dernière partie du périmètre — contrat d'API, finitions E10/E11, modélisation : **LIVRÉ sur ct/dev2**
+## Anomalies de la recette de la vague 5 : **corrigées sur ct/dev2**
+
+| Anomalie | Correction | Commit |
+|---|---|---|
+| ANO-E9-001 (majeure, T-040) | `cleapi.SourceDepotApplications` (`@Primary`) : l'origine du dépôt est lue sur le jeton `ApplicationAuthentifiee` (et non sur le principal, qui sous délégation est la personne) : canal `API` (bureau d'ordre reconnu à son code), `applicationId`, déposant délégué, `depotDelegue` vrai. Test par l'API réelle : `ContratApiTest.depotParApplication` (dépôt par clé avec et sans `X-On-Behalf-Of` : fiche, base, recherche par canal) ; `SourceDepotApiTest` ne garde que les contraintes de base | b39fa60 |
+| ANO-E11-001 (P-12) | `AppelsSortantsTest` : motifs complétés (`createSocket`, `SocketFactory`, `toURL()`, contextes et clients LDAP, écoute, résolution de nom, JDBC direct) ; `FabriqueSocketsLdaps`, `SimulateurAnnuaire`, `ConfigurationProxysDeConfiance` inventoriés ; nouveau test `inventaireJustifie` (chaque entrée reconnue par un motif et citée dans `REVUE-SSRF.md`) | 5d0a363 |
+| ANO-E11-002 (P-12) | `sorties.conf.exemple` : résolveurs DNS de MMED (ou noms figés dans `/etc/hosts`), une ligne par contrôleur (D4), NGINX aligné ; `deploiement/scripts/verifier-sorties.sh` (chaque nom de `ged.env` résolu comme la JVM doit tomber sur une adresse autorisée ; éprouvé avec un résolveur simulé) ; flux local vers LibreOffice déclaré, `deploiement/libreoffice/ged-securite.xcd` (ressources liées et macros bloquées), `SERVER_ADDRESS` hors boucle locale, risque résiduel de la boucle (clamd) déclaré dans `REVUE-SSRF.md` §3 ; installation et contrôle `EXPLOITATION.md` §12 | 5d0a363 |
+| ANO-E10-001 (P-17) | `GARANTIE.md` §2 : double écriture maintenue en N+1 (retour vers N sans perte), retour arrière du contract par reconstitution de l'ancienne colonne depuis la nouvelle, variante sans double écriture interdite sauf recopie livrée et éprouvée en UAT | 5b8e15b |
+
+Tests après fusion de `conformite-technique` (b7274bc, E7 modèle, E8 et E8-API de dev1) : `mvn test` **580 verts** (0 échec), `ng test` 18 verts, `ng build` vert ; schéma et diagrammes de classes régénérés.
+Vérifié sur le papier seulement : filtre systemd, couche de configuration LibreOffice
+(ni systemd ni LibreOffice sur le poste).
+
+## Dernière partie du périmètre — contrat d'API, finitions E10/E11, modélisation : **acceptée** (4d28528)
 
 | Réf. | Exigence | Livré | Statut proposé |
 |---|---|---|---|

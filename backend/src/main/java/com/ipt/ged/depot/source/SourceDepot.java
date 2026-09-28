@@ -9,12 +9,12 @@ import java.util.UUID;
  * la requête (T-040, §5.1, §5.5, §12.11 « horodatage, source et déposant sont
  * enregistrés » dès le temps 1).
  *
- * <p>L'implémentation livrée ({@link SourceDepotParDefaut}) reconnaît
- * l'utilisateur de l'interface. Le lot intégration (dev2 : clés d'API,
- * délégation {@code X-On-Behalf-Of}) déclare la sienne ({@code @Primary}) pour
- * les applications : canal {@code API} ou {@code BUREAU_ORDRE}, application
- * appelante, et, en cas de délégation, l'identité GED de la personne pour le
- * compte de laquelle l'application dépose.
+ * <p>{@link SourceDepotParDefaut} reconnaît l'utilisateur de l'interface. Le lot
+ * intégration déclare la sienne ({@code cleapi.SourceDepotApplications},
+ * {@code @Primary}) pour les applications : canal {@code API} ou
+ * {@code BUREAU_ORDRE}, application appelante, et, en cas de délégation
+ * ({@code X-On-Behalf-Of}), l'identité GED de la personne pour le compte de
+ * laquelle l'application dépose.
  */
 public interface SourceDepot {
 

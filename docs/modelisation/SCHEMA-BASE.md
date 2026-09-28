@@ -1,6 +1,6 @@
 # Schéma de la base de données (P-05, DAT §4.5, §12.1)
 
-> Généré par `node outils/schema-base.mjs` depuis la base `ged_dev2_test`, schéma `ged`, migrée par Liquibase (82 changesets ; jalons : `socle-e1`, `identite-e2`, `autorisation-e3`, `audit-e4`, `api-e9-v3`, `notification-e8`, `api-e9-v4`, `fichiers-ocr-e5-e6`). Ne pas modifier à la main : régénérer après chaque changeset.
+> Généré par `node outils/schema-base.mjs` depuis la base `ged_dev2_test`, schéma `ged`, migrée par Liquibase (99 changesets ; jalons : `socle-e1`, `identite-e2`, `autorisation-e3`, `audit-e4`, `api-e9-v3`, `notification-e8`, `api-e9-v4`, `fichiers-ocr-e5-e6`, `modele-e7`, `workflow-e8`). Ne pas modifier à la main : régénérer après chaque changeset.
 
 Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'audit : `bigint` séquentiel, ordre du scellement chaîné), clés étrangères `<table>_id`, préfixes `pk_`, `uk_`, `fk_`, `ck_`, `idx_`. Les partitions mensuelles `journal_audit_AAAAMM` ne sont pas listées.
 
@@ -8,9 +8,11 @@ Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'a
 
 | Groupe (§12.1) | Table | Colonnes | Lignes à 5 ans | Taille estimée | Base de l'estimation |
 |---|---|---|---|---|---|
-| Circuits de validation | `workflow_ged` | 7 | référentiel (< 10 000) | < 10 Mo | — |
-| Circuits de validation | `workflow_ged_etape` | 7 | référentiel (< 10 000) | < 10 Mo | — |
-| Circuits de validation | `workflow_ged_signature` | 10 | référentiel (< 10 000) | < 10 Mo | — |
+| Circuits de validation | `circuit` | 10 | référentiel (< 10 000) | < 10 Mo | — |
+| Circuits de validation | `circuit_validateur` | 11 | référentiel (< 10 000) | < 10 Mo | — |
+| Circuits de validation | `decision` | 8 | référentiel (< 10 000) | < 10 Mo | — |
+| Circuits de validation | `regle_validateur` | 9 | référentiel (< 10 000) | < 10 Mo | — |
+| Circuits de validation | `regle_workflow` | 7 | référentiel (< 10 000) | < 10 Mo | — |
 | Habilitations | `groupe_ged` | 16 | référentiel (< 10 000) | < 10 Mo | — |
 | Habilitations | `groupe_membre` | 3 | référentiel (< 10 000) | < 10 Mo | — |
 | Habilitations | `habilitation` | 11 | 20 000 | 3.3 Mo | attributions |
@@ -25,12 +27,12 @@ Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'a
 | Identités et accès | `employe` | 6 | référentiel (< 10 000) | < 10 Mo | — |
 | Identités et accès | `session` | 12 | 5 000 | 1.2 Mo | sessions de 5 ans purgées ; ordre de grandeur |
 | Identités et accès | `utilisateur` | 7 | référentiel (< 10 000) | < 10 Mo | — |
-| Organisation documentaire | `document` | 34 | 450 000 | 454.5 Mo | reprise 150 000 + 60 000 / an |
+| Organisation documentaire | `document` | 35 | 450 000 | 461.7 Mo | reprise 150 000 + 60 000 / an |
 | Organisation documentaire | `document_confidentiel_designe` | 5 | référentiel (< 10 000) | < 10 Mo | — |
 | Organisation documentaire | `document_etiquette` | 3 | 225 000 | 16.2 Mo | une étiquette pour un document sur deux |
 | Organisation documentaire | `document_rattachement` | 5 | 45 000 | 4.3 Mo | un rattachement pour 10 % des documents |
 | Organisation documentaire | `etiquette` | 9 | référentiel (< 10 000) | < 10 Mo | — |
-| Organisation documentaire | `noeud` | 18 | 20 000 | 9.7 Mo | espaces et dossiers |
+| Organisation documentaire | `noeud` | 19 | 20 000 | 9.8 Mo | espaces et dossiers |
 | Traçabilité et exploitation | `idempotence_cle` | 14 | 480 | 307 Ko | fenêtre de 24 h : créations d'une journée de pointe |
 | Traçabilité et exploitation | `job_archivage` | 17 | référentiel (< 10 000) | < 10 Mo | — |
 | Traçabilité et exploitation | `job_archivage_element` | 7 | 135 000 | 39.0 Mo | une ligne par document archivé en masse |
@@ -44,12 +46,15 @@ Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'a
 | Typologie | `index_def` | 14 | référentiel (< 10 000) | < 10 Mo | — |
 | Typologie | `plan_index` | 4 | référentiel (< 10 000) | < 10 Mo | — |
 | Typologie | `plan_indexation` | 13 | référentiel (< 10 000) | < 10 Mo | — |
-| Typologie | `type_document` | 14 | référentiel (< 10 000) | < 10 Mo | — |
+| Typologie | `type_document` | 19 | référentiel (< 10 000) | < 10 Mo | — |
 | Versions et contenu | `cle_fichier` | 6 | 635 000 | 182.9 Mo | une par version, plus copies PDF/A et aperçus |
 | Versions et contenu | `copie_conservation` | 11 | 135 000 | 46.8 Mo | documents archivés (hypothèse 30 %) |
 | Versions et contenu | `document_texte` | 9 | 450 000 | 22.1 Go | texte de la version courante (8 pages × 3 Ko) et son vecteur tsv |
 | Versions et contenu | `ocr_job` | 18 | 585 000 | 260.3 Mo | un par version à OCRiser |
-| Versions et contenu | `version_document` | 14 | 585 000 | 356.3 Mo | facteur 1,3 de versions |
+| Versions et contenu | `version_document` | 16 | 585 000 | 368.0 Mo | facteur 1,3 de versions |
+| Autres (historique) | `job_retypage` | 15 | référentiel (< 10 000) | < 10 Mo | — |
+| Autres (historique) | `plan_indexation_version` | 6 | référentiel (< 10 000) | < 10 Mo | — |
+| Autres (historique) | `reprise_lien_groupe_espace` | 4 | référentiel (< 10 000) | < 10 Mo | — |
 
 Total estimé des tables volumineuses : **37.4 Go** y compris le vecteur plein texte, hors index et WAL ; le §6.6 retient ≈ 40 Go de base à 5 ans (texte ≈ 11 Go, index plein texte ≈ 11 Go, audit ≈ 12 Go) et 200 Go à provisionner.
 
@@ -266,6 +271,7 @@ erDiagram
     uuid application_id
     uuid deposant_utilisateur_id FK
     boolean depot_delegue
+    uuid plan_indexation_version_id FK
   }
   document_confidentiel_designe {
     uuid id PK
@@ -305,7 +311,7 @@ erDiagram
     character_varying_20_ status
     uuid employe_id FK
     uuid parent_id FK
-    uuid workflow_ged_id FK
+    uuid regle_workflow_id FK
     boolean supprime
     timestamp_with_time_zone created_at
     timestamp_with_time_zone updated_at
@@ -316,11 +322,13 @@ erDiagram
     character_varying_10_ statut_conservation
     timestamp_with_time_zone archive_le
     uuid archive_par FK
+    character_varying_10_ usage_espace
   }
   utilisateur ||--o{ document : "archive_par"
   employe ||--o{ document : "created_by_employe_id"
   utilisateur ||--o{ document : "deposant_utilisateur_id"
   noeud ||--o{ document : "noeud_principal_id"
+  plan_indexation_version ||--o{ document : "plan_indexation_version_id"
   employe ||--o{ document : "supprime_par"
   type_document ||--o{ document : "type_document_id"
   utilisateur ||--o{ document : "verrou_par"
@@ -336,11 +344,11 @@ erDiagram
   utilisateur ||--o{ noeud : "archive_par"
   employe ||--o{ noeud : "employe_id"
   noeud ||--o{ noeud : "parent_id"
+  regle_workflow ||--o{ noeud : "regle_workflow_id"
   employe ||--o{ noeud : "supprime_par"
-  workflow_ged ||--o{ noeud : "workflow_ged_id"
 ```
 
-Tables d'autres groupes référencées : `utilisateur`, `employe`, `type_document`, `workflow_ged`.
+Tables d'autres groupes référencées : `utilisateur`, `employe`, `plan_indexation_version`, `type_document`, `regle_workflow`.
 
 ### Typologie
 
@@ -406,6 +414,11 @@ erDiagram
     uuid supprime_par FK
     timestamp_with_time_zone supprime_le
     character_varying_12_ confidentialite_defaut
+    integer duree_conservation_mois
+    character_varying_20_ point_depart
+    character_varying_255_ point_depart_index_code
+    boolean actif
+    uuid regle_workflow_id FK
   }
   document ||--o{ document_index_valeur : "document_id"
   index_def ||--o{ document_index_valeur : "index_def_id"
@@ -415,10 +428,11 @@ erDiagram
   employe ||--o{ plan_indexation : "supprime_par"
   noeud ||--o{ type_document : "noeud_id"
   plan_indexation ||--o{ type_document : "plan_indexation_id"
+  regle_workflow ||--o{ type_document : "regle_workflow_id"
   employe ||--o{ type_document : "supprime_par"
 ```
 
-Tables d'autres groupes référencées : `document`, `employe`, `noeud`.
+Tables d'autres groupes référencées : `document`, `employe`, `noeud`, `regle_workflow`.
 
 ### Versions et contenu
 
@@ -484,13 +498,15 @@ erDiagram
     character_varying_255_ extension
     bigint size_ko
     text observation
-    boolean is_default
+    boolean courante
     timestamp_with_time_zone created_at
     timestamp_with_time_zone updated_at
     uuid cle_fichier_id FK
     character_64_ empreinte
     character_varying_127_ type_mime
     bigint taille_octets
+    integer numero
+    uuid auteur_id FK
   }
   cle_fichier ||--o{ copie_conservation : "cle_fichier_id"
   employe ||--o{ copie_conservation : "cree_par_employe_id"
@@ -500,17 +516,64 @@ erDiagram
   cle_fichier ||--o{ ocr_job : "cle_fichier_id"
   document ||--o{ ocr_job : "document_id"
   version_document ||--o{ ocr_job : "version_id"
+  utilisateur ||--o{ version_document : "auteur_id"
   cle_fichier ||--o{ version_document : "cle_fichier_id"
   document ||--o{ version_document : "document_id"
 ```
 
-Tables d'autres groupes référencées : `employe`, `document`.
+Tables d'autres groupes référencées : `employe`, `document`, `utilisateur`.
 
 ### Circuits de validation
 
 ```mermaid
 erDiagram
-  workflow_ged {
+  circuit {
+    uuid id PK
+    uuid document_id FK
+    uuid regle_workflow_id FK
+    character_varying_10_ statut
+    uuid initiateur_id FK
+    timestamp_with_time_zone ouvert_le
+    timestamp_with_time_zone clos_le
+    uuid annule_par FK
+    timestamp_with_time_zone annule_le
+    character_varying_500_ motif_annulation
+  }
+  circuit_validateur {
+    uuid id PK
+    uuid circuit_id FK
+    uuid employe_id FK
+    uuid role_id FK
+    uuid perimetre_noeud_id FK
+    character_varying_255_ libelle
+    integer position
+    uuid reaffecte_de_employe_id FK
+    uuid reaffecte_par FK
+    timestamp_with_time_zone reaffecte_le
+    character_varying_500_ motif_reaffectation
+  }
+  decision {
+    uuid id PK
+    uuid circuit_validateur_id FK
+    uuid version_id FK
+    character_varying_10_ decision
+    character_varying_500_ motif
+    timestamp_with_time_zone cree_le
+    uuid auteur_id FK
+    uuid application_id
+  }
+  regle_validateur {
+    uuid id PK
+    uuid regle_workflow_id FK
+    uuid employe_id FK
+    character_varying_255_ label
+    integer step_order
+    timestamp_with_time_zone created_at
+    timestamp_with_time_zone updated_at
+    uuid role_id FK
+    uuid perimetre_noeud_id FK
+  }
+  regle_workflow {
     uuid id PK
     character_varying_255_ name
     boolean supprime
@@ -519,35 +582,27 @@ erDiagram
     uuid supprime_par FK
     timestamp_with_time_zone supprime_le
   }
-  workflow_ged_etape {
-    uuid id PK
-    uuid workflow_ged_id FK
-    uuid employe_id FK
-    character_varying_255_ label
-    integer step_order
-    timestamp_with_time_zone created_at
-    timestamp_with_time_zone updated_at
-  }
-  workflow_ged_signature {
-    uuid id PK
-    uuid document_id FK
-    uuid employe_id FK
-    character_varying_255_ step_label
-    integer step_order
-    character_varying_20_ status
-    timestamp_with_time_zone signed_at
-    character_varying_255_ motif
-    timestamp_with_time_zone created_at
-    timestamp_with_time_zone updated_at
-  }
-  employe ||--o{ workflow_ged : "supprime_par"
-  employe ||--o{ workflow_ged_etape : "employe_id"
-  workflow_ged ||--o{ workflow_ged_etape : "workflow_ged_id"
-  document ||--o{ workflow_ged_signature : "document_id"
-  employe ||--o{ workflow_ged_signature : "employe_id"
+  utilisateur ||--o{ circuit : "annule_par"
+  document ||--o{ circuit : "document_id"
+  utilisateur ||--o{ circuit : "initiateur_id"
+  regle_workflow ||--o{ circuit : "regle_workflow_id"
+  circuit ||--o{ circuit_validateur : "circuit_id"
+  employe ||--o{ circuit_validateur : "employe_id"
+  noeud ||--o{ circuit_validateur : "perimetre_noeud_id"
+  employe ||--o{ circuit_validateur : "reaffecte_de_employe_id"
+  utilisateur ||--o{ circuit_validateur : "reaffecte_par"
+  role ||--o{ circuit_validateur : "role_id"
+  utilisateur ||--o{ decision : "auteur_id"
+  circuit_validateur ||--o{ decision : "circuit_validateur_id"
+  version_document ||--o{ decision : "version_id"
+  employe ||--o{ regle_validateur : "employe_id"
+  noeud ||--o{ regle_validateur : "perimetre_noeud_id"
+  regle_workflow ||--o{ regle_validateur : "regle_workflow_id"
+  role ||--o{ regle_validateur : "role_id"
+  employe ||--o{ regle_workflow : "supprime_par"
 ```
 
-Tables d'autres groupes référencées : `employe`, `document`.
+Tables d'autres groupes référencées : `utilisateur`, `document`, `employe`, `noeud`, `role`, `version_document`.
 
 ### Traçabilité et exploitation
 
@@ -728,6 +783,75 @@ Contraintes :
 - `pk_cache_annuaire` (clé primaire) : `PRIMARY KEY (id)`
 - `uk_cache_annuaire_utilisateur_id` (unicité) : `UNIQUE (utilisateur_id)`
 
+### `circuit`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non |  |
+| `document_id` | uuid | non |  |
+| `regle_workflow_id` | uuid | oui |  |
+| `statut` | character varying(10) | non | `'EN_COURS'::character varying` |
+| `initiateur_id` | uuid | oui |  |
+| `ouvert_le` | timestamp with time zone | non | `now()` |
+| `clos_le` | timestamp with time zone | oui |  |
+| `annule_par` | uuid | oui |  |
+| `annule_le` | timestamp with time zone | oui |  |
+| `motif_annulation` | character varying(500) | oui |  |
+
+Contraintes :
+
+- `ck_circuit_statut` (vérification) : `CHECK ((((statut)::text = ANY ((ARRAY['EN_COURS'::character varying, 'VALIDE'::character varying, 'REFUSE'::character varying, 'ANNULE'::character varying])::text[])) AND (((statut)::text = 'ANNULE'::text) = (annule_le IS NOT NULL))))`
+- `fk_circuit_annule_par` (clé étrangère) : `FOREIGN KEY (annule_par) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
+- `fk_circuit_document` (clé étrangère) : `FOREIGN KEY (document_id) REFERENCES ged.document(id) ON DELETE CASCADE`
+- `fk_circuit_initiateur` (clé étrangère) : `FOREIGN KEY (initiateur_id) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
+- `fk_circuit_regle_workflow` (clé étrangère) : `FOREIGN KEY (regle_workflow_id) REFERENCES ged.regle_workflow(id) ON DELETE SET NULL`
+- `pk_circuit` (clé primaire) : `PRIMARY KEY (id)`
+
+Index :
+
+- `idx_circuit_annule_par` : `USING btree (annule_par)`
+- `idx_circuit_document_id` : `USING btree (document_id)`
+- `idx_circuit_initiateur_id` : `USING btree (initiateur_id)`
+- `idx_circuit_regle_workflow_id` : `USING btree (regle_workflow_id)`
+- `idx_circuit_statut` : `USING btree (statut)`
+- `uk_circuit_document_non_annule` : `USING btree (document_id) WHERE ((statut)::text <> 'ANNULE'::text)`
+
+### `circuit_validateur`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non |  |
+| `circuit_id` | uuid | non |  |
+| `employe_id` | uuid | oui |  |
+| `role_id` | uuid | oui |  |
+| `perimetre_noeud_id` | uuid | oui |  |
+| `libelle` | character varying(255) | non |  |
+| `position` | integer | non | `0` |
+| `reaffecte_de_employe_id` | uuid | oui |  |
+| `reaffecte_par` | uuid | oui |  |
+| `reaffecte_le` | timestamp with time zone | oui |  |
+| `motif_reaffectation` | character varying(500) | oui |  |
+
+Contraintes :
+
+- `ck_circuit_validateur_designation` (vérification) : `CHECK ((((employe_id IS NULL) <> (role_id IS NULL)) AND ((perimetre_noeud_id IS NULL) OR (role_id IS NOT NULL))))`
+- `fk_circuit_validateur_circuit` (clé étrangère) : `FOREIGN KEY (circuit_id) REFERENCES ged.circuit(id) ON DELETE CASCADE`
+- `fk_circuit_validateur_employe` (clé étrangère) : `FOREIGN KEY (employe_id) REFERENCES ged.employe(id)`
+- `fk_circuit_validateur_perimetre_noeud` (clé étrangère) : `FOREIGN KEY (perimetre_noeud_id) REFERENCES ged.noeud(id) ON DELETE SET NULL`
+- `fk_circuit_validateur_reaffecte_de_employe` (clé étrangère) : `FOREIGN KEY (reaffecte_de_employe_id) REFERENCES ged.employe(id)`
+- `fk_circuit_validateur_reaffecte_par` (clé étrangère) : `FOREIGN KEY (reaffecte_par) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
+- `fk_circuit_validateur_role` (clé étrangère) : `FOREIGN KEY (role_id) REFERENCES ged.role(id)`
+- `pk_circuit_validateur` (clé primaire) : `PRIMARY KEY (id)`
+
+Index :
+
+- `idx_circuit_validateur_circuit_id` : `USING btree (circuit_id)`
+- `idx_circuit_validateur_employe_id` : `USING btree (employe_id)`
+- `idx_circuit_validateur_perimetre_noeud_id` : `USING btree (perimetre_noeud_id)`
+- `idx_circuit_validateur_reaffecte_de_employe_id` : `USING btree (reaffecte_de_employe_id)`
+- `idx_circuit_validateur_reaffecte_par` : `USING btree (reaffecte_par)`
+- `idx_circuit_validateur_role_id` : `USING btree (role_id)`
+
 ### `cle_api`
 
 | Colonne | Type | Nul | Défaut |
@@ -833,6 +957,33 @@ Index :
 - `idx_copie_conservation_cle_fichier_id` : `USING btree (cle_fichier_id)`
 - `idx_copie_conservation_cree_par_employe_id` : `USING btree (cree_par_employe_id)`
 
+### `decision`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non |  |
+| `circuit_validateur_id` | uuid | non |  |
+| `version_id` | uuid | oui |  |
+| `decision` | character varying(10) | non |  |
+| `motif` | character varying(500) | oui |  |
+| `cree_le` | timestamp with time zone | non | `now()` |
+| `auteur_id` | uuid | oui |  |
+| `application_id` | uuid | oui |  |
+
+Contraintes :
+
+- `ck_decision_decision` (vérification) : `CHECK ((((decision)::text = ANY ((ARRAY['VALIDE'::character varying, 'REFUSE'::character varying, 'ANNULEE'::character varying])::text[])) AND (((decision)::text <> 'REFUSE'::text) OR ((motif IS NOT NULL) AND (btrim((motif)::text) <> ''::text)))))`
+- `fk_decision_auteur` (clé étrangère) : `FOREIGN KEY (auteur_id) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
+- `fk_decision_circuit_validateur` (clé étrangère) : `FOREIGN KEY (circuit_validateur_id) REFERENCES ged.circuit_validateur(id) ON DELETE CASCADE`
+- `fk_decision_version` (clé étrangère) : `FOREIGN KEY (version_id) REFERENCES ged.version_document(id) ON DELETE CASCADE`
+- `pk_decision` (clé primaire) : `PRIMARY KEY (id)`
+
+Index :
+
+- `idx_decision_auteur_id` : `USING btree (auteur_id)`
+- `idx_decision_circuit_validateur_id` : `USING btree (circuit_validateur_id)`
+- `idx_decision_version_id` : `USING btree (version_id)`
+
 ### `document`
 
 | Colonne | Type | Nul | Défaut |
@@ -871,6 +1022,7 @@ Index :
 | `application_id` | uuid | oui |  |
 | `deposant_utilisateur_id` | uuid | oui |  |
 | `depot_delegue` | boolean | non | `false` |
+| `plan_indexation_version_id` | uuid | oui |  |
 
 Contraintes :
 
@@ -887,8 +1039,9 @@ Contraintes :
 - `fk_document_created_by_employe` (clé étrangère) : `FOREIGN KEY (created_by_employe_id) REFERENCES ged.employe(id)`
 - `fk_document_deposant_utilisateur` (clé étrangère) : `FOREIGN KEY (deposant_utilisateur_id) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
 - `fk_document_noeud_principal` (clé étrangère) : `FOREIGN KEY (noeud_principal_id) REFERENCES ged.noeud(id)`
+- `fk_document_plan_indexation_version` (clé étrangère) : `FOREIGN KEY (plan_indexation_version_id) REFERENCES ged.plan_indexation_version(id) ON DELETE RESTRICT`
 - `fk_document_supprime_par` (clé étrangère) : `FOREIGN KEY (supprime_par) REFERENCES ged.employe(id)`
-- `fk_document_type_document` (clé étrangère) : `FOREIGN KEY (type_document_id) REFERENCES ged.type_document(id)`
+- `fk_document_type_document` (clé étrangère) : `FOREIGN KEY (type_document_id) REFERENCES ged.type_document(id) ON DELETE RESTRICT`
 - `fk_document_verrou_par` (clé étrangère) : `FOREIGN KEY (verrou_par) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
 - `pk_document` (clé primaire) : `PRIMARY KEY (id)`
 
@@ -907,6 +1060,7 @@ Index :
 - `idx_document_metadonnees` : `USING gin (metadonnees)`
 - `idx_document_name` : `USING btree (name)`
 - `idx_document_noeud_principal_id` : `USING btree (noeud_principal_id)`
+- `idx_document_plan_indexation_version_id` : `USING btree (plan_indexation_version_id)`
 - `idx_document_statut_conservation` : `USING btree (statut_conservation)`
 - `idx_document_statut_indexation` : `USING btree (statut_indexation)`
 - `idx_document_supprime` : `USING btree (supprime)`
@@ -1209,7 +1363,7 @@ Index :
 Contraintes :
 
 - `ck_index_def_suppression` (vérification) : `CHECK ((supprime OR ((supprime_par IS NULL) AND (supprime_le IS NULL))))`
-- `ck_index_def_type_champs` (vérification) : `CHECK (((type_champs)::text = ANY ((ARRAY['DATE'::character varying, 'LISTE'::character varying, 'NOMBRE'::character varying, 'TEXTE'::character varying])::text[])))`
+- `ck_index_def_type_champs` (vérification) : `CHECK (((type_champs)::text = ANY ((ARRAY['BOOLEEN'::character varying, 'DATE'::character varying, 'LISTE'::character varying, 'NOMBRE'::character varying, 'TEXTE'::character varying])::text[])))`
 - `fk_index_def_supprime_par` (clé étrangère) : `FOREIGN KEY (supprime_par) REFERENCES ged.employe(id)`
 - `pk_index_def` (clé primaire) : `PRIMARY KEY (id)`
 - `uk_index_def_code` (unicité) : `UNIQUE (code)`
@@ -1332,6 +1486,41 @@ Index :
 
 - `idx_job_export_element_document_id` : `USING btree (document_id)`
 
+### `job_retypage`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non |  |
+| `source_type_document_id` | uuid | non |  |
+| `cible_type_document_id` | uuid | non |  |
+| `correspondance` | jsonb | non | `'{}'::jsonb` |
+| `selection` | jsonb | oui |  |
+| `statut` | character varying(12) | non | `'EN_ATTENTE'::character varying` |
+| `total` | integer | non | `0` |
+| `traites` | integer | non | `0` |
+| `reussis` | integer | non | `0` |
+| `echecs` | integer | non | `0` |
+| `rapport` | jsonb | non | `'[]'::jsonb` |
+| `demandeur_utilisateur_id` | uuid | oui |  |
+| `cree_le` | timestamp with time zone | non | `now()` |
+| `debut_le` | timestamp with time zone | oui |  |
+| `fin_le` | timestamp with time zone | oui |  |
+
+Contraintes :
+
+- `ck_job_retypage_statut` (vérification) : `CHECK (((statut)::text = ANY ((ARRAY['EN_ATTENTE'::character varying, 'EN_COURS'::character varying, 'TERMINE'::character varying, 'ECHEC'::character varying])::text[])))`
+- `fk_job_retypage_cible_type_document` (clé étrangère) : `FOREIGN KEY (cible_type_document_id) REFERENCES ged.type_document(id) ON DELETE RESTRICT`
+- `fk_job_retypage_demandeur_utilisateur` (clé étrangère) : `FOREIGN KEY (demandeur_utilisateur_id) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
+- `fk_job_retypage_source_type_document` (clé étrangère) : `FOREIGN KEY (source_type_document_id) REFERENCES ged.type_document(id) ON DELETE RESTRICT`
+- `pk_job_retypage` (clé primaire) : `PRIMARY KEY (id)`
+
+Index :
+
+- `idx_job_retypage_cible_type_document_id` : `USING btree (cible_type_document_id)`
+- `idx_job_retypage_demandeur_utilisateur_id` : `USING btree (demandeur_utilisateur_id)`
+- `idx_job_retypage_source_type_document_id` : `USING btree (source_type_document_id)`
+- `idx_job_retypage_statut` : `USING btree (statut)`
+
 ### `journal_audit` (partitionnée par mois)
 
 | Colonne | Type | Nul | Défaut |
@@ -1399,7 +1588,7 @@ Contraintes :
 | `status` | character varying(20) | non |  |
 | `employe_id` | uuid | non |  |
 | `parent_id` | uuid | oui |  |
-| `workflow_ged_id` | uuid | non |  |
+| `regle_workflow_id` | uuid | oui |  |
 | `supprime` | boolean | non | `false` |
 | `created_at` | timestamp with time zone | oui |  |
 | `updated_at` | timestamp with time zone | oui |  |
@@ -1410,6 +1599,7 @@ Contraintes :
 | `statut_conservation` | character varying(10) | non | `'ACTIF'::character varying` |
 | `archive_le` | timestamp with time zone | oui |  |
 | `archive_par` | uuid | oui |  |
+| `usage_espace` | character varying(10) | non | `'METIER'::character varying` |
 
 Contraintes :
 
@@ -1419,11 +1609,12 @@ Contraintes :
 - `ck_noeud_status` (vérification) : `CHECK (((status)::text = ANY ((ARRAY['ACTIF'::character varying, 'ARCHIVE'::character varying, 'INACTIF'::character varying])::text[])))`
 - `ck_noeud_statut_conservation` (vérification) : `CHECK ((((statut_conservation)::text = ANY ((ARRAY['ACTIF'::character varying, 'ARCHIVE'::character varying])::text[])) AND (((statut_conservation)::text = 'ARCHIVE'::text) = (archive_le IS NOT NULL))))`
 - `ck_noeud_suppression` (vérification) : `CHECK ((supprime OR ((supprime_par IS NULL) AND (supprime_le IS NULL))))`
+- `ck_noeud_usage_espace` (vérification) : `CHECK (((usage_espace)::text = ANY ((ARRAY['METIER'::character varying, 'ECHANGE'::character varying])::text[])))`
 - `fk_noeud_archive_par` (clé étrangère) : `FOREIGN KEY (archive_par) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
 - `fk_noeud_employe` (clé étrangère) : `FOREIGN KEY (employe_id) REFERENCES ged.employe(id)`
 - `fk_noeud_parent` (clé étrangère) : `FOREIGN KEY (parent_id) REFERENCES ged.noeud(id)`
+- `fk_noeud_regle_workflow` (clé étrangère) : `FOREIGN KEY (regle_workflow_id) REFERENCES ged.regle_workflow(id)`
 - `fk_noeud_supprime_par` (clé étrangère) : `FOREIGN KEY (supprime_par) REFERENCES ged.employe(id)`
-- `fk_noeud_workflow_ged` (clé étrangère) : `FOREIGN KEY (workflow_ged_id) REFERENCES ged.workflow_ged(id)`
 - `pk_noeud` (clé primaire) : `PRIMARY KEY (id)`
 - `uk_noeud_chemin` (unicité) : `UNIQUE (chemin)`
 - `uk_noeud_code` (unicité) : `UNIQUE (code)`
@@ -1434,9 +1625,9 @@ Index :
 - `idx_noeud_chemin` : `USING btree (chemin text_pattern_ops)`
 - `idx_noeud_employe_id` : `USING btree (employe_id)`
 - `idx_noeud_parent_id` : `USING btree (parent_id)`
+- `idx_noeud_regle_workflow_id` : `USING btree (regle_workflow_id)`
 - `idx_noeud_statut_conservation` : `USING btree (statut_conservation)`
 - `idx_noeud_supprime` : `USING btree (supprime)`
-- `idx_noeud_workflow_ged_id` : `USING btree (workflow_ged_id)`
 
 ### `notification`
 
@@ -1580,6 +1771,25 @@ Index :
 
 - `idx_plan_indexation_supprime` : `USING btree (supprime)`
 
+### `plan_indexation_version`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non | `ged.uuid_v7()` |
+| `plan_indexation_id` | uuid | non |  |
+| `numero` | integer | non |  |
+| `definition` | jsonb | non |  |
+| `cree_par` | uuid | oui |  |
+| `cree_le` | timestamp with time zone | non | `now()` |
+
+Contraintes :
+
+- `ck_plan_indexation_version_numero` (vérification) : `CHECK ((numero > 0))`
+- `fk_plan_indexation_version_cree_par` (clé étrangère) : `FOREIGN KEY (cree_par) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
+- `fk_plan_indexation_version_plan_indexation` (clé étrangère) : `FOREIGN KEY (plan_indexation_id) REFERENCES ged.plan_indexation(id) ON DELETE RESTRICT`
+- `pk_plan_indexation_version` (clé primaire) : `PRIMARY KEY (id)`
+- `uk_plan_indexation_version_plan_indexation_id_numero` (unicité) : `UNIQUE (plan_indexation_id, numero)`
+
 ### `preference_notification`
 
 | Colonne | Type | Nul | Défaut |
@@ -1593,6 +1803,78 @@ Contraintes :
 
 - `pk_preference_notification` (clé primaire) : `PRIMARY KEY (id)`
 - `uk_preference_notification_utilisateur_id` (unicité) : `UNIQUE (utilisateur_id)`
+
+### `regle_validateur`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non |  |
+| `regle_workflow_id` | uuid | non |  |
+| `employe_id` | uuid | oui |  |
+| `label` | character varying(255) | non |  |
+| `step_order` | integer | non |  |
+| `created_at` | timestamp with time zone | oui |  |
+| `updated_at` | timestamp with time zone | oui |  |
+| `role_id` | uuid | oui |  |
+| `perimetre_noeud_id` | uuid | oui |  |
+
+Contraintes :
+
+- `ck_regle_validateur_designation` (vérification) : `CHECK ((((employe_id IS NULL) <> (role_id IS NULL)) AND ((perimetre_noeud_id IS NULL) OR (role_id IS NOT NULL))))`
+- `fk_regle_validateur_employe` (clé étrangère) : `FOREIGN KEY (employe_id) REFERENCES ged.employe(id)`
+- `fk_regle_validateur_perimetre_noeud` (clé étrangère) : `FOREIGN KEY (perimetre_noeud_id) REFERENCES ged.noeud(id) ON DELETE SET NULL`
+- `fk_regle_validateur_regle_workflow` (clé étrangère) : `FOREIGN KEY (regle_workflow_id) REFERENCES ged.regle_workflow(id)`
+- `fk_regle_validateur_role` (clé étrangère) : `FOREIGN KEY (role_id) REFERENCES ged.role(id)`
+- `pk_regle_validateur` (clé primaire) : `PRIMARY KEY (id)`
+
+Index :
+
+- `idx_regle_validateur_employe_id` : `USING btree (employe_id)`
+- `idx_regle_validateur_perimetre_noeud_id` : `USING btree (perimetre_noeud_id)`
+- `idx_regle_validateur_regle_workflow_id` : `USING btree (regle_workflow_id)`
+- `idx_regle_validateur_role_id` : `USING btree (role_id)`
+
+### `regle_workflow`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non |  |
+| `name` | character varying(255) | non |  |
+| `supprime` | boolean | non | `false` |
+| `created_at` | timestamp with time zone | oui |  |
+| `updated_at` | timestamp with time zone | oui |  |
+| `supprime_par` | uuid | oui |  |
+| `supprime_le` | timestamp with time zone | oui |  |
+
+Contraintes :
+
+- `ck_regle_workflow_suppression` (vérification) : `CHECK ((supprime OR ((supprime_par IS NULL) AND (supprime_le IS NULL))))`
+- `fk_regle_workflow_supprime_par` (clé étrangère) : `FOREIGN KEY (supprime_par) REFERENCES ged.employe(id)`
+- `pk_regle_workflow` (clé primaire) : `PRIMARY KEY (id)`
+
+Index :
+
+- `idx_regle_workflow_supprime` : `USING btree (supprime)`
+
+### `reprise_lien_groupe_espace`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non | `ged.uuid_v7()` |
+| `groupe_ged_id` | uuid | non |  |
+| `noeud_id` | uuid | non |  |
+| `repris_le` | timestamp with time zone | non | `now()` |
+
+Contraintes :
+
+- `fk_reprise_lien_groupe_espace_groupe_ged` (clé étrangère) : `FOREIGN KEY (groupe_ged_id) REFERENCES ged.groupe_ged(id) ON DELETE CASCADE`
+- `fk_reprise_lien_groupe_espace_noeud` (clé étrangère) : `FOREIGN KEY (noeud_id) REFERENCES ged.noeud(id) ON DELETE CASCADE`
+- `pk_reprise_lien_groupe_espace` (clé primaire) : `PRIMARY KEY (id)`
+- `uk_reprise_lien_groupe_espace_groupe_ged_id_noeud_id` (unicité) : `UNIQUE (groupe_ged_id, noeud_id)`
+
+Index :
+
+- `idx_reprise_lien_groupe_espace_noeud_id` : `USING btree (noeud_id)`
 
 ### `role`
 
@@ -1679,14 +1961,22 @@ Index :
 | `supprime_par` | uuid | oui |  |
 | `supprime_le` | timestamp with time zone | oui |  |
 | `confidentialite_defaut` | character varying(12) | non | `'PUBLIC'::character varying` |
+| `duree_conservation_mois` | integer | oui |  |
+| `point_depart` | character varying(20) | non | `'DATE_DOCUMENT'::character varying` |
+| `point_depart_index_code` | character varying(255) | oui |  |
+| `actif` | boolean | non | `true` |
+| `regle_workflow_id` | uuid | oui |  |
 
 Contraintes :
 
 - `ck_type_document_confidentialite_defaut` (vérification) : `CHECK (((confidentialite_defaut)::text = ANY ((ARRAY['PUBLIC'::character varying, 'PRIVE'::character varying, 'CONFIDENTIEL'::character varying])::text[])))`
+- `ck_type_document_duree_conservation` (vérification) : `CHECK (((duree_conservation_mois IS NULL) OR ((duree_conservation_mois >= 1) AND (duree_conservation_mois <= 1200))))`
+- `ck_type_document_point_depart` (vérification) : `CHECK ((((point_depart)::text = ANY ((ARRAY['DATE_DOCUMENT'::character varying, 'DATE_DEPOT'::character varying, 'METADONNEE'::character varying])::text[])) AND (((point_depart)::text = 'METADONNEE'::text) = (point_depart_index_code IS NOT NULL))))`
 - `ck_type_document_suppression` (vérification) : `CHECK ((supprime OR ((supprime_par IS NULL) AND (supprime_le IS NULL))))`
 - `ck_type_document_taille_max_mo` (vérification) : `CHECK ((taille_max_mo >= 0))`
 - `fk_type_document_noeud` (clé étrangère) : `FOREIGN KEY (noeud_id) REFERENCES ged.noeud(id)`
 - `fk_type_document_plan_indexation` (clé étrangère) : `FOREIGN KEY (plan_indexation_id) REFERENCES ged.plan_indexation(id)`
+- `fk_type_document_regle_workflow` (clé étrangère) : `FOREIGN KEY (regle_workflow_id) REFERENCES ged.regle_workflow(id)`
 - `fk_type_document_supprime_par` (clé étrangère) : `FOREIGN KEY (supprime_par) REFERENCES ged.employe(id)`
 - `pk_type_document` (clé primaire) : `PRIMARY KEY (id)`
 - `uk_type_document_code` (unicité) : `UNIQUE (code)`
@@ -1695,6 +1985,7 @@ Index :
 
 - `idx_type_document_noeud_id` : `USING btree (noeud_id)`
 - `idx_type_document_plan_indexation_id` : `USING btree (plan_indexation_id)`
+- `idx_type_document_regle_workflow_id` : `USING btree (regle_workflow_id)`
 - `idx_type_document_supprime` : `USING btree (supprime)`
 
 ### `utilisateur`
@@ -1732,27 +2023,34 @@ Index :
 | `extension` | character varying(255) | oui |  |
 | `size_ko` | bigint | non | `0` |
 | `observation` | text | oui |  |
-| `is_default` | boolean | non | `false` |
+| `courante` | boolean | non | `false` |
 | `created_at` | timestamp with time zone | oui |  |
 | `updated_at` | timestamp with time zone | oui |  |
 | `cle_fichier_id` | uuid | oui |  |
 | `empreinte` | character(64) | oui |  |
 | `type_mime` | character varying(127) | oui |  |
 | `taille_octets` | bigint | oui |  |
+| `numero` | integer | non |  |
+| `auteur_id` | uuid | oui |  |
 
 Contraintes :
 
 - `ck_version_document_empreinte` (vérification) : `CHECK ((empreinte ~ '^[0-9a-f]{64}$'::text))`
+- `ck_version_document_numero` (vérification) : `CHECK ((numero > 0))`
 - `ck_version_document_size_ko` (vérification) : `CHECK ((size_ko >= 0))`
 - `ck_version_document_taille_octets` (vérification) : `CHECK ((taille_octets >= 0))`
+- `fk_version_document_auteur` (clé étrangère) : `FOREIGN KEY (auteur_id) REFERENCES ged.utilisateur(id) ON DELETE SET NULL`
 - `fk_version_document_cle_fichier` (clé étrangère) : `FOREIGN KEY (cle_fichier_id) REFERENCES ged.cle_fichier(id)`
 - `fk_version_document_document` (clé étrangère) : `FOREIGN KEY (document_id) REFERENCES ged.document(id)`
 - `pk_version_document` (clé primaire) : `PRIMARY KEY (id)`
 - `uk_version_document_cle_fichier_id` (unicité) : `UNIQUE (cle_fichier_id)`
+- `uk_version_document_document_id_numero` (unicité) : `UNIQUE (document_id, numero)`
 
 Index :
 
+- `idx_version_document_auteur_id` : `USING btree (auteur_id)`
 - `idx_version_document_document_id` : `USING btree (document_id)`
+- `uk_version_document_courante` : `USING btree (document_id) WHERE courante`
 
 ### `version_habilitations`
 
@@ -1764,76 +2062,4 @@ Index :
 Contraintes :
 
 - `pk_version_habilitations` (clé primaire) : `PRIMARY KEY (id)`
-
-### `workflow_ged`
-
-| Colonne | Type | Nul | Défaut |
-|---|---|---|---|
-| `id` | uuid | non |  |
-| `name` | character varying(255) | non |  |
-| `supprime` | boolean | non | `false` |
-| `created_at` | timestamp with time zone | oui |  |
-| `updated_at` | timestamp with time zone | oui |  |
-| `supprime_par` | uuid | oui |  |
-| `supprime_le` | timestamp with time zone | oui |  |
-
-Contraintes :
-
-- `ck_workflow_ged_suppression` (vérification) : `CHECK ((supprime OR ((supprime_par IS NULL) AND (supprime_le IS NULL))))`
-- `fk_workflow_ged_supprime_par` (clé étrangère) : `FOREIGN KEY (supprime_par) REFERENCES ged.employe(id)`
-- `pk_workflow_ged` (clé primaire) : `PRIMARY KEY (id)`
-
-Index :
-
-- `idx_workflow_ged_supprime` : `USING btree (supprime)`
-
-### `workflow_ged_etape`
-
-| Colonne | Type | Nul | Défaut |
-|---|---|---|---|
-| `id` | uuid | non |  |
-| `workflow_ged_id` | uuid | non |  |
-| `employe_id` | uuid | non |  |
-| `label` | character varying(255) | non |  |
-| `step_order` | integer | non |  |
-| `created_at` | timestamp with time zone | oui |  |
-| `updated_at` | timestamp with time zone | oui |  |
-
-Contraintes :
-
-- `fk_workflow_ged_etape_employe` (clé étrangère) : `FOREIGN KEY (employe_id) REFERENCES ged.employe(id)`
-- `fk_workflow_ged_etape_workflow_ged` (clé étrangère) : `FOREIGN KEY (workflow_ged_id) REFERENCES ged.workflow_ged(id)`
-- `pk_workflow_ged_etape` (clé primaire) : `PRIMARY KEY (id)`
-
-Index :
-
-- `idx_workflow_ged_etape_employe_id` : `USING btree (employe_id)`
-- `idx_workflow_ged_etape_workflow_ged_id` : `USING btree (workflow_ged_id)`
-
-### `workflow_ged_signature`
-
-| Colonne | Type | Nul | Défaut |
-|---|---|---|---|
-| `id` | uuid | non |  |
-| `document_id` | uuid | non |  |
-| `employe_id` | uuid | non |  |
-| `step_label` | character varying(255) | oui |  |
-| `step_order` | integer | non |  |
-| `status` | character varying(20) | non |  |
-| `signed_at` | timestamp with time zone | oui |  |
-| `motif` | character varying(255) | oui |  |
-| `created_at` | timestamp with time zone | oui |  |
-| `updated_at` | timestamp with time zone | oui |  |
-
-Contraintes :
-
-- `ck_workflow_ged_signature_status` (vérification) : `CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'REJECTED'::character varying, 'SIGNED'::character varying])::text[])))`
-- `fk_workflow_ged_signature_document` (clé étrangère) : `FOREIGN KEY (document_id) REFERENCES ged.document(id)`
-- `fk_workflow_ged_signature_employe` (clé étrangère) : `FOREIGN KEY (employe_id) REFERENCES ged.employe(id)`
-- `pk_workflow_ged_signature` (clé primaire) : `PRIMARY KEY (id)`
-
-Index :
-
-- `idx_workflow_ged_signature_document_id` : `USING btree (document_id)`
-- `idx_workflow_ged_signature_employe_id_status` : `USING btree (employe_id, status)`
 

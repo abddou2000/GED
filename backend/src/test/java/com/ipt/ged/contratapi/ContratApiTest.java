@@ -295,12 +295,17 @@ class ContratApiTest {
                 .andExpect(status().isOk());
         String cle = g.get("cle").asText();
 
-        // Sans délégation : dépôt au nom de l'application.
-        mvc.perform(multipart("/api/v1/documents").file(new MockMultipartFile("file", "a.pdf", "application/pdf",
-                                Pdfs.pdf("app-" + suffixe)))
+        // Sans délégation : dépôt au nom de l'application (T-040 : canal API, application, sans déposant).
+        UUID appId = UUID.fromString(app.get("id").asText());
+        JsonNode seule = json(mvc.perform(multipart("/api/v1/documents").file(new MockMultipartFile("file", "a.pdf",
+                                "application/pdf", Pdfs.pdf("app-" + suffixe)))
                         .param("name", "ParApplication").param("typeDocumentId", type.toString())
                         .with(anonymous()).header(FiltreCleApi.ENTETE_CLE, cle))
-                .andExpect(status().is2xxSuccessful());
+                .andExpect(status().is2xxSuccessful()));
+        assertThat(seule.get("canalDepot").asText()).isEqualTo("API");
+        assertThat(seule.get("applicationId").asText()).isEqualTo(appId.toString());
+        assertThat(seule.get("deposantUtilisateurId").isNull()).isTrue();
+        assertThat(seule.get("depotDelegue").asBoolean()).isFalse();
 
         // Pour le compte d'un utilisateur : il est le déposant ; double identité au journal.
         JsonNode d = json(mvc.perform(multipart("/api/v1/documents").file(new MockMultipartFile("file", "b.pdf",
@@ -316,5 +321,27 @@ class ContratApiTest {
                 + " FROM journal_audit WHERE action = 'DOCUMENT_DEPOSE' AND objet_id = ?", doc);
         assertThat(trace).containsEntry("acteur_utilisateur_id", jeu.utilisateurId(Comptes.SECOND_ACTEUR))
                 .containsEntry("acteur_application_id", UUID.fromString(app.get("id").asText()));
+
+        // Source du dépôt délégué (T-040, ANO-E9-001) : canal API, application, personne déléguée.
+        UUID delegue = jeu.utilisateurId(Comptes.SECOND_ACTEUR);
+        assertThat(d.get("canalDepot").asText()).isEqualTo("API");
+        assertThat(d.get("applicationId").asText()).isEqualTo(appId.toString());
+        assertThat(d.get("deposantUtilisateurId").asText()).isEqualTo(delegue.toString());
+        assertThat(d.get("depotDelegue").asBoolean()).isTrue();
+        assertThat(jdbc.queryForMap("SELECT canal_depot, application_id, deposant_utilisateur_id, depot_delegue"
+                + " FROM document WHERE id = ?", doc))
+                .containsEntry("canal_depot", "API").containsEntry("application_id", appId)
+                .containsEntry("deposant_utilisateur_id", delegue).containsEntry("depot_delegue", true);
+
+        // Rangés parmi les dépôts par API, jamais parmi ceux de l'interface.
+        String parCanal = "{\"noeudId\":\"" + espace + "\",\"canal\":\"%s\"}";
+        JsonNode api = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content(parCanal.formatted("API"))).andExpect(status().isOk()));
+        assertThat(api.get("resultats").findValuesAsText("documentId"))
+                .contains(doc.toString(), seule.get("id").asText());
+        JsonNode web = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content(parCanal.formatted("INTERFACE"))).andExpect(status().isOk()));
+        assertThat(web.get("resultats").findValuesAsText("documentId"))
+                .doesNotContain(doc.toString(), seule.get("id").asText());
     }
 }

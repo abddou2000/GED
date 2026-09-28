@@ -75,8 +75,6 @@ classDiagram
     Instant expireLe
   }
   class ErreurIdentite {
-    HttpStatus statut
-    String code
   }
   class FabriqueSocketsLdaps {
     SSLSocketFactory delegue
@@ -90,8 +88,6 @@ classDiagram
     String nomAffiche
     String courriel
     String direction
-  }
-  class GestionErreursIdentite {
   }
   class GuidAnnuaire {
   }
@@ -205,7 +201,6 @@ classDiagram
     volatile Instant mesureLe
   }
   class TropDeTentativesException {
-    long reessayerDansSecondes
   }
   class Utilisateur {
     <<entity>>
@@ -254,7 +249,6 @@ classDiagram
   SessionsRevoquees --> MotifRevocation
   SessionUtilisateur --> MotifRevocation
   SondeAnnuaire --> Annuaire
-  ErreurIdentite <|-- TropDeTentativesException
 ```
 
 DTO : `IdentiteResponse`, `ReponseConnexion`.
@@ -349,6 +343,7 @@ classDiagram
   }
   class ControleAcces {
     AccessPredicate predicat
+    ObjectProvider~AuditService~ audit
   }
   class DroitsResolus {
     Sujet sujet
@@ -368,6 +363,7 @@ classDiagram
   class GardeDroitsRequetes {
     AntPathMatcher chemins
     ControleAcces controle
+    comiptgeddocumentGardeEcriture garde
   }
   class Habilitation {
     <<entity>>
@@ -426,6 +422,7 @@ classDiagram
     UploadDocumentRepository documents
     VersionHabilitations version
     ApplicationEventPublisher evenements
+    orgspringframeworkjdbccoreJdbcTemplate jdbc
   }
   class ServiceRoles {
     RoleRepository roles
@@ -553,6 +550,9 @@ classDiagram
     JdbcTemplate jdbc
     EntityManager em
   }
+  class UsageEspace {
+    <<enumeration>>
+  }
   class WorkSpace {
     <<entity>>
     UUID id
@@ -567,7 +567,7 @@ classDiagram
     String chemin
     comiptgedcommonStatutConservation statutConservation
     javatimeInstant archiveLe
-    … 2 autres
+    … 3 autres
   }
   class WorkSpaceController {
     WorkSpaceService service
@@ -590,12 +590,14 @@ classDiagram
     VersionHabilitations version
     HabilitationRepository habilitations
     AccessGroupRepository groupes
+    orgspringframeworkbeansfactoryObjectProvider~comiptgedcleapiControlePorteeApplication~ porteeApplications
   }
   class WorkspaceStatus {
     <<enumeration>>
   }
   ArchivageNoeuds <|.. ArchivageNoeudsJdbc
   WorkSpace --> WorkspaceStatus
+  WorkSpace --> UsageEspace
   WorkSpaceController --> WorkSpaceService
   WorkSpaceSeeder --> WorkSpaceRepository
   WorkSpaceService --> WorkSpaceRepository
@@ -662,8 +664,17 @@ classDiagram
   class DocumentConfidentielDesigneRepository {
     <<interface>>
   }
+  class DocumentConsulte {
+    <<record>>
+    UUID documentId
+    UUID versionId
+    Acteur acteur
+    Instant survenuLe
+  }
   class DocumentController {
     DocumentService service
+    comfasterxmljacksondatabindObjectMapper json
+    comiptgeddocumentrechercheRechercheMetadonnees recherche
   }
   class DocumentDepose {
     <<record>>
@@ -730,7 +741,7 @@ classDiagram
   class DocumentService {
     UploadDocumentRepository repo
     TypeDocumentRepository typeRepo
-    SignatureService signatureService
+    ServiceCircuits circuits
     EtiquetteRepository etiquetteRepo
     EmployeRepository employeRepo
     DocumentVersionRepository versionRepo
@@ -740,7 +751,7 @@ classDiagram
     ApplicationEventPublisher evenements
     ArchivageNoeuds archivageNoeuds
     CopiesConservation copies
-    … 9 autres
+    … 11 autres
   }
   class DocumentSupprime {
     <<record>>
@@ -771,9 +782,22 @@ classDiagram
     long sizeKo
     String observation
     boolean principale
+    int numero
+    … 1 autres
   }
   class DocumentVersionRepository {
     <<interface>>
+  }
+  class EvenementModeleDocument {
+    <<record>>
+    String action
+    UUID documentId
+    Map~String, Object~ avant
+    Map~String, Object~ apres
+    String motif
+    UUID auteurId
+    ResultatAudit resultat
+    Instant instant
   }
   class GardeEcriture {
     JdbcTemplate jdbc
@@ -796,6 +820,25 @@ classDiagram
     UUID jobId
     String motif
   }
+  class RechercheMetadonnees {
+    NamedParameterJdbcTemplate nomme
+    JdbcTemplate jdbc
+    AccessPredicate droits
+    UploadDocumentRepository documents
+    DocumentService service
+    ObjectMapper json
+  }
+  class ServiceModeleDocument {
+    ServiceVersionsPlan versionsPlan
+    DocumentRattachementRepository rattachements
+    JdbcTemplate jdbc
+    ApplicationEventPublisher evenements
+  }
+  class ServiceVersions {
+    DocumentVersionRepository versions
+    JdbcTemplate jdbc
+    EntityManager em
+  }
   class UploadDocument {
     <<entity>>
     UUID id
@@ -805,12 +848,12 @@ classDiagram
     javatimeInstant archiveLe
     UUID archivePar
     LocalDate echeanceConservation
+    UUID planIndexationVersionId
     Confidentialite confidentialite
     TypeDocument typeDocument
     String fileName
     String extension
-    long sizeKo
-    … 18 autres
+    … 19 autres
   }
   class VerrouModifie {
     <<record>>
@@ -820,6 +863,7 @@ classDiagram
     Instant survenuLe
     boolean verrouilleAvant
     boolean verrouilleApres
+    String motifVerrou
   }
   class VersionAjoutee {
     <<record>>
@@ -850,7 +894,9 @@ classDiagram
   ArchivageDocumentsJdbc --> GardeEcriture
   ContenuIndexe --> Acteur
   DocumentArchive --> Acteur
+  DocumentConsulte --> Acteur
   DocumentController --> DocumentService
+  DocumentController --> RechercheMetadonnees
   DocumentDepose --> Acteur
   DocumentDesarchive --> Acteur
   DocumentExporte --> Acteur
@@ -861,11 +907,17 @@ classDiagram
   DocumentService --> GardeEcriture
   DocumentService --> DocumentRattachementRepository
   DocumentService --> DocumentConfidentielDesigneRepository
+  DocumentService --> ServiceModeleDocument
+  DocumentService --> ServiceVersions
   DocumentSupprime --> Acteur
   DocumentTelecharge --> Acteur
   DocumentVersion --> UploadDocument
+  EvenementAudit <|.. EvenementModeleDocument
   MetadonneesModifiees --> Acteur
   OcrEnEchec --> Acteur
+  RechercheMetadonnees --> DocumentService
+  ServiceModeleDocument --> DocumentRattachementRepository
+  ServiceVersions --> DocumentVersionRepository
   UploadDocument --> DocumentVersion
   VerrouModifie --> Acteur
   VersionAjoutee --> Acteur
@@ -1411,6 +1463,8 @@ classDiagram
   class IndexationService {
     IndexRepository indexRepository
     UploadDocumentRepository documentRepository
+    comiptgeddocumentGardeEcriture garde
+    comiptgeddocumentmodeleServiceModeleDocument modele
     DocumentIndexRepository valeurRepository
     TypeDocumentRepository typeRepository
     AuditService audit
@@ -1552,6 +1606,115 @@ classDiagram
 
 ```mermaid
 classDiagram
+  class AccesApiWorkflow {
+    <<interface>>
+  }
+  class AccesApiWorkflowCles {
+    AccesApiWorkflowUtilisateurs utilisateurs
+    ControlePorteeApplication portee
+  }
+  class AccesApiWorkflowUtilisateurs {
+  }
+  class ActeurWorkflow {
+    <<record>>
+    UUID utilisateurId
+    UUID employeId
+    UUID applicationId
+    String libelle
+  }
+  class Circuit {
+    <<entity>>
+    UUID id
+    UploadDocument document
+    UUID regleWorkflowId
+    Statut statut
+    UUID initiateurId
+    Instant ouvertLe
+    Instant closLe
+    UUID annulePar
+    Instant annuleLe
+    String motifAnnulation
+    List~CircuitValidateur~ validateurs
+  }
+  class CircuitController {
+    ServiceCircuits service
+    RattachementRegles rattachements
+    AccesApiWorkflow acces
+  }
+  class CircuitRepository {
+    <<interface>>
+  }
+  class CircuitValidateur {
+    <<entity>>
+    UUID id
+    Circuit circuit
+    Employe employe
+    Role role
+    UUID perimetreNoeudId
+    String libelle
+    int position
+    UUID reaffecteDeEmployeId
+    UUID reaffectePar
+    Instant reaffecteLe
+    String motifReaffectation
+  }
+  class Decision {
+    <<entity>>
+    UUID id
+    CircuitValidateur validateur
+    UUID versionId
+    Type decision
+    String motif
+    Instant creeLe
+    UUID auteurId
+    UUID applicationId
+  }
+  class DecisionRepository {
+    <<interface>>
+  }
+  class ErreurWorkflowException {
+  }
+  class EvenementWorkflow {
+    <<record>>
+    String action
+    UUID objetId
+    String objetType
+    Map~String, Object~ avant
+    Map~String, Object~ apres
+    String motifAction
+    UUID utilisateurId
+    UUID applicationId
+    String nomActeur
+    DemandeNotification demande
+    Instant instant
+  }
+  class OperationWorkflow {
+    <<enumeration>>
+  }
+  class RattachementRegles {
+    WorkSpaceRepository noeuds
+    TypeDocumentRepository types
+    WorkflowRepository regles
+    AccessPredicate predicat
+    ApplicationEventPublisher evenements
+  }
+  class ReglesApplicables {
+  }
+  class ServiceCircuits {
+    CircuitRepository circuits
+    DecisionRepository decisions
+    UploadDocumentRepository documents
+    DocumentVersionRepository versions
+    EmployeRepository employes
+    UtilisateurRepository utilisateurs
+    RoleRepository roles
+    HabilitationRepository habilitations
+    ServiceHabilitations serviceHabilitations
+    AccessPredicate predicat
+    ReglesApplicables regles
+    comiptgedautorisationControleAcces controle
+    … 3 autres
+  }
   class WorkflowController {
     WorkflowService service
   }
@@ -1568,58 +1731,41 @@ classDiagram
     JournalAdministration journal
     WorkflowRepository workflowRepository
     EmployeRepository employeRepository
+    comiptgedidentiteRoleRepository roles
+    comiptgedworkspaceWorkSpaceRepository noeuds
   }
   class WorkflowStep {
     <<entity>>
     UUID id
     WorkflowGed workflow
     Employe employe
+    comiptgedidentiteRole role
+    UUID perimetreNoeudId
     String label
     int stepOrder
   }
+  AccesApiWorkflow <|.. AccesApiWorkflowCles
+  AccesApiWorkflowCles --> AccesApiWorkflowUtilisateurs
+  AccesApiWorkflow <|.. AccesApiWorkflowUtilisateurs
+  Circuit --> CircuitValidateur
+  CircuitController --> ServiceCircuits
+  CircuitController --> RattachementRegles
+  CircuitController --> AccesApiWorkflow
+  CircuitValidateur --> Circuit
+  Decision --> CircuitValidateur
+  EvenementAudit <|.. EvenementWorkflow
+  EvenementNotifiable <|.. EvenementWorkflow
+  RattachementRegles --> WorkflowRepository
+  ServiceCircuits --> CircuitRepository
+  ServiceCircuits --> DecisionRepository
+  ServiceCircuits --> ReglesApplicables
   WorkflowController --> WorkflowService
   WorkflowGed --> WorkflowStep
   WorkflowService --> WorkflowRepository
   WorkflowStep --> WorkflowGed
 ```
 
-DTO : `WorkflowResponse`.
-
-## `signature` — Circuits de validation actuels (E1)
-
-```mermaid
-classDiagram
-  class SignatureController {
-    SignatureService service
-  }
-  class SignatureService {
-    WorkflowSignatureRepository repo
-    AuditService audit
-    comiptgedautorisationControleAcces controle
-  }
-  class SignatureStatus {
-    <<enumeration>>
-  }
-  class WorkflowSignature {
-    <<entity>>
-    UUID id
-    UploadDocument document
-    Employe employe
-    String stepLabel
-    int stepOrder
-    SignatureStatus status
-    Instant signedAt
-    String motif
-  }
-  class WorkflowSignatureRepository {
-    <<interface>>
-  }
-  SignatureController --> SignatureService
-  SignatureService --> WorkflowSignatureRepository
-  WorkflowSignature --> SignatureStatus
-```
-
-DTO : `SignatureResponse`.
+DTO : `CircuitResponse`, `VuesWorkflow`, `WorkflowResponse`.
 
 ## `notification` — Notifications (E8, §12.9)
 
@@ -2013,6 +2159,9 @@ classDiagram
     JournalAdministration journal
     JdbcTemplate jdbc
   }
+  class SourceDepotApplications {
+    SourceDepot interfaceWeb
+  }
   class SourceHabilitationsApplications {
     JdbcTemplate jdbc
     HabilitationRepository habilitations
@@ -2039,6 +2188,7 @@ classDiagram
   ServicePorteeCles --> CleApiRepository
   ServicePorteeCles --> PorteeCleApiRepository
   ServicePorteeCles --> GardeAdministrationCles
+  SourceDepot <|.. SourceDepotApplications
   SourceHabilitations <|.. SourceHabilitationsApplications
 ```
 
