@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610011000_reprise_liens_groupe_espace.xml">
+
+    <!--
+        Décision du coordinateur (point 9 du lot E7) : les anciens liens groupe /
+        espace (access_group_workspace) ne sont PLUS des habilitations.
+
+        Dans l'ancienne application ces groupes n'autorisaient rien. Le
+        changeset 202609281030-2 les avait repris en habilitations « Utilisateur
+        standard » : la règle « le plus spécifique prévaut » (§12.2.2) les
+        faisait alors passer devant la portée globale d'un Administrateur membre
+        du groupe, qui perdait Supprimer ou Purger sur ces espaces.
+
+        Ce changeset consigne ces liens dans un RAPPORT de reprise
+        (reprise_lien_groupe_espace) et retire les habilitations correspondantes ;
+        l'Administrateur pose ensuite les droits voulus depuis l'écran
+        Habilitations, qui affiche le rapport. Sont visées les habilitations de
+        groupe, rôle Utilisateur standard, sur un nœud, sans rupture et SANS
+        AUTEUR : c'est la signature de la reprise (toute attribution faite
+        depuis l'interface porte son auteur).
+    -->
+    <changeSet id="202610011000-1" author="ged">
+        <comment>Rapport des anciens liens groupe / espace, retrait des habilitations issues de la reprise.</comment>
+        <createTable tableName="reprise_lien_groupe_espace">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()"><constraints primaryKey="true" primaryKeyName="pk_reprise_lien_groupe_espace" nullable="false"/></column>
+            <column name="groupe_ged_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="noeud_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="repris_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_reprise_lien_groupe_espace_groupe_ged_id_noeud_id" tableName="reprise_lien_groupe_espace" columnNames="groupe_ged_id, noeud_id"/>
+        <addForeignKeyConstraint constraintName="fk_reprise_lien_groupe_espace_groupe_ged" baseTableName="reprise_lien_groupe_espace" baseColumnNames="groupe_ged_id"
+                                 referencedTableName="groupe_ged" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_reprise_lien_groupe_espace_noeud" baseTableName="reprise_lien_groupe_espace" baseColumnNames="noeud_id"
+                                 referencedTableName="noeud" referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex indexName="idx_reprise_lien_groupe_espace_noeud_id" tableName="reprise_lien_groupe_espace"><column name="noeud_id"/></createIndex>
+        <sql>INSERT INTO ${database.defaultSchemaName}.reprise_lien_groupe_espace (groupe_ged_id, noeud_id, repris_le)
+             SELECT DISTINCT ON (groupe_ged_id, noeud_id) groupe_ged_id, noeud_id, cree_le
+               FROM ${database.defaultSchemaName}.habilitation
+              WHERE sujet_type = 'GROUPE' AND noeud_id IS NOT NULL AND NOT rupture_heritage AND cree_par IS NULL
+                AND role_id = '0192a000-0000-7000-8000-000000000004'</sql>
+        <sql>DELETE FROM ${database.defaultSchemaName}.habilitation
+              WHERE sujet_type = 'GROUPE' AND noeud_id IS NOT NULL AND NOT rupture_heritage AND cree_par IS NULL
+                AND role_id = '0192a000-0000-7000-8000-000000000004'</sql>
+        <rollback>
+            <sql>INSERT INTO ${database.defaultSchemaName}.habilitation (id, sujet_type, groupe_ged_id, role_id, noeud_id, rupture_heritage, cree_le)
+                 SELECT ${database.defaultSchemaName}.uuid_v7(), 'GROUPE', r.groupe_ged_id, '0192a000-0000-7000-8000-000000000004', r.noeud_id, false, r.repris_le
+                   FROM ${database.defaultSchemaName}.reprise_lien_groupe_espace r
+                  WHERE NOT EXISTS (SELECT 1 FROM ${database.defaultSchemaName}.habilitation h
+                                     WHERE h.sujet_type = 'GROUPE' AND h.groupe_ged_id = r.groupe_ged_id
+                                       AND h.noeud_id = r.noeud_id AND h.role_id = '0192a000-0000-7000-8000-000000000004')</sql>
+            <dropTable tableName="reprise_lien_groupe_espace"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

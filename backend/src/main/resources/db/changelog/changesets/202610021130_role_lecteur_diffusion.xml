@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610021130_role_lecteur_diffusion.xml">
+
+    <!--
+        Diffusion d'un document validé (§12.8) : « ajout d'habilitations de
+        lecture sur le document, sans copie ». Aucun des quatre rôles système
+        (D14) n'est un rôle de lecture seule : un rôle ORDINAIRE « Lecteur
+        (diffusion) », composé de la seule permission Consulter, est livré ;
+        il reste modifiable depuis l'écran des rôles.
+    -->
+    <changeSet id="202610021130-1" author="ged" labels="data-initial">
+        <comment>Rôle de lecture utilisé par la diffusion.</comment>
+        <insert tableName="role">
+            <column name="id" value="0192a000-0000-7000-8000-000000000005"/>
+            <column name="code" value="LECTEUR"/>
+            <column name="libelle" value="Lecteur (diffusion)"/>
+            <column name="systeme" valueBoolean="false"/>
+            <column name="acces_global" valueBoolean="false"/>
+        </insert>
+        <insert tableName="role_permission">
+            <column name="role_id" value="0192a000-0000-7000-8000-000000000005"/>
+            <column name="permission_id" value="0192b000-0000-7000-8000-000000000001"/>
+        </insert>
+        <rollback>
+            <delete tableName="habilitation"><where>role_id = '0192a000-0000-7000-8000-000000000005'</where></delete>
+            <delete tableName="role_permission"><where>role_id = '0192a000-0000-7000-8000-000000000005'</where></delete>
+            <delete tableName="role"><where>id = '0192a000-0000-7000-8000-000000000005'</where></delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

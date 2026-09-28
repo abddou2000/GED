@@ -52,6 +52,14 @@ public class IndexationService {
 
     private final IndexRepository indexRepository;
     private final UploadDocumentRepository documentRepository;
+
+    /** Écritures refusées sur un document verrouillé ou archivé (lot modèle, 409). */
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ipt.ged.document.GardeEcriture garde;
+
+    /** Miroir JSON des métadonnées du document (lot E7, §12.7). */
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ipt.ged.document.modele.ServiceModeleDocument modele;
     private final DocumentIndexRepository valeurRepository;
     /** Le type porte le plan : l'apercu part du type, pas d'un document. */
     private final TypeDocumentRepository typeRepository;
@@ -134,15 +142,9 @@ public class IndexationService {
         if (doc.isSupprime()) {
             throw new IllegalArgumentException("Document en corbeille : indexation impossible. Restaurez-le d'abord.");
         }
-        if (doc.isVerrouille()) {
-            throw new IllegalArgumentException("Document verrouille : indexation impossible");
-        }
-        if (doc.estArchive()) {
-            // Document archivé (§12.6) : lecture seule totale.
-            throw new com.ipt.ged.autorisation.ConflitAutorisationException(
-                    com.ipt.ged.document.GardeEcriture.DOCUMENT_ARCHIVE,
-                    "Document archivé : indexation impossible (lecture seule).");
-        }
+        // Verrouillé ou archivé (§12.6, §12.8) : 409 DOCUMENT_VERROUILLE /
+        // DOCUMENT_ARCHIVE, comme toute écriture sur le document.
+        garde.exigerModifiable(documentId);
 
         // Le plan du type fait autorité : il dit ce qu'on a le droit d'écrire ET
         // ce qu'on est tenu de renseigner.
@@ -209,6 +211,14 @@ public class IndexationService {
                 cible.setValeur(valeur);
                 valeurRepository.save(cible);
             }
+        }
+        // Miroir JSON (§12.7) : les métadonnées du document, normalisées par
+        // nature, suivent les valeurs d'index — recherche par critères et fiche.
+        if (!recues.isEmpty()) {
+            Map<String, Object> parCode = new LinkedHashMap<>();
+            valeurRepository.findByDocumentIdOrderByIdAsc(documentId)
+                    .forEach(v -> parCode.put(v.getIndexField().getCode(), v.getValeur()));
+            modele.synchroniser(doc, parCode);
         }
         // Plan satisfait (obligatoires compris) : issue INDEXE, y compris
         // pour la reprise d'un dépôt resté A_INDEXER (§12.11).
@@ -699,6 +709,9 @@ public class IndexationService {
                 Double min = nombre(filtre.de()), max = nombre(filtre.a());
                 yield (min == null || v >= min) && (max == null || v <= max);
             }
+            case BOOLEEN -> !estRenseigne(filtre.valeur())
+                    || java.util.Objects.equals(com.ipt.ged.planindexation.metamodele.ValeursMetadonnees.booleen(valeur),
+                            com.ipt.ged.planindexation.metamodele.ValeursMetadonnees.booleen(filtre.valeur()));
         };
     }
 

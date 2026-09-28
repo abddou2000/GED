@@ -283,6 +283,12 @@ public class AccessPredicate {
         });
     }
 
+    /** Le document existe-t-il (corbeille comprise) ? Pour distinguer absent et hors périmètre. */
+    public boolean existeDocument(UUID documentId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM document WHERE id = ?)",
+                Boolean.class, documentId));
+    }
+
     /** Fonction de décision {@code peut(sujet, permission, document)} (§12.2.3). */
     public boolean peut(Authentication authentification, CodePermission permission, UUID documentId) {
         return permissionsSurDocument(authentification, documentId).contains(permission);

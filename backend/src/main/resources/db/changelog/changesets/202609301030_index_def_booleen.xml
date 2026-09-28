@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301030_index_def_booleen.xml">
+
+    <!-- Méta-modèle (§12.7) : la nature d'un index compte BOOLEEN. -->
+    <changeSet id="202609301030-1" author="ged">
+        <comment>Nature BOOLEEN des index.</comment>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.index_def DROP CONSTRAINT ck_index_def_type_champs</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.index_def ADD CONSTRAINT ck_index_def_type_champs CHECK (type_champs IN ('BOOLEEN', 'DATE', 'LISTE', 'NOMBRE', 'TEXTE'))</sql>
+        <rollback>
+            <sql>UPDATE ${database.defaultSchemaName}.index_def SET type_champs = 'TEXTE' WHERE type_champs = 'BOOLEEN'</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.index_def DROP CONSTRAINT ck_index_def_type_champs</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.index_def ADD CONSTRAINT ck_index_def_type_champs CHECK (type_champs IN ('DATE', 'LISTE', 'NOMBRE', 'TEXTE'))</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

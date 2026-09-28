@@ -60,6 +60,16 @@ public record DocumentResponse(
         /** {@code ACTIF} ou {@code ARCHIVE} (§12.6) : un document archivé est en lecture seule. */
         String statutConservation,
         Instant archiveLe,
+        /** Socle commun (§12.7) : objet et date du document. */
+        String objet,
+        String dateDocument,
+        /** Métadonnées du plan, normalisées, par code d'index. */
+        java.util.Map<String, Object> metadonnees,
+        /** Échéance de conservation (§12.9). */
+        String echeanceConservation,
+        /** Verrou (§12.8) : motif et date ; absents si le document est libre. */
+        String verrouMotif,
+        Instant verrouLe,
         /** Canal du dépôt (T-040) : INTERFACE, API, BUREAU_ORDRE, REPRISE. */
         String canalDepot,
         /** Application appelante (clé d'API), {@code null} depuis l'interface. */
@@ -74,12 +84,15 @@ public record DocumentResponse(
     public record Tag(UUID id, String tag, String couleur) {}
 
     /**
-     * @param typeMime  type réel détecté au dépôt ;
-     * @param empreinte SHA-256 du contenu en clair (§6.1.4).
+     * @param principale version COURANTE (une seule par document, §12.8)
+     * @param typeMime   type réel détecté au dépôt
+     * @param empreinte  SHA-256 du contenu en clair (§6.1.4)
+     * @param numero     ordre de versement
+     * @param auteurId   identité GED de l'auteur du versement
      */
     public record Version(UUID id, String fileName, String observation,
                           boolean principale, String sizeLabel, Instant createdAt,
-                          String typeMime, String empreinte) {}
+                          String typeMime, String empreinte, int numero, UUID auteurId) {}
 
     public static DocumentResponse from(UploadDocument d) {
         return from(d, d.getWorkspace(), null, null, null);
@@ -117,6 +130,10 @@ public record DocumentResponse(
                 null,
                 d.getStatutConservation() != null ? d.getStatutConservation().name() : null,
                 d.getArchiveLe(),
+                d.getObjet(), d.getDateDocument() != null ? d.getDateDocument().toString() : null,
+                d.getMetadonnees(),
+                d.getEcheanceConservation() != null ? d.getEcheanceConservation().toString() : null,
+                d.getVerrouMotif(), d.getVerrouLe(),
                 d.getCanalDepot() != null ? d.getCanalDepot().name() : null,
                 d.getApplicationId(), d.getDeposantUtilisateurId(), d.isDepotDelegue());
     }
@@ -126,6 +143,7 @@ public record DocumentResponse(
         return new DocumentResponse(id, name, workspace, typeDocument, fileName, extension, sizeKo, sizeLabel,
                 expirationDate, active, verrouille, supprime, chemin, createdBy, etiquettes, versions, createdAt,
                 confidentialite, permissions, rattachements, statutOcr, statut, motif, statutConservation, archiveLe,
+                objet, dateDocument, metadonnees, echeanceConservation, verrouMotif, verrouLe,
                 canalDepot, applicationId, deposantUtilisateurId, depotDelegue);
     }
 
@@ -157,7 +175,7 @@ public record DocumentResponse(
             return d.getVersions().stream()
                     .map(v -> new Version(v.getId(), v.getFileName(), v.getObservation(),
                             v.isPrincipale(), humanSize(v.getSizeKo()), v.getCreatedAt(),
-                            v.getTypeMime(), v.getEmpreinte()))
+                            v.getTypeMime(), v.getEmpreinte(), v.getNumero(), v.getAuteurId()))
                     .toList();
         } catch (RuntimeException e) {
             return List.of();

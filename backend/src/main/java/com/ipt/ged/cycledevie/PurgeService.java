@@ -32,7 +32,7 @@ import java.util.UUID;
  * corbeille uniquement</b>, jamais automatique (P4), permission {@code Purger}.
  *
  * <p>Dans une seule transaction : suppression des lignes métier (document,
- * versions, valeurs d'index, étiquettes, signatures, texte indexé et jobs OCR
+ * versions, valeurs d'index, étiquettes, circuits de validation, texte indexé et jobs OCR
  * par cascade, copies de conservation, éléments de job d'archivage) et
  * <b>destruction des clés de fichier (DEK)</b> — c'est elle qui rend les
  * fichiers définitivement illisibles, sauvegardes comprises (destruction
@@ -105,7 +105,8 @@ public class PurgeService {
 
         jdbc.update("DELETE FROM copie_conservation WHERE version_id IN "
                 + "(SELECT id FROM version_document WHERE document_id = ?)", documentId);
-        jdbc.update("DELETE FROM workflow_ged_signature WHERE document_id = ?", documentId);
+        // Circuits de validation (lot E8) : validateurs et décisions suivent en cascade.
+        jdbc.update("DELETE FROM circuit WHERE document_id = ?", documentId);
         jdbc.update("DELETE FROM document_index_valeur WHERE document_id = ?", documentId);
         jdbc.update("DELETE FROM document_etiquette WHERE document_id = ?", documentId);
         // Rattachements (§12.4), désignations (§12.3) et habilitations propres au document.

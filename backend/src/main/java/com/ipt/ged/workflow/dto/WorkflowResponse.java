@@ -14,12 +14,16 @@ public record WorkflowResponse(
         List<StepResponse> steps,
         List<String> workspaces
 ) {
+    /** Validateur : nommé ({@code employeId}) ou par rôle ({@code roleId}, périmètre). */
     public record StepResponse(
             UUID id,
             UUID employeId,
             String employeFullName,
             String label,
-            int stepOrder
+            int stepOrder,
+            UUID roleId,
+            String roleCode,
+            UUID perimetreNoeudId
     ) {}
 
     public static WorkflowResponse from(WorkflowGed w) {
@@ -29,7 +33,10 @@ public record WorkflowResponse(
                         s.getEmploye() != null ? s.getEmploye().getId() : null,
                         s.getEmploye() != null ? s.getEmploye().getFullName() : null,
                         s.getLabel(),
-                        s.getStepOrder()))
+                        s.getStepOrder(),
+                        s.getRole() != null ? s.getRole().getId() : null,
+                        s.getRole() != null ? s.getRole().getCode() : null,
+                        s.getPerimetreNoeudId()))
                 .toList();
         return new WorkflowResponse(w.getId(), w.getName(), steps, List.of());
     }

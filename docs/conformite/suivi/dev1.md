@@ -1,5 +1,60 @@
 # Suivi — dev1
 
+## Contrat d'API du workflow (E8-API, D8) — publié pour dev2
+
+Mêmes points d'entrée pour l'interface et pour l'intranet (§2.3). Base
+`/api/v1/workflow`. Chaque action est attribuée à une personne nommée :
+l'utilisateur du jeton, ou l'identité déléguée (`X-On-Behalf-Of`) d'une
+application habilitée. Branchement de dev2 : déclarer en `@Primary` une
+implémentation de `workflow.api.AccesApiWorkflow` :
+
+- `acteur(auth, requete)` → `ActeurWorkflow(utilisateurId, employeId, applicationId, libelle)` :
+  pour une `ApplicationAuthentifiee`, l'identité de `FiltreCleApi.ATTRIBUT_DELEGATION`
+  (refus 403 sans délégation) ; pour un utilisateur, déléguer à `AccesApiWorkflowUtilisateurs` ;
+- `verifierPortee(auth, operation, noeudId)` → `ControlePorteeApplication` avec
+  `PILOTAGE` = `OperationApi.WORKFLOW_PILOTAGE`, `DECISION` = `OperationApi.WORKFLOW_DECISION`
+  (nœud = emplacement principal du document, ou nœud visé).
+
+Idempotency-Key : appliqué par le filtre de dev2 aux écritures, sans rien
+demander au workflow. Les droits restent ceux d'`AccessPredicate` (la personne
+déléguée doit elle-même détenir les permissions).
+
+| Méthode et chemin | Opération | Corps | Réponse | Refus |
+|---|---|---|---|---|
+| `GET /regles` (alias `/api/v1/workflowgeds`) | — | page `?page&size&search` | `RegleResponse` | — |
+| `GET /regles/{id}` | — | — | `RegleResponse` | 404 |
+| `POST /regles` | PILOTAGE | `{name, steps:[{employeId \| roleId+perimetreNoeudId?, label, stepOrder?}]}` | 201 `RegleResponse` | 400 ; 403 sans `GERER_REFERENTIELS` |
+| `PUT /regles/{id}` | PILOTAGE | idem | `RegleResponse` (effet sur les seuls dépôts futurs) | 400, 403, 404 |
+| `DELETE /regles/{id}` | PILOTAGE | — | 204 (corbeille) | 403, 404 |
+| `PUT /noeuds/{noeudId}/regle` | PILOTAGE | `{regleId \| null}` | 204 | 403, 404 |
+| `PUT /types/{typeId}/regle` | PILOTAGE | `{regleId \| null}` | 204 | 403, 404 |
+| `GET /documents/{documentId}/regle` | — | — | `{regleId, name, origine: TYPE\|NOEUD, origineId}` ou 204 | 404 hors périmètre |
+| `GET /documents/{documentId}/circuits` | — | — | `[CircuitResponse]`, le plus récent d'abord | 404 hors périmètre |
+| `GET /circuits/{circuitId}` | — | — | `CircuitResponse` | 404 |
+| `POST /documents/{documentId}/circuits` | PILOTAGE | `{}` | 201 `CircuitResponse` | 409 `CIRCUIT_DEJA_OUVERT`, 409 `AUCUNE_REGLE`, 403 |
+| `POST /circuits/{circuitId}/decisions` | DECISION | `{decision: VALIDE\|REFUSE\|ANNULEE, motif, validateurId?}` | 201 `CircuitResponse` | 400 `MOTIF_OBLIGATOIRE` (refus) ; 403 `PAS_VALIDATEUR` ; 409 `CIRCUIT_CLOS` ; 409 `DECISION_INCOHERENTE` (annuler sans décision) |
+| `POST /circuits/{circuitId}/annulation` | PILOTAGE | `{motif}` | `CircuitResponse` (statut `ANNULE`) | 400 `MOTIF_OBLIGATOIRE` ; 403 (ni initiateur ni Administrateur) ; 409 `CIRCUIT_CLOS` |
+| `PUT /circuits/{circuitId}/validateurs/{validateurId}` | PILOTAGE | `{employeId, motif}` | `CircuitResponse` | 403 (Administrateur seul) ; 409 `VALIDATEUR_DEJA_DECIDE` ; 409 `CIRCUIT_CLOS` |
+| `GET /a-traiter` | — | `?page&size` | page `ATraiterResponse` | — |
+| `GET /historique` | — | — | `[DecisionResponse]` de l'acteur | — |
+| `GET /anomalies` | — | — | `[AnomalieResponse]` (validateurs nommés sans identité, sans droit Valider, ou inactifs) | 403 (Administrateur) |
+| `POST /documents/{documentId}/diffusion` | PILOTAGE | `{utilisateurIds:[], groupeIds:[]}` | `{habilitationsPosees}` | 403 sans Diffuser ; 409 `DOCUMENT_NON_VALIDE` |
+
+`CircuitResponse` : `id, documentId, document, statut (EN_COURS|VALIDE|REFUSE|ANNULE),
+regleId, regle, initiateur, ouvertLe, closLe, annulePar, annuleLe, motifAnnulation,
+versionCouranteId, versionCouranteNumero, validateurs[{id, type (NOMME|ROLE),
+employeId, employe, roleCode, perimetreNoeudId, libelle, etat (EN_ATTENTE|VALIDE|REFUSE),
+derniereDecision, reaffecteDe, reaffectePar, reaffecteLe}], decisions[{id, validateurId,
+versionId, versionNumero, decision, motif, auteur, applicationId, le}], peutDecider, peutAnnuler`.
+
+Règles de calcul (§12.8, D7) : validateurs parallèles, aucun ordre, aucun
+facultatif. Statut recalculé dans la transaction de chaque décision ou
+versement : `VALIDE` si, pour chaque validateur, la dernière décision non
+annulée sur la version courante est `VALIDE` ; `REFUSE` si au moins un refus
+sur la version courante ; sinon `EN_COURS`. Un versement rend caduques les
+décisions antérieures. Validateur par rôle : résolu au moment de la décision
+(rôle détenu sur le périmètre, et permission Valider sur le document).
+
 ## Contrat d'archivage pour dev3 (E7, livré en premier)
 
 Le lot cycle de vie (dev3) archive un dossier entier et chaque document ; le
@@ -29,9 +84,186 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
-**E3 — Autorisation et confidentialité (vague 3)** : terminé côté développement,
-branche `ct/dev1`, en attente d'intégration (fusions suspendues). E2 : accepté
-(ea2f936), non encore fusionné. E1 : fusionné par pm (fbb951c).
+**Fusion de `conformite-technique` (e8a75d9 : dev3 E5-E7, dev2 vagues 2 à 4)
+dans `ct/dev1`, réconciliation et correctifs de recette** : faite (commit de
+fusion ci-dessous). E8 workflow : terminé (0a6a33e). E7 modèle : accepté
+(b739ed3). E2/E3 : fusionnés (4f41279). E1 : fusionné.
+
+### Réconciliation (fusion de e8a75d9)
+
+- **Dépôt et fichier** : base dev3 (`DepotController` → `DepotService` en deux
+  temps, `ControleFichiers`, stockage chiffré, OCR) + contrôles E3 (Déposer sur
+  le nœud du type, dossier archivé refusé). `objet` et `dateDocument` ajoutés au
+  dépôt. `ServiceModeleDocument.appliquerAuDepot` au temps 1 (version du plan en
+  vigueur, objet, date) ; `ServiceVersions.verser` au dépôt et au versement
+  (numéro, auteur, courante unique, empreinte de dev3).
+- **Validation des métadonnées, une seule fois** : `ValidationPlan` (dev3) au
+  dépôt (`MetadonneesDepot`) et à l'indexation ; le miroir JSONB
+  `document.metadonnees` est tenu par `ServiceModeleDocument.synchroniser`
+  (normalisation par nature de `ValidateurMetadonnees`, sans revalidation) ;
+  la modification de fiche et le changement de type passent par
+  `ValidateurMetadonnees` (version de plan du document). Nature BOOLEEN ajoutée
+  à `ValidationPlan`. Refus unique : `MetadonneesInvalidesException` (400
+  `METADONNEES_INVALIDES` + `erreurs`), y compris au dépôt (`ErreurDepot.invalides`
+  la rend : le gestionnaire des erreurs de fichier ne portait pas `erreurs`).
+- **Une publication par action** : événements `document.evenement` de dev3 pour
+  dépôt, versions (`VersionAjoutee`, `VersionRestauree`), verrou (`VerrouModifie`,
+  avec motif), fiche (`MetadonneesModifiees`) ; `EvenementModeleDocument` pour
+  le déplacement, la re-typologisation et le renommage seul (`DOCUMENT_RENOMME`).
+  Les circuits écoutent `VersionAjoutee` / `VersionRestauree`.
+- **Changesets** : ordre de l'intégration conservé, lots E7/E8 de dev1 ajoutés
+  après (`202609301020_conservation…` à `202610021200_jalon_workflow`) ;
+  `202609301045` (empreinte) MARK_RAN après `202609271205`, retour arrière vide
+  (la colonne appartient à dev3). Jalons et retour arrière complet verts.
+- **dev2** : `ErreurIdentite` → `ExceptionMetier` (`TropDeTentativesException`
+  dérive de `TropDeRequetesException` : `Retry-After` par le gestionnaire
+  commun) ; `GestionErreursIdentite`, `GestionErreursAutorisation`,
+  `GestionErreursWorkflow`, `GestionErreursMetamodele` supprimés ;
+  `ConflitAutorisationException` → `ConflitException` ;
+  `ReponsesSecuriteProblem` branché dans `SecurityConfig` ; `AccesApiWorkflowCles`
+  (`@Primary`) : délégation obligatoire pour une application (403
+  `DELEGATION_REQUISE`), portée `WORKFLOW_PILOTAGE` / `WORKFLOW_DECISION` ;
+  `EvenementWorkflow` implémente les vraies interfaces `EvenementAudit` et
+  `EvenementNotifiable` (audit et notifications) ; codes E8 au catalogue
+  `ActionAudit`. Dictionnaire OpenAPI (`champs.yml`) complété pour E7/E8.
+- **Espace métier et clés d'API** : créer un dossier dans un espace métier
+  reste réservé à la gestion des espaces (D12), sauf pour une application dont
+  la clé porte `CREATION_DOSSIER` sur le parent (décision de l'Administrateur,
+  §5.4) ; droits de la personne déléguée toujours exigés.
+- Tests adaptés à la fusion : dépôt de métadonnées en partie JSON, `detail`
+  au lieu de `message` (problem+json), versement 201, déclencheur de lecture
+  seule des versions (falsification simulée en le désactivant), numéro de
+  version dans les insertions SQL de dev3.
+
+### Seconde fusion (4d28528 : dev3 T-040, ANO-E7-001, ANO-E5-002 ; dev2 contrat §5.3.1, ANO-E4-004, ANO-E1-005)
+
+- Changesets du workflow renommés (demande du coordinateur, aucun n'était
+  intégré) : `202610021000/1010/1020/1030` → `202610021100/1110/1120/1130`
+  (fichiers, `logicalFilePath`, identifiants), exécutés après
+  `202610021000_alignement_cles_uuid` de dev2 ; jalon `202610021200` inchangé.
+  Références mises à jour (`ServiceCircuits`, `02_reprise.sql`).
+  À signaler : `202610011000_reprise_liens_groupe_espace` (point 9) partage son
+  horodatage avec `202610011000_portee_cles_api_noeud` (dev2) et
+  `202610011000_ajout_source_depot_document` (dev3) — pas de collision
+  Liquibase, renommable de la même façon si le coordinateur le souhaite.
+- `DocumentResponse` : socle commun E7 + source du dépôt T-040 ; dépôt : origine
+  (canal, application, déposant délégué) au temps 1 avec le modèle E7.
+- Téléchargement d'une version : méthode de l'intégration conservée (contrat
+  §5.3.1), passée par `LectureControlee` comme la version courante.
+- `ServiceContratApi.creerDossier` : plus de règle copiée du parent (E8 : le
+  dossier suit la règle du nœud le plus proche). `ContratApiTest.creationDeDossier`
+  (dev2) adapté : aucune règle propre au dossier, et `ReglesApplicables` y
+  résout la règle de l'espace (origine NOEUD).
+
+### Correctifs de recette inclus
+
+| Anomalie | Correction | Test |
+|---|---|---|
+| ANO-E7-002 (majeure) | `GardeEcriture.exigerModifiable` (409 `DOCUMENT_VERROUILLE` / `DOCUMENT_ARCHIVE`) sur rattacher, détacher, désigner, retirer une désignation | `AnomaliesAuditRecetteTest.archiveEnLectureSeule`, `.verrouille` |
+| ANO-E4-001 (majeure) | `DocumentConsulte` (`DOCUMENT_CONSULTE`) publié à la lecture de la fiche (`GET /documents/{id}`), pas pour une relecture interne | `.consultationTracee` |
+| ANO-E4-002 | `ControleAcces.horsPerimetre` : 404 inchangé pour le client, `ACCES_HORS_PERIMETRE` (REFUS, transaction propre) au journal si l'objet existe ; identifiant inexistant non tracé | `.horsPerimetreTrace` |
+| ANO-E4-003 | Déconnexion tracée `DECONNEXION` ; `DESIGNATION_AJOUTEE`, `DESIGNATION_RETIREE`, `CONFIDENTIALITE_MODIFIEE`, `ACCES_HORS_PERIMETRE`, `DOCUMENT_RETYPE` et codes E8 au catalogue | `.designationAuCatalogue`, `AuthentificationApiTest.deconnexion` |
+
+Tests : première fusion 561 verts ; seconde fusion **579 verts, 0 échec**, `ng build` vert. Point d'attention : la base de
+développement `ged_dev1` a exécuté `202609301045` (empreinte) avant l'existence
+de `202609271205` ; ce dernier y échouera (colonne déjà présente). La recréer
+depuis la reprise, ou y marquer `202609271205-1` exécuté après avoir ajouté à
+la main les colonnes manquantes (`cle_fichier_id`, `type_mime`, `taille_octets`).
+Aucune autre base n'est concernée (les lots E7/E8 de dev1 n'étaient pas intégrés).
+
+## E8 — exigences traitées (§12.8 ; MATRICE-FONCTIONNELLE §4.5 ; MATRICE-TECHNIQUE 12.8)
+
+| Réf. | Exigence | Réalisation |
+|---|---|---|
+| 12.8 / 4.5.3 | Règle rattachable à un espace, un dossier ou un type ; la plus spécifique s'applique | `regle_workflow` sur `noeud` et `type_document` ; `ReglesApplicables` : type, puis nœud le plus proche en remontant (règle en corbeille ou sans validateur ignorée) ; `PUT /workflow/noeuds/{id}/regle`, `PUT /workflow/types/{id}/regle`, `GET /workflow/documents/{id}/regle` |
+| 12.8 / 4.5.4 | Validateur nommé ou par rôle sur un périmètre | `regle_validateur.employe_id` XOR `role_id` (+ `perimetre_noeud_id`, contrainte en base) ; rôle résolu au moment de la décision (global, périmètre ou ancêtre, document) et permission Valider exigée |
+| 12.8 / 4.5.4 | Règle modifiable, circuit figé au dépôt | `circuit` + `circuit_validateur` copiés dans la transaction du dépôt (`ServiceCircuits.ouvrirAuDepot`) ; test « circuit figé » |
+| 12.8 / 4.5.3 (D7) | Décisions VALIDE / REFUSE (motif obligatoire) / ANNULEE, sans ordre, aucun facultatif | table `decision (circuit_validateur_id, version_id, decision, motif, cree_le, auteur_id, application_id)`, jamais modifiée ; `POST /workflow/circuits/{id}/decisions` |
+| 12.8 / 4.5.3 | Statut recalculé sur la version courante ; versement = décisions caduques | recalcul dans la transaction de chaque décision et de chaque versement / désignation de version (écoute de `VERSION_AJOUTEE` / `VERSION_RESTAUREE`) ; `document.active` = circuit VALIDE |
+| 12.8 (Q1/R27, D1) | Validateur défaillant signalé, réaffectation manuelle tracée | `GET /workflow/anomalies` (SANS_IDENTITE, SANS_DROIT, INACTIF > `ged.workflow.inactivite-jours`, AUCUN_PORTEUR) ; `PUT /workflow/circuits/{id}/validateurs/{v}` (Administrateur, motif, ancien validateur / auteur / date conservés) |
+| 12.8 | Annulation par l'initiateur ou l'Administrateur, décisions conservées, nouveau circuit possible | `POST /workflow/circuits/{id}/annulation` ; `POST /workflow/documents/{id}/circuits` (409 `CIRCUIT_DEJA_OUVERT` / `AUCUNE_REGLE`) |
+| 12.8 / 4.5.3 | Diffusion du document validé, sans copie | `POST /workflow/documents/{id}/diffusion` : habilitations de document au rôle `LECTEUR` (nouveau, Consulter) pour personnes et groupes ; Diffuser exigée ; 409 `DOCUMENT_NON_VALIDE` |
+| 4.5.3 / 4.6.6 | Notification des validateurs et du déposant ; audit | `EvenementWorkflow` implémente `EvenementAudit` et `EvenementNotifiable` (copies conformes de dev2) : CIRCUIT_OUVERT, VALIDATION_RELANCEE, VALIDATION_APPROUVEE / REJETEE, DECISION_ANNULEE, CIRCUIT_ANNULE, VALIDATEUR_REAFFECTE, DOCUMENT_DIFFUSE, REGLE_WORKFLOW_RATTACHEE ; une publication par action |
+| D8 (E8-API) | Pilotage par API, décision pour le compte d'un validateur | contrat publié ci-dessus ; `AccesApiWorkflow` (acteur délégué, portée PILOTAGE / DECISION) ; double identité (auteur + `application_id`) tracée |
+| Reprise | Anciennes tables et signatures séquentielles | changesets `202610021100` (renommages), `202610021110` (circuit, décision), `202610021120` (signatures → circuits, retour arrière), `202610021130` (rôle LECTEUR), jalon `workflow-e8` ; scripts `02_reprise.sql` / `03_controles.sql` ; paquet `signature` supprimé |
+| Écrans | Validation sans étapes, statut sur la fiche, règles, réaffectation | « Mes validations » (à traiter, historique, validateurs défaillants) ; carte « Validation » de la fiche document ; formulaire de règle nommé / par rôle ; règle du type sur sa fiche ; règle facultative du nœud |
+
+Tests : `mvn test` → **344 tests, 0 échec** (dont `CircuitApiTest`, 12 cas,
+et la migration des signatures dans `SchemaLiquibaseTest`) ; `ng build` vert.
+Vérifié en exécution sur `ged_dev1` (backend 18081, interface 14301, arrêtés
+ensuite) : migration appliquée (le circuit repris du document d'essai en
+corbeille reste hors des listes), écrans « Mes validations », carte du
+circuit, formulaire de règle par rôle.
+
+Non fait / reste : fusion de `conformite-technique` et réconciliation dev3
+(voir « Lot en cours ») ; un validateur nommé est un employé (les anciens
+approbateurs n'avaient pas tous d'identité GED) ; la liste des personnes
+proposée à la diffusion vient de l'écran d'administration (un non-administrateur
+ne voit que les groupes).
+
+## E7 (modèle) — exigences traitées
+
+| Réf. | Exigence | Statut proposé | Preuve |
+|---|---|---|---|
+| 12.7 (T-102) | Méta-modèle : nature booléenne, obligatoire, défaut, liste, recherche | Identique | `IndexFieldType.BOOLEEN` (ck en base, OCR : jamais déduit), `ValidateurMetadonnees` (nature, obligatoire, liste, défaut, appartenance au plan). |
+| 12.7 (T-104) | Métadonnées JSONB validées, GIN, index d'expression, recherche | Identique | `document.metadonnees` normalisé par code d'index (nombre JSON, booléen JSON, date ISO) ; validé au dépôt et à la modification (400 `METADONNEES_INVALIDES` + dictionnaire `erreurs`) ; dépôt sans métadonnées = deux temps (§12.11), obligatoires exigés à l'indexation. Fonctions IMMUTABLE `meta_texte` / `meta_nombre` / `meta_date` : support des index d'expression (un changeset par champ fréquent, procédure `DEPLOIEMENT.md` §8). `POST /documents/recherche` : containment `@>` (GIN) pour liste et booléen, bornes pour date et nombre, texte contient ; **date du document en tri prioritaire** ; périmètre par le prédicat SQL d'`AccessPredicate`. |
+| 12.7 (T-105) | Type : conservation, confidentialité par défaut, plan versionné, `RESTRICT`, re-typologisation | Identique | `duree_conservation_mois`, `point_depart` (DATE_DOCUMENT / DATE_DEPOT / METADONNEE + index date du plan, contrôlé) ; `plan_indexation_version` (définition figée JSONB ; version créée à chaque modification d'un plan, d'un index ou d'un type ; le document référence la version de son dépôt et est validé contre elle) ; FK `document → type_document` RESTRICT + 409 `TYPE_UTILISE`, `actif` (désactivé = plus de dépôt) ; `job_retypage` (correspondance ancien → nouveau champ, un document par transaction, verrouillés / archivés / invalides en échec isolé, déplacement vers le dossier du type cible, rapport, événement `DOCUMENT_RETYPE` par document, prise atomique). |
+| 12.7 (P-21) | Socle commun : objet, date du document, confidentialité, conservation déduite du type | Identique | Colonnes `objet`, `date_document` (reprise = date de dépôt), `echeance_conservation` calculée **par la base** (déclencheurs) au dépôt, au changement de type, de date ou de métadonnée, et pour tous les documents du type quand sa durée ou son point de départ change. |
+| 12.8 (T-106) | Versions : numéro, empreinte, auteur, une seule courante ; D9 ; Q6 | Identique | `numero`, `auteur_id`, `empreinte` (SHA-256 calculé au versement ; colonne de dev3 réutilisée : changeset gardé `MARK_RAN` si elle existe) ; `is_default` → `courante` avec **index unique partiel** `uk_version_document_courante` ; `ServiceVersions` (démission écrite avant promotion) ; D9 : la nouvelle version devient courante, l'ancienne reste en lecture seule (déclencheur `trg_version_document_lecture_seule`) ; désignation d'une ancienne version avec Modifier (Q6 : V3) ; téléchargement de toute version. |
+| 12.8 (T-107) | Verrou : auteur, date, motif ; 409 partout ; Administrateur ; audit | Identique | `verrou_par`, `verrou_le`, `verrou_motif` (ck) ; pose / levée par l'Administrateur (rôle global), 403 sinon ; `GardeEcriture` : 409 `DOCUMENT_VERROUILLE` (motif dans le message) sur fiche, métadonnées, versement, version courante, déplacement, rattachement, suppression, réindexation (routes indexation par l'intercepteur) et archivage (contrat dev3) ; 409 `DOCUMENT_ARCHIVE` pour un document archivé. Événements `DOCUMENT_VERROUILLE` / `DOCUMENT_DEVERROUILLE`. |
+| 12.5 (T-098) | Déplacement de document et de dossier, droits, 409 verrouillé, audit | Identique | Dossier : chemin de la sous-arborescence recalculé par la base (E3) ; document : `PATCH /documents/{id}/emplacement` et changement de type — Déplacer sur l'origine, Déposer sur la destination, 409 si verrouillé ou archivé, rattachement doublon retiré, événement `DOCUMENT_DEPLACE` avec origine et destination. L'audit des déplacements de dossiers est celui de dev2 (`ESPACE_DEPLACE`, vague 2). |
+| 12.5 (P-20) | Renommage : Modifier, unicité dans le dossier (409), audit | Identique | Documents (même emplacement principal) et nœuds (même parent) : 409 `NOM_DEJA_UTILISE` ; `DOCUMENT_RENOMME` avant / après. |
+| 12.6 (T-101, D10) | Drapeau d'archivage sur documents et nœuds | Identique pour le modèle | `statut_conservation`, `archive_le`, `archive_par` sur `noeud` et `document` ; contrats `ArchivageNoeuds` / `ArchivageDocuments` livrés en premier (voir plus haut) ; le traitement (PDF/A, job) est au lot de dev3. |
+| R-03 (D12) | Espace de partage simple | Identique | `noeud.usage_espace` METIER / ECHANGE, hérité par les dossiers (déclencheurs) ; en espace d'échange, Déposer sur le parent suffit pour créer dossiers et sous-dossiers ; en espace métier, gestion des espaces requise ; aucune édition en ligne (télécharger, modifier localement, verser). |
+
+Tests : `mvn test` → **337 verts** (dont `ModeleDocumentApiTest` 11, `RetypageTest`,
+`ContratArchivageTest` 3 ; `SchemaLiquibaseTest` : jalon `modele-e7` et retour
+arrière complet ; reprise adaptée : numéros, une version courante, verrou daté).
+Front : build et tests verts. Vérifié en exécution sur `ged_dev1` (données E3
+migrées, backend 18081 arrêté ensuite) : dépôt avec objet et date, version 1 avec
+empreinte, verrou avec motif, 409 sur écriture, recherche triée par date.
+
+Pour dev3 à la fusion : `DocumentService` a été modifié des deux côtés (versement
+→ appeler `ServiceVersions.verser`, métadonnées au dépôt →
+`ServiceModeleDocument.appliquerAuDepot`) ; `ValidationPlan` (dev3) et
+`ValidateurMetadonnees` (dev1) font la même validation : garder la mienne (versions
+de plan, booléen, normalisation) et y brancher `MetadonneesDepot` ; les événements
+de dev3 `VersionAjoutee`, `VersionRestauree`, `VerrouModifie` doublonnent ceux du
+lot modèle (versions et verrou sont à dev1) : n'en garder qu'une publication par
+action. Changeset `202609301045` (empreinte) : `MARK_RAN` une fois `202609271205`
+présent — ne jamais réordonner ces deux fichiers.
+
+Tests en parallèle : le simulateur d'annuaire des tests écoute sur 33390 par
+défaut ; deux copies de travail qui testent en même temps prennent des ports
+différents par `GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT` et
+`GED_IDENTITE_ANNUAIRE_URLS` (dev1 : 33391 ; l'ancienne variable
+`GED_TEST_ANNUAIRE_PORT` est retirée à la fusion).
+
+**Point 9 — TRANCHÉ par le coordinateur (recommandation adoptée), livré en
+325716f** : changeset `202610011000` (rapport `reprise_lien_groupe_espace`,
+retrait des habilitations de groupe issues de la reprise, retour arrière),
+script de reprise, `DEPLOIEMENT.md` §8, rapport affiché dans l'écran
+Habilitations (`GET /api/v1/admin/reprise/liens-groupes`), tests de migration
+depuis l'état E2 et de non-régression (Administrateur global membre d'un groupe
+repris : suppression 204). Appliqué à `ged_dev1` ; le document d'essai y est
+passé en corbeille (la purge, définitive, relève du lot de dev3).
+
+Constat d'origine — droits des administrateurs sur les espaces des anciens
+groupes. Constaté sur `ged_dev1` : `sbennani`,
+Administrateur de portée globale et membre du groupe repris AG-ADMIN, reçoit
+**403 en supprimant un document** d'un espace que ce groupe « couvrait » — la
+reprise a fait de chaque lien groupe / espace une habilitation « Utilisateur
+standard », et la règle « le plus spécifique prévaut » (§12.2.2, D14) la fait
+passer devant sa portée globale. Or dans l'ancienne application ces groupes
+**n'autorisaient rien** (commentaire d'origine : « il ne conditionne aucune
+autorisation ») : la reprise crée une restriction qui n'existait pas.
+Recommandation : **ne pas convertir `access_group_workspace` en habilitations**
+dans le changeset 202609281030-2 ; conserver groupes et membres, et consigner les
+anciens liens groupe / espace dans un rapport (table ou export) pour que
+l'Administrateur pose lui-même les habilitations voulues depuis l'écran. À
+défaut, variante minimale : ne créer ces habilitations que pour les groupes
+dont aucun membre n'a de rôle global. La correction est un changeset de plus
+(le changeset appliqué ne se modifie pas) et une ligne du script de reprise.
 
 ## E3 — exigences traitées (Réf. de MATRICE-TECHNIQUE.md, lignes T/P de SUIVI.md)
 

@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import {
-  DroitsService, HabilitationVue, IdentiteAdmin, Option, RoleVue, TypeSujet,
+  DroitsService, HabilitationVue, IdentiteAdmin, LienRepris, Option, RoleVue, TypeSujet,
 } from '../droits.service';
 
 type Portee = 'GLOBALE' | 'NOEUD' | 'DOCUMENT';
@@ -37,6 +37,26 @@ type Portee = 'GLOBALE' | 'NOEUD' | 'DOCUMENT';
           @for (u of sansRole(); track u.id) {
             <button type="button" class="lien" (click)="choisirUtilisateur(u)">{{ u.fullName }} ({{ u.identifiant }})</button>
           }
+        </section>
+      }
+
+      @if (liensRepris().length) {
+        <section class="carte">
+          <h2>Rapport de reprise : espaces que les groupes « couvraient »</h2>
+          <p class="muet">L'ancienne application n'attachait aucun droit à ces liens ; ils n'ont pas été
+             convertis. Posez ici les habilitations voulues.</p>
+          <table>
+            <thead><tr><th>Groupe</th><th>Espace</th><th>Habilitation posée</th><th></th></tr></thead>
+            <tbody>
+              @for (l of liensRepris(); track l.groupeId + l.noeudId) {
+                <tr>
+                  <td>{{ l.groupe }}</td><td>{{ l.noeud }}</td>
+                  <td>{{ l.habilitationPosee ? 'oui' : 'non' }}</td>
+                  <td><button type="button" class="lien" (click)="preparer(l)">Préparer l'attribution</button></td>
+                </tr>
+              }
+            </tbody>
+          </table>
         </section>
       }
 
@@ -132,6 +152,7 @@ export class HabilitationsAdmin implements OnInit {
   protected roles = signal<RoleVue[]>([]);
   protected documents = signal<Option[]>([]);
   protected habilitations = signal<HabilitationVue[]>([]);
+  protected liensRepris = signal<LienRepris[]>([]);
   protected sansRole = computed(() => this.identites().filter(u => u.roles.length === 0));
 
   protected sujetType: TypeSujet = 'UTILISATEUR';
@@ -148,6 +169,17 @@ export class HabilitationsAdmin implements OnInit {
     this.droits.groupes().subscribe(l => this.groupes.set(l));
     this.droits.noeuds().subscribe(l => this.noeuds.set(l));
     this.droits.roles().subscribe(l => this.roles.set(l));
+    this.droits.liensRepris().subscribe(l => this.liensRepris.set(l));
+    this.filtrer();
+  }
+
+  /** Préremplit une attribution du groupe sur l'espace repris. */
+  protected preparer(l: LienRepris): void {
+    this.sujetType = 'GROUPE';
+    this.sujetId = l.groupeId;
+    this.portee = 'NOEUD';
+    this.noeudId = l.noeudId;
+    this.rupture = false;
     this.filtrer();
   }
 
@@ -190,6 +222,7 @@ export class HabilitationsAdmin implements OnInit {
       next: () => {
         this.notify.success('Attribution enregistrée : effective immédiatement.');
         this.filtrer();
+        this.droits.liensRepris().subscribe(l => this.liensRepris.set(l));
         this.droits.identites().subscribe(l => this.identites.set(l));
       },
       error: err => this.notify.error(err?.error?.message ?? 'Attribution refusée.'),

@@ -36,7 +36,7 @@ function fichierPour(url: string): string | null {
     ['/workspaces', 'workspaces'], ['/documents', 'documents'],
     ['/type-documents', 'type-documents'], ['/indices', 'indices'],
     ['/plan-indexations', 'plan-indexations'], ['/access-groups', 'access-groups'],
-    ['/etiquettes', 'etiquettes'], ['/workflowgeds', 'workflowgeds'],
+    ['/etiquettes', 'etiquettes'], ['/workflowgeds', 'workflowgeds'], ['/workflow/regles', 'workflowgeds'],
   ];
   for (const [segment, nom] of familles) {
     if (!u.includes(segment)) continue;
@@ -143,13 +143,12 @@ export function demoInterceptor(
     return ok(req.body ?? { ok: true });
   }
 
-  // Signatures : le jeu dépend de l'employé demandé.
-  if (req.url.includes('/signatures/')) {
-    const volet = req.url.includes('/history') ? 'history' : 'pending';
-    const id = req.params.get('employeId');
-    return lire('signatures').pipe(
-      // Sans employé précisé, le premier du jeu capturé (identifiants UUID).
-      switchMap((d: any) => ok(d?.[volet]?.[id ?? Object.keys(d?.[volet] ?? {})[0]] ?? [])));
+  // Workflow de validation (§12.8) : la démonstration n'a aucun circuit ouvert.
+  if (req.url.includes('/workflow/a-traiter')) {
+    return ok({ content: [], total: 0, page: 0, size: 20, totalPages: 0 });
+  }
+  if (/\/workflow\/(historique|anomalies)|\/workflow\/documents\/[^/]+\/circuits/.test(req.url)) {
+    return ok([]);
   }
 
   // Indexation d'un document : analyse proposée, ou valeurs déjà enregistrées.

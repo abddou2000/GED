@@ -17,5 +17,14 @@ public record DocumentRequest(
         Boolean active,
         List<UUID> etiquetteIds,
         /** Nouveau niveau de confidentialité (§12.3) ; absent = inchangé. */
-        com.ipt.ged.autorisation.Confidentialite confidentialite
+        com.ipt.ged.autorisation.Confidentialite confidentialite,
+        /** Objet du document (socle commun, §12.7) ; absent = inchangé. */
+        String objet,
+        /** Date du document AAAA-MM-JJ ; absente = inchangée. */
+        String dateDocument,
+        /**
+         * Métadonnées du plan, REMPLACÉES en bloc et validées contre la version
+         * de plan du document (§12.7) ; absentes = inchangées.
+         */
+        java.util.Map<String, Object> metadonnees
 ) {}

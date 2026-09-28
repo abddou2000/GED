@@ -25,7 +25,8 @@ import java.util.UUID;
  *   <li><b>groupes GED</b> : toute écriture exige
  *       {@code GERER_ROLES_HABILITATIONS} (un groupe est un sujet de droits) ;</li>
  *   <li><b>routes par document</b> des modules OCR et indexation : Consulter
- *       pour lire (404 hors périmètre), Modifier pour écrire ;</li>
+ *       pour lire (404 hors périmètre), Modifier pour écrire, et pas
+ *       d'écriture sur un document verrouillé ou archivé (409) ;</li>
  *   <li><b>supervision OCR</b> : {@code SUPERVISER_TRAITEMENTS}.</li>
  * </ul>
  *
@@ -44,6 +45,7 @@ public class GardeDroitsRequetes implements HandlerInterceptor {
             "/api/v1/indices/**", "/api/v1/indices",
             "/api/v1/plan-indexations/**", "/api/v1/plan-indexations",
             "/api/v1/workflowgeds/**", "/api/v1/workflowgeds",
+            "/api/v1/workflow/regles/**", "/api/v1/workflow/regles",
             "/api/v1/etiquettes/**", "/api/v1/etiquettes");
 
     private static final List<String> GROUPES = List.of("/api/v1/access-groups/**", "/api/v1/access-groups");
@@ -56,9 +58,11 @@ public class GardeDroitsRequetes implements HandlerInterceptor {
 
     private final AntPathMatcher chemins = new AntPathMatcher();
     private final ControleAcces controle;
+    private final com.ipt.ged.document.GardeEcriture garde;
 
-    public GardeDroitsRequetes(ControleAcces controle) {
+    public GardeDroitsRequetes(ControleAcces controle, com.ipt.ged.document.GardeEcriture garde) {
         this.controle = controle;
+        this.garde = garde;
     }
 
     @Override
@@ -87,8 +91,10 @@ public class GardeDroitsRequetes implements HandlerInterceptor {
                 }
                 if (ecriture) {
                     controle.exigerSurDocument(CodePermission.MODIFIER, id);
+                    // Réindexation : refusée sur un document verrouillé ou archivé (409, §12.8).
+                    garde.exigerModifiable(id);
                 } else if (!controle.documentLisible(id)) {
-                    throw new HorsPerimetreException("Document introuvable : " + id);
+                    throw controle.horsPerimetre("DOCUMENT", id, "Document introuvable : " + id);
                 }
                 break;
             }

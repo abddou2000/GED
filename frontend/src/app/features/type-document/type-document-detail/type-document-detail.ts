@@ -7,6 +7,10 @@ import { TypeDocumentService } from '../type-document.service';
 import { TypeDocument } from '../type-document.model';
 import { TypeDocumentForm } from '../type-document-form/type-document-form';
 import { NotifyService } from '../../../core/notify.service';
+import { AuthService } from '../../../core/auth.service';
+import { WorkflowService } from '../../workflow/workflow.service';
+import { CircuitService } from '../../workflow/circuit.service';
+import { Workflow } from '../../workflow/workflow.model';
 
 /**
  * Fiche d'un type de document — reprend l'en-tête de l'application d'origine :
@@ -26,6 +30,13 @@ export class TypeDocumentDetail implements OnInit {
   private service = inject(TypeDocumentService);
   private dialog = inject(MatDialog);
   private notify = inject(NotifyService);
+  private auth = inject(AuthService);
+  private reglesApi = inject(WorkflowService);
+  private circuits = inject(CircuitService);
+
+  regles = signal<Workflow[]>([]);
+  /** Rattacher une règle relève de la gestion des référentiels. */
+  gereReferentiels = () => this.auth.peut('GERER_REFERENTIELS');
 
   id = signal<string | null>(null);
   type = signal<TypeDocument | null>(null);
@@ -33,6 +44,9 @@ export class TypeDocumentDetail implements OnInit {
   introuvable = signal(false);
 
   ngOnInit(): void {
+    if (this.gereReferentiels()) {
+      this.reglesApi.list(0, 200).subscribe({ next: p => this.regles.set(p.content), error: () => this.regles.set([]) });
+    }
     this.route.paramMap.subscribe(p => {
       const id = p.get('id');
       if (!id) {
@@ -53,6 +67,16 @@ export class TypeDocumentDetail implements OnInit {
     this.service.get(id).subscribe({
       next: t => { this.type.set(t); this.chargement.set(false); },
       error: () => { this.chargement.set(false); this.introuvable.set(true); },
+    });
+  }
+
+  /** Rattache (ou détache) la règle du type ; les circuits ouverts ne changent pas. */
+  changerRegle(regleId: string): void {
+    const t = this.type();
+    if (!t) return;
+    this.circuits.rattacherType(t.id, regleId || null).subscribe({
+      next: () => { this.notify.success('Règle de workflow du type enregistrée (dépôts futurs).'); this.charger(); },
+      error: err => this.notify.error(err?.error?.message ?? 'Rattachement impossible.'),
     });
   }
 

@@ -30,15 +30,15 @@
     <p class="section">Rattachement et accès</p>
     <div class="grille">
       <mat-form-field appearance="outline">
-        <mat-label>Règles de Workflow</mat-label>
+        <mat-label>Règle de workflow</mat-label>
+        <!-- Facultative (§12.8) : sans règle, le dossier suit celle de ses
+             ancêtres ; la règle d'un type de document l'emporte. -->
         <mat-select formControlName="workflowId">
+          <mat-option [value]="null">Héritée du dossier parent</mat-option>
           @for (wf of workflows(); track wf.id) {
             <mat-option [value]="wf.id">{{ wf.name }}</mat-option>
           }
         </mat-select>
-        @if (form.get('workflowId')?.touched && form.get('workflowId')?.invalid) {
-          <mat-error>La règle de workflow est obligatoire</mat-error>
-        }
       </mat-form-field>
 
       <mat-form-field appearance="outline">
@@ -61,6 +61,18 @@
             @for (p of parents(); track p.id) {
               <mat-option [value]="p.id">{{ p.name }}</mat-option>
             }
+          </mat-select>
+        </mat-form-field>
+      }
+
+      <!-- Usage d'un ESPACE (R-03, D12) : dans un espace d'échange, les membres
+           habilités créent librement dossiers et sous-dossiers. -->
+      @if (!form.get('parentId')?.value) {
+        <mat-form-field appearance="outline">
+          <mat-label>Usage de l'espace</mat-label>
+          <mat-select formControlName="usageEspace">
+            <mat-option value="METIER">Métier</mat-option>
+            <mat-option value="ECHANGE">Échange (partage simple)</mat-option>
           </mat-select>
         </mat-form-field>
       }

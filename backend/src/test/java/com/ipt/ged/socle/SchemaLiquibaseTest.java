@@ -100,8 +100,12 @@ class SchemaLiquibaseTest {
     private static final Set<String> TABLES_E7_CYCLE_DE_VIE = Set.of(
             "copie_conservation", "job_archivage", "job_archivage_element", "job_export", "job_export_element");
 
-    /** Toutes les tables du changelog maître : E3, lots de dev3 (E5 à E7) et de dev2 (audit, API, notifications). */
-    private static final Set<String> TABLES_ATTENDUES;
+    /**
+     * Tables au jalon modele-e7 : E3, les lots de dev3 (E5 à E7 cycle de vie)
+     * et de dev2 (audit, API, notifications), posés avant, plus le
+     * méta-modèle de dev1 (plans versionnés, re-typologisation).
+     */
+    private static final Set<String> TABLES_E7;
     static {
         Set<String> t = new TreeSet<>(TABLES_E3);
         t.addAll(TABLES_E5_E6);
@@ -109,6 +113,21 @@ class SchemaLiquibaseTest {
         t.addAll(TABLES_AUDIT);
         t.addAll(TABLES_API);
         t.addAll(TABLES_NOTIFICATION);
+        t.addAll(Set.of("plan_indexation_version", "job_retypage"));
+        TABLES_E7 = Set.copyOf(t);
+    }
+
+    /**
+     * Tables du modèle courant : E7, le rapport de reprise des liens groupe /
+     * espace, et le workflow parallèle du lot E8 (règles et validateurs repris
+     * de workflow_ged, circuits, décisions ; signatures séquentielles reprises).
+     */
+    private static final Set<String> TABLES_ATTENDUES;
+    static {
+        Set<String> t = new TreeSet<>(TABLES_E7);
+        t.add("reprise_lien_groupe_espace");
+        t.removeAll(Set.of("workflow_ged", "workflow_ged_etape", "workflow_ged_signature"));
+        t.addAll(Set.of("regle_workflow", "regle_validateur", "circuit", "circuit_validateur", "decision"));
         TABLES_ATTENDUES = Set.copyOf(t);
     }
 
@@ -128,7 +147,7 @@ class SchemaLiquibaseTest {
 
     /** Tables à corbeille : portent l'auteur et la date de suppression. */
     private static final Set<String> A_CORBEILLE = Set.of(
-            "workflow_ged", "noeud", "groupe_ged", "etiquette", "index_def",
+            "regle_workflow", "noeud", "groupe_ged", "etiquette", "index_def",
             "plan_indexation", "type_document", "document");
 
     @Value("${spring.datasource.url}")
@@ -182,7 +201,7 @@ class SchemaLiquibaseTest {
     }
 
     @Test
-    @DisplayName("Retour arrière par jalon : autorisation-e3, identite-e2 puis socle-e1")
+    @DisplayName("Retour arrière par jalon : workflow-e8, modele-e7, autorisation-e3, identite-e2 puis socle-e1")
     void retourArriereAuxJalons() throws Exception {
         String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
@@ -197,8 +216,15 @@ class SchemaLiquibaseTest {
                         "neuf permissions élémentaires, sept d'administration, deux de confidentialité");
                 assertEquals(1, compter(c, "SELECT count(*) FROM " + schema + ".version_habilitations"));
 
-                // Retour au jalon E3 : les lots postérieurs (E5, E6, E7 cycle de vie, journal
-                // d'audit, API d'intégration, notifications) se défont, le modèle E3 reste.
+                // Rien n'est postérieur au jalon E8 : le schéma ne bouge pas.
+                liquibase.rollback("workflow-e8", (String) null);
+                assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
+
+                // Retour au jalon E7 (modèle) : rapport de reprise et workflow parallèle se défont.
+                liquibase.rollback("modele-e7", (String) null);
+                assertEquals(new TreeSet<>(TABLES_E7), tablesMetier(c, schema));
+
+                // Retour au jalon E3 : plans versionnés et re-typologisation se défont.
                 liquibase.rollback("autorisation-e3", (String) null);
                 assertEquals(new TreeSet<>(TABLES_E3), tablesMetier(c, schema));
 
@@ -212,11 +238,121 @@ class SchemaLiquibaseTest {
                 liquibase.rollback("socle-e1", (String) null);
                 assertEquals(new TreeSet<>(TABLES_E1), tablesMetier(c, schema));
 
-                // Rejouer la montée repose les trois jalons.
+                // Rejouer la montée repose les cinq jalons.
                 liquibase.update(new Contexts(), new LabelExpression());
                 assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
-                assertEquals(3, compter(c, "SELECT count(*) FROM " + schema
-                        + ".databasechangelog WHERE tag IN ('socle-e1', 'identite-e2', 'autorisation-e3')"));
+                assertEquals(5, compter(c, "SELECT count(*) FROM " + schema
+                        + ".databasechangelog WHERE tag IN ('socle-e1', 'identite-e2', 'autorisation-e3', 'modele-e7',"
+                        + " 'workflow-e8')"));
+            } finally {
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Point 9 (E7) : les liens groupe / espace d'avant E3 finissent au rapport de reprise, jamais en habilitations")
+    void liensGroupeEspaceAuRapport() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                liquibase.update("identite-e2", new Contexts(), new LabelExpression());
+                // État E2 : un Administrateur de portée globale, membre d'un groupe qui « couvre » un espace.
+                String s = schema + ".";
+                executer(c, "INSERT INTO " + s + "employe (id, first_name, last_name, has_user) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000e001', 'Sara', 'Bennani', true)");
+                executer(c, "INSERT INTO " + s + "workflow_ged (id, name) VALUES ('01920000-0000-7000-8000-00000000f001', 'WF')");
+                executer(c, "INSERT INTO " + s + "workspace (id, name, code, status, employe_id, workflow_ged_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000a001', 'Compta', 'WS-C', 'ACTIF',"
+                        + " '01920000-0000-7000-8000-00000000e001', '01920000-0000-7000-8000-00000000f001')");
+                executer(c, "INSERT INTO " + s + "access_group (id, code, name) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000b001', 'AG-ADMIN', 'Administrateurs')");
+                executer(c, "INSERT INTO " + s + "access_group_employe (access_group_id, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000b001', '01920000-0000-7000-8000-00000000e001')");
+                executer(c, "INSERT INTO " + s + "access_group_workspace (access_group_id, workspace_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000b001', '01920000-0000-7000-8000-00000000a001')");
+                executer(c, "INSERT INTO " + s + "utilisateur (id, object_guid, identifiant, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000c001', '01920000-0000-7000-8000-00000000c0aa', 'sbennani',"
+                        + " '01920000-0000-7000-8000-00000000e001')");
+                executer(c, "INSERT INTO " + s + "utilisateur_role (utilisateur_id, role_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000c001', '0192a000-0000-7000-8000-000000000001')");
+
+                liquibase.update(new Contexts(), new LabelExpression());
+
+                assertEquals(0, compter(c, "SELECT count(*) FROM " + s + "habilitation WHERE sujet_type = 'GROUPE'"),
+                        "aucune habilitation de groupe issue de la reprise");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "reprise_lien_groupe_espace"
+                        + " WHERE groupe_ged_id = '01920000-0000-7000-8000-00000000b001'"
+                        + " AND noeud_id = '01920000-0000-7000-8000-00000000a001'"));
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "habilitation WHERE sujet_type = 'UTILISATEUR'"
+                        + " AND noeud_id IS NULL AND role_id = '0192a000-0000-7000-8000-000000000001'"),
+                        "le rôle global de l'Administrateur est intact");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "groupe_membre"), "groupes et membres conservés");
+
+                // Retour au jalon modele-e7 : les habilitations reviennent, le rapport disparaît.
+                liquibase.rollback("modele-e7", (String) null);
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "habilitation WHERE sujet_type = 'GROUPE'"));
+            } finally {
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("E8 : les signatures séquentielles deviennent un circuit, ses validateurs et ses décisions ; retour arrière fidèle")
+    void signaturesRepriseEnCircuits() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                liquibase.update("modele-e7", new Contexts(), new LabelExpression());
+                // État E7 : un document, sa version courante, deux étapes (l'une signée, l'autre en attente).
+                String s = schema + ".";
+                executer(c, "INSERT INTO " + s + "employe (id, first_name, last_name, has_user) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000e001', 'Karim', 'El Fassi', true),"
+                        + " ('01920000-0000-7000-8000-00000000e002', 'Yasmine', 'Alaoui', true)");
+                executer(c, "INSERT INTO " + s + "workflow_ged (id, name) VALUES ('01920000-0000-7000-8000-00000000f001', 'WF')");
+                executer(c, "INSERT INTO " + s + "noeud (id, name, code, status, employe_id, workflow_ged_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000a001', 'Compta', 'WS-C', 'ACTIF',"
+                        + " '01920000-0000-7000-8000-00000000e001', '01920000-0000-7000-8000-00000000f001')");
+                executer(c, "INSERT INTO " + s + "type_document (id, code, type_de_document, description, noeud_id,"
+                        + " type_autorise, taille_max_mo) VALUES ('01920000-0000-7000-8000-00000000d001', 'TD', 'Facture',"
+                        + " 'd', '01920000-0000-7000-8000-00000000a001', 'pdf', 5)");
+                executer(c, "INSERT INTO " + s + "document (id, name, noeud_principal_id, type_document_id, active)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000b001', 'Facture 1',"
+                        + " '01920000-0000-7000-8000-00000000a001', '01920000-0000-7000-8000-00000000d001', false)");
+                executer(c, "INSERT INTO " + s + "version_document (id, document_id, file_name, file_path, courante, numero)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000b101', '01920000-0000-7000-8000-00000000b001',"
+                        + " 'f.pdf', 'x/f.pdf', true, 1)");
+                executer(c, "INSERT INTO " + s + "workflow_ged_signature (id, document_id, employe_id, step_label,"
+                        + " step_order, status, signed_at, motif) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000c001', '01920000-0000-7000-8000-00000000b001',"
+                        + " '01920000-0000-7000-8000-00000000e001', 'Comptable', 1, 'SIGNED', now(), 'ok'),"
+                        + " ('01920000-0000-7000-8000-00000000c002', '01920000-0000-7000-8000-00000000b001',"
+                        + " '01920000-0000-7000-8000-00000000e002', 'Directeur', 2, 'PENDING', NULL, NULL)");
+
+                liquibase.update(new Contexts(), new LabelExpression());
+
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "circuit WHERE statut = 'EN_COURS'"
+                        + " AND document_id = '01920000-0000-7000-8000-00000000b001'"
+                        + " AND regle_workflow_id = '01920000-0000-7000-8000-00000000f001'"));
+                assertEquals(2, compter(c, "SELECT count(*) FROM " + s + "circuit_validateur WHERE id IN"
+                        + " ('01920000-0000-7000-8000-00000000c001', '01920000-0000-7000-8000-00000000c002')"),
+                        "un validateur par signature, même identifiant");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "decision WHERE decision = 'VALIDE'"
+                        + " AND circuit_validateur_id = '01920000-0000-7000-8000-00000000c001'"
+                        + " AND version_id = '01920000-0000-7000-8000-00000000b101' AND motif = 'ok'"),
+                        "la signature devient une décision sur la version courante");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "decision"), "l'étape en attente n'a pas de décision");
+
+                liquibase.rollback("modele-e7", (String) null);
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "workflow_ged_signature WHERE status = 'SIGNED'"
+                        + " AND id = '01920000-0000-7000-8000-00000000c001'"));
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "workflow_ged_signature WHERE status = 'PENDING'"
+                        + " AND id = '01920000-0000-7000-8000-00000000c002'"));
             } finally {
                 supprimerSchema(c, schema);
             }
@@ -285,7 +421,7 @@ class SchemaLiquibaseTest {
                    -- vise version_document.
                    AND kcu.column_name NOT IN ('parent_id', 'supprime_par', 'attribue_par', 'cree_par',
                                                'noeud_principal_id', 'archive_par', 'verrou_par', 'auteur_id',
-                                               'version_id')
+                                               'version_id', 'initiateur_id', 'annule_par', 'reaffecte_par')
                    AND kcu.column_name NOT LIKE '%' || ccu.table_name || '_id'""", schema);
         assertEquals(List.of(), incoherentes, "clés étrangères dont le nom ne désigne pas la table visée");
     }

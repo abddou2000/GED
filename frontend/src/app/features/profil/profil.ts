@@ -8,8 +8,8 @@ import { Profil } from './profil.model';
 import { SessionService } from '../../core/session.service';
 import { teinteAvatar, encreAvatar, initialesDe } from '../../core/avatar';
 import { dateCourte } from '../home/dashboard/dates';
-import { SignatureService } from '../signature/signature.service';
-import { Signature } from '../signature/signature.model';
+import { CircuitService } from '../workflow/circuit.service';
+import { DecisionRendue } from '../workflow/circuit.model';
 
 /**
  * Page « Mon profil » — identité et activité de l'utilisateur.
@@ -32,16 +32,16 @@ export class ProfilPage implements OnInit {
   protected readonly quand = dateCourte;
 
   private service = inject(ProfilService);
-  private signatures = inject(SignatureService);
+  private circuits = inject(CircuitService);
 
   /**
-   * Mes dernières décisions — signatures accordées ou refusées.
+   * Mes dernières décisions de validation — accordées ou refusées (§12.8).
    *
    * <p>C'est la seule matière de cette fiche qui grandit avec l'usage : le
    * reste (identité, dossiers, groupes) est court et fixe. Sans
    * elle, la page ne pouvait être remplie qu'en étirant des cartes creuses.</p>
    */
-  protected readonly decisions = signal<Signature[]>([]);
+  protected readonly decisions = signal<DecisionRendue[]>([]);
   private session = inject(SessionService);
 
   profil = signal<Profil | null>(null);
@@ -84,10 +84,9 @@ export class ProfilPage implements OnInit {
     /* L'historique est déjà filtré sur l'approbateur par le serveur : c'est
        bien MON activité, pas celle de la maison. Un échec laisse la carte vide
        sans empêcher le reste de la fiche de s'afficher. */
-    this.signatures.history().subscribe({
+    this.circuits.historique().subscribe({
       next: l => this.decisions.set(
-        l.filter(s => s.status !== 'PENDING' && s.signedAt)
-         .sort((a, b) => (b.signedAt ?? '').localeCompare(a.signedAt ?? ''))),
+        l.filter(s => s.decision !== 'ANNULEE').sort((a, b) => b.le.localeCompare(a.le))),
       error: () => this.decisions.set([]),
     });
   }

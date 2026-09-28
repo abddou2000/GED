@@ -2,12 +2,12 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { Encart } from './encart';
 import { SessionService } from '../../../../core/session.service';
-import { SignatureService } from '../../../signature/signature.service';
-import { Signature } from '../../../signature/signature.model';
+import { CircuitService } from '../../../workflow/circuit.service';
+import { DecisionRendue } from '../../../workflow/circuit.model';
 import { dateCourte } from '../dates';
 
 /**
- * Ce que la personne connectée a décidé récemment : signatures et refus.
+ * Ce que la personne connectée a décidé récemment : validations et refus (§12.8).
  *
  * <p>C'est bien SON activité, pas celle de l'application : l'API d'historique
  * est déjà filtrée sur l'approbateur. Annoncer « activité récente » en montrant
@@ -23,16 +23,16 @@ import { dateCourte } from '../dates';
         <ul class="liste">
           @for (s of lignes(); track s.id) {
             <li class="ligne">
-              <span class="pastille" [class]="s.status === 'SIGNED' ? 'd-vert' : 'd-cramoisi'">
-                <mat-icon [svgIcon]="s.status === 'SIGNED' ? 'sign' : 'reject'"></mat-icon>
+              <span class="pastille" [class]="s.decision === 'VALIDE' ? 'd-vert' : 'd-cramoisi'">
+                <mat-icon [svgIcon]="s.decision === 'VALIDE' ? 'sign' : 'reject'"></mat-icon>
               </span>
               <span class="txt">
-                <span class="nom">{{ s.document?.label }}</span>
+                <span class="nom">{{ s.document }}</span>
                 <span class="sous">
-                  <span class="meta">{{ s.status === 'SIGNED' ? 'Signé' : 'Refusé' }} · {{ s.stepLabel }}</span>
+                  <span class="meta">{{ s.decision === 'VALIDE' ? 'Validé' : 'Refusé' }} · {{ s.libelle }}</span>
                 </span>
               </span>
-              <span class="quand">{{ quand(s.signedAt) }}</span>
+              <span class="quand">{{ quand(s.le) }}</span>
             </li>
           }
         </ul>
@@ -48,10 +48,10 @@ import { dateCourte } from '../dates';
 })
 export class WActivite {
   private session = inject(SessionService);
-  private signatures = inject(SignatureService);
+  private circuits = inject(CircuitService);
 
   protected readonly chargement = signal(true);
-  private readonly historique = signal<Signature[]>([]);
+  private readonly historique = signal<DecisionRendue[]>([]);
   protected readonly quand = dateCourte;
 
   /* L'historique arrive dans l'ordre du serveur ; on le retrie sur la date de
@@ -59,15 +59,15 @@ export class WActivite {
      prises — une ligne encore en attente n'est pas de l'activité passée. */
   protected readonly lignes = computed(() =>
     this.historique()
-      .filter(s => s.status !== 'PENDING' && s.signedAt)
-      .sort((a, b) => (b.signedAt ?? '').localeCompare(a.signedAt ?? ''))
+      .filter(s => s.decision !== 'ANNULEE')
+      .sort((a, b) => b.le.localeCompare(a.le))
       .slice(0, 6));
 
   constructor() {
     effect(() => {
       if (this.session.user()?.id == null) return;
       this.chargement.set(true);
-      this.signatures.history().subscribe({
+      this.circuits.historique().subscribe({
         next: l => { this.historique.set(l); this.chargement.set(false); },
         error: () => this.chargement.set(false),
       });

@@ -1,14 +1,15 @@
 package com.ipt.ged.identite.erreur;
 
+import com.ipt.ged.common.erreur.ExceptionMetier;
 import org.springframework.http.HttpStatus;
 
 /**
  * Erreur métier du module d'identité, portant son statut HTTP et un code stable.
  *
- * <p>Transitoire : quand la classe commune {@code ExceptionMetier} (lot de dev2,
- * format problem+json) sera fusionnée, ces exceptions en deviendront des
- * sous-classes et {@link GestionErreursIdentite} disparaîtra. Les codes ne
- * changeront pas.
+ * <p>Depuis la fusion du contrat d'erreurs (problem+json, dev2) : une
+ * {@link ExceptionMetier}, rendue par le gestionnaire commun ; le conseil
+ * provisoire {@code GestionErreursIdentite} est supprimé. Les codes n'ont pas
+ * changé.
  *
  * <table>
  *   <caption>Erreurs du module</caption>
@@ -19,19 +20,17 @@ import org.springframework.http.HttpStatus;
  *   <tr><td>TropDeTentativesException</td><td>429 + Retry-After</td><td>TROP_DE_TENTATIVES</td></tr>
  *   <tr><td>AnnuaireIndisponibleException</td><td>503</td><td>ANNUAIRE_INDISPONIBLE</td></tr>
  * </table>
+ * {@link TropDeTentativesException} dérive de
+ * {@link com.ipt.ged.common.erreur.TropDeRequetesException} : c'est elle qui
+ * vaut l'en-tête {@code Retry-After} au gestionnaire commun.
  */
-public abstract class ErreurIdentite extends RuntimeException {
-
-    private final HttpStatus statut;
-    private final String code;
+public abstract class ErreurIdentite extends ExceptionMetier {
 
     protected ErreurIdentite(HttpStatus statut, String code, String message) {
-        super(message);
-        this.statut = statut;
-        this.code = code;
+        super(statut, code, message);
     }
 
-    public HttpStatus getStatut() { return statut; }
-
-    public String getCode() { return code; }
+    protected ErreurIdentite(HttpStatus statut, String code, String message, Throwable cause) {
+        super(statut, code, message, cause);
+    }
 }

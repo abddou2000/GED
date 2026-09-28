@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301060_creation_table_job_retypage.xml">
+
+    <!--
+        Re-typologisation d'un lot (§12.7, gouvernance) : traitement de fond qui
+        change le type d'un ensemble de documents en appliquant une table de
+        correspondance ancien champ → nouveau champ, avec rapport et un
+        événement d'audit par document.
+    -->
+    <changeSet id="202609301060-1" author="ged">
+        <comment>Travaux de re-typologisation.</comment>
+        <createTable tableName="job_retypage">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_job_retypage" nullable="false"/></column>
+            <column name="source_type_document_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="cible_type_document_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="correspondance" type="JSONB" defaultValueComputed="'{}'::jsonb"><constraints nullable="false"/></column>
+            <column name="selection" type="JSONB"/>
+            <column name="statut" type="VARCHAR(12)" defaultValue="EN_ATTENTE"><constraints nullable="false"/></column>
+            <column name="total" type="INTEGER" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="traites" type="INTEGER" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="reussis" type="INTEGER" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="echecs" type="INTEGER" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="rapport" type="JSONB" defaultValueComputed="'[]'::jsonb"><constraints nullable="false"/></column>
+            <column name="demandeur_utilisateur_id" type="UUID"/>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="debut_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="fin_le" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.job_retypage ADD CONSTRAINT ck_job_retypage_statut CHECK (statut IN ('EN_ATTENTE', 'EN_COURS', 'TERMINE', 'ECHEC'))</sql>
+        <addForeignKeyConstraint constraintName="fk_job_retypage_source_type_document" baseTableName="job_retypage" baseColumnNames="source_type_document_id"
+                                 referencedTableName="type_document" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint constraintName="fk_job_retypage_cible_type_document" baseTableName="job_retypage" baseColumnNames="cible_type_document_id"
+                                 referencedTableName="type_document" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint constraintName="fk_job_retypage_demandeur_utilisateur" baseTableName="job_retypage" baseColumnNames="demandeur_utilisateur_id"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <createIndex indexName="idx_job_retypage_source_type_document_id" tableName="job_retypage"><column name="source_type_document_id"/></createIndex>
+        <createIndex indexName="idx_job_retypage_cible_type_document_id" tableName="job_retypage"><column name="cible_type_document_id"/></createIndex>
+        <createIndex indexName="idx_job_retypage_demandeur_utilisateur_id" tableName="job_retypage"><column name="demandeur_utilisateur_id"/></createIndex>
+        <createIndex indexName="idx_job_retypage_statut" tableName="job_retypage"><column name="statut"/></createIndex>
+        <rollback>
+            <dropTable tableName="job_retypage"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -56,6 +56,15 @@ export interface DocumentItem {
   permissions?: string[] | null;
   /** Emplacements complémentaires visibles (fiche seulement). */
   rattachements?: Ref[] | null;
+  /** Socle commun (§12.7). */
+  objet?: string | null;
+  dateDocument?: string | null;
+  metadonnees?: Record<string, unknown>;
+  /** Échéance de conservation (§12.9), calculée par la base. */
+  echeanceConservation?: string | null;
+  /** Verrou (§12.8). */
+  verrouMotif?: string | null;
+  verrouLe?: string | null;
 }
 
 export type CanalDepot = 'INTERFACE' | 'API' | 'BUREAU_ORDRE' | 'REPRISE';
@@ -92,6 +101,8 @@ export interface Version {
   principale: boolean;
   sizeLabel: string;
   createdAt: string;
+  /** Numéro de versement (1, 2, …) (§12.8). */
+  numero?: number;
   /** Type réel détecté au dépôt (Tika). */
   typeMime?: string | null;
   /** SHA-256 du contenu, vérifié chaque mois. */
@@ -106,6 +117,8 @@ export interface DocumentRequest {
   active?: boolean;
   etiquetteIds?: string[];
   confidentialite?: Confidentialite;
+  objet?: string | null;
+  dateDocument?: string | null;
 }
 
 export interface PageResult<T> {

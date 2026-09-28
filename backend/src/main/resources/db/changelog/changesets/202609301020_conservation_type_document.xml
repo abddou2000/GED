@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301020_conservation_type_document.xml">
+
+    <!--
+        Méta-modèle et conservation (§12.7, §12.9).
+
+        1. Fonctions IMMUTABLE meta_texte / meta_nombre / meta_date : lecture
+           typée d'une métadonnée du JSONB (NULL si absente ou mal formée). Les
+           recherches les emploient, et les index d'expression des natures
+           date et nombre fréquentes se déclarent sur elles, un changeset par
+           champ (voir DEPLOIEMENT.md §8) :
+             CREATE INDEX idx_document_meta_date_facture
+                 ON document (meta_date(metadonnees, 'DATE_FACTURE'));
+        2. Type de document : durée de conservation en mois, point de départ
+           (date du document par défaut, date de dépôt, ou métadonnée date du
+           plan), indicateur actif (un type utilisé ne se supprime pas, il se
+           désactive) ; clé étrangère document → type en RESTRICT.
+        3. Échéance de conservation calculée PAR LA BASE : au dépôt, au
+           changement de type, de date ou de métadonnées du document, et pour
+           tous les documents du type quand sa durée ou son point de départ
+           change.
+    -->
+    <changeSet id="202609301020-1" author="ged">
+        <comment>Fonctions de lecture typée des métadonnées.</comment>
+        <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.meta_texte(m jsonb, code text) RETURNS text
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $corps$ SELECT m ->> code $corps$]]></sql>
+        <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.meta_nombre(m jsonb, code text) RETURNS numeric
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $corps$
+DECLARE
+    v text := m ->> code;
+BEGIN
+    IF v IS NULL OR v !~ '^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$' THEN
+        RETURN NULL;
+    END IF;
+    RETURN v::numeric;
+END
+$corps$]]></sql>
+        <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.meta_date(m jsonb, code text) RETURNS date
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $corps$
+DECLARE
+    v text := m ->> code;
+BEGIN
+    IF v IS NULL OR v !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
+        RETURN NULL;
+    END IF;
+    RETURN make_date(substr(v, 1, 4)::int, substr(v, 6, 2)::int, substr(v, 9, 2)::int);
+EXCEPTION WHEN others THEN
+    RETURN NULL;
+END
+$corps$]]></sql>
+        <rollback>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.meta_date(jsonb, text)</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.meta_nombre(jsonb, text)</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.meta_texte(jsonb, text)</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609301020-2" author="ged">
+        <comment>Conservation et activation du type de document ; suppression d'un type utilisé impossible.</comment>
+        <addColumn tableName="type_document">
+            <column name="duree_conservation_mois" type="INTEGER"/>
+            <column name="point_depart" type="VARCHAR(20)" defaultValue="DATE_DOCUMENT"><constraints nullable="false"/></column>
+            <column name="point_depart_index_code" type="VARCHAR(255)"/>
+            <column name="actif" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+        </addColumn>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.type_document ADD CONSTRAINT ck_type_document_duree_conservation CHECK (duree_conservation_mois IS NULL OR duree_conservation_mois BETWEEN 1 AND 1200)</sql>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.type_document ADD CONSTRAINT ck_type_document_point_depart CHECK (point_depart IN ('DATE_DOCUMENT', 'DATE_DEPOT', 'METADONNEE') AND ((point_depart = 'METADONNEE') = (point_depart_index_code IS NOT NULL)))</sql>
+        <dropForeignKeyConstraint baseTableName="document" constraintName="fk_document_type_document"/>
+        <addForeignKeyConstraint constraintName="fk_document_type_document" baseTableName="document" baseColumnNames="type_document_id"
+                                 referencedTableName="type_document" referencedColumnNames="id" onDelete="RESTRICT"/>
+        <rollback>
+            <dropForeignKeyConstraint baseTableName="document" constraintName="fk_document_type_document"/>
+            <addForeignKeyConstraint constraintName="fk_document_type_document" baseTableName="document" baseColumnNames="type_document_id"
+                                     referencedTableName="type_document" referencedColumnNames="id"/>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.type_document DROP CONSTRAINT ck_type_document_point_depart</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.type_document DROP CONSTRAINT ck_type_document_duree_conservation</sql>
+            <dropColumn tableName="type_document">
+                <column name="actif"/>
+                <column name="point_depart_index_code"/>
+                <column name="point_depart"/>
+                <column name="duree_conservation_mois"/>
+            </dropColumn>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="202609301020-3" author="ged">
+        <comment>Échéance de conservation calculée par déclencheurs.</comment>
+        <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.document_echeance() RETURNS trigger LANGUAGE plpgsql AS $corps$
+DECLARE
+    t RECORD;
+    depart DATE;
+BEGIN
+    SELECT duree_conservation_mois, point_depart, point_depart_index_code INTO t
+      FROM ${database.defaultSchemaName}.type_document WHERE id = NEW.type_document_id;
+    IF t.duree_conservation_mois IS NULL THEN
+        NEW.echeance_conservation := NULL;
+        RETURN NEW;
+    END IF;
+    depart := CASE t.point_depart
+        WHEN 'DATE_DEPOT' THEN coalesce(NEW.created_at, now())::date
+        WHEN 'METADONNEE' THEN ${database.defaultSchemaName}.meta_date(NEW.metadonnees, t.point_depart_index_code)
+        ELSE NEW.date_document
+    END;
+    NEW.echeance_conservation := CASE WHEN depart IS NULL THEN NULL
+        ELSE (depart + make_interval(months => t.duree_conservation_mois))::date END;
+    RETURN NEW;
+END
+$corps$]]></sql>
+        <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.type_document_echeances() RETURNS trigger LANGUAGE plpgsql AS $corps$
+BEGIN
+    IF (NEW.duree_conservation_mois, NEW.point_depart, NEW.point_depart_index_code)
+       IS DISTINCT FROM (OLD.duree_conservation_mois, OLD.point_depart, OLD.point_depart_index_code) THEN
+        -- Réaffecter le type à lui-même déclenche le recalcul ligne à ligne.
+        UPDATE ${database.defaultSchemaName}.document SET type_document_id = type_document_id WHERE type_document_id = NEW.id;
+    END IF;
+    RETURN NULL;
+END
+$corps$]]></sql>
+        <sql>CREATE TRIGGER trg_document_echeance BEFORE INSERT OR UPDATE OF type_document_id, date_document, metadonnees, created_at ON ${database.defaultSchemaName}.document FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.document_echeance()</sql>
+        <sql>CREATE TRIGGER trg_type_document_echeances AFTER UPDATE OF duree_conservation_mois, point_depart, point_depart_index_code ON ${database.defaultSchemaName}.type_document FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.type_document_echeances()</sql>
+        <rollback>
+            <sql>DROP TRIGGER trg_type_document_echeances ON ${database.defaultSchemaName}.type_document</sql>
+            <sql>DROP TRIGGER trg_document_echeance ON ${database.defaultSchemaName}.document</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.type_document_echeances()</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.document_echeance()</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

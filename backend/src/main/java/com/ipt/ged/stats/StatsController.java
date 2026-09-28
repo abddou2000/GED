@@ -5,7 +5,8 @@ import com.ipt.ged.autorisation.AccessPredicate;
 import com.ipt.ged.autorisation.CodePermission;
 import com.ipt.ged.autorisation.ControleAcces;
 import com.ipt.ged.security.UtilisateurConnecte;
-import com.ipt.ged.signature.SignatureService;
+import com.ipt.ged.workflow.api.ActeurWorkflow;
+import com.ipt.ged.workflow.circuit.ServiceCircuits;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -42,17 +43,17 @@ public class StatsController {
     private final WorkSpaceRepository workspaces;
     private final StatistiquesPerimetre documents;
     private final AccessGroupRepository accessGroups;
-    private final SignatureService signatures;
+    private final ServiceCircuits circuits;
     private final AccessPredicate droits;
     private final ControleAcces controle;
 
     public StatsController(WorkSpaceRepository workspaces, StatistiquesPerimetre documents,
-                           AccessGroupRepository accessGroups, SignatureService signatures,
+                           AccessGroupRepository accessGroups, ServiceCircuits circuits,
                            AccessPredicate droits, ControleAcces controle) {
         this.workspaces = workspaces;
         this.documents = documents;
         this.accessGroups = accessGroups;
-        this.signatures = signatures;
+        this.circuits = circuits;
         this.droits = droits;
         this.controle = controle;
     }
@@ -75,14 +76,16 @@ public class StatsController {
      * affichait 41, et rien ne permettait au lecteur de comprendre l'écart.
      *
      * <p>Le compteur est désormais produit par la même méthode que la liste
-     * ({@code SignatureService.pending}), à partir du porteur du jeton. Un
+     * « à traiter » du workflow ({@code ServiceCircuits.aTraiter}, §12.8), à
+     * partir du porteur du jeton : nombre de circuits qui l'attendent. Un
      * chiffre de tableau de bord n'a de sens que s'il désigne une liste que
      * l'utilisateur peut ouvrir et traiter.
      */
     @GetMapping("/overview")
     public Overview overview(@AuthenticationPrincipal UtilisateurConnecte principal) {
-        long enAttente = principal != null && principal.getEmployeId() != null
-                ? signatures.nombreEnAttente(principal.getEmployeId()) : 0L;
+        long enAttente = principal != null
+                ? circuits.nombreATraiter(new ActeurWorkflow(principal.getUtilisateurId(), principal.getEmployeId(),
+                        null, principal.getNomComplet())) : 0L;
         // Lot E3 (P5) : chaque tuile ne compte que le périmètre de l'appelant —
         // espaces couverts par ses habilitations, documents qu'il peut
         // consulter, et, hors administrateur des droits, ses propres groupes.

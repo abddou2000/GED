@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610021120_reprise_signatures_circuits.xml">
+
+    <!--
+        Reprise des signatures séquentielles (workflow_ged_signature) dans le
+        nouveau modèle : un circuit par document, un validateur par ancienne
+        signature (même identifiant, libellé et rang d'origine conservés pour
+        l'affichage, sans ordre imposé), une décision par signature traitée
+        (signée = VALIDE, rejetée = REFUSE, motif conservé), rattachée à la
+        version courante du document. Statut du circuit : REFUSE s'il y a un
+        rejet, VALIDE si tout est signé, EN_COURS sinon. La table
+        d'origine est ensuite supprimée (le retour arrière la recrée).
+    -->
+    <changeSet id="202610021120-1" author="ged">
+        <comment>Reprise des signatures en circuits, validateurs et décisions.</comment>
+        <sql>INSERT INTO ${database.defaultSchemaName}.circuit (id, document_id, regle_workflow_id, statut, ouvert_le, clos_le, initiateur_id)
+             SELECT ${database.defaultSchemaName}.uuid_v7(), d.id, max(n.regle_workflow_id::text)::uuid,
+                    CASE WHEN bool_or(s.status = 'REJECTED') THEN 'REFUSE'
+                         WHEN bool_and(s.status = 'SIGNED') THEN 'VALIDE' ELSE 'EN_COURS' END,
+                    min(coalesce(s.created_at, now())),
+                    CASE WHEN bool_and(s.status = 'SIGNED') THEN max(s.signed_at) END,
+                    (SELECT u.id FROM ${database.defaultSchemaName}.utilisateur u WHERE u.employe_id = d.created_by_employe_id)
+               FROM ${database.defaultSchemaName}.workflow_ged_signature s
+               JOIN ${database.defaultSchemaName}.document d ON d.id = s.document_id
+               JOIN ${database.defaultSchemaName}.noeud n ON n.id = d.noeud_principal_id
+              GROUP BY d.id</sql>
+        <sql>INSERT INTO ${database.defaultSchemaName}.circuit_validateur (id, circuit_id, employe_id, libelle, position)
+             SELECT s.id, c.id, s.employe_id, coalesce(nullif(btrim(s.step_label), ''), 'Validation'), s.step_order
+               FROM ${database.defaultSchemaName}.workflow_ged_signature s JOIN ${database.defaultSchemaName}.circuit c ON c.document_id = s.document_id</sql>
+        <sql>INSERT INTO ${database.defaultSchemaName}.decision (id, circuit_validateur_id, version_id, decision, motif, cree_le, auteur_id)
+             SELECT ${database.defaultSchemaName}.uuid_v7(), s.id,
+                    (SELECT v.id FROM ${database.defaultSchemaName}.version_document v WHERE v.document_id = s.document_id AND v.courante),
+                    CASE s.status WHEN 'SIGNED' THEN 'VALIDE' ELSE 'REFUSE' END,
+                    CASE WHEN s.status = 'REJECTED' THEN coalesce(nullif(btrim(s.motif), ''), 'Refus repris sans motif')
+                         ELSE s.motif END,
+                    coalesce(s.signed_at, s.updated_at, s.created_at, now()),
+                    (SELECT u.id FROM ${database.defaultSchemaName}.utilisateur u WHERE u.employe_id = s.employe_id)
+               FROM ${database.defaultSchemaName}.workflow_ged_signature s
+              WHERE s.status IN ('SIGNED', 'REJECTED')</sql>
+        <dropTable tableName="workflow_ged_signature"/>
+        <rollback>
+            <sql>CREATE TABLE ${database.defaultSchemaName}.workflow_ged_signature (
+                id UUID NOT NULL CONSTRAINT pk_workflow_ged_signature PRIMARY KEY,
+                document_id UUID NOT NULL CONSTRAINT fk_workflow_ged_signature_document REFERENCES ${database.defaultSchemaName}.document (id),
+                employe_id UUID NOT NULL CONSTRAINT fk_workflow_ged_signature_employe REFERENCES ${database.defaultSchemaName}.employe (id),
+                step_label VARCHAR(255),
+                step_order INTEGER NOT NULL,
+                status VARCHAR(20) NOT NULL CONSTRAINT ck_workflow_ged_signature_status CHECK (status IN ('PENDING', 'REJECTED', 'SIGNED')),
+                signed_at TIMESTAMP WITH TIME ZONE,
+                motif VARCHAR(255),
+                created_at TIMESTAMP WITH TIME ZONE,
+                updated_at TIMESTAMP WITH TIME ZONE)</sql>
+            <sql>CREATE INDEX idx_workflow_ged_signature_document_id ON ${database.defaultSchemaName}.workflow_ged_signature (document_id)</sql>
+            <sql>CREATE INDEX idx_workflow_ged_signature_employe_id_status ON ${database.defaultSchemaName}.workflow_ged_signature (employe_id, status)</sql>
+            <sql>INSERT INTO ${database.defaultSchemaName}.workflow_ged_signature (id, document_id, employe_id, step_label, step_order, status, signed_at, motif, created_at)
+                 SELECT cv.id, c.document_id, cv.employe_id, cv.libelle, cv.position,
+                        CASE (SELECT d.decision FROM ${database.defaultSchemaName}.decision d WHERE d.circuit_validateur_id = cv.id ORDER BY d.cree_le DESC, d.id DESC LIMIT 1)
+                             WHEN 'VALIDE' THEN 'SIGNED' WHEN 'REFUSE' THEN 'REJECTED' ELSE 'PENDING' END,
+                        (SELECT d.cree_le FROM ${database.defaultSchemaName}.decision d WHERE d.circuit_validateur_id = cv.id ORDER BY d.cree_le DESC, d.id DESC LIMIT 1),
+                        (SELECT left(d.motif, 255) FROM ${database.defaultSchemaName}.decision d WHERE d.circuit_validateur_id = cv.id ORDER BY d.cree_le DESC, d.id DESC LIMIT 1),
+                        c.ouvert_le
+                   FROM ${database.defaultSchemaName}.circuit_validateur cv JOIN ${database.defaultSchemaName}.circuit c ON c.id = cv.circuit_id
+                  WHERE c.statut &lt;&gt; 'ANNULE' AND cv.employe_id IS NOT NULL</sql>
+            <sql>DELETE FROM ${database.defaultSchemaName}.circuit</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

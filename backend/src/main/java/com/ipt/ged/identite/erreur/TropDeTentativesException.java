@@ -1,17 +1,19 @@
 package com.ipt.ged.identite.erreur;
 
-import org.springframework.http.HttpStatus;
+import com.ipt.ged.common.erreur.TropDeRequetesException;
 
-/** 429 {@code TROP_DE_TENTATIVES}, avec l'en-tête {@code Retry-After} en secondes. */
-public class TropDeTentativesException extends ErreurIdentite {
+import java.time.Duration;
 
-    private final long reessayerDansSecondes;
+/**
+ * 429 {@code TROP_DE_TENTATIVES}, avec l'en-tête {@code Retry-After} en secondes
+ * (posé par le gestionnaire commun pour toute {@link TropDeRequetesException}).
+ */
+public class TropDeTentativesException extends TropDeRequetesException {
+
+    public static final String CODE = "TROP_DE_TENTATIVES";
 
     public TropDeTentativesException(long reessayerDansSecondes) {
-        super(HttpStatus.TOO_MANY_REQUESTS, "TROP_DE_TENTATIVES",
-                "Trop de tentatives de connexion. Réessayez dans " + reessayerDansSecondes + " seconde(s).");
-        this.reessayerDansSecondes = reessayerDansSecondes;
+        super(CODE, "Trop de tentatives de connexion. Réessayez dans " + reessayerDansSecondes + " seconde(s).",
+                Duration.ofSeconds(reessayerDansSecondes));
     }
-
-    public long getReessayerDansSecondes() { return reessayerDansSecondes; }
 }

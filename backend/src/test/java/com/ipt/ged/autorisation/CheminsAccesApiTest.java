@@ -218,7 +218,7 @@ class CheminsAccesApiTest {
         mvc.perform(get("/api/v1/documents/" + b64 + "/rattachements").with(comme(U)))
                 .andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/documents/" + b64 + "/designes").with(comme(U))).andExpect(status().isNotFound());
-        mvc.perform(get("/api/v1/signatures/document/" + b64).with(comme(U))).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/workflow/documents/" + b64 + "/circuits").with(comme(U))).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/ocr/documents/" + b64 + "/texte").with(comme(U))).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/indexation/documents/" + b64).with(comme(U))).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/indexation/documents/" + b64 + "/champs").with(comme(U)))
@@ -558,6 +558,23 @@ class CheminsAccesApiTest {
         assertEquals(0, conf.get("permissions").size());
     }
 
+    @Test
+    @DisplayName("Point 9 (E7) : un Administrateur global membre d'un groupe repris garde ses droits ; le lien est au rapport")
+    void administrateurMembreDUnGroupeRepris() throws Exception {
+        var groupe = new com.ipt.ged.accessgroup.AccessGroup("AG-REPRIS", "Groupe repris");
+        groupe.getUsers().add(em.find(com.ipt.ged.employe.Employe.class, jeu.employeId(Comptes.ADMIN)));
+        em.persist(groupe);
+        em.flush();
+        // Ce que la reprise écrit désormais : un lien au rapport, aucune habilitation.
+        jdbc.update("INSERT INTO reprise_lien_groupe_espace (groupe_ged_id, noeud_id) VALUES (?, ?)", groupe.getId(), a);
+
+        mvc.perform(get("/api/v1/admin/reprise/liens-groupes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.groupe == 'Groupe repris')].noeud").value("A"))
+                .andExpect(jsonPath("$[?(@.groupe == 'Groupe repris')].habilitationPosee").value(false));
+        mvc.perform(delete("/api/v1/documents/" + dA)).andExpect(status().isNoContent());
+    }
+
     /* ---------------------------------------------------------------- points d'extension */
 
     @Test
@@ -592,7 +609,7 @@ class CheminsAccesApiTest {
     @DisplayName("Composition d'un rôle : modifiée depuis l'API, effective immédiatement ; Administrateur verrouillé")
     void compositionDeRole() throws Exception {
         String r = mvc.perform(post("/api/v1/admin/roles").contentType(APPLICATION_JSON)
-                        .content("{\"code\":\"LECTEUR\",\"libelle\":\"Lecteur\",\"permissions\":[\"CONSULTER\"]}"))
+                        .content("{\"code\":\"LECTEUR_ESSAI\",\"libelle\":\"Lecteur\",\"permissions\":[\"CONSULTER\"]}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         UUID role = UUID.fromString(om.readTree(r).get("id").asText());
         jeu.habiliterRole(U, role, a);

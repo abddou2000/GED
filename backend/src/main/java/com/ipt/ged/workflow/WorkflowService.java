@@ -40,11 +40,17 @@ public class WorkflowService {
     private final WorkflowRepository workflowRepository;
     private final EmployeRepository employeRepository;
 
+    private final com.ipt.ged.identite.RoleRepository roles;
+    private final com.ipt.ged.workspace.WorkSpaceRepository noeuds;
+
     public WorkflowService(WorkflowRepository workflowRepository, EmployeRepository employeRepository,
-                           JournalAdministration journal) {
+                           JournalAdministration journal,
+                           com.ipt.ged.identite.RoleRepository roles, com.ipt.ged.workspace.WorkSpaceRepository noeuds) {
         this.journal = journal;
         this.workflowRepository = workflowRepository;
         this.employeRepository = employeRepository;
+        this.roles = roles;
+        this.noeuds = noeuds;
     }
 
     /** Liste active (hors corbeille) paginée + recherche + tri. */
@@ -131,9 +137,24 @@ public class WorkflowService {
         List<WorkflowRequest.StepRequest> steps = request.steps();
         for (int i = 0; i < steps.size(); i++) {
             WorkflowRequest.StepRequest s = steps.get(i);
-            Employe employe = employeRepository.findById(s.employeId())
+            if ((s.employeId() == null) == (s.roleId() == null)) {
+                throw new IllegalArgumentException("Chaque validateur est nommé (employé) OU désigné par rôle.");
+            }
+            if (s.perimetreNoeudId() != null && s.roleId() == null) {
+                throw new IllegalArgumentException("Le périmètre ne s'applique qu'à un validateur par rôle.");
+            }
+            Employe employe = s.employeId() == null ? null : employeRepository.findById(s.employeId())
                     .orElseThrow(() -> new EntityNotFoundException("Employé introuvable : " + s.employeId()));
-            workflow.addStep(new WorkflowStep(employe, s.label(), i + 1));
+            WorkflowStep etape = new WorkflowStep(employe, s.label(), i + 1);
+            if (s.roleId() != null) {
+                etape.setRole(roles.findById(s.roleId())
+                        .orElseThrow(() -> new EntityNotFoundException("Rôle introuvable : " + s.roleId())));
+                if (s.perimetreNoeudId() != null && !noeuds.existsById(s.perimetreNoeudId())) {
+                    throw new EntityNotFoundException("Nœud introuvable : " + s.perimetreNoeudId());
+                }
+                etape.setPerimetreNoeudId(s.perimetreNoeudId());
+            }
+            workflow.addStep(etape);
         }
     }
 }

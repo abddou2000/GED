@@ -25,7 +25,13 @@ public record WorkSpaceResponse(
         Ref parent,
         Ref workflow,
         long childrenCount,
-        List<Ref> accessGroups
+        List<Ref> accessGroups,
+        /** ESPACE ou DOSSIER. */
+        String nature,
+        /** Usage (METIER / ECHANGE), celui de l'espace pour un dossier. */
+        String usageEspace,
+        /** Drapeau d'archivage du nœud (D10). */
+        String statutConservation
 ) {
     /** Référence légère (id + libellé) vers une entité liée. */
     public record Ref(UUID id, String label) {}
@@ -47,7 +53,10 @@ public record WorkSpaceResponse(
                 w.getParent() != null ? new Ref(w.getParent().getId(), w.getParent().getName()) : null,
                 w.getWorkflow() != null ? new Ref(w.getWorkflow().getId(), w.getWorkflow().getName()) : null,
                 childrenCount,
-                groupes
+                groupes,
+                w.getNature(),
+                w.getUsageEspace() != null ? w.getUsageEspace().name() : null,
+                w.getStatutConservation() != null ? w.getStatutConservation().name() : null
         );
     }
 }

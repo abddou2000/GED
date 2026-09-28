@@ -12,44 +12,72 @@
       }
     </mat-form-field>
 
-    <!-- Etapes du circuit -->
+    <!-- Validateurs : tous sollicités en même temps (D7) ; l'ordre n'est
+         qu'affichage. Une modification ne vaut que pour les dépôts futurs. -->
     <div class="steps-head">
-      <span class="steps-title">Étapes du circuit</span>
+      <span class="steps-title">Validateurs (décident en parallèle)</span>
       <button mat-stroked-button type="button" (click)="addStep()">
-        <mat-icon svgIcon="add"></mat-icon> Ajouter une étape
+        <mat-icon svgIcon="add"></mat-icon> Ajouter un validateur
       </button>
     </div>
+    <p class="aide">Tous les validateurs sont sollicités en même temps ; le document est validé quand chacun a
+      validé sa version courante, refusé dès qu'un seul refuse. Les circuits déjà ouverts ne changent pas.</p>
 
     @if (erreurEtapes(); as err) {
       <p class="erreur-etapes">{{ err }}</p>
     }
 
     @if (steps.length === 0) {
-      <div class="empty">Aucune étape pour l'instant. Cliquez sur « Ajouter une étape » pour composer le circuit.</div>
+      <div class="empty">Aucun validateur pour l'instant. Cliquez sur « Ajouter un validateur ».</div>
     }
 
     <div cdkDropList (cdkDropListDropped)="drop($event)" class="steps-list">
       @for (step of steps.controls; track $index; let i = $index) {
         <div class="step-row" cdkDrag [formGroup]="stepGroup(i)">
           <mat-icon class="drag-handle" cdkDragHandle svgIcon="drag"></mat-icon>
-          <span class="step-num">{{ i + 1 }}</span>
 
-          <mat-form-field appearance="outline" class="grow">
-            <mat-label>Étape {{ i + 1 }} — approbateur</mat-label>
-            <mat-select formControlName="employeId"
-                        (selectionChange)="onEmployeChange(i, $event.value)">
-              @for (emp of employes(); track emp.id) {
-                <mat-option [value]="emp.id">{{ emp.fullName }}</mat-option>
-              }
+          <mat-form-field appearance="outline" class="nature">
+            <mat-label>Désignation</mat-label>
+            <mat-select formControlName="nature">
+              <mat-option value="NOMME">Personne nommée</mat-option>
+              <mat-option value="ROLE">Par rôle</mat-option>
             </mat-select>
-            @if (step.get('employeId')?.touched && step.get('employeId')?.invalid) {
-              <mat-error>L'approbateur est obligatoire</mat-error>
-            }
           </mat-form-field>
 
+          @if (step.get('nature')?.value === 'NOMME') {
+            <mat-form-field appearance="outline" class="grow">
+              <mat-label>Validateur</mat-label>
+              <mat-select formControlName="employeId" (selectionChange)="onEmployeChange(i, $event.value)">
+                @for (emp of employes(); track emp.id) {
+                  <mat-option [value]="emp.id">{{ emp.fullName }}</mat-option>
+                }
+              </mat-select>
+              @if (step.get('employeId')?.touched && step.get('employeId')?.invalid) {
+                <mat-error>Le validateur est obligatoire</mat-error>
+              }
+            </mat-form-field>
+          } @else {
+            <mat-form-field appearance="outline" class="grow">
+              <mat-label>Rôle</mat-label>
+              <mat-select formControlName="roleId" (selectionChange)="onRoleChange(i, $event.value)">
+                @for (r of roles(); track r.id) { <mat-option [value]="r.id">{{ r.libelle }}</mat-option> }
+              </mat-select>
+              @if (step.get('roleId')?.touched && step.get('roleId')?.invalid) {
+                <mat-error>Le rôle est obligatoire</mat-error>
+              }
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="grow">
+              <mat-label>Périmètre</mat-label>
+              <mat-select formControlName="perimetreNoeudId">
+                <mat-option [value]="null">Emplacement du document</mat-option>
+                @for (n of perimetres(); track n.id) { <mat-option [value]="n.id">{{ n.name }}</mat-option> }
+              </mat-select>
+            </mat-form-field>
+          }
+
           <mat-form-field appearance="outline" class="grow">
-            <mat-label>Libellé de l'étape</mat-label>
-            <input matInput formControlName="label" placeholder="Ex. : Vérification technique" />
+            <mat-label>Libellé</mat-label>
+            <input matInput formControlName="label" placeholder="Ex. : Contrôle de gestion" />
             @if (step.get('label')?.touched && step.get('label')?.invalid) {
               <mat-error>Le libellé est obligatoire</mat-error>
             }

@@ -34,10 +34,10 @@ DECLARE
     t text;
     n bigint;
 BEGIN
-    FOREACH t IN ARRAY ARRAY['employe', 'utilisateur', 'workflow_ged', 'workflow_ged_etape',
-        'noeud', 'groupe_ged', 'habilitation', 'groupe_membre', 'etiquette',
+    FOREACH t IN ARRAY ARRAY['employe', 'utilisateur', 'regle_workflow', 'regle_validateur',
+        'noeud', 'groupe_ged', 'habilitation', 'reprise_lien_groupe_espace', 'groupe_membre', 'etiquette',
         'index_def', 'plan_indexation', 'plan_index', 'type_document', 'document', 'version_document',
-        'document_etiquette', 'document_index_valeur', 'workflow_ged_signature']
+        'document_etiquette', 'document_index_valeur', 'circuit', 'circuit_validateur', 'decision']
     LOOP
         EXECUTE format('SELECT count(*) FROM %I', t) INTO n;
         IF n > 0 THEN
@@ -128,12 +128,15 @@ SELECT reprise_source.nouvel_id('employes', s.id), s.first_name, s.last_name, co
 -- Les identités GED (table utilisateur) naissent à la première connexion par
 -- l'annuaire, rattachées à la fiche employé reprise ci-dessus.
 
-INSERT INTO workflow_ged (id, name, supprime, created_at, updated_at)
+-- Règles de workflow (lot E8, §12.8) : les anciens circuits deviennent des
+-- règles, leurs étapes des validateurs NOMMÉS ; le rang d'origine n'est plus
+-- qu'un ordre d'affichage (D7 : validateurs parallèles).
+INSERT INTO regle_workflow (id, name, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('workflow_ged', s.id), s.name, coalesce(s.deleted, false),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.workflow_ged s;
 
-INSERT INTO workflow_ged_etape (id, workflow_ged_id, employe_id, label, step_order, created_at, updated_at)
+INSERT INTO regle_validateur (id, regle_workflow_id, employe_id, label, step_order, created_at, updated_at)
 SELECT reprise_source.nouvel_id('workflow_ged_steps', s.id),
        reprise_source.nouvel_id('workflow_ged', s.workflow_ged_id),
        reprise_source.nouvel_id('employes', s.employe_id), s.label, s.step_order,
@@ -146,7 +149,7 @@ SELECT reprise_source.nouvel_id('workflow_ged_steps', s.id),
 -- niveau par niveau, quel que soit l'ordre des identifiants de la source.
 -- Un nœud dont le parent est introuvable n'est pas repris : le contrôle 5
 -- (lignes noeud) et le contrôle 21 le signalent.
-INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, workflow_ged_id,
+INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, regle_workflow_id,
                    supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.description, s.status,
        reprise_source.nouvel_id('employes', s.employe_id),
@@ -161,7 +164,7 @@ DECLARE
     n bigint;
 BEGIN
     LOOP
-        INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, workflow_ged_id,
+        INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, regle_workflow_id,
                            supprime, created_at, updated_at)
         SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.description, s.status,
                reprise_source.nouvel_id('employes', s.employe_id),
@@ -190,15 +193,15 @@ SELECT reprise_source.nouvel_id('access_groups', s.id), s.code, s.name,
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.access_groups s;
 
--- Un groupe « couvrait » des espaces : c'est désormais une habilitation du
--- groupe sur chaque nœud, avec le rôle Utilisateur standard (même sens que la
--- reprise des rattachements existants, changeset 202609281030-2). Les
--- colonnes droit_* de l'ancien modèle restent inertes.
-INSERT INTO habilitation (id, sujet_type, groupe_ged_id, role_id, noeud_id, rupture_heritage)
-SELECT uuid_v7(), 'GROUPE', x.groupe_ged_id, '0192a000-0000-7000-8000-000000000004'::uuid, x.noeud_id, false
-  FROM (SELECT DISTINCT reprise_source.nouvel_id('access_groups', s.access_group_id) AS groupe_ged_id,
-                        reprise_source.nouvel_id('work_spaces', s.workspace_id) AS noeud_id
-          FROM reprise_source.pivot_workspace_groups s) x;
+-- Un groupe « couvrait » des espaces, sans rien autoriser dans l'ancienne
+-- application. Ces liens ne deviennent PAS des habilitations (décision du
+-- point 9, lot E7 : ils restreindraient un Administrateur membre du groupe) :
+-- ils sont consignés dans le rapport de reprise, que l'écran Habilitations
+-- présente à l'Administrateur pour qu'il pose lui-même les droits voulus.
+INSERT INTO reprise_lien_groupe_espace (groupe_ged_id, noeud_id)
+SELECT DISTINCT reprise_source.nouvel_id('access_groups', s.access_group_id),
+                reprise_source.nouvel_id('work_spaces', s.workspace_id)
+  FROM reprise_source.pivot_workspace_groups s;
 
 INSERT INTO groupe_membre (groupe_ged_id, employe_id)
 SELECT reprise_source.nouvel_id('access_groups', s.access_group_id),
@@ -277,13 +280,21 @@ SELECT reprise_source.nouvel_id('documents_file', s.id), s.name,
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.documents_file s;
 
+-- Versions (§12.8, lot E7) : numéros dans l'ordre de dépôt, UNE version
+-- courante par document (index unique partiel) — celle que l'ancienne base
+-- marquait par défaut, la plus récente si plusieurs l'étaient (course de
+-- l'ancienne application), la plus récente si aucune.
 INSERT INTO version_document (id, document_id, file_name, file_path, extension, size_ko, observation,
-                              is_default, created_at, updated_at)
-SELECT reprise_source.nouvel_id('document_versions', s.id),
-       reprise_source.nouvel_id('documents_file', s.document_id),
-       s.file_name, s.file_path, s.extension, coalesce(s.size_ko, 0), s.observation,
-       coalesce(s.is_default, false), reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
-  FROM reprise_source.document_versions s;
+                              courante, numero, created_at, updated_at)
+SELECT reprise_source.nouvel_id('document_versions', x.id),
+       reprise_source.nouvel_id('documents_file', x.document_id),
+       x.file_name, x.file_path, x.extension, coalesce(x.size_ko, 0), x.observation,
+       x.rang_courante = 1, x.numero, reprise_source.utc(x.created_at), reprise_source.utc(x.updated_at)
+  FROM (SELECT s.*,
+               row_number() OVER (PARTITION BY s.document_id ORDER BY s.created_at, s.id) AS numero,
+               row_number() OVER (PARTITION BY s.document_id
+                                  ORDER BY coalesce(s.is_default, false) DESC, s.created_at DESC, s.id DESC) AS rang_courante
+          FROM reprise_source.document_versions s) x;
 
 INSERT INTO document_etiquette (document_id, etiquette_id)
 SELECT reprise_source.nouvel_id('documents_file', s.document_id),
@@ -297,11 +308,40 @@ SELECT reprise_source.nouvel_id('document_index_values', s.id),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.document_index_values s;
 
-INSERT INTO workflow_ged_signature (id, document_id, employe_id, step_label, step_order, status, signed_at,
-                                    motif, created_at, updated_at)
-SELECT reprise_source.nouvel_id('workflow_ged_signatures', s.id),
-       reprise_source.nouvel_id('documents_file', s.document_id),
-       reprise_source.nouvel_id('employes', s.employe_id), s.step_label, s.step_order, s.status,
-       reprise_source.utc(s.signed_at), s.motif,
-       reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
-  FROM reprise_source.workflow_ged_signatures s;
+-- Signatures séquentielles -> circuits de validation (lot E8, §12.8), comme
+-- le changeset 202610021120 pour une base déjà migrée : un circuit par
+-- document (REFUSE s'il y a un rejet, VALIDE si tout est signé, EN_COURS
+-- sinon), un validateur nommé par ancienne signature (identifiant de
+-- correspondance de la signature), une décision par signature traitée, sur la
+-- version courante du document (motif conservé ; refus sans motif signalé).
+INSERT INTO circuit (id, document_id, regle_workflow_id, statut, ouvert_le, clos_le, initiateur_id)
+SELECT uuid_v7(), d.id, max(n.regle_workflow_id::text)::uuid,
+       CASE WHEN bool_or(s.status = 'REJECTED') THEN 'REFUSE'
+            WHEN bool_and(s.status = 'SIGNED') THEN 'VALIDE' ELSE 'EN_COURS' END,
+       min(coalesce(reprise_source.utc(s.created_at), now())),
+       CASE WHEN bool_and(s.status = 'SIGNED') THEN max(reprise_source.utc(s.signed_at)) END,
+       (SELECT u.id FROM utilisateur u WHERE u.employe_id = d.created_by_employe_id)
+  FROM reprise_source.workflow_ged_signatures s
+  JOIN document d ON d.id = reprise_source.nouvel_id('documents_file', s.document_id)
+  JOIN noeud n ON n.id = d.noeud_principal_id
+ GROUP BY d.id;
+
+INSERT INTO circuit_validateur (id, circuit_id, employe_id, libelle, position)
+SELECT reprise_source.nouvel_id('workflow_ged_signatures', s.id), c.id,
+       reprise_source.nouvel_id('employes', s.employe_id),
+       coalesce(nullif(btrim(s.step_label), ''), 'Validation'), s.step_order
+  FROM reprise_source.workflow_ged_signatures s
+  JOIN circuit c ON c.document_id = reprise_source.nouvel_id('documents_file', s.document_id);
+
+INSERT INTO decision (id, circuit_validateur_id, version_id, decision, motif, cree_le, auteur_id)
+SELECT uuid_v7(), reprise_source.nouvel_id('workflow_ged_signatures', s.id),
+       (SELECT v.id FROM version_document v
+         WHERE v.document_id = reprise_source.nouvel_id('documents_file', s.document_id) AND v.courante),
+       CASE s.status WHEN 'SIGNED' THEN 'VALIDE' ELSE 'REFUSE' END,
+       CASE WHEN s.status = 'REJECTED' THEN coalesce(nullif(btrim(s.motif), ''), 'Refus repris sans motif')
+            ELSE s.motif END,
+       coalesce(reprise_source.utc(s.signed_at), reprise_source.utc(s.updated_at),
+                reprise_source.utc(s.created_at), now()),
+       (SELECT u.id FROM utilisateur u WHERE u.employe_id = reprise_source.nouvel_id('employes', s.employe_id))
+  FROM reprise_source.workflow_ged_signatures s
+ WHERE s.status IN ('SIGNED', 'REJECTED');

@@ -22,9 +22,17 @@ public record WorkflowRequest(
         @Valid
         List<StepRequest> steps
 ) {
+    /**
+     * Un validateur : {@code employeId} (nommé) OU {@code roleId} (par rôle,
+     * sur {@code perimetreNoeudId} ou, à défaut, l'emplacement du document).
+     * {@code stepOrder} n'est qu'un ordre d'affichage.
+     */
     public record StepRequest(
-            @NotNull(message = "L'approbateur est obligatoire")
             UUID employeId,
+
+            UUID roleId,
+
+            UUID perimetreNoeudId,
 
             @NotBlank(message = "Le libellé de l'étape est obligatoire")
             @Size(max = 255)

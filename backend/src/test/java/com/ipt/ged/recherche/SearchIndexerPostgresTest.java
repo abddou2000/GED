@@ -220,7 +220,7 @@ class SearchIndexerPostgresTest {
         UUID doc = UUID.randomUUID();
         UUID v1 = UUID.randomUUID(), v2 = UUID.randomUUID();
         base.document(doc, v1);
-        jdbc.update("INSERT INTO version_document (id, document_id, file_name, file_path) VALUES (?, ?, 'v2.pdf', 'x/v2.pdf')", v2, doc);
+        jdbc.update("INSERT INTO version_document (id, document_id, file_name, file_path, numero) VALUES (?, ?, 'v2.pdf', 'x/v2.pdf', 2)", v2, doc);
         indexer.indexer(new SearchIndexer.TexteAIndexer(doc, v1, "fra", "ancienne clause pénale", "OCR", 1));
         indexer.indexer(new SearchIndexer.TexteAIndexer(doc, v2, "fra", "nouvelle clause de révision", "OCR", 1));
         assertTrue(chercher("pénale").isEmpty());

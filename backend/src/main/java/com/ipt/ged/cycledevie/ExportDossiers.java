@@ -166,7 +166,7 @@ public class ExportDossiers {
                   JOIN type_document t ON t.id = d.type_document_id
                   LEFT JOIN employe e ON e.id = d.created_by_employe_id
                   JOIN LATERAL (SELECT * FROM version_document x WHERE x.document_id = d.id
-                                 ORDER BY x.is_default DESC, x.created_at DESC NULLS LAST, x.id DESC LIMIT 1) v ON true
+                                 ORDER BY x.courante DESC, x.created_at DESC NULLS LAST, x.id DESC LIMIT 1) v ON true
                  WHERE d.id = ANY(:ids) AND NOT d.supprime AND v.cle_fichier_id IS NOT NULL AND (""" + predicat.sql() + ")",
                 p, (rs, i) -> new Ligne(rs.getObject("id", UUID.class), rs.getObject("version_id", UUID.class),
                         rs.getObject("cle_fichier_id", UUID.class), List.of(), rs.getString("name"),

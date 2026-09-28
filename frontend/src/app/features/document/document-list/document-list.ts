@@ -228,7 +228,7 @@ export class DocumentList implements OnInit {
       // Un seul message, et qui dit ce qui s'est réellement passé : un document
       // déposé sans index ne doit pas être annoncé comme « indexé ».
       const messages: Record<string, string> = {
-        'indexe': 'Document déposé, indexé, et circuit de signature lancé.',
+        'indexe': 'Document déposé, indexé, et circuit de validation ouvert.',
         'sans-plan': "Document déposé et circuit lancé. Son type n'a pas de plan d'indexation : aucun index à renseigner.",
         'a-indexer': 'Document déposé et circuit lancé, mais il reste à indexer.',
       };

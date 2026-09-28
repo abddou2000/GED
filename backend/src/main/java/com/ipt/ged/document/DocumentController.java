@@ -26,9 +26,24 @@ import java.util.UUID;
 public class DocumentController {
 
     private final DocumentService service;
+    private final com.fasterxml.jackson.databind.ObjectMapper json;
+    private final com.ipt.ged.document.recherche.RechercheMetadonnees recherche;
 
-    public DocumentController(DocumentService service) {
+    public DocumentController(DocumentService service, com.fasterxml.jackson.databind.ObjectMapper json,
+                              com.ipt.ged.document.recherche.RechercheMetadonnees recherche) {
         this.service = service;
+        this.json = json;
+        this.recherche = recherche;
+    }
+
+    /**
+     * Recherche sur métadonnées (§12.7) : critères par index du plan, date du
+     * document comme clé de tri prioritaire, périmètre autorisé seulement.
+     */
+    @PostMapping("/recherche")
+    public PageResponse<DocumentResponse> rechercher(
+            @RequestBody com.ipt.ged.document.recherche.RechercheMetadonnees.Requete requete) {
+        return recherche.rechercher(requete);
     }
 
     @GetMapping
@@ -68,6 +83,20 @@ public class DocumentController {
     static ResponseEntity<DocumentResponse> creation(DocumentResponse r) {
         HttpStatus statut = "EN_ATTENTE_OCR".equals(r.statutOcr()) ? HttpStatus.ACCEPTED : HttpStatus.CREATED;
         return ResponseEntity.status(statut).body(r);
+    }
+
+    /** Déplace le document dans un autre dossier : body { "noeudId": ... } (§12.5). */
+    @PatchMapping("/{id}/emplacement")
+    public DocumentResponse deplacer(@PathVariable UUID id, @RequestBody Map<String, UUID> body) {
+        UUID noeudId = body.get("noeudId");
+        if (noeudId == null) throw new IllegalArgumentException("L'espace de destination (noeudId) est obligatoire");
+        return service.deplacer(id, noeudId);
+    }
+
+    /** Téléchargement d'une version quelconque, déchiffrée en flux (toutes sont conservées, §12.8). */
+    @GetMapping("/{id}/versions/{versionId}/download")
+    public ResponseEntity<Resource> telechargerVersion(@PathVariable UUID id, @PathVariable UUID versionId) {
+        return servir(service.telechargerVersion(id, versionId));
     }
 
     /** Emplacements complémentaires visibles (§12.4). */
@@ -119,8 +148,9 @@ public class DocumentController {
 
     /** Verrouille ou libere le document. */
     @PatchMapping("/{id}/verrou")
-    public DocumentResponse verrou(@PathVariable UUID id, @RequestParam boolean verrouille) {
-        return service.setVerrou(id, verrouille);
+    public DocumentResponse verrou(@PathVariable UUID id, @RequestParam boolean verrouille,
+                                  @RequestParam(value = "motif", required = false) String motif) {
+        return service.setVerrou(id, verrouille, motif);
     }
 
     /** Depose une nouvelle version du fichier. */

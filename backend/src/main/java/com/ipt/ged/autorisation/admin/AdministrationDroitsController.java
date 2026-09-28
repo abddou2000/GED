@@ -108,6 +108,13 @@ public class AdministrationDroitsController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Rapport de reprise : anciens liens groupe / espace, sans droit associé (point 9, lot E7). */
+    @GetMapping("/reprise/liens-groupes")
+    public List<ServiceHabilitations.LienRepris> liensRepris() {
+        exiger();
+        return habilitations.liensRepris();
+    }
+
     /** Droits effectifs d'une identité, globalement, sur un nœud ou sur un document (P-22). */
     @GetMapping("/droits-effectifs")
     public ServiceDroitsEffectifs.DroitsEffectifs droitsEffectifs(@RequestParam UUID utilisateurId,

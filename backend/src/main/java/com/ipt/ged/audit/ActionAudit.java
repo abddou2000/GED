@@ -46,6 +46,8 @@ public enum ActionAudit {
     DOCUMENT_SUPPRIME,
     DOCUMENT_RESTAURE,
     DOCUMENT_PURGE,
+    /** Re-typologisation d'un document (lot modèle, job_retypage, §12.7). */
+    DOCUMENT_RETYPE,
 
     // --- Documents : traitements techniques et contrôles ----------------------
     CONTENU_INDEXE,
@@ -56,12 +58,25 @@ public enum ActionAudit {
     // --- Droits (§3, §12.2) ----------------------------------------------------
     HABILITATION_MODIFIEE,
     ACCES_REFUSE,
+    /** Accès à un objet hors périmètre : 404 indiscernable pour le client, tracé ici (ANO-E4-002). */
+    ACCES_HORS_PERIMETRE,
+    /** Niveau de confidentialité d'un document modifié (§12.3). */
+    CONFIDENTIALITE_MODIFIEE,
+    /** Personne désignée sur un document confidentiel (§12.3, ANO-E4-003). */
+    DESIGNATION_AJOUTEE,
+    DESIGNATION_RETIREE,
 
     // --- Circuits de validation (§4.5, §12.8) --------------------------------
     VALIDATION_APPROUVEE,
     VALIDATION_REJETEE,
     VALIDATION_RELANCEE,
     CIRCUIT_ANNULE,
+    /** Lot E8 : circuit ouvert au dépôt, décision retirée, réaffectation, diffusion, règle rattachée. */
+    CIRCUIT_OUVERT,
+    DECISION_ANNULEE,
+    VALIDATEUR_REAFFECTE,
+    DOCUMENT_DIFFUSE,
+    REGLE_WORKFLOW_RATTACHEE,
 
     // --- Administration : espaces et dossiers ----------------------------------
     ESPACE_CREE,

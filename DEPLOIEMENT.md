@@ -309,23 +309,68 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
   code, suppression dans une version ultérieure — et elle est précédée d'une
   sauvegarde ciblée de la table.
 - Chaque lot livré pose un jalon (`tagDatabase`) : `socle-e1` (E1),
-  `identite-e2` (E2), `autorisation-e3` (E3).
+  `identite-e2` (E2), `autorisation-e3` (E3), `modele-e7` (E7, partie modèle),
+  `workflow-e8` (E8, workflow de validation).
 - **Passage au lot E3** (`autorisation-e3`) — à relire avant la montée :
   - `workspace` devient `noeud` (chemin matérialisé et nature ESPACE / DOSSIER,
     calculés pour l'existant et tenus ensuite par déclencheurs) ; `access_group`
     et `access_group_employe` deviennent `groupe_ged` et `groupe_membre` ;
   - les rôles globaux (`utilisateur_role`) deviennent des habilitations de portée
-    globale, et chaque rattachement groupe / espace (`access_group_workspace`)
-    une habilitation du groupe sur le nœud, **rôle Utilisateur standard** ; les
-    deux tables d'origine sont supprimées (le retour arrière les recrée) ;
-  - **conséquence à vérifier** : l'attribution la plus spécifique prévaut. Un
-    Administrateur membre d'un groupe repris sur un espace n'a plus, sur cet
-    espace, que les permissions d'Utilisateur standard (ni suppression, ni
-    purge). Après la montée, l'écran **Habilitations** permet de retirer ces
-    habilitations de groupe ou de leur donner le rôle voulu ;
+    globale ; les deux tables d'origine (`utilisateur_role`,
+    `access_group_workspace`) sont supprimées (le retour arrière les recrée) ;
+  - les anciens liens groupe / espace (`access_group_workspace`) ne deviennent
+    **pas** des habilitations (décision du point 9, lot E7, changeset
+    `202610011000`) : dans l'ancienne application ils n'autorisaient rien, et
+    une habilitation de groupe sur un espace aurait restreint un Administrateur
+    membre du groupe (l'attribution la plus spécifique prévaut). Ils sont
+    consignés dans le **rapport de reprise** `reprise_lien_groupe_espace`,
+    présenté en tête de l'écran **Habilitations** : l'Administrateur y pose
+    lui-même les droits voulus (« Préparer l'attribution »). Groupes et membres
+    sont conservés. Sur une base déjà montée en E3, le changeset retire les
+    habilitations de groupe issues de la reprise (rôle Utilisateur standard,
+    sans auteur) et les porte au rapport ; son retour arrière les restitue ;
   - `version_habilitations` est tenu par des déclencheurs (séquence
     `version_habilitations_seq`) : `ged_app` doit avoir `USAGE` sur les
     séquences du schéma, ce que `preparer-base.sql` accorde déjà par défaut.
+- **Passage au lot E7, partie modèle** (`modele-e7`) :
+  - `version_document.is_default` devient `courante` ; les versions reçoivent
+    un numéro dans l'ordre de dépôt ; un document qui avait plusieurs versions
+    « principales », ou aucune, garde la plus récente comme courante (index
+    unique partiel ensuite) ; l'historique est en lecture seule (déclencheur) ;
+  - chaque plan d'indexation reçoit sa version 1, et chaque document la
+    version 1 du plan de son type ; `date_document` reprend la date de dépôt ;
+  - les échéances de conservation se calculent dès qu'un type reçoit une durée.
+- **Passage au lot E8, workflow de validation** (`workflow-e8`) — à relire avant la montée :
+  - `workflow_ged` et `workflow_ged_etape` deviennent `regle_workflow` et
+    `regle_validateur` (colonne `regle_workflow_id` sur `noeud`, désormais
+    facultative, et sur `type_document`) ; un validateur est nommé
+    (`employe_id`) ou désigné par rôle (`role_id`, `perimetre_noeud_id`) ;
+  - les signatures séquentielles (`workflow_ged_signature`) deviennent un
+    circuit par document (`circuit`), un validateur par ancienne étape
+    (`circuit_validateur`, même identifiant) et une décision par étape signée ou
+    rejetée (`decision`, sur la version courante ; un rejet sans motif reçoit
+    « Refus repris sans motif »). Statut : REFUSE s'il y avait un rejet, VALIDE
+    si tout était signé, EN_COURS sinon. La table d'origine est supprimée ; le
+    retour arrière la recrée à partir des circuits (les circuits annulés après
+    la montée ne sont pas restitués) ;
+  - un rôle ordinaire **Lecteur (diffusion)** (`LECTEUR`, permission Consulter)
+    est livré : c'est lui que la diffusion d'un document validé attribue ;
+  - une règle sans validateur ne masque plus celle d'un nœud ancêtre ; les
+    nœuds repris portent souvent une telle règle vide : vérifier dans l'écran
+    « Règles de Workflow » les règles effectivement voulues ;
+  - la reprise MySQL (`02_reprise.sql`) produit directement ce modèle ;
+    contrôles 3, 4, 18 et 19 de `03_controles.sql` ;
+  - propriété `ged.workflow.inactivite-jours` (90 par défaut) : au-delà, un
+    validateur nommé sans connexion est signalé à l'Administrateur.
+- **Index d'expression d'une métadonnée fréquente** (§12.7) : un changeset par
+  champ, sur les fonctions immuables de la base, par exemple :
+  ```sql
+  CREATE INDEX idx_document_meta_date_facture ON ged.document (ged.meta_date(metadonnees, 'DATE_FACTURE'));
+  CREATE INDEX idx_document_meta_montant ON ged.document (ged.meta_nombre(metadonnees, 'MONTANT'));
+  ```
+  La recherche (`POST /api/v1/documents/recherche`) emploie ces mêmes
+  expressions : l'index sert sans autre changement. Les critères liste et
+  booléen passent par l'index GIN existant (`idx_document_metadonnees`).
 - **Retour arrière** avec la Liquibase CLI 4.29 (compte `ged_owner`), depuis le
   dossier `backend/src/main/resources` ou le contenu `BOOT-INF/classes` du JAR :
   ```bash
