@@ -497,3 +497,28 @@ compatible avec la cession à MMED, bibliothèque non modifiée) et ses transiti
   - statut du dossier lu par `GET /api/v1/archivage/dossiers/{id}`.
 - **Tests de dev1 adaptés** : dépôts de vrais PDF dans `CheminsAccesApiTest` (le contrôle du type réel refuse « pdf » en 415) ; `FichierVersion` en UUID ; le test `PrevisualisationApiTest` est remplacé par `ApercuTelechargementApiTest`.
 - **Non anticipé** : le lot E7 modèle de dev1 (b739ed3). dev1 réconciliera `DocumentService`, `ValidationPlan` et les événements doublons.
+
+---
+
+## Essais de charge et de volumétrie (§4.3.2, §4.3.4, §6.6, D6)
+
+Rapport : [`docs/exploitation/ESSAIS-DE-CHARGE.md`](../../exploitation/ESSAIS-DE-CHARGE.md)
+(méthode, mesures, limites, projection, recommandations). Banc : paquet de test
+`com.ipt.ged.charge` (suffixe `IT`, à la demande), base dédiée jetable `ged_dev3_charge`.
+
+- **OCR** : 6 à 10 s par page et par cœur (best, fonds bilingue) ; seuil §4.3.2 tenu,
+  cible §4.3.4 / §6.6 (1 à 3 s ; 20 000 pages en 2-4 h sur 4 vCPU) **hors d'atteinte**
+  (~13 h) : écart à signaler au client (rapport § 6.3).
+- **Configuration livrée** : langue par défaut `ara+fra` (CER arabe 10,3 → 5,1 %, +4 % de
+  temps) ; `GED_OCR_LANGUE_DEFAUT`, `GED_OCR_CHAINE_WORKERS` documentés.
+- Rejetés après mesure : `tessdata_fast` (CER arabe × 2), `--psm 6`, OpenMP multi-fil.
+- **À faire (lot E6, avant la reprise)** : séparer la reprise du flux dans `ocr_job`
+  (priorité), sinon D6 est violé pendant toute la reprise (~33 jours sur 4 vCPU).
+- **Recherche** : ne tient pas la volumétrie cible sur les termes fréquents (10 à 40 s à
+  50 000 documents) ; correctifs proposés (total plafonné, ensemble classé borné, droits
+  avant classement, `VACUUM ANALYZE` après chargement, multicritère historique en SQL).
+- **ANO-E5-003** corrigée (e91edec) : intégrité vérifiée avant de servir l'export
+  synchrone, refus `INTEGRITE_COMPROMISE` en problem+json.
+- Vérifié sur un poste portable partagé et bridé par intermittence : valeurs absolues à
+  confirmer sur le serveur de recette ; CER sur corpus synthétique, protocole §4.3.2 sur
+  l'échantillon réel toujours dû.
