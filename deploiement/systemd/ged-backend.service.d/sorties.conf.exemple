@@ -9,21 +9,54 @@
 #  Office converti par LibreOffice, processus enfant du service — ne peut
 #  joindre que les destinations d'exploitation listées ici.
 #
+#  IPAddressAllow n'accepte que des ADRESSES (IP ou CIDR), alors que ged.env
+#  désigne la base, l'annuaire et le relais par NOMS d'hôtes. Deux règles :
+#   1. les résolveurs DNS de MMED sont autorisés (sans eux aucun nom ne se
+#      résout : la base, l'annuaire et le relais seraient injoignables) ;
+#   2. chaque nom de ged.env doit se résoudre vers une adresse autorisée
+#      ci-dessous : deploiement/scripts/verifier-sorties.sh le contrôle. Le
+#      lancer à l'installation, à chaque changement d'adresse et à chaque
+#      ajout de contrôleur de domaine.
+#  Variante sans DNS : figer les noms dans /etc/hosts (« files » en tête de la
+#  ligne hosts de /etc/nsswitch.conf) et retirer les lignes des résolveurs ;
+#  le script lit la même résolution que la JVM (getent), il reste valable.
+#
+#  Les connexions ENTRANTES (NGINX vers 8080, Prometheus vers 8081) sont des
+#  réponses : leurs émetteurs sont autorisés pour que ces réponses passent.
+#
 #  Remplacer les adresses par celles de l'environnement (une ligne par
-#  destination, adresse ou réseau CIDR). Les connexions ENTRANTES (NGINX vers
-#  8080, Prometheus vers 8081) sont des réponses : elles restent possibles.
+#  destination). Les valeurs ci-dessous suivent ged.env.exemple.
 # ============================================================
 [Service]
 IPAddressDeny=any
-# Boucle locale (clamd local, sondes, JVM).
+
+# Boucle locale : clamd local (GED_CLAMAV_HOTE=127.0.0.1). Un processus enfant
+# (LibreOffice) joint aussi ce qui écoute sur la boucle : risque résiduel
+# déclaré dans REVUE-SSRF.md §3. D'où, dans ged.env, SERVER_ADDRESS (API) et
+# GED_MANAGEMENT_ADRESSE (Actuator) sur l'adresse du serveur, jamais sur
+# 127.0.0.1 : sur la boucle ne reste que clamd. L'adresse propre du serveur
+# n'est pas autorisée ici : un processus enfant ne peut pas s'y connecter.
 IPAddressAllow=localhost
-# PostgreSQL (DB_HOST)
+
+# Résolveurs DNS de MMED (ceux de /etc/resolv.conf).
+IPAddressAllow=10.0.1.53
+IPAddressAllow=10.0.1.54
+
+# PostgreSQL (DB_HOST=ged-db.marchica.local)
 IPAddressAllow=10.0.10.20
-# Contrôleurs de domaine (GED_LDAP_URLS, LDAPS 636)
+
+# Contrôleurs de domaine : UNE LIGNE PAR CONTRÔLEUR de GED_LDAP_URLS (décision
+# D4 : un seul aujourd'hui, plusieurs possibles ; la sonde les interroge tous).
+# dc01.marchica.local
 IPAddressAllow=10.0.1.10
-# Relais SMTP de MMED (GED_SMTP_HOTE)
+# dc02.marchica.local (à décommenter avec le second contrôleur)
+#IPAddressAllow=10.0.1.11
+
+# Relais SMTP de MMED (GED_SMTP_HOTE=smtp.marchica.local)
 IPAddressAllow=10.0.1.25
+
 # Réseau de supervision (Prometheus, qui interroge le port de management)
 IPAddressAllow=10.0.20.0/24
-# NGINX (répartiteur) : réponses aux requêtes entrantes
-IPAddressAllow=10.0.30.10
+
+# NGINX (GED_PROXYS_DE_CONFIANCE) : réponses aux requêtes entrantes
+IPAddressAllow=10.0.0.10

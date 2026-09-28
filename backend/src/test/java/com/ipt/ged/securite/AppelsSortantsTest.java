@@ -37,30 +37,46 @@ class AppelsSortantsTest {
 
     private static final Path SOURCES = Path.of("src/main/java");
 
-    /** Ouverture de connexion ou lancement de processus. */
+    /**
+     * Ouverture de connexion (socket, fabrique de sockets, contexte ou client
+     * LDAP, courriel, JDBC direct), écoute réseau, résolution de nom ou
+     * lancement de processus.
+     */
     private static final Pattern PUITS = Pattern.compile(
-            "new Socket\\(|InetSocketAddress\\(|new ProcessBuilder\\(|Runtime\\.getRuntime\\(\\)\\.exec"
-            + "|java\\.net\\.http\\.HttpClient|RestTemplate|WebClient|RestClient|openConnection\\(|new URL\\("
-            + "|URL\\.of\\(|new InitialDirContext|getReadOnlyContext\\(|JavaMailSender|SocketChannel|DatagramSocket");
+            "new Socket\\(|InetSocketAddress\\(|\\.connect\\(|createSocket\\(|SocketFactory|ServerSocket"
+            + "|SocketChannel|DatagramSocket|InetAddress\\.getBy|InetAddress\\.getAllBy"
+            + "|new ProcessBuilder\\(|Runtime\\.getRuntime\\(\\)\\.exec"
+            + "|java\\.net\\.http\\.HttpClient|RestTemplate|WebClient|RestClient|openConnection\\(|URLConnection"
+            + "|new URL\\(|URL\\.of\\(|\\.toURL\\(\\)"
+            + "|InitialDirContext|InitialLdapContext|new InitialContext|getReadOnlyContext\\(|LdapContextSource"
+            + "|LdapTemplate|LDAPConnection|InMemoryDirectoryServer"
+            + "|JavaMailSender|jakarta\\.mail\\.Transport|DriverManager\\.getConnection");
 
     /** Clients HTTP génériques : interdits partout. */
     private static final Pattern CLIENT_HTTP = Pattern.compile(
-            "java\\.net\\.http\\.HttpClient|RestTemplate|WebClient|RestClient|openConnection\\(|new URL\\(|URL\\.of\\(");
+            "java\\.net\\.http\\.HttpClient|RestTemplate|WebClient|RestClient|openConnection\\(|URLConnection"
+            + "|new URL\\(|URL\\.of\\(|\\.toURL\\(\\)");
 
     /** Entrées de requête : interdites dans les classes qui ouvrent une connexion. */
     private static final Pattern ENTREE_REQUETE = Pattern.compile(
             "HttpServletRequest|MultipartFile|@RequestParam|@PathVariable|@RequestBody|@RequestHeader");
 
     /** Inventaire revu (docs/securite/REVUE-SSRF.md) : classe → destination et origine de la destination. */
-    private static final Map<String, String> INVENTAIRE = Map.of(
-            "com/ipt/ged/fichier/controle/ClientClamd.java", "clamd (TCP) : ged.fichiers.antivirus.hote/port",
-            "com/ipt/ged/supervision/SondeAntivirus.java", "clamd (TCP, sonde) : ged.fichiers.antivirus.hote/port",
-            "com/ipt/ged/identite/annuaire/AnnuaireLdap.java", "contrôleurs de domaine (LDAPS) : GED_LDAP_URLS",
-            "com/ipt/ged/identite/annuaire/ConfigurationAnnuaire.java", "contrôleurs de domaine (LDAPS) : GED_LDAP_URLS",
-            "com/ipt/ged/identite/annuaire/SondeAnnuaire.java", "contrôleurs de domaine (LDAPS, sonde) : GED_LDAP_URLS",
-            "com/ipt/ged/notification/ExpediteurCourriels.java", "relais SMTP : GED_SMTP_HOTE/PORT",
-            "com/ipt/ged/fichier/previsualisation/ConvertisseurLibreOffice.java", "processus soffice : GED_LIBREOFFICE",
-            "com/ipt/ged/ocr/moteur/MoteurTesseract.java", "processus tesseract : GED_TESSERACT");
+    private static final Map<String, String> INVENTAIRE = Map.ofEntries(
+            Map.entry("com/ipt/ged/fichier/controle/ClientClamd.java", "clamd (TCP) : ged.fichiers.antivirus.hote/port"),
+            Map.entry("com/ipt/ged/supervision/SondeAntivirus.java", "clamd (TCP, sonde) : ged.fichiers.antivirus.hote/port"),
+            Map.entry("com/ipt/ged/identite/annuaire/AnnuaireLdap.java", "contrôleurs de domaine (LDAPS) : GED_LDAP_URLS"),
+            Map.entry("com/ipt/ged/identite/annuaire/ConfigurationAnnuaire.java", "contrôleurs de domaine (LDAPS) : GED_LDAP_URLS"),
+            Map.entry("com/ipt/ged/identite/annuaire/FabriqueSocketsLdaps.java",
+                    "sockets TLS vers les contrôleurs de domaine, hôte et port fournis par JNDI depuis GED_LDAP_URLS"),
+            Map.entry("com/ipt/ged/identite/annuaire/SondeAnnuaire.java", "contrôleurs de domaine (LDAPS, sonde) : GED_LDAP_URLS"),
+            Map.entry("com/ipt/ged/identite/annuaire/SimulateurAnnuaire.java",
+                    "écoute sur la boucle locale (annuaire simulé des profils dev et test), aucun appel sortant"),
+            Map.entry("com/ipt/ged/journalisation/ConfigurationProxysDeConfiance.java",
+                    "aucune : InetAddress sur une adresse IP littérale (contrôlée), jamais de résolution DNS"),
+            Map.entry("com/ipt/ged/notification/ExpediteurCourriels.java", "relais SMTP : GED_SMTP_HOTE/PORT"),
+            Map.entry("com/ipt/ged/fichier/previsualisation/ConvertisseurLibreOffice.java", "processus soffice : GED_LIBREOFFICE"),
+            Map.entry("com/ipt/ged/ocr/moteur/MoteurTesseract.java", "processus tesseract : GED_TESSERACT"));
 
     private static Map<String, String> sources() throws IOException {
         Map<String, String> m = new TreeMap<>();
@@ -80,6 +96,21 @@ class AppelsSortantsTest {
             if (PUITS.matcher(code).find() && !INVENTAIRE.containsKey(fichier)) hors.add(fichier);
         });
         assertThat(hors).as("Appel sortant non revu : l'ajouter à docs/securite/REVUE-SSRF.md et à l'inventaire").isEmpty();
+    }
+
+    @Test
+    @DisplayName("Chaque entrée de l'inventaire est reconnue par les motifs et décrite dans la revue")
+    void inventaireJustifie() throws IOException {
+        // Une entrée qu'aucun motif ne reconnaît signale un motif manquant (ANO-E11-001) :
+        // l'inventaire ne vaut que si le test sait retrouver ce qu'il déclare.
+        Map<String, String> code = sources();
+        String revue = Files.readString(Path.of("../docs/securite/REVUE-SSRF.md"), StandardCharsets.UTF_8);
+        for (String fichier : INVENTAIRE.keySet()) {
+            assertThat(code).as(fichier).containsKey(fichier);
+            assertThat(PUITS.matcher(code.get(fichier)).find()).as(fichier + " : aucun motif ne le reconnaît").isTrue();
+            String classe = fichier.substring(fichier.lastIndexOf('/') + 1).replace(".java", "");
+            assertThat(revue).as(classe + " absent de REVUE-SSRF.md").contains(classe);
+        }
     }
 
     @Test

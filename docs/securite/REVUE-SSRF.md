@@ -4,7 +4,7 @@ Objet : vérifier qu'aucune entrée d'un utilisateur ou d'une application client
 ne peut faire émettre à la GED une requête vers une destination de son choix
 (Server-Side Request Forgery), et recenser tous les appels sortants.
 
-Date : 27/09/2026 — branche `ct/dev2`. Revue reconduite à chaque ajout d'un appel
+Date : 27/09/2026, complétée le 28/09/2026 (ANO-E11-001, ANO-E11-002) — branche `ct/dev2`. Revue reconduite à chaque ajout d'un appel
 sortant : le test `securite.AppelsSortantsTest` échoue tant que l'inventaire
 ci-dessous n'a pas été complété.
 
@@ -13,11 +13,14 @@ ci-dessous n'a pas été complété.
 | Appel | Classe | Destination | Origine de la destination | Entrée utilisateur transmise |
 |---|---|---|---|---|
 | PostgreSQL (JDBC) | pool Hikari (Spring) | `DB_HOST:DB_PORT` | configuration (`application.yml`, variables d'environnement) | requêtes paramétrées uniquement |
-| Annuaire LDAPS | `identite.annuaire.AnnuaireLdap`, `ConfigurationAnnuaire`, `SondeAnnuaire` | `GED_LDAP_URLS` | configuration | identifiant de connexion, encodé par `LdapEncoder.filterEncode` (injection LDAP) ; jamais une URL |
+| Annuaire LDAPS | `identite.annuaire.AnnuaireLdap`, `ConfigurationAnnuaire`, `SondeAnnuaire`, `FabriqueSocketsLdaps` (sockets TLS, hôte et port transmis par JNDI) | `GED_LDAP_URLS` (un ou plusieurs contrôleurs, D4) | configuration | identifiant de connexion, encodé par `LdapEncoder.filterEncode` (injection LDAP) ; jamais une URL |
 | Relais SMTP | `notification.ExpediteurCourriels` (Spring Mail) | `GED_SMTP_HOTE:GED_SMTP_PORT` | configuration | destinataire = courriel du cache d'annuaire, jamais saisi ; lien = `GED_URL_APPLICATION` + chemin interne |
 | clamd (INSTREAM) | `fichier.controle.ClientClamd`, `supervision.SondeAntivirus` | `ged.fichiers.antivirus.hote/port` | configuration | contenu du fichier, transmis comme données |
 | Tesseract (processus) | `ocr.moteur.MoteurTesseract` | exécutable `GED_TESSERACT` | configuration | image rendue par la GED, sur l'entrée standard |
 | LibreOffice (processus) | `fichier.previsualisation.ConvertisseurLibreOffice` (aperçu, copie PDF/A) | exécutable `GED_LIBREOFFICE` | configuration | fichier copié sous un nom fixe (`document.<ext>`, `source.<ext>`) dans un répertoire temporaire créé par la GED |
+| Flux local vers LibreOffice | `ConvertisseurLibreOffice` lance `soffice` sur le même serveur | processus enfant (aucune connexion réseau de la GED vers LibreOffice : ligne de commande et fichiers du répertoire de travail) | configuration | document déposé, converti tel quel : LibreOffice lit donc un contenu choisi par le déposant (§3) |
+| Annuaire simulé | `identite.annuaire.SimulateurAnnuaire` | aucune : écoute sur la boucle locale, profils dev et test seulement | configuration de test | — |
+| Proxys de confiance | `journalisation.ConfigurationProxysDeConfiance` | aucune : `InetAddress` sur une adresse IP littérale, refus d'un nom d'hôte (pas de résolution DNS) | configuration | — |
 | Coffre de clés (KEK) | `fichier.cles.KeystoreKeyProvider` | fichier PKCS#12 local | configuration | aucune |
 | veraPDF (validation PDF/A) | `cycledevie.conservation.ValidateurVeraPdf` | aucune (bibliothèque en processus) | — | copie produite par la GED |
 
@@ -33,8 +36,13 @@ requête.
    l'inventaire ne reçoivent ni `HttpServletRequest`, ni fichier envoyé, ni
    paramètre de contrôleur (vérifié par `AppelsSortantsTest`) ; hôtes, ports et
    commandes viennent de `@ConfigurationProperties` lues au démarrage.
-2. **Inventaire fermé** : toute nouvelle ouverture de socket, de processus ou de
-   connexion LDAP hors de l'inventaire fait échouer `AppelsSortantsTest`.
+2. **Inventaire fermé** : toute nouvelle ouverture de socket (y compris par une
+   fabrique `SocketFactory` / `createSocket`), écoute, résolution de nom, contexte
+   ou client LDAP (`LdapContextSource`, `InitialLdapContext`, `LDAPConnection`),
+   conversion d'URI en URL (`toURL()`), courriel, connexion JDBC directe ou
+   processus hors de l'inventaire fait échouer `AppelsSortantsTest`. Réciproquement,
+   chaque entrée de l'inventaire doit être reconnue par un motif du test et
+   figurer dans ce document (`inventaireJustifie`) : un motif manquant se voit.
 3. **Arguments de processus** : chemins absolus créés par la GED (pas de nom
    fourni par l'utilisateur, donc pas d'argument commençant par `-`), liste
    d'arguments sans interpréteur de commandes (`ProcessBuilder`, jamais `sh -c`).
@@ -45,9 +53,14 @@ requête.
 
 | Risque | Mesure |
 |---|---|
-| Un document Office déposé référence une ressource externe (image liée, lien OLE) que LibreOffice tente de charger pendant la conversion | Filtrage des sorties du service par systemd (`deploiement/systemd/ged-backend.service.d/sorties.conf.exemple`, `IPAddressDeny=any` + destinations d'exploitation), qui s'applique aux processus enfants ; profil LibreOffice jetable par conversion |
+| Un document Office déposé référence une ressource externe (image liée, lien OLE) que LibreOffice tente de charger pendant la conversion | (1) `deploiement/libreoffice/ged-securite.xcd`, couche de configuration imposée : ressources liées d'un document non approuvé bloquées, macros désactivées ; (2) filtrage des sorties du service par systemd (`sorties.conf.exemple`, `IPAddressDeny=any` + destinations d'exploitation), qui s'applique aux processus enfants ; profil LibreOffice jetable par conversion |
+| Le filtre n'accepte que des adresses, la configuration désigne des noms d'hôtes | Résolveurs DNS de MMED autorisés (ou noms figés dans `/etc/hosts`) ; une ligne par contrôleur de domaine ; `deploiement/scripts/verifier-sorties.sh` résout chaque nom de `ged.env` comme la JVM et échoue si une adresse n'est pas autorisée (à lancer à l'installation et à chaque changement d'adresse) |
+| **Risque résiduel déclaré** (acceptation par MMED) : la boucle locale reste autorisée (clamd local) ; LibreOffice, processus enfant, peut donc joindre ce qui y écoute | L'API (`SERVER_ADDRESS`) et Actuator (`GED_MANAGEMENT_ADRESSE`) écoutent sur l'adresse du serveur, non autorisée par le filtre : sur la boucle ne reste que clamd, dont le protocole (`zINSTREAM`, `zPING`) ignore une requête HTTP ; rien d'autre ne doit écouter sur la boucle locale de `ged-app`. Parade complète si MMED l'exige : clamd sur un serveur distinct et retrait de `localhost` du filtre |
 | Entités externes XML (XXE) dans les métadonnées XMP d'un PDF analysé par PDFBox / veraPDF | Analyse sur la copie produite par la GED ; même filtrage réseau ; bibliothèques tenues à jour (OWASP Dependency-Check en CI) |
 | Destination de configuration modifiée par un tiers | Fichier d'environnement 0400 propriété de `ged` (`deploiement/systemd`), `/etc/ged` en lecture seule pour le service |
 
-Vérifié par test automatisé : points 2.1 et 2.2. Vérifié sur le papier : le
-filtrage systemd (pas de systemd sur le poste de développement).
+Vérifié par test automatisé : points 2.1 et 2.2 ; `verifier-sorties.sh` éprouvé
+avec un résolveur simulé (noms résolus, contrôleur ajouté sans ligne de filtre,
+résolveur non autorisé). Vérifié sur le papier : le filtrage systemd et la
+configuration LibreOffice (ni systemd ni LibreOffice sur le poste de
+développement) ; contrôle à l'installation dans `EXPLOITATION.md` §12.
