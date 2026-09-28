@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301070_usage_espace_noeud.xml">
+
+    <!--
+        Espace de partage simple (R-03, décision D12) : un espace est METIER
+        (défaut) ou ECHANGE. Dans un espace d'échange, les membres habilités
+        créent librement dossiers et sous-dossiers et déposent ; aucune édition
+        en ligne (télécharger, modifier localement, verser une nouvelle
+        version). Un dossier a toujours l'usage de son espace : la base le
+        recopie à l'insertion, au déplacement et quand l'espace change d'usage.
+    -->
+    <changeSet id="202609301070-1" author="ged">
+        <comment>Usage des espaces (métier ou échange), hérité par les dossiers.</comment>
+        <addColumn tableName="noeud">
+            <column name="usage_espace" type="VARCHAR(10)" defaultValue="METIER"><constraints nullable="false"/></column>
+        </addColumn>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.noeud ADD CONSTRAINT ck_noeud_usage_espace CHECK (usage_espace IN ('METIER', 'ECHANGE'))</sql>
+        <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.noeud_chemin() RETURNS trigger LANGUAGE plpgsql AS $corps$
+DECLARE
+    parent RECORD;
+BEGIN
+    IF NEW.parent_id IS NULL THEN
+        NEW.chemin := '/' || NEW.id::text || '/';
+        NEW.nature := 'ESPACE';
+    ELSE
+        SELECT n.chemin, n.usage_espace INTO parent FROM ${database.defaultSchemaName}.noeud n WHERE n.id = NEW.parent_id;
+        IF parent.chemin IS NULL THEN
+            RAISE EXCEPTION 'Noeud parent introuvable : %', NEW.parent_id USING ERRCODE = 'foreign_key_violation';
+        END IF;
+        IF position('/' || NEW.id::text || '/' IN parent.chemin) > 0 THEN
+            RAISE EXCEPTION 'Un noeud ne peut pas etre deplace dans sa propre descendance' USING ERRCODE = 'check_violation';
+        END IF;
+        NEW.chemin := parent.chemin || NEW.id::text || '/';
+        NEW.nature := 'DOSSIER';
+        -- Un dossier a l'usage de son espace (métier ou échange).
+        NEW.usage_espace := parent.usage_espace;
+    END IF;
+    RETURN NEW;
+END
+$corps$]]></sql>
+        <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.noeud_chemin_enfants() RETURNS trigger LANGUAGE plpgsql AS $corps$
+BEGIN
+    IF NEW.chemin IS DISTINCT FROM OLD.chemin OR NEW.usage_espace IS DISTINCT FROM OLD.usage_espace THEN
+        UPDATE ${database.defaultSchemaName}.noeud SET chemin = NEW.chemin || id::text || '/', usage_espace = NEW.usage_espace
+         WHERE parent_id = NEW.id;
+    END IF;
+    RETURN NULL;
+END
+$corps$]]></sql>
+        <sql>DROP TRIGGER trg_noeud_chemin ON ${database.defaultSchemaName}.noeud</sql>
+        <sql>DROP TRIGGER trg_noeud_chemin_enfants ON ${database.defaultSchemaName}.noeud</sql>
+        <sql>CREATE TRIGGER trg_noeud_chemin BEFORE INSERT OR UPDATE OF parent_id, usage_espace ON ${database.defaultSchemaName}.noeud FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.noeud_chemin()</sql>
+        <sql>CREATE TRIGGER trg_noeud_chemin_enfants AFTER UPDATE OF chemin, usage_espace ON ${database.defaultSchemaName}.noeud FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.noeud_chemin_enfants()</sql>
+        <rollback>
+            <sql>DROP TRIGGER trg_noeud_chemin_enfants ON ${database.defaultSchemaName}.noeud</sql>
+            <sql>DROP TRIGGER trg_noeud_chemin ON ${database.defaultSchemaName}.noeud</sql>
+            <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.noeud_chemin() RETURNS trigger LANGUAGE plpgsql AS $corps$
+DECLARE
+    chemin_parent VARCHAR(4000);
+BEGIN
+    IF NEW.parent_id IS NULL THEN
+        NEW.chemin := '/' || NEW.id::text || '/';
+        NEW.nature := 'ESPACE';
+    ELSE
+        SELECT n.chemin INTO chemin_parent FROM ${database.defaultSchemaName}.noeud n WHERE n.id = NEW.parent_id;
+        IF chemin_parent IS NULL THEN
+            RAISE EXCEPTION 'Noeud parent introuvable : %', NEW.parent_id USING ERRCODE = 'foreign_key_violation';
+        END IF;
+        IF position('/' || NEW.id::text || '/' IN chemin_parent) > 0 THEN
+            RAISE EXCEPTION 'Un noeud ne peut pas etre deplace dans sa propre descendance' USING ERRCODE = 'check_violation';
+        END IF;
+        NEW.chemin := chemin_parent || NEW.id::text || '/';
+        NEW.nature := 'DOSSIER';
+    END IF;
+    RETURN NEW;
+END
+$corps$]]></sql>
+            <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.noeud_chemin_enfants() RETURNS trigger LANGUAGE plpgsql AS $corps$
+BEGIN
+    IF NEW.chemin IS DISTINCT FROM OLD.chemin THEN
+        UPDATE ${database.defaultSchemaName}.noeud SET chemin = NEW.chemin || id::text || '/' WHERE parent_id = NEW.id;
+    END IF;
+    RETURN NULL;
+END
+$corps$]]></sql>
+            <sql>CREATE TRIGGER trg_noeud_chemin BEFORE INSERT OR UPDATE OF parent_id ON ${database.defaultSchemaName}.noeud FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.noeud_chemin()</sql>
+            <sql>CREATE TRIGGER trg_noeud_chemin_enfants AFTER UPDATE OF chemin ON ${database.defaultSchemaName}.noeud FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.noeud_chemin_enfants()</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.noeud DROP CONSTRAINT ck_noeud_usage_espace</sql>
+            <dropColumn tableName="noeud" columnName="usage_espace"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

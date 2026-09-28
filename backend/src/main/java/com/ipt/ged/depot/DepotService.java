@@ -55,6 +55,17 @@ public class DepotService {
     public ResultatDepot deposer(MultipartFile fichier, String nom, UUID typeDocumentId, String dateExpiration,
                                  UUID deposantId, List<UUID> etiquetteIds, Confidentialite confidentialite,
                                  String metadonneesJson) {
+        return deposer(fichier, nom, typeDocumentId, dateExpiration, deposantId, etiquetteIds, confidentialite,
+                metadonneesJson, null, null);
+    }
+
+    /**
+     * @param objet        objet du document (socle commun, lot E7)
+     * @param dateDocument date du document ; date de dépôt si absente
+     */
+    public ResultatDepot deposer(MultipartFile fichier, String nom, UUID typeDocumentId, String dateExpiration,
+                                 UUID deposantId, List<UUID> etiquetteIds, Confidentialite confidentialite,
+                                 String metadonneesJson, String objet, String dateDocument) {
         // Appelé dans une transaction englobante (tests transactionnels), les
         // deux temps la rejoignent : un temps 2 dans une transaction nouvelle
         // attendrait le document non validé du temps 1. En service (contrôleur),
@@ -62,8 +73,10 @@ public class DepotService {
         boolean englobante = TransactionSynchronizationManager.isActualTransactionActive();
         Optional<ValeurRequest> valeurs = metadonnees.lire(metadonneesJson, typeDocumentId);
 
+        // Les métadonnées sont validées une seule fois, ici (MetadonneesDepot),
+        // et écrites au temps 2 : le temps 1 ne les reçoit pas.
         DocumentResponse recu = documents.upload(fichier, nom, typeDocumentId, dateExpiration, deposantId, etiquetteIds,
-                confidentialite);
+                confidentialite, null, objet, dateDocument);
         boolean ocrEnAttente = "EN_ATTENTE_OCR".equals(recu.statutOcr());
 
         if (IssueIndexation.SANS_PLAN.name().equals(recu.statutIndexation()) || valeurs.isEmpty()) {
@@ -78,6 +91,6 @@ public class DepotService {
                     "Métadonnées non enregistrées : " + e.getMessage()), ocrEnAttente);
         }
         // Relu après le temps 2 : l'indexation a pu composer le nom (charte).
-        return new ResultatDepot(documents.get(recu.id()), ocrEnAttente);
+        return new ResultatDepot(documents.relire(recu.id()), ocrEnAttente);
     }
 }

@@ -1,8 +1,9 @@
 package com.ipt.ged.index;
 
 /**
- * Type de saisie d'un champ d'index (repris de CCISTTA : texte / nombre / date / liste).
+ * Nature d'un index (méta-modèle §12.7) : texte, nombre, date, liste de valeurs
+ * ou booléen.
  */
 public enum IndexFieldType {
-    TEXTE, NOMBRE, DATE, LISTE
+    TEXTE, NOMBRE, DATE, LISTE, BOOLEEN
 }

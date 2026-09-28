@@ -25,6 +25,15 @@ public record WorkSpaceRequest(
 
         UUID parentId,
 
-        @NotNull(message = "La règle de workflow est obligatoire")
-        UUID workflowId
+        /**
+         * Règle de workflow du nœud (§12.8) ; facultative : un dossier sans
+         * règle suit celle de ses ancêtres.
+         */
+        UUID workflowId,
+
+        /**
+         * Usage d'un ESPACE (R-03, D12) : METIER (défaut) ou ECHANGE. Ignoré pour
+         * un dossier, qui a toujours l'usage de son espace.
+         */
+        com.ipt.ged.workspace.UsageEspace usageEspace
 ) {}

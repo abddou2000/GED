@@ -47,9 +47,10 @@ export class WorkspaceForm implements OnInit {
     code: ['', Validators.required],
     name: ['', Validators.required],
     description: [''],
-    workflowId: [null, Validators.required],
+    workflowId: [null as string | null],
     employeId: [null, Validators.required],
     parentId: [null as string | null],
+    usageEspace: ['METIER'],
     status: ['ACTIF', Validators.required],
   });
 
@@ -71,7 +72,7 @@ export class WorkspaceForm implements OnInit {
       this.form.patchValue({
         code: w.code, name: w.name, description: w.description ?? '',
         workflowId: w.workflow?.id ?? null, employeId: w.owner?.id ?? null,
-        parentId: w.parent?.id ?? null, status: w.status,
+        parentId: w.parent?.id ?? null, status: w.status, usageEspace: w.usageEspace ?? 'METIER',
       });
     } else if (this.data.parentId != null) {
       this.hideParent = true;
@@ -90,6 +91,7 @@ export class WorkspaceForm implements OnInit {
       code: v.code, name: v.name, description: v.description || null,
       status: v.status, employeId: v.employeId,
       parentId: v.parentId ?? null, workflowId: v.workflowId,
+      usageEspace: v.parentId ? undefined : v.usageEspace,
     };
     this.loading.set(true);
     const call = this.data.workspace

@@ -93,7 +93,7 @@ abstract class BaseCycleDeVieApiTest {
     }
 
     protected UUID fichierCourant(UUID documentId) {
-        return jdbc.queryForObject("SELECT cle_fichier_id FROM version_document WHERE document_id = ? AND is_default",
+        return jdbc.queryForObject("SELECT cle_fichier_id FROM version_document WHERE document_id = ? AND courante",
                 UUID.class, documentId);
     }
 

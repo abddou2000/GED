@@ -6,7 +6,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { SessionService } from '../../core/session.service';
 import { AuthService } from '../../core/auth.service';
 import { BrandLogo } from '../../core/brand-logo/brand-logo';
-import { SignatureService } from '../../features/signature/signature.service';
+import { CircuitService } from '../../features/workflow/circuit.service';
 import { NotificationsService } from '../../features/notifications/notifications.service';
 
 /**
@@ -29,7 +29,7 @@ export class Shell implements AfterViewInit {
   protected session = inject(SessionService);
   protected auth = inject(AuthService);
   private router = inject(Router);
-  private signatures = inject(SignatureService);
+  private signatures = inject(CircuitService);
   protected notifications = inject(NotificationsService);
 
   protected drawerOpen = signal(false);
@@ -83,7 +83,7 @@ export class Shell implements AfterViewInit {
   private readonly titles: Record<string, string> = {
     'accueil': 'Accueil',
     'televerser': 'Documents déposés',
-    'mes-workflow': 'Mes workflow',
+    'mes-workflow': 'Mes validations',
     'espaces-de-travail': 'Espaces de travail',
     'regles-de-workflow': 'Règles de Workflow',
     'groupe-d-acces': "Groupe d'accès",
@@ -157,8 +157,8 @@ export class Shell implements AfterViewInit {
    *  un badge périmé vaut mieux qu'une erreur en travers de la navigation. */
   private recompterAtraiter(): void {
     if (this.auth.sansRole()) return;   // aucun circuit accessible sans rôle
-    this.signatures.pending().subscribe({
-      next: l => this.pendingCount.set(l.length),
+    this.signatures.nombreATraiter().subscribe({
+      next: n => this.pendingCount.set(n),
       error: () => { /* silencieux */ },
     });
   }

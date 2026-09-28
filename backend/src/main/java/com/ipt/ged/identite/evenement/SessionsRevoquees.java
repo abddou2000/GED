@@ -17,8 +17,14 @@ import java.util.UUID;
 public record SessionsRevoquees(UUID utilisateurId, UUID parUtilisateurId, MotifRevocation motifRevocation,
                                 int nombre, Instant instant) implements EvenementAudit {
 
+    /**
+     * Une déconnexion est tracée comme telle ({@code DECONNEXION}, catalogue
+     * §3.4.1, ANO-E4-003) ; les autres révocations gardent leur code.
+     */
     @Override
-    public String action() { return "SESSIONS_REVOQUEES"; }
+    public String action() {
+        return motifRevocation == MotifRevocation.DECONNEXION ? "DECONNEXION" : "SESSIONS_REVOQUEES";
+    }
 
     @Override
     public String objetType() { return "UTILISATEUR"; }

@@ -154,14 +154,14 @@
           <ul class="decisions">
             @for (s of decisions(); track s.id) {
               <li>
-                <span class="fico" [class.ko]="s.status === 'REJECTED'">
-                  <mat-icon [svgIcon]="s.status === 'SIGNED' ? 'sign' : 'reject'"></mat-icon>
+                <span class="fico" [class.ko]="s.decision === 'REFUSE'">
+                  <mat-icon [svgIcon]="s.decision === 'VALIDE' ? 'sign' : 'reject'"></mat-icon>
                 </span>
                 <span class="d-txt">
-                  <span class="d-nom">{{ s.document?.label }}</span>
-                  <span class="d-sous">{{ s.status === 'SIGNED' ? 'Signé' : 'Refusé' }} · {{ s.stepLabel }}</span>
+                  <span class="d-nom">{{ s.document }}</span>
+                  <span class="d-sous">{{ s.decision === 'VALIDE' ? 'Validé' : 'Refusé' }} · {{ s.libelle }}</span>
                 </span>
-                <span class="d-quand">{{ quand(s.signedAt) }}</span>
+                <span class="d-quand">{{ quand(s.le) }}</span>
               </li>
             }
           </ul>

@@ -15,6 +15,8 @@ import com.ipt.ged.typedocument.TypeDocument;
 import com.ipt.ged.typedocument.TypeDocumentRepository;
 import com.ipt.ged.workflow.WorkflowGed;
 import com.ipt.ged.workflow.WorkflowRepository;
+import com.ipt.ged.workflow.WorkflowStep;
+import com.ipt.ged.workflow.circuit.ReglesApplicables;
 import com.ipt.ged.workspace.WorkSpace;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import com.ipt.ged.workspace.WorkspaceStatus;
@@ -26,6 +28,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.security.test.context.support.WithUserDetails;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -67,6 +71,8 @@ class ContratApiTest {
     @Autowired private EmployeRepository employes;
     @Autowired private WorkSpaceRepository noeuds;
     @Autowired private TypeDocumentRepository types;
+    @Autowired private ReglesApplicables regles;
+    @Autowired private PlatformTransactionManager transactions;
 
     private UUID espace;
     private UUID type;
@@ -117,8 +123,23 @@ class ContratApiTest {
                 .andExpect(jsonPath("$.parent.id").value(espace.toString()))
                 .andReturn();
         UUID dossier = UUID.fromString(om.readTree(r.getResponse().getContentAsString()).get("id").asText());
-        assertThat(jdbc.queryForObject("SELECT workflow_ged_id FROM noeud WHERE id = ?", UUID.class, dossier))
-                .isEqualTo(jdbc.queryForObject("SELECT workflow_ged_id FROM noeud WHERE id = ?", UUID.class, espace));
+        // Circuit hérité (E8, §12.8) : le dossier ne porte aucune règle propre, et la
+        // règle qui s'applique à un dépôt dans le dossier est celle de l'espace.
+        assertThat(jdbc.queryForObject("SELECT regle_workflow_id FROM noeud WHERE id = ?", UUID.class, dossier))
+                .isNull();
+        UUID regleEspace = jdbc.queryForObject("SELECT regle_workflow_id FROM noeud WHERE id = ?", UUID.class, espace);
+        new TransactionTemplate(transactions).executeWithoutResult(t -> {
+            // Une règle n'est applicable qu'avec au moins un validateur.
+            WorkflowGed wf = workflows.findById(regleEspace).orElseThrow();
+            wf.addStep(new WorkflowStep(employes.findById(jeu.employeId(Comptes.ADMIN)).orElseThrow(), "Validation", 1));
+            workflows.saveAndFlush(wf);
+            ReglesApplicables.RegleApplicable applicable = regles.pour(null, noeuds.findById(dossier).orElseThrow())
+                    .orElseThrow();
+            assertThat(applicable.origine()).isEqualTo(ReglesApplicables.Origine.NOEUD);
+            assertThat(applicable.origineId()).isEqualTo(espace);
+            assertThat(applicable.regle().getId()).isEqualTo(regleEspace);
+            t.setRollbackOnly();
+        });
         assertThat(jdbc.queryForObject("SELECT code FROM noeud WHERE id = ?", String.class, dossier)).startsWith("DOS-");
 
         mvc.perform(post("/api/v1/noeuds/" + espace + "/dossiers").contentType(APPLICATION_JSON)

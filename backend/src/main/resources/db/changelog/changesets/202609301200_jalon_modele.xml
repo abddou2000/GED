@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301200_jalon_modele.xml">
+
+    <!-- Jalon de fin du lot E7, partie modèle (méta-modèle, versions, verrou, déplacement, espaces d'échange). -->
+    <changeSet id="202609301200-1" author="ged">
+        <tagDatabase tag="modele-e7"/>
+    </changeSet>
+
+</databaseChangeLog>

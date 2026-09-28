@@ -111,3 +111,21 @@ button.mat-mdc-outlined-button.bulk-rejeter {
 .page > .card > .mat-mdc-paginator {
   flex: 0 0 auto; border-top: 1px solid var(--line);
 }
+
+/* ---------- Validateurs défaillants (Administrateur) ----------
+   Tableau simple, saisie en ligne : on choisit le remplaçant et on motive
+   sans quitter la liste. */
+.aide { margin: 14px 18px 4px; color: var(--muted); font-size: 13px; max-width: 900px; }
+table.anomalies { width: 100%; border-collapse: collapse; }
+table.anomalies th, table.anomalies td {
+  padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px;
+}
+table.anomalies th { color: var(--muted); font-weight: 600; }
+table.anomalies mat-select { min-width: 180px; }
+table.anomalies input.motif {
+  width: 100%; min-width: 180px; padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: 6px; font: inherit;
+}
+.pill.st-off { opacity: .7; }
+a.titre-doc { text-decoration: none; }
+a.titre-doc:hover { text-decoration: underline; }

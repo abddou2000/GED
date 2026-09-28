@@ -10,6 +10,11 @@ import com.ipt.ged.document.UploadDocumentRepository;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.identite.RoleRepository;
+import com.ipt.ged.index.IndexField;
+import com.ipt.ged.index.IndexFieldType;
+import com.ipt.ged.index.IndexRepository;
+import com.ipt.ged.planindexation.PlanIndexation;
+import com.ipt.ged.planindexation.PlanIndexationRepository;
 import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.security.UtilisateurConnecte;
 import com.ipt.ged.typedocument.TypeDocument;
@@ -44,6 +49,10 @@ public class JeuDroits {
     private final RoleRepository roles;
     private final ServiceHabilitations habilitations;
     private final IdentitesDeTest identites;
+    @org.springframework.beans.factory.annotation.Autowired
+    private IndexRepository indexRepo;
+    @org.springframework.beans.factory.annotation.Autowired
+    private PlanIndexationRepository planRepo;
 
     public JeuDroits(WorkSpaceRepository noeuds, TypeDocumentRepository types, UploadDocumentRepository documents,
                      WorkflowRepository workflows, EmployeRepository employes, UtilisateurRepository utilisateurs,
@@ -149,5 +158,29 @@ public class JeuDroits {
 
     public UtilisateurRepository utilisateurs() {
         return utilisateurs;
+    }
+
+    /* ---------------------------------------------------------------- méta-modèle (E7) */
+
+    /** Index au code unique (préfixe conservé, pour les critères). */
+    public IndexField index(String prefixe, IndexFieldType nature, boolean obligatoire, String valeurs) {
+        IndexField f = new IndexField(unique(prefixe).toUpperCase().replace('-', '_'), prefixe);
+        f.setFieldType(nature);
+        f.setObligatoire(obligatoire);
+        f.setValeurs(valeurs);
+        f.setIndexePourRecherche(true);
+        return indexRepo.saveAndFlush(f);
+    }
+
+    /** Plan composé des index donnés, rattaché au type. */
+    public PlanIndexation planPour(UUID typeId, IndexField... indices) {
+        PlanIndexation p = new PlanIndexation(unique("PL"), "Plan " + unique("p"));
+        p.getIndices().addAll(java.util.List.of(indices));
+        p.setManuel(true);
+        PlanIndexation plan = planRepo.saveAndFlush(p);
+        TypeDocument t = types.findById(typeId).orElseThrow();
+        t.setPlanIndexation(plan);
+        types.saveAndFlush(t);
+        return plan;
     }
 }

@@ -86,4 +86,10 @@ r="$(verifier)"; grep -q '"anomalies":\[\]' <<< "${r:3}" || info "ATTENTION : ch
 curl -s "$GED_URL/api/v1/audit/evenements?action=AUDIT_VERIFIE&taille=5" -H "Authorization: Bearer $JETON" -o "$T/e"
 grep -q '"action":"AUDIT_VERIFIE"' "$T/e" && resultat E4-S05 OK "Chaque vérification est elle-même tracée (AUDIT_VERIFIE) [7.4.2]" \
                                          || resultat E4-S05 ECHEC "Vérification tracée (AUDIT_VERIFIE)" "$(head -c 200 "$T/e")"
+# Bornes numériques de chaque scellement = min / max réels de sa période (ANO-E4-004).
+ecarts="$(owner "SELECT count(*) FILTER (WHERE s.premier_numero IS DISTINCT FROM p.mn OR s.dernier_numero IS DISTINCT FROM p.mx OR s.nombre <> p.nb) || '|' || count(*) || '|' || coalesce(max(p.mx),0) FROM journal_audit_scellement s CROSS JOIN LATERAL (SELECT min(id) mn, max(id) mx, count(*) nb FROM journal_audit j WHERE j.horodatage >= s.periode_debut AND j.horodatage < s.periode_fin) p")"
+IFS='|' read -r nko ntot nmax <<< "$ecarts"
+[[ "$nko" == 0 && "${ntot:-0}" -gt 0 ]] \
+  && resultat E4-S06 OK "Premier et dernier numéros de chaque scellement = min / max numériques de la période [7.4.2, ANO-E4-004]" "$ntot scellement(s), plus grand numéro scellé $nmax" \
+  || resultat E4-S06 ECHEC "Bornes numériques des scellements [7.4.2, ANO-E4-004]" "$nko scellement(s) sur $ntot aux bornes fausses"
 bilan "E4 scellement $BASE"

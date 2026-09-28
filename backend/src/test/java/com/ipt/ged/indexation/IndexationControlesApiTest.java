@@ -162,7 +162,7 @@ class IndexationControlesApiTest {
     }
 
     @Test
-    @DisplayName("2c. Un document verrouillé refuse l'indexation, comme il refuse déjà PUT /documents/{id}")
+    @DisplayName("2c. Un document verrouillé refuse l'indexation (409), comme il refuse déjà PUT /documents/{id}")
     void documentVerrouille() throws Exception {
         UUID doc = deposer("Facture verrouillée");
         mvc.perform(patch("/api/v1/documents/" + doc + "/verrou").param("verrouille", "true"))
@@ -175,8 +175,9 @@ class IndexationControlesApiTest {
                         .content("{\"valeurs\":["
                                 + "{\"indexFieldId\":\"" + idFournisseur + "\",\"valeur\":\"ACME\"},"
                                 + "{\"indexFieldId\":\"" + idMontant + "\",\"valeur\":\"100\"}]}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail", containsString("errouill")));
+                // Lot E7 (§12.8) : refus en 409 DOCUMENT_VERROUILLE, comme toute écriture.
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DOCUMENT_VERROUILLE"));
 
         org.junit.jupiter.api.Assertions.assertEquals("Facture verrouillée", nomDu(doc));
     }

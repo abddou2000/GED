@@ -3,10 +3,10 @@ import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { Encart } from './encart';
 import { SessionService } from '../../../../core/session.service';
-import { SignatureService } from '../../../signature/signature.service';
-import { Signature } from '../../../signature/signature.model';
+import { CircuitService } from '../../../workflow/circuit.service';
+import { ATraiter } from '../../../workflow/circuit.model';
 
-/** Les documents qui attendent la signature de la personne connectée. */
+/** Les documents qui attendent la décision de la personne connectée (§12.8). */
 @Component({
   selector: 'app-w-a-valider',
   imports: [RouterLink, MatIconModule, Encart],
@@ -15,14 +15,14 @@ import { Signature } from '../../../signature/signature.model';
                 [compteur]="total() || null" [chargement]="chargement()">
       @if (lignes().length) {
         <ul class="liste">
-          @for (s of lignes(); track s.id) {
+          @for (s of lignes(); track s.validateurId) {
             <li class="ligne">
               <span class="pastille d-ambre"><mat-icon svgIcon="nav-type"></mat-icon></span>
               <span class="txt">
-                <span class="nom">{{ s.document?.label }}</span>
+                <span class="nom">{{ s.document }}</span>
                 <span class="sous">
-                  <span class="etape"><span class="rang">{{ s.stepOrder }}</span>{{ s.stepLabel }}</span>
-                  @if (s.workspace) { <span class="meta">{{ s.workspace }}</span> }
+                  <span class="meta">{{ s.libelle }}</span>
+                  @if (s.initiateur) { <span class="meta">{{ s.initiateur }}</span> }
                 </span>
               </span>
               <a class="action" routerLink="/mes-workflow">
@@ -35,7 +35,7 @@ import { Signature } from '../../../signature/signature.model';
         <div class="vide">
           <span class="vide-ic ok"><mat-icon svgIcon="nav-mesworkflow"></mat-icon></span>
           <span class="vide-titre">Vous êtes à jour</span>
-          <span class="vide-sous">Aucun document n'attend votre signature.</span>
+          <span class="vide-sous">Aucun document n'attend votre décision.</span>
         </div>
       }
     </app-encart>`,
@@ -43,10 +43,10 @@ import { Signature } from '../../../signature/signature.model';
 })
 export class WAValider {
   private session = inject(SessionService);
-  private signatures = inject(SignatureService);
+  private circuits = inject(CircuitService);
 
   protected readonly chargement = signal(true);
-  private readonly attente = signal<Signature[]>([]);
+  private readonly attente = signal<ATraiter[]>([]);
 
   /* Le compteur porte le TOTAL, pas le nombre de lignes montrées : c'est le
      chiffre qui a un sens pour la personne, et « Tout voir » mène au reste.
@@ -60,7 +60,7 @@ export class WAValider {
       // de quelles signatures on parle.
       if (this.session.user()?.id == null) return;
       this.chargement.set(true);
-      this.signatures.pending().subscribe({
+      this.circuits.aTraiter().subscribe({
         next: l => { this.attente.set(l); this.chargement.set(false); },
         error: () => this.chargement.set(false),
       });

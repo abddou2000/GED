@@ -166,23 +166,22 @@ class VersionConcurrenceTest {
     }
 
     @Test
-    @DisplayName("1b. Un document déjà abîmé (deux versions principales) se répare par l'API au lieu d'échouer pour toujours")
-    void etatAbimeReparable() {
+    @DisplayName("1b. L'état abîmé (deux versions courantes) est désormais IMPOSSIBLE : la base le refuse (§12.8)")
+    void etatAbimeImpossible() {
         UUID docId = deposer("abime.pdf");
         service.ajouterVersion(docId, fichier("v2.pdf"), "deuxième");
 
-        // On recrée à la main l'état que la course produisait : DEUX principales.
+        // On tente de recréer à la main l'état que la course produisait : DEUX
+        // courantes. L'index unique partiel uk_version_document_courante refuse,
+        // quel que soit le chemin d'écriture.
         List<DocumentVersion> toutes = versionRepository.findByDocumentIdOrderByIdDesc(docId);
         assertEquals(2, toutes.size());
         toutes.forEach(v -> v.setPrincipale(true));
-        versionRepository.saveAll(toutes);
-        assertEquals(2, principales(docId).size(), "l'état abîmé n'a pas été reproduit");
-
-        // Avant correction : findByDocumentIdAndPrincipaleTrue renvoyait un
-        // Optional et levait NonUniqueResultException — 500 définitif, aucune
-        // route ne permettant de remettre le drapeau d'aplomb.
+        assertThrows(org.springframework.dao.DataIntegrityViolationException.class,
+                () -> versionRepository.saveAllAndFlush(toutes));
+        assertEquals(1, principales(docId).size());
         assertDoesNotThrow(() -> service.get(docId));
-        assertDoesNotThrow(() -> service.ajouterVersion(docId, fichier("reparation.pdf"), "réparation"));
-        assertEquals(1, principales(docId).size(), "l'état abîmé n'a pas été réparé");
+        assertEquals(List.of(2, 1), versionRepository.findByDocumentIdOrderByIdDesc(docId).stream()
+                .map(DocumentVersion::getNumero).toList(), "numéros dans l'ordre de versement");
     }
 }

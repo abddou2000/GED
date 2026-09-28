@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { AuthService } from '../../../core/auth.service';
+import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
@@ -21,6 +22,7 @@ import { IndexationService } from '../../indexation/indexation.service';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { formaterDate, versDate, versIso } from '../../../core/dates';
+import { CircuitDocument } from '../../workflow/circuit-document/circuit-document';
 import { CycleDeVieService } from '../../cycle-de-vie/cycle-de-vie.service';
 import { Conservation } from '../../cycle-de-vie/cycle-de-vie.model';
 
@@ -42,6 +44,7 @@ interface ValeurIndex {
   imports: [
     RouterLink, ReactiveFormsModule, MatButtonModule, MatIconModule, MatTooltipModule,
     MatFormFieldModule, MatInputModule, MatDatepickerModule, MatSelectModule, MatSlideToggleModule, MatTableModule,
+    CircuitDocument,
   ],
   templateUrl: './document-detail.html',
   styleUrl: './document-detail.scss',
@@ -62,6 +65,10 @@ export class DocumentDetail implements OnInit {
   conservation = signal<Conservation | null>(null);
   archivageEnCours = signal(false);
 
+  protected auth = inject(AuthService);
+
+  /** Carte du circuit : rechargée avec la fiche (un versement rend les décisions caduques). */
+  @ViewChild(CircuitDocument) circuit?: CircuitDocument;
   id = signal<string | null>(null);
   doc = signal<DocumentItem | null>(null);
   etiquettes = signal<Etiquette[]>([]);
@@ -119,6 +126,7 @@ export class DocumentDetail implements OnInit {
     if (id == null) return;
     this.chargement.set(true);
     this.introuvable.set(false);
+    this.circuit?.charger();
     this.service.get(id).subscribe({
       next: d => {
         this.doc.set(d);
@@ -261,7 +269,10 @@ export class DocumentDetail implements OnInit {
     const id = this.id();
     const d = this.doc();
     if (id == null || !d) return;
-    this.service.verrou(id, !d.verrouille).subscribe({
+    // Le motif du verrou est conservé et affiché (§12.8).
+    const motif = d.verrouille ? null : window.prompt('Motif du verrou :', '');
+    if (!d.verrouille && motif === null) return;
+    this.service.verrou(id, !d.verrouille, motif).subscribe({
       next: maj => {
         this.doc.set(maj);
         this.appliquerVerrou(!this.modifiable);

@@ -97,6 +97,16 @@ export interface DroitsEffectifs {
   voirConfidentiel: boolean;
 }
 
+/** Ancien lien groupe / espace consigné par la reprise, sans droit associé. */
+export interface LienRepris {
+  groupeId: string;
+  groupe: string;
+  noeudId: string;
+  noeud: string;
+  reprisLe: string;
+  habilitationPosee: boolean;
+}
+
 export interface Option {
   id: string;
   name: string;
@@ -157,6 +167,10 @@ export class DroitsService {
     if (noeudId) params = params.set('noeudId', noeudId);
     if (documentId) params = params.set('documentId', documentId);
     return this.http.get<DroitsEffectifs>(`${this.base}/droits-effectifs`, { params });
+  }
+
+  liensRepris(): Observable<LienRepris[]> {
+    return this.http.get<LienRepris[]>(`${this.base}/reprise/liens-groupes`);
   }
 
   identites(): Observable<IdentiteAdmin[]> {

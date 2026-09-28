@@ -106,6 +106,25 @@ objets:
   PageResultatsResultat: Document trouvé, avec son extrait surligné (plein texte).
   ArchivageServiceResultat: Issue de l'archivage d'un document.
   Segment: Morceau d'extrait ; à afficher comme du texte, surligné s'il correspond à la recherche.
+  # --- Modèle (E7) et workflow de validation (E8), dev1 ----------------------
+  Critere: Critère de recherche sur une métadonnée du plan (valeur, ou bornes pour une date ou un nombre).
+  Requete: Recherche de documents par métadonnées (§12.7), date du document en tri prioritaire.
+  Demande: Re-typologisation de documents vers un autre type (correspondance des champs, §12.7).
+  JobRetypage: Travail de re-typologisation en traitement de fond, avec son rapport par document.
+  LienRepris: Ancien lien groupe / espace consigné par la reprise, sans droit associé.
+  CircuitResponse: Circuit de validation d'un document, validateurs parallèles et décisions (§12.8).
+  Validateur: Validateur d'un circuit, nommé ou par rôle, avec son état sur la version courante.
+  DecisionVue: Décision rendue dans un circuit, jamais modifiée.
+  DemandeDecision: Décision d'un validateur (VALIDE, REFUSE avec motif, ANNULEE).
+  DemandeMotif: Motif d'une annulation de circuit.
+  DemandeReaffectation: Réaffectation d'un validateur défaillant par l'Administrateur.
+  DemandeDiffusion: Diffusion d'un document validé à des personnes et à des groupes, sans copie.
+  ResultatDiffusion: Résultat d'une diffusion.
+  DemandeRattachement: Rattachement d'une règle de workflow à un nœud ou à un type ; nul pour détacher.
+  RegleDocument: Règle de workflow qui s'appliquerait au document, et son origine.
+  ATraiter: Validation attendue de l'acteur.
+  DecisionRendue: Décision rendue par l'acteur (historique).
+  VuesWorkflowAnomalie: Validateur qui ne peut pas décider (tableau de bord de l'Administrateur).
 
 champs:
   # --- Envoi multipart -------------------------------------------------------
@@ -435,8 +454,81 @@ champs:
   signaturesEnAttente: {description: "Nombre de validations attendues de l'utilisateur.", exemple: 2}
   signaturesTraitees: {description: "Nombre de validations rendues par l'utilisateur.", exemple: 30}
 
+  # --- Modèle (E7) et workflow de validation (E8), dev1 ----------------------
+  objet: {description: "Objet du document (socle commun, §12.7).", exemple: "Marché de travaux de voirie"}
+  dateDocument: {description: "Date du document (AAAA-MM-JJ) ; date de dépôt si absente.", exemple: "2026-09-01"}
+  echeanceConservation: {description: "Échéance de conservation calculée par la base (§12.9) ; nulle sans durée.", exemple: "2036-09-01"}
+  verrouLe: {description: "Date de pose du verrou ; nulle sans verrou.", exemple: "2026-09-30T08:00:00Z"}
+  verrouMotif: {description: "Motif du verrou ; nul sans verrou.", exemple: "Contrôle fiscal"}
+  numero: {description: "Numéro de la version, à partir de 1.", exemple: 2}
+  auteurId: {description: "Identité GED de l'auteur de la version.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  confidentialiteDefaut: {description: "Niveau de confidentialité par défaut des dépôts du type (PUBLIC, PRIVE, CONFIDENTIEL).", exemple: PUBLIC}
+  dureeConservationMois: {description: "Durée de conservation en mois ; nulle si non définie.", exemple: 120}
+  pointDepart: {description: "Point de départ de la conservation : DATE_DOCUMENT, DATE_DEPOT ou METADONNEE.", exemple: DATE_DOCUMENT}
+  pointDepartIndexCode: {description: "Code de l'index date du plan qui sert de point de départ (METADONNEE).", exemple: DATE_FACTURE}
+  regleWorkflow: {description: "Règle de workflow rattachée au type, s'il y en a une.", exemple: null}
+  versionPlan: {description: "Numéro de la version en vigueur du plan d'indexation du type.", exemple: 3}
+  usageEspace: {description: "Usage de l'espace : METIER ou ECHANGE (espace de partage, hérité par les dossiers).", exemple: METIER}
+  sourceTypeDocumentId: {description: "Type de document d'origine.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  cibleTypeDocumentId: {description: "Type de document cible.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  correspondance: {description: "Correspondance code d'index d'origine vers code d'index cible.", exemple: {NUM_FACT: NUM_FACTURE}}
+  documentIds: {description: "Documents concernés ; tous les documents du type d'origine si absent.", exemple: null}
+  selection: {description: "Documents sélectionnés ; nul pour tous les documents du type d'origine.", exemple: null}
+  reussis: {description: "Documents traités avec succès.", exemple: 118}
+  rapport: {description: "Rapport par document (issue et motif d'un échec).", exemple: null}
+  demandeurUtilisateurId: {description: "Identité GED qui a demandé le traitement.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  debutLe: {description: "Début du traitement.", exemple: "2026-09-30T08:00:00Z"}
+  finLe: {description: "Fin du traitement ; nulle s'il est en cours.", exemple: "2026-09-30T08:05:00Z"}
+  groupeId: {description: "Identifiant du groupe GED.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  groupe: {description: "Nom du groupe GED.", exemple: "AG-COMPTA"}
+  reprisLe: {description: "Date de la reprise des données.", exemple: "2026-10-01T08:00:00Z"}
+  habilitationPosee: {description: "Vrai si le groupe porte déjà une habilitation sur ce nœud.", exemple: false}
+  circuitId: {description: "Identifiant du circuit de validation.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  validateurId: {description: "Identifiant du validateur dans le circuit.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  regleId: {description: "Identifiant de la règle de workflow.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  regle: {description: "Nom de la règle de workflow d'origine.", exemple: "Validation DAF"}
+  initiateur: {description: "Personne qui a ouvert le circuit (déposant).", exemple: "Sara Bennani"}
+  ouvertLe: {description: "Ouverture du circuit.", exemple: "2026-09-30T08:00:00Z"}
+  closLe: {description: "Clôture du circuit ; nulle s'il est en cours.", exemple: "2026-10-02T10:00:00Z"}
+  annulePar: {description: "Personne qui a annulé le circuit.", exemple: "Sara Bennani"}
+  annuleLe: {description: "Date d'annulation du circuit.", exemple: "2026-10-01T09:00:00Z"}
+  motifAnnulation: {description: "Motif de l'annulation du circuit.", exemple: "Document remplacé"}
+  versionCouranteId: {description: "Version courante, sur laquelle portent les décisions qui comptent.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  versionCouranteNumero: {description: "Numéro de la version courante.", exemple: 2}
+  versionNumero: {description: "Numéro de la version concernée.", exemple: 2}
+  validateurs: {description: "Validateurs du circuit, tous sollicités en même temps (aucun ordre).", exemple: null}
+  decisions: {description: "Décisions rendues, jamais modifiées.", exemple: null}
+  peutDecider: {description: "Vrai si l'acteur peut rendre une décision maintenant.", exemple: true}
+  peutAnnuler: {description: "Vrai si l'acteur (initiateur ou Administrateur) peut annuler le circuit.", exemple: false}
+  perimetreNoeudId: {description: "Périmètre du validateur par rôle (nœud) ; nul pour un rôle global.", exemple: null}
+  employe: {description: "Nom de l'employé validateur.", exemple: "Karim Alaoui"}
+  derniereDecision: {description: "Date de la dernière décision du validateur sur la version courante.", exemple: "2026-10-01T09:00:00Z"}
+  reaffecteDe: {description: "Validateur remplacé par l'Administrateur, s'il y a lieu.", exemple: "Nadia Tazi"}
+  reaffectePar: {description: "Administrateur qui a réaffecté le validateur.", exemple: "Sara Bennani"}
+  reaffecteLe: {description: "Date de la réaffectation.", exemple: "2026-10-01T09:00:00Z"}
+  motifReaffectation: {description: "Motif de la réaffectation.", exemple: "Validateur absent"}
+  decision: {description: "Décision : VALIDE, REFUSE ou ANNULEE.", exemple: VALIDE}
+  auteur: {description: "Personne qui a rendu la décision.", exemple: "Karim Alaoui"}
+  applicationId: {description: "Application qui a transmis la décision pour le compte de l'auteur ; nulle depuis l'interface.", exemple: null}
+  le: {description: "Date de la décision.", exemple: "2026-10-01T09:00:00Z"}
+  caduque: {description: "Vrai si la décision porte sur une version antérieure (un versement la rend caduque).", exemple: false}
+  statutCircuit: {description: "Statut du circuit : EN_COURS, VALIDE, REFUSE ou ANNULE.", exemple: EN_COURS}
+  utilisateurIds: {description: "Identités GED destinataires.", exemple: ["0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"]}
+  groupeIds: {description: "Groupes GED destinataires.", exemple: null}
+  habilitationsPosees: {description: "Nombre d'habilitations de lecture posées.", exemple: 3}
+  origine: {description: "Origine de la règle : TYPE ou NOEUD.", exemple: TYPE}
+  origineId: {description: "Identifiant du type ou du nœud qui porte la règle.", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
+  anomalie: {description: "Anomalie : SANS_IDENTITE, SANS_DROIT, INACTIF ou AUCUN_PORTEUR.", exemple: SANS_DROIT}
+  depuis: {description: "Depuis quand l'anomalie est constatée.", exemple: "2026-09-01T00:00:00Z"}
+
 surcharges:
   DocumentResponse.applicationId: {description: "Application appelante (clé d'API) ; nulle pour un dépôt par l'interface (T-040).", exemple: null}
+  CircuitResponse.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}
+  DecisionRendue.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}
+  VuesWorkflowAnomalie.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}
+  ATraiter.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}
+  CircuitResponse.statut: {description: "Statut du circuit : EN_COURS, VALIDE, REFUSE ou ANNULE.", exemple: EN_COURS}
+  JobRetypage.statut: {description: "État du traitement (EN_ATTENTE, EN_COURS, TERMINE…).", exemple: TERMINE}
   WorkSpaceRequest.status: {description: "État de l'espace : ACTIF, INACTIF ou ARCHIVE.", exemple: "ACTIF"}
   TreeNode.status: {description: "État de l'espace : ACTIF, INACTIF ou ARCHIVE.", exemple: "ACTIF"}
   SignatureResponse.status: {description: "État de l'étape : PENDING (en attente), SIGNED (validée), REJECTED (refusée).", exemple: "PENDING"}
@@ -512,6 +604,13 @@ surcharges:
 
 # Paramètres de chemin et de requête, par nom.
 parametres:
+  objet: Objet du document (socle commun, §12.7).
+  dateDocument: "Date du document (AAAA-MM-JJ) ; date de dépôt si absente."
+  motif: Motif du verrou (500 caractères au plus).
+  actif: Vrai pour réactiver le type de document, faux pour le désactiver (plus aucun dépôt).
+  circuitId: Identifiant du circuit de validation.
+  validateurId: Identifiant du validateur dans le circuit.
+  typeId: Identifiant du type de document.
   id: Identifiant opaque (UUID) de l'objet.
   cleId: Identifiant de la clé d'API.
   documentId: Identifiant du document.
@@ -555,6 +654,9 @@ parametres:
 
 # Corps sans schéma nommé (Map côté contrôleur), reconnus par la fin du chemin.
 corps:
+  /emplacement:
+    description: "Déplacer le document vers un autre dossier (Déplacer sur le document, Déposer sur la destination)."
+    exemple: {noeudId: 0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f}
   multiple-delete:
     description: Identifiants des objets à placer dans la corbeille.
     exemple: {ids: [0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f]}

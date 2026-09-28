@@ -29,7 +29,7 @@ import java.util.UUID;
  *       ({@code ControleFichiers.FichierInfecte}).</li>
  * </ul>
  */
-public sealed interface EvenementDocument extends EvenementAudit permits DocumentDepose, VersionAjoutee, VersionRestauree,
+public sealed interface EvenementDocument extends EvenementAudit permits DocumentDepose, DocumentConsulte, VersionAjoutee, VersionRestauree,
         DocumentTelecharge, ApercuConsulte, MetadonneesModifiees, VerrouModifie, DocumentSupprime,
         DocumentRestaure, ContenuIndexe, OcrEnEchec, DocumentPurge, DocumentArchive, DocumentDesarchive,
         DocumentExporte {

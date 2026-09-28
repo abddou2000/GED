@@ -10,12 +10,12 @@
 WITH controles(ordre, controle, attendu, obtenu) AS (
     -- 1. Complétude : autant de lignes de chaque côté.
               SELECT 1, 'lignes employe',                 (SELECT count(*) FROM reprise_source.employes),               (SELECT count(*) FROM employe)
-    UNION ALL SELECT 3, 'lignes workflow_ged',            (SELECT count(*) FROM reprise_source.workflow_ged),           (SELECT count(*) FROM workflow_ged)
-    UNION ALL SELECT 4, 'lignes workflow_ged_etape',      (SELECT count(*) FROM reprise_source.workflow_ged_steps),     (SELECT count(*) FROM workflow_ged_etape)
+    UNION ALL SELECT 3, 'lignes regle_workflow',          (SELECT count(*) FROM reprise_source.workflow_ged),           (SELECT count(*) FROM regle_workflow)
+    UNION ALL SELECT 4, 'lignes regle_validateur',        (SELECT count(*) FROM reprise_source.workflow_ged_steps),     (SELECT count(*) FROM regle_validateur)
     UNION ALL SELECT 5, 'lignes noeud',                   (SELECT count(*) FROM reprise_source.work_spaces),            (SELECT count(*) FROM noeud)
     UNION ALL SELECT 6, 'lignes groupe_ged',              (SELECT count(*) FROM reprise_source.access_groups),          (SELECT count(*) FROM groupe_ged)
-    UNION ALL SELECT 7, 'habilitations de groupe',        (SELECT count(*) FROM (SELECT DISTINCT access_group_id, workspace_id FROM reprise_source.pivot_workspace_groups) p),
-                                                          (SELECT count(*) FROM habilitation WHERE sujet_type = 'GROUPE' AND noeud_id IS NOT NULL)
+    UNION ALL SELECT 7, 'liens groupe / espace au rapport', (SELECT count(*) FROM (SELECT DISTINCT access_group_id, workspace_id FROM reprise_source.pivot_workspace_groups) p),
+                                                          (SELECT count(*) FROM reprise_lien_groupe_espace)
     UNION ALL SELECT 8, 'lignes groupe_membre',           (SELECT count(*) FROM reprise_source.pivot_employe_groups),   (SELECT count(*) FROM groupe_membre)
     UNION ALL SELECT 9, 'lignes etiquette',               (SELECT count(*) FROM reprise_source.etiquettes),             (SELECT count(*) FROM etiquette)
     UNION ALL SELECT 10, 'lignes index_def',              (SELECT count(*) FROM reprise_source.indices),                (SELECT count(*) FROM index_def)
@@ -26,7 +26,9 @@ WITH controles(ordre, controle, attendu, obtenu) AS (
     UNION ALL SELECT 15, 'lignes version_document',       (SELECT count(*) FROM reprise_source.document_versions),      (SELECT count(*) FROM version_document)
     UNION ALL SELECT 16, 'lignes document_etiquette',     (SELECT count(*) FROM reprise_source.pivot_document_etiquettes), (SELECT count(*) FROM document_etiquette)
     UNION ALL SELECT 17, 'lignes document_index_valeur',  (SELECT count(*) FROM reprise_source.document_index_values),  (SELECT count(*) FROM document_index_valeur)
-    UNION ALL SELECT 18, 'lignes workflow_ged_signature', (SELECT count(*) FROM reprise_source.workflow_ged_signatures), (SELECT count(*) FROM workflow_ged_signature)
+    UNION ALL SELECT 18, 'signatures -> circuit_validateur', (SELECT count(*) FROM reprise_source.workflow_ged_signatures), (SELECT count(*) FROM circuit_validateur)
+    UNION ALL SELECT 19, 'signatures traitées -> decision', (SELECT count(*) FROM reprise_source.workflow_ged_signatures WHERE status IN ('SIGNED', 'REJECTED')),
+                                                          (SELECT count(*) FROM decision)
 
     -- 2. Références facultatives perdues : un ancien id qui ne désignait
     --    aucune ligne existante devient NULL sans bloquer la reprise.
@@ -62,8 +64,9 @@ WITH controles(ordre, controle, attendu, obtenu) AS (
           WHERE d.created_at IS DISTINCT FROM s.created_at AT TIME ZONE 'UTC')
     UNION ALL SELECT 34, 'documents en corbeille', (SELECT count(*) FROM reprise_source.documents_file WHERE deleted),
         (SELECT count(*) FROM document WHERE supprime)
-    UNION ALL SELECT 35, 'versions principales', (SELECT count(*) FROM reprise_source.document_versions WHERE is_default),
-        (SELECT count(*) FROM version_document WHERE is_default)
+    UNION ALL SELECT 35, 'une version courante par document versionné',
+        (SELECT count(DISTINCT document_id) FROM reprise_source.document_versions),
+        (SELECT count(*) FROM version_document WHERE courante)
     UNION ALL SELECT 36, 'jetons de charte encore numériques et désignant un index', 0::bigint,
         (SELECT count(*) FROM plan_indexation p,
                 LATERAL jsonb_array_elements_text(

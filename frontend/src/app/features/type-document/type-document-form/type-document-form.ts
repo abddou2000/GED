@@ -6,7 +6,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { TypeDocumentService } from '../type-document.service';
-import { FILE_TYPES, TypeDocument, TypeDocumentRequest } from '../type-document.model';
+import { FILE_TYPES, TypeDocument, TypeDocumentRequest, POINTS_DEPART } from '../type-document.model';
 import { WorkspaceService } from '../../workspace/workspace.service';
 import { SelectOption } from '../../workspace/workspace.model';
 import { PlanIndexationService } from '../../plan-indexation/plan-indexation.service';
@@ -50,7 +50,13 @@ export class TypeDocumentForm implements OnInit {
     planIndexationId: [null as string | null],
     typeAutorise: [[] as string[], Validators.required],
     tailleMaxMo: [10, [Validators.required, Validators.min(5)]],
+    dureeConservationMois: [null as number | null, [Validators.min(1), Validators.max(1200)]],
+    pointDepart: ['DATE_DOCUMENT'],
+    pointDepartIndexCode: [null as string | null],
+    confidentialiteDefaut: ['PUBLIC'],
   });
+
+  readonly pointsDepart = POINTS_DEPART;
 
   get isEdit(): boolean { return !!this.data.type; }
 
@@ -64,6 +70,8 @@ export class TypeDocumentForm implements OnInit {
         code: t.code, typeDeDocument: t.typeDeDocument, description: t.description,
         workspaceId: t.workspace?.id ?? null, planIndexationId: t.planIndexation?.id ?? null,
         typeAutorise: t.typeAutorise, tailleMaxMo: t.tailleMaxMo,
+        dureeConservationMois: t.dureeConservationMois ?? null, pointDepart: t.pointDepart ?? 'DATE_DOCUMENT',
+        pointDepartIndexCode: t.pointDepartIndexCode ?? null, confidentialiteDefaut: t.confidentialiteDefaut ?? 'PUBLIC',
       });
     }
   }
@@ -79,6 +87,10 @@ export class TypeDocumentForm implements OnInit {
       code: v.code, typeDeDocument: v.typeDeDocument, description: v.description,
       workspaceId: v.workspaceId, planIndexationId: v.planIndexationId ?? null,
       typeAutorise: v.typeAutorise ?? [], tailleMaxMo: v.tailleMaxMo,
+      // Renvoyés à chaque modification : les omettre effacerait la conservation du type.
+      dureeConservationMois: v.dureeConservationMois || null, pointDepart: v.pointDepart ?? 'DATE_DOCUMENT',
+      pointDepartIndexCode: v.pointDepart === 'METADONNEE' ? v.pointDepartIndexCode : null,
+      confidentialiteDefaut: v.confidentialiteDefaut ?? null,
     };
     this.loading.set(true);
     const call = this.data.type

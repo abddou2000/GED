@@ -78,7 +78,9 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, FiltreJwt filtreJwt,
-                                           Environment environnement) throws Exception {
+                                           Environment environnement,
+                                           com.ipt.ged.common.erreur.ReponsesSecuriteProblem reponses)
+            throws Exception {
         // Documentation de l'API fermée en production ET en recette (uat), qui
         // partagent les mêmes contrôles de sécurité.
         boolean horsProduction = !exploitation(environnement);
@@ -86,8 +88,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // 401 et 403 de la chaîne de filtres au format problem+json (contrat
+                // d'erreurs de dev2), avec trace d'audit des refus.
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                        .authenticationEntryPoint(reponses)
+                        .accessDeniedHandler(reponses))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh",

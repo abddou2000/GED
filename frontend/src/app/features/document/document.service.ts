@@ -3,7 +3,7 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Observable, tap } from 'rxjs';
 import { API_BASE } from '../../core/api';
 import { DocumentItem, DocumentRequest, PageResult } from './document.model';
-import { SignatureService } from '../signature/signature.service';
+import { CircuitService } from '../workflow/circuit.service';
 
 /**
  * Le minimum à connaître d'un document pour le télécharger : son identifiant,
@@ -72,7 +72,7 @@ export class DocumentService {
   /* Le compteur d'étapes à traiter vit dans le service des signatures : c'est
      lui qui prévient la coque. Les écritures documentaires le touchent parce
      qu'un dépôt ouvre un circuit — l'écran appelant n'a rien à y penser. */
-  private signatures = inject(SignatureService);
+  private signatures = inject(CircuitService);
   private url = `${API_BASE}/documents`;
 
   /** `workspaceId` restreint la liste aux documents d'un dossier — le serveur
@@ -108,9 +108,11 @@ export class DocumentService {
     return this.http.put<DocumentItem>(`${this.url}/${id}`, body);
   }
 
-  /** Verrouille ou libere le document. */
-  verrou(id: string, verrouille: boolean): Observable<DocumentItem> {
-    return this.http.patch<DocumentItem>(`${this.url}/${id}/verrou`, {}, { params: { verrouille } });
+  /** Verrouille (avec un motif) ou libère le document — réservé à l'Administrateur (§12.8). */
+  verrou(id: string, verrouille: boolean, motif?: string | null): Observable<DocumentItem> {
+    const params: Record<string, string | boolean> = { verrouille };
+    if (motif) params['motif'] = motif;
+    return this.http.patch<DocumentItem>(`${this.url}/${id}/verrou`, {}, { params });
   }
 
   /** Depose une nouvelle version : l'ancienne reste consultable. */

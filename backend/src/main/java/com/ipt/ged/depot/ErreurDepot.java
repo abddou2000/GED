@@ -23,12 +23,15 @@ public class ErreurDepot extends ErreurFichierException {
         super(statut, code, message);
     }
 
-    static ErreurDepot invalides(Map<String, String> erreurs) {
-        StringBuilder detail = new StringBuilder("Métadonnées refusées par le plan d'indexation :");
-        erreurs.forEach((champ, motif) -> detail.append(' ').append(champ).append(' ').append(motif));
-        ErreurDepot e = new ErreurDepot(HttpStatus.BAD_REQUEST, METADONNEES_INVALIDES, detail.toString());
-        e.avec("erreurs", Map.copyOf(erreurs));
-        return e;
+    /**
+     * Même refus que la modification des métadonnées (lot modèle) : un seul
+     * type d'erreur pour « métadonnées refusées par le plan », rendu par le
+     * gestionnaire commun des {@code ExceptionMetier} avec le dictionnaire
+     * {@code erreurs} (le gestionnaire des erreurs de fichier, lui, ne porte
+     * pas les membres d'extension).
+     */
+    static com.ipt.ged.planindexation.metamodele.MetadonneesInvalidesException invalides(Map<String, String> erreurs) {
+        return new com.ipt.ged.planindexation.metamodele.MetadonneesInvalidesException(erreurs);
     }
 
     static ErreurDepot tropVolumineuses(int limite) {

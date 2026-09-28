@@ -69,9 +69,20 @@ public class DocumentVersion extends Auditable {
     @Column(columnDefinition = "text")
     private String observation;
 
-    /** Version servie au téléchargement (une seule par document). */
-    @Column(name = "is_default", nullable = false)
+    /**
+     * Version COURANTE (§12.8) : servie au téléchargement, une seule par
+     * document — garantie par l'index unique partiel uk_version_document_courante.
+     */
+    @Column(name = "courante", nullable = false)
     private boolean principale = false;
+
+    /** Numéro d'ordre dans le document (1, 2, …), attribué au versement. */
+    @Column(name = "numero", nullable = false, updatable = false)
+    private int numero;
+
+    /** Identité GED de l'auteur du versement. */
+    @Column(name = "auteur_id", updatable = false)
+    private UUID auteurId;
 
     public DocumentVersion(UploadDocument document, String fileName, String extension, long sizeKo,
                            String observation, boolean principale) {

@@ -52,10 +52,15 @@ import java.util.stream.Collectors;
  *       ajoute les ancêtres de ces nœuds, réduits à leur libellé de passage.
  *       Hors périmètre : 404.</li>
  *   <li>Écriture (§12.5) : créer un espace ou gérer n'importe quel nœud exige
- *       la permission d'administration {@code GERER_ESPACES} ; à défaut, créer
- *       un dossier exige Déposer sur le parent, renommer Modifier, archiver
- *       Archiver, supprimer / restaurer Supprimer, déplacer Déplacer sur le
- *       nœud et Déposer sur la destination.</li>
+ *       la permission d'administration {@code GERER_ESPACES} ; à défaut,
+ *       renommer exige Modifier, archiver Archiver, supprimer / restaurer
+ *       Supprimer, déplacer Déplacer sur le nœud et Déposer sur la
+ *       destination. Créer un dossier : dans un espace MÉTIER, c'est la
+ *       gestion des espaces ; dans un espace d'ÉCHANGE (R-03, D12), les membres
+ *       habilités (Déposer sur le parent) créent librement dossiers et
+ *       sous-dossiers.</li>
+ *   <li>Renommage : nom unique parmi les nœuds vivants du même parent (409
+ *       {@code NOM_DEJA_UTILISE}).</li>
  *   <li>Toute modification de l'arborescence incrémente
  *       {@code version_habilitations} : les droits hérités suivent
  *       immédiatement.</li>
@@ -78,6 +83,10 @@ public class WorkSpaceService {
     private final VersionHabilitations version;
     private final HabilitationRepository habilitations;
     private final AccessGroupRepository groupes;
+    /** Portée des clés d'API (lot intégration), résolue à l'usage. */
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<com.ipt.ged.cleapi.ControlePorteeApplication>
+            porteeApplications;
 
     public WorkSpaceService(WorkSpaceRepository repo, EmployeRepository employeRepository,
                             WorkflowRepository workflowRepository, AccessPredicate droits, ControleAcces controle,
@@ -133,9 +142,16 @@ public class WorkSpaceService {
     public WorkSpaceResponse create(WorkSpaceRequest req) {
         if (req.parentId() == null) {
             controle.exigerAdministration(CodePermission.GERER_ESPACES);
-        } else {
-            exiger(CodePermission.DEPOSER, req.parentId());
+        } else if (!gestionnaire()) {
+            WorkSpace parent = repo.findById(req.parentId())
+                    .orElseThrow(() -> new EntityNotFoundException("Dossier parent introuvable : " + req.parentId()));
+            controle.exigerSurNoeud(CodePermission.DEPOSER, parent.getId());
+            if (parent.getUsageEspace() != UsageEspace.ECHANGE && !creationParApplication(parent.getId())) {
+                // Espace métier : son organisation relève de la gestion des espaces.
+                controle.exigerAdministration(CodePermission.GERER_ESPACES);
+            }
         }
+        exigerNomLibre(req.name(), req.parentId(), null);
         if (repo.existsByCodeIgnoreCase(req.code())) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
         }
@@ -160,6 +176,9 @@ public class WorkSpaceService {
         if (!Objects.equals(ancienParent, req.parentId())) {
             // Changer de parent par la fiche est un déplacement : mêmes droits.
             verifierDeplacement(id, req.parentId());
+        }
+        if (!req.name().trim().equalsIgnoreCase(w.getName()) || !Objects.equals(ancienParent, req.parentId())) {
+            exigerNomLibre(req.name(), req.parentId(), id);
         }
         w.setName(req.name());
         w.setCode(req.code());
@@ -246,8 +265,10 @@ public class WorkSpaceService {
             }
             WorkSpace parent = repo.findById(newParentId)
                     .orElseThrow(() -> new EntityNotFoundException("Dossier parent introuvable : " + newParentId));
+            exigerNomLibre(w.getName(), newParentId, id);
             w.setParent(parent);
         } else {
+            exigerNomLibre(w.getName(), null, id);
             w.setParent(null);
         }
         // Le chemin de toute la sous-arborescence est recalculé par la base.
@@ -336,6 +357,24 @@ public class WorkSpaceService {
         return controle.administre(CodePermission.GERER_ESPACES);
     }
 
+    /**
+     * Une application dont la clé porte l'opération {@code CREATION_DOSSIER} sur
+     * le parent (portée posée par l'Administrateur, DAT §5.4) crée des dossiers
+     * dans un espace métier : cette portée est la décision de gestion des
+     * espaces pour l'intégration. Seule la portée de la clé est lue ici ; les
+     * droits (ceux de la personne déléguée compris) ont déjà été exigés par
+     * {@code AccessPredicate} (Déposer sur le parent).
+     */
+    private boolean creationParApplication(UUID parentId) {
+        if (!(SecurityContextHolder.getContext().getAuthentication()
+                instanceof com.ipt.ged.cleapi.ApplicationAuthentifiee application)) return false;
+        com.ipt.ged.cleapi.ControlePorteeApplication portee =
+                porteeApplications != null ? porteeApplications.getIfAvailable() : null;
+        if (portee == null) return false;
+        portee.verifier(application, com.ipt.ged.cleapi.OperationApi.CREATION_DOSSIER, parentId);
+        return true;
+    }
+
     /** Nœuds où l'appelant détient au moins une permission. */
     private Set<UUID> couverts() {
         return droits.noeudsVisibles(SecurityContextHolder.getContext().getAuthentication()).entrySet().stream()
@@ -344,7 +383,7 @@ public class WorkSpaceService {
 
     private void exigerCouvert(UUID id) {
         if (!gestionnaire() && !couverts().contains(id)) {
-            throw new HorsPerimetreException("Espace de travail introuvable : " + id);
+            throw controle.horsPerimetre("NOEUD", id, "Espace de travail introuvable : " + id);
         }
     }
 
@@ -381,15 +420,34 @@ public class WorkSpaceService {
                 .map(WorkSpace::getId).collect(Collectors.toSet());
     }
 
+    /**
+     * Unicité du nom parmi les nœuds vivants d'un même parent (les espaces
+     * entre eux) : 409 NOM_DEJA_UTILISE (§12.5).
+     */
+    private void exigerNomLibre(String nom, UUID parentId, UUID sauf) {
+        String n = nom == null ? "" : nom.trim();
+        boolean pris = repo.findAll((r, q, cb) -> cb.and(
+                        cb.isFalse(r.get("supprime")),
+                        cb.equal(cb.lower(r.get("name")), n.toLowerCase()),
+                        parentId == null ? cb.isNull(r.get("parent")) : cb.equal(r.get("parent").get("id"), parentId),
+                        sauf == null ? cb.conjunction() : cb.notEqual(r.get("id"), sauf)))
+                .stream().findAny().isPresent();
+        if (pris) {
+            throw new com.ipt.ged.autorisation.ConflitAutorisationException("NOM_DEJA_UTILISE",
+                    "Un dossier « " + n + " » existe déjà à cet emplacement.");
+        }
+    }
+
     private void apply(WorkSpace w, WorkSpaceRequest req) {
         w.setDescription(req.description());
+        if (req.usageEspace() != null) w.setUsageEspace(req.usageEspace());
         w.setStatus(req.status() != null ? req.status() : WorkspaceStatus.ACTIF);
 
         Employe owner = employeRepository.findById(req.employeId())
                 .orElseThrow(() -> new EntityNotFoundException("Employé introuvable : " + req.employeId()));
         w.setOwner(owner);
 
-        WorkflowGed workflow = workflowRepository.findById(req.workflowId())
+        WorkflowGed workflow = req.workflowId() == null ? null : workflowRepository.findById(req.workflowId())
                 .orElseThrow(() -> new EntityNotFoundException("Règle de workflow introuvable : " + req.workflowId()));
         w.setWorkflow(workflow);
 

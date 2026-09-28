@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610021110_circuit_decision.xml">
+
+    <!--
+        Circuits (§12.8) : au dépôt, copie FIGÉE de la règle applicable
+        (circuit + circuit_validateur) ; la modification ultérieure de la règle
+        ne le rejoue jamais. Décisions (VALIDE, REFUSE avec motif obligatoire,
+        ANNULEE) sur une VERSION du document, sans ordre imposé. Statut du
+        circuit recalculé à chaque décision ou versement. Un seul circuit non
+        annulé par document ; après annulation, un nouveau peut être ouvert.
+        Réaffectation d'un validateur en attente par l'Administrateur (D1,
+        QR1), tracée sur la ligne et dans le journal.
+    -->
+    <changeSet id="202610021110-1" author="ged">
+        <comment>Circuits, validateurs figés et décisions.</comment>
+        <createTable tableName="circuit">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_circuit" nullable="false"/></column>
+            <column name="document_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="regle_workflow_id" type="UUID"/>
+            <column name="statut" type="VARCHAR(10)" defaultValue="EN_COURS"><constraints nullable="false"/></column>
+            <column name="initiateur_id" type="UUID"/>
+            <column name="ouvert_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="clos_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="annule_par" type="UUID"/>
+            <column name="annule_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="motif_annulation" type="VARCHAR(500)"/>
+        </createTable>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.circuit ADD CONSTRAINT ck_circuit_statut CHECK (statut IN ('EN_COURS', 'VALIDE', 'REFUSE', 'ANNULE') AND ((statut = 'ANNULE') = (annule_le IS NOT NULL)))</sql>
+        <addForeignKeyConstraint constraintName="fk_circuit_document" baseTableName="circuit" baseColumnNames="document_id"
+                                 referencedTableName="document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_circuit_regle_workflow" baseTableName="circuit" baseColumnNames="regle_workflow_id"
+                                 referencedTableName="regle_workflow" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint constraintName="fk_circuit_initiateur" baseTableName="circuit" baseColumnNames="initiateur_id"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint constraintName="fk_circuit_annule_par" baseTableName="circuit" baseColumnNames="annule_par"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <sql>CREATE UNIQUE INDEX uk_circuit_document_non_annule ON ${database.defaultSchemaName}.circuit (document_id) WHERE statut &lt;&gt; 'ANNULE'</sql>
+        <createIndex indexName="idx_circuit_document_id" tableName="circuit"><column name="document_id"/></createIndex>
+        <createIndex indexName="idx_circuit_regle_workflow_id" tableName="circuit"><column name="regle_workflow_id"/></createIndex>
+        <createIndex indexName="idx_circuit_initiateur_id" tableName="circuit"><column name="initiateur_id"/></createIndex>
+        <createIndex indexName="idx_circuit_annule_par" tableName="circuit"><column name="annule_par"/></createIndex>
+        <createIndex indexName="idx_circuit_statut" tableName="circuit"><column name="statut"/></createIndex>
+
+        <createTable tableName="circuit_validateur">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_circuit_validateur" nullable="false"/></column>
+            <column name="circuit_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="employe_id" type="UUID"/>
+            <column name="role_id" type="UUID"/>
+            <column name="perimetre_noeud_id" type="UUID"/>
+            <column name="libelle" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="position" type="INTEGER" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="reaffecte_de_employe_id" type="UUID"/>
+            <column name="reaffecte_par" type="UUID"/>
+            <column name="reaffecte_le" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="motif_reaffectation" type="VARCHAR(500)"/>
+        </createTable>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.circuit_validateur ADD CONSTRAINT ck_circuit_validateur_designation CHECK ((employe_id IS NULL) &lt;&gt; (role_id IS NULL) AND (perimetre_noeud_id IS NULL OR role_id IS NOT NULL))</sql>
+        <addForeignKeyConstraint constraintName="fk_circuit_validateur_circuit" baseTableName="circuit_validateur" baseColumnNames="circuit_id"
+                                 referencedTableName="circuit" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_circuit_validateur_employe" baseTableName="circuit_validateur" baseColumnNames="employe_id"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_circuit_validateur_role" baseTableName="circuit_validateur" baseColumnNames="role_id"
+                                 referencedTableName="role" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_circuit_validateur_perimetre_noeud" baseTableName="circuit_validateur" baseColumnNames="perimetre_noeud_id"
+                                 referencedTableName="noeud" referencedColumnNames="id" onDelete="SET NULL"/>
+        <addForeignKeyConstraint constraintName="fk_circuit_validateur_reaffecte_de_employe" baseTableName="circuit_validateur" baseColumnNames="reaffecte_de_employe_id"
+                                 referencedTableName="employe" referencedColumnNames="id"/>
+        <addForeignKeyConstraint constraintName="fk_circuit_validateur_reaffecte_par" baseTableName="circuit_validateur" baseColumnNames="reaffecte_par"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <createIndex indexName="idx_circuit_validateur_circuit_id" tableName="circuit_validateur"><column name="circuit_id"/></createIndex>
+        <createIndex indexName="idx_circuit_validateur_employe_id" tableName="circuit_validateur"><column name="employe_id"/></createIndex>
+        <createIndex indexName="idx_circuit_validateur_role_id" tableName="circuit_validateur"><column name="role_id"/></createIndex>
+        <createIndex indexName="idx_circuit_validateur_perimetre_noeud_id" tableName="circuit_validateur"><column name="perimetre_noeud_id"/></createIndex>
+        <createIndex indexName="idx_circuit_validateur_reaffecte_de_employe_id" tableName="circuit_validateur"><column name="reaffecte_de_employe_id"/></createIndex>
+        <createIndex indexName="idx_circuit_validateur_reaffecte_par" tableName="circuit_validateur"><column name="reaffecte_par"/></createIndex>
+
+        <createTable tableName="decision">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_decision" nullable="false"/></column>
+            <column name="circuit_validateur_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="version_id" type="UUID"/>
+            <column name="decision" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="motif" type="VARCHAR(500)"/>
+            <column name="cree_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="auteur_id" type="UUID"/>
+            <column name="application_id" type="UUID"/>
+        </createTable>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.decision ADD CONSTRAINT ck_decision_decision CHECK (decision IN ('VALIDE', 'REFUSE', 'ANNULEE') AND (decision &lt;&gt; 'REFUSE' OR (motif IS NOT NULL AND btrim(motif) &lt;&gt; '')))</sql>
+        <addForeignKeyConstraint constraintName="fk_decision_circuit_validateur" baseTableName="decision" baseColumnNames="circuit_validateur_id"
+                                 referencedTableName="circuit_validateur" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_decision_version" baseTableName="decision" baseColumnNames="version_id"
+                                 referencedTableName="version_document" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_decision_auteur" baseTableName="decision" baseColumnNames="auteur_id"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <createIndex indexName="idx_decision_circuit_validateur_id" tableName="decision"><column name="circuit_validateur_id"/></createIndex>
+        <createIndex indexName="idx_decision_version_id" tableName="decision"><column name="version_id"/></createIndex>
+        <createIndex indexName="idx_decision_auteur_id" tableName="decision"><column name="auteur_id"/></createIndex>
+        <rollback>
+            <dropTable tableName="decision"/>
+            <dropTable tableName="circuit_validateur"/>
+            <dropTable tableName="circuit"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

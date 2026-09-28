@@ -54,10 +54,12 @@ public class DepotController {
             @RequestParam(value = "expirationDate", required = false) String expirationDate,
             @RequestParam(value = "etiquetteIds", required = false) List<UUID> etiquetteIds,
             @RequestParam(value = "confidentialite", required = false) Confidentialite confidentialite,
+            @RequestParam(value = "objet", required = false) String objet,
+            @RequestParam(value = "dateDocument", required = false) String dateDocument,
             @AuthenticationPrincipal UtilisateurConnecte principal) {
         UUID deposant = principal != null ? principal.getEmployeId() : null;
         DepotService.ResultatDepot r = depot.deposer(file, name, typeDocumentId, expirationDate, deposant,
-                etiquetteIds, confidentialite, metadonnees);
+                etiquetteIds, confidentialite, metadonnees, objet, dateDocument);
         return ResponseEntity.status(r.ocrEnAttente() ? HttpStatus.ACCEPTED : HttpStatus.CREATED).body(r.document());
     }
 }

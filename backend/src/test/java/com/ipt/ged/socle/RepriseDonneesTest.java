@@ -149,9 +149,11 @@ class RepriseDonneesTest {
         // Aucun compte local ni mot de passe n'est repris (lot E2, §3.2).
         assertEquals(0, compter(c, "SELECT count(*) FROM utilisateur"));
         // Associations.
-        // Espaces couverts par un groupe : habilitations du groupe (lot E3).
-        assertEquals(3, compter(c, "SELECT count(*) FROM habilitation h JOIN groupe_ged g"
-                + " ON g.id = h.groupe_ged_id WHERE g.code = 'AG-ADMIN' AND h.noeud_id IS NOT NULL"));
+        // Espaces couverts par un groupe : consignés au rapport de reprise, jamais
+        // convertis en habilitations (décision du point 9, lot E7).
+        assertEquals(3, compter(c, "SELECT count(*) FROM reprise_lien_groupe_espace r JOIN groupe_ged g"
+                + " ON g.id = r.groupe_ged_id WHERE g.code = 'AG-ADMIN'"));
+        assertEquals(0, compter(c, "SELECT count(*) FROM habilitation WHERE sujet_type = 'GROUPE'"));
         // Chemin matérialisé calculé pour la hiérarchie reprise, parent d'id supérieur compris.
         assertEquals(texte(c, "SELECT chemin FROM noeud WHERE code = 'WS-COMPTA'")
                         + texte(c, "SELECT id::text FROM noeud WHERE code = 'WS-FACT'") + "/",

@@ -17,7 +17,9 @@ import java.util.UUID;
  * Base : /api/v1/workflowgeds
  */
 @RestController
-@RequestMapping("/api/v1/workflowgeds")
+// Chemin canonique /api/v1/workflow/regles (contrat E8-API) ; l'ancien reste
+// servi pour l'écran existant.
+@RequestMapping({"/api/v1/workflow/regles", "/api/v1/workflowgeds"})
 public class WorkflowController {
 
     private final WorkflowService service;

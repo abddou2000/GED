@@ -173,9 +173,17 @@ public class RecetteCycleDeVie extends ClientGed {
         for (var e : entrees.entrySet()) if (e.getKey().contains("export-public")) contenuPub = e.getValue();
         verif("E7-13", contenuPub != null && sha256(contenuPub).equals(sha256(Files.readAllBytes(pdf))),
                 "Fichiers de l'archive déchiffrés au fil de l'eau, identiques aux originaux [12.10]", contenuPub == null ? "entrée absente" : "");
+        long exportsAvant = compter(jdbc, "SELECT count(*) FROM job_export");
         Rep zipS = g.appel("POST", "/api/v1/exports/dossiers/" + A, tSans, null, null);
-        verif("E7-14", zipS.code() == 404, "Export d'un dossier hors périmètre : 404, ni nom ni existence révélés [6.2.3 A01, P5]",
-                "HTTP " + zipS.code() + " " + zipS.entetes().firstValue("Content-Disposition").orElse("") + ", " + zipS.octets().length + " octets");
+        Rep zipAbsent = g.appel("POST", "/api/v1/exports/dossiers/" + UUID.randomUUID(), tSans, null, null);
+        long exportsApres = compter(jdbc, "SELECT count(*) FROM job_export");
+        boolean indiscernable = zipS.code() == zipAbsent.code()
+                && masquerVariable(zipS.corps()).equals(masquerVariable(zipAbsent.corps()));
+        String dispo = zipS.entetes().firstValue("Content-Disposition").orElse("");
+        verif("E7-14", zipS.code() == 404 && dispo.isEmpty() && indiscernable && exportsAvant == exportsApres,
+                "Export d'un dossier hors périmètre : 404 indiscernable d'un dossier absent, sans archive ni export de fond [6.2.3 A01, P5, ANO-E7-001]",
+                "HTTP " + zipS.code() + " / absent " + zipAbsent.code() + ", Content-Disposition « " + dispo + " », corps identiques "
+                        + indiscernable + (jdbc == null ? " (job_export non contrôlé : GED_E7_JDBC absent)" : ", job_export " + exportsAvant + " → " + exportsApres));
 
         // ================= 4. Purge (§12.5) : destruction cryptographique
         Set<String> avant = encs(racine);
@@ -254,6 +262,21 @@ public class RecetteCycleDeVie extends ClientGed {
         buf.writeBytes(pdf);
         buf.writeBytes(("\r\n--" + f + "--\r\n").getBytes(StandardCharsets.UTF_8));
         return g.appel("POST", "/api/v1/documents/" + doc + "/versions", jeton, "multipart/form-data; boundary=" + f, buf.toByteArray());
+    }
+
+    /** Nombre de lignes (requête de comptage), -1 sans accès à la base. */
+    static long compter(String jdbc, String sql) throws Exception {
+        if (jdbc == null) return -1;
+        try (Connection c = DriverManager.getConnection(jdbc); ResultSet r = c.createStatement().executeQuery(sql)) {
+            r.next();
+            return r.getLong(1);
+        }
+    }
+
+    /** Corps problem+json sans ses parties propres à l'appel (instance, identifiants, horodatages). */
+    static String masquerVariable(String corps) {
+        return corps.replaceAll("\"(instance|traceId|timestamp|horodatage)\"\\s*:\\s*\"[^\"]*\"", "\"$1\":\"*\"")
+                .replaceAll("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "*");
     }
 
     static String id(Rep r) {

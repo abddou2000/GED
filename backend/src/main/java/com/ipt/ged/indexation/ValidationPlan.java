@@ -85,6 +85,8 @@ public final class ValidationPlan {
                 yield options.isEmpty() || options.stream().anyMatch(o -> o.equalsIgnoreCase(valeur)) ? null
                         : "n'accepte pas « " + valeur + " » (valeurs : " + String.join(", ", options) + ").";
             }
+            case BOOLEEN -> com.ipt.ged.planindexation.metamodele.ValeursMetadonnees.booleen(valeur) == null
+                    ? "attend oui / non." : null;
             case TEXTE -> null;
         };
     }

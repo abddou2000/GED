@@ -124,4 +124,26 @@
     <!-- Source et canal du dépôt (T-040, §5.1). -->
     <include file="changesets/202610011000_ajout_source_depot_document.xml" relativeToChangelogFile="true"/>
 
+    <!--
+        Lot E7 (partie modèle), point 9 et lot E8 (workflow) de dev1 : ajoutés
+        après les lots stockage, OCR, cycle de vie, exploitation et source du dépôt ;
+        workflow en 2026100211xx, après l'alignement des clés de dev2 (202610021000). Le
+        202609301045 (empreinte) est marqué exécuté sans effet quand la colonne
+        du lot stockage (202609271205) existe déjà.
+    -->
+    <include file="changesets/202609301020_conservation_type_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301030_index_def_booleen.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301040_plan_indexation_version.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301045_empreinte_version_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301050_versions_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301060_creation_table_job_retypage.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301070_usage_espace_noeud.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301200_jalon_modele.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610011000_reprise_liens_groupe_espace.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021100_regle_workflow.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021110_circuit_decision.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021120_reprise_signatures_circuits.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021130_role_lecteur_diffusion.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610021200_jalon_workflow.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

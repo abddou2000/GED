@@ -30,7 +30,7 @@ export class WRaccourcis {
   protected readonly raccourcis: Raccourci[] = [
     { libelle: 'Déposer un document', precision: 'Téléverser et lancer le circuit', icone: 'nav-upload', route: '/televerser', teinte: 'd-cramoisi' },
     { libelle: 'Créer un espace', precision: 'Nouvel espace de travail', icone: 'folder-plus', route: '/espaces-de-travail', teinte: 'd-marine' },
-    { libelle: 'Mes workflow', precision: 'Tout ce que je dois valider', icone: 'nav-mesworkflow', route: '/mes-workflow', teinte: 'd-vert' },
+    { libelle: 'Mes validations', precision: 'Tout ce que je dois valider', icone: 'nav-mesworkflow', route: '/mes-workflow', teinte: 'd-vert' },
     { libelle: 'Rechercher par index', precision: 'Retrouver un document indexé', icone: 'nav-index', route: '/index', teinte: 'd-ambre' },
   ];
 }

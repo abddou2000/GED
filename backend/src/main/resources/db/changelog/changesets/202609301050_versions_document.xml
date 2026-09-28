@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301050_versions_document.xml">
+
+    <!--
+        Versions (§12.8, décision D9) : numéro, auteur, empreinte, statut de
+        version courante. Un index unique partiel garantit UNE SEULE version
+        courante par document ; au versement, la nouvelle version devient
+        courante et l'ancienne reste dans l'historique en LECTURE SEULE — un
+        déclencheur refuse toute modification d'une version autre que son
+        statut de version courante (et le premier renseignement de son
+        empreinte par la reprise des fichiers). Toutes les versions restent
+        téléchargeables.
+
+        Reprise : is_default devient courante ; numéros dans l'ordre de dépôt ;
+        un document qui avait plusieurs versions « principales » (course
+        corrigée au lot précédent) ou aucune garde la plus récente.
+    -->
+    <changeSet id="202609301050-1" author="ged">
+        <comment>Numéro, auteur, version courante unique, historique en lecture seule.</comment>
+        <renameColumn tableName="version_document" oldColumnName="is_default" newColumnName="courante" columnDataType="BOOLEAN"/>
+        <addColumn tableName="version_document">
+            <column name="numero" type="INTEGER"/>
+            <column name="auteur_id" type="UUID"/>
+        </addColumn>
+        <sql>UPDATE ${database.defaultSchemaName}.version_document v SET numero = r.n
+               FROM (SELECT id, row_number() OVER (PARTITION BY document_id ORDER BY created_at, id) AS n
+                       FROM ${database.defaultSchemaName}.version_document) r
+              WHERE r.id = v.id</sql>
+        <sql>UPDATE ${database.defaultSchemaName}.version_document v SET courante = (v.id = (
+                 SELECT x.id FROM ${database.defaultSchemaName}.version_document x WHERE x.document_id = v.document_id
+                  ORDER BY x.courante DESC, x.numero DESC LIMIT 1))</sql>
+        <addNotNullConstraint tableName="version_document" columnName="numero" columnDataType="INTEGER"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.version_document ADD CONSTRAINT ck_version_document_numero CHECK (numero &gt; 0)</sql>
+        <addUniqueConstraint constraintName="uk_version_document_document_id_numero" tableName="version_document" columnNames="document_id, numero"/>
+        <sql>CREATE UNIQUE INDEX uk_version_document_courante ON ${database.defaultSchemaName}.version_document (document_id) WHERE courante</sql>
+        <addForeignKeyConstraint constraintName="fk_version_document_auteur" baseTableName="version_document" baseColumnNames="auteur_id"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="SET NULL"/>
+        <createIndex indexName="idx_version_document_auteur_id" tableName="version_document"><column name="auteur_id"/></createIndex>
+        <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.version_document_lecture_seule() RETURNS trigger LANGUAGE plpgsql AS $corps$
+BEGIN
+    IF NEW.document_id IS DISTINCT FROM OLD.document_id
+       OR NEW.numero IS DISTINCT FROM OLD.numero
+       OR NEW.file_name IS DISTINCT FROM OLD.file_name
+       OR NEW.auteur_id IS DISTINCT FROM OLD.auteur_id
+       OR NEW.created_at IS DISTINCT FROM OLD.created_at
+       OR (OLD.empreinte IS NOT NULL AND NEW.empreinte IS DISTINCT FROM OLD.empreinte) THEN
+        RAISE EXCEPTION 'Version % en lecture seule : seul son statut de version courante peut changer', OLD.id
+            USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+END
+$corps$]]></sql>
+        <sql>CREATE TRIGGER trg_version_document_lecture_seule BEFORE UPDATE ON ${database.defaultSchemaName}.version_document FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.version_document_lecture_seule()</sql>
+        <rollback>
+            <sql>DROP TRIGGER trg_version_document_lecture_seule ON ${database.defaultSchemaName}.version_document</sql>
+            <sql>DROP FUNCTION ${database.defaultSchemaName}.version_document_lecture_seule()</sql>
+            <dropIndex tableName="version_document" indexName="idx_version_document_auteur_id"/>
+            <dropForeignKeyConstraint baseTableName="version_document" constraintName="fk_version_document_auteur"/>
+            <sql>DROP INDEX ${database.defaultSchemaName}.uk_version_document_courante</sql>
+            <dropUniqueConstraint tableName="version_document" constraintName="uk_version_document_document_id_numero"/>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.version_document DROP CONSTRAINT ck_version_document_numero</sql>
+            <dropColumn tableName="version_document">
+                <column name="auteur_id"/>
+                <column name="numero"/>
+            </dropColumn>
+            <renameColumn tableName="version_document" oldColumnName="courante" newColumnName="is_default" columnDataType="BOOLEAN"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

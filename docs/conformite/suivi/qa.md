@@ -2,9 +2,9 @@
 
 ## Lot en cours
 
-Vague 4 : recette du lot de dev2 (E4 audit, E9 API d'intégration, notifications) et
-revérification d'ANO-E2-001, sur `conformite-technique` 30e73b3 (⊇ e8a75d9) fusionné dans `ct/qa`.
-Vagues précédentes : E1, E2, E3, E5, E6, E7 recettés.
+Vague 5 : correctifs de dev3 (a92c10d : T-040, ANO-E7-001, ANO-E5-002) et lot final de dev2
+(4d28528 : contrat §5.3.1, T-065, P-05, P-10 à P-12, P-16, P-17, ANO-E1-005, ANO-E4-004), fusionnés
+dans `ct/qa` (88af353). Vagues précédentes : E1 à E7, E4, E9, notifications. E8 attend la branche de dev1.
 
 ## Livrables
 
@@ -12,17 +12,18 @@ Vagues précédentes : E1, E2, E3, E5, E6, E7 recettés.
 |---|---|---|
 | Ligne de base | `docs/conformite/recette/LIGNE-DE-BASE.md` | 143 tests (H2, avant les vagues) |
 | Plan de recette E0–E11 | `docs/conformite/recette/PLAN-DE-RECETTE.md` | D1–D14 intégrées |
-| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-4.md` | 257 → 360 → 443 → 534 tests verts |
-| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 7 vérifiées, 8 ouvertes : ANO-E7-001, ANO-E7-002, ANO-E4-001 majeures ; ANO-E5-002, ANO-E4-002, 003, 004, ANO-E1-005 mineures |
-| E4 | `recette/e4/` : `verifier-journal.sh` (12/12), `verifier-scellement.sh` (5/5), `RecetteAudit.java` (26/29) | — |
-| E9 | `recette/e9/RecetteApi.java` | 23 OK, 2 AVERT (compte désactivé délégué, chemins du contrat à faire) |
+| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-5.md` | 257 → 360 → 443 → 534 → 552 tests verts |
+| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 11 vérifiées, 9 ouvertes : ANO-E7-002, ANO-E4-001, ANO-E9-001 majeures ; ANO-E4-002, 003, ANO-E5-003, ANO-E11-001, 002, ANO-E10-001 mineures |
+| E4 | `recette/e4/` : `verifier-journal.sh` (12/12), `verifier-scellement.sh` (6/6, S06 bornes numériques), `RecetteAudit.java` (26/29) | — |
+| E9 | `recette/e9/RecetteApi.java` | 23 OK, 2 AVERT (compte désactivé délégué ; chemins du contrat : voir ligne suivante) |
+| Contrat §5.3.1 et réception | `recette/e9/RecetteContrat.java`, `RecetteReception.java` | contrat 15/15 ; T-040 2 OK, 3 ÉCHEC (ANO-E9-001) |
 | Notifications | `recette/e8/RecetteNotifications.java` (+ `lib/SmtpSimule.java`) | 8/8, circuits et échéance NA (E8) |
 | E1 | `recette/e1/` | base vierge, rollback, catalogue, changelogs (Java), autotests |
 | E2 | `recette/e2/verifier-identite.sh` (+ `controles-identite.sql`) | 33/33 (ANO-E2-001 corrigée) |
 | E3 | `recette/e3/` (`RecetteAutorisation.java`) | 28/28, rejoué en vague 3 |
-| E5 | `recette/e5/` (bash HTTP + banc des composants) | tous verts par HTTP (antivirus simulé) |
+| E5 | `recette/e5/` (bash HTTP + banc des composants) | tous verts par HTTP ; altération 9 OK, 1 ÉCHEC (A11 export, ANO-E5-003) |
 | E6 | `recette/e6/RecetteOcrRecherche.java` | 24/24 |
-| E7 | `recette/e7/RecetteCycleDeVie.java` | 21/23 |
+| E7 | `recette/e7/RecetteCycleDeVie.java` | 22/23 (E7-03 = ANO-E7-002) |
 | Fumée | `recette/fumee/fumee.sh` (`GED_URL_SANTE` pour le port de management) | 7/7 |
 | Outils | `recette/lib/` : `ClientGed.java`, `lancer-java.sh`, `ClamdSimule.java`, `LiquibaseRecette.java` | — |
 
@@ -36,12 +37,20 @@ Par simulateur : 3.3 LDAPS search-then-bind et provisionnement (UnboundID), 6.1.
 6.1.6 bureautique et 12.6 DOCX (LibreOffice).
 Vague 4 : 7.1, 7.4.2, 7.4.3, 3.4.1 (anti-force brute), 5.1, 5.2, 5.3 (dépôt avec métadonnées,
 délégation, OpenAPI), 5.3.2, 5.4, 5.5 (hors compte désactivé).
-Non conforme : 7.4.1 (ANO-E4-001), 12.6 archivage (ANO-E7-002), 12.10 export (ANO-E7-001).
+Vague 5 : 5.3.1 chemins exacts (P-06, T-042, T-044), 6.2.1 liaisons chiffrées hors dev (T-065,
+démarrage uat refusé), 4.5 schéma de base (P-05), 12.10 export hors périmètre (ANO-E7-001), 6.1.2
+lecture d'un fichier altéré (téléchargement, aperçu), 7.4.2 bornes des scellements, 12.1 UUID ;
+sur papier avec réserves : 6.1.3 LUKS (P-10), 6.2.3 A04 menaces (P-11), 7.4.2 pgaudit (P-16),
+10.4 garantie (P-17).
+Non conforme : 7.4.1 (ANO-E4-001), 12.6 archivage (ANO-E7-002), 5.1 source d'un dépôt par
+application (ANO-E9-001), 12.10 export d'un fichier altéré (ANO-E5-003), 6.2.3 A10 preuve SSRF
+(ANO-E11-001, 002), 10.4 retour arrière (ANO-E10-001).
 
 ## Ce qui reste
 
 - Vérifier les corrections des anomalies ouvertes.
-- Chemins du contrat §5.3.1 (T-042, P-06) dès leur intégration ; E8 (circuits, échéance, notifications associées).
+- E8 (circuits, échéance, notifications associées) et anomalies de dev1, dès l'intégration de sa branche.
+- Rejouer P-10 et P-16 en UAT.
 - 12.11 : issues `SANS_PLAN` / `A_INDEXER` ; réindexation complète ; vérification mensuelle d'intégrité.
 - UAT : AD réel, ClamAV réel, LibreOffice, NGINX (413 de plateforme, IP client), rollback sur copie UAT.
 

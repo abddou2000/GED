@@ -127,30 +127,33 @@ public final class BasePostgres implements AutoCloseable {
     public synchronized void document(UUID documentId, UUID versionId) {
         JdbcTemplate j = jdbc();
         if (workspace == null) {
-            UUID employe = UUID.randomUUID(), workflow = UUID.randomUUID();
+            UUID employe = UUID.randomUUID();
             workspace = UUID.randomUUID();
             typeDocument = UUID.randomUUID();
             j.update("INSERT INTO employe (id, first_name, last_name) VALUES (?, 'Test', 'E6')", employe);
-            j.update("INSERT INTO workflow_ged (id, name) VALUES (?, 'circuit de test')", workflow);
             // Nœud racine (lot E3) ; le chemin matérialisé est posé par la base.
-            j.update("INSERT INTO noeud (id, name, code, status, nature, employe_id, workflow_ged_id) "
-                    + "VALUES (?, 'espace de test', ?, 'ACTIF', 'ESPACE', ?, ?)", workspace, "ESP-" + workspace, employe, workflow);
+            // Sans règle de workflow (facultative depuis le lot E8).
+            j.update("INSERT INTO noeud (id, name, code, status, nature, employe_id) "
+                    + "VALUES (?, 'espace de test', ?, 'ACTIF', 'ESPACE', ?)", workspace, "ESP-" + workspace, employe);
             j.update("INSERT INTO type_document (id, code, type_de_document, description, noeud_id) "
                     + "VALUES (?, ?, 'Type de test', 'test', ?)", typeDocument, "TD-" + typeDocument, workspace);
         }
         j.update("INSERT INTO document (id, name, noeud_principal_id, type_document_id) VALUES (?, 'test', ?, ?) "
                 + "ON CONFLICT (id) DO NOTHING", documentId, workspace, typeDocument);
         if (versionId != null) {
-            j.update("INSERT INTO version_document (id, document_id, file_name, file_path) VALUES (?, ?, 'f.pdf', 'x/f.pdf')",
-                    versionId, documentId);
+            // Numéro de version obligatoire et unique par document (lot E7).
+            j.update("INSERT INTO version_document (id, document_id, file_name, file_path, numero) VALUES (?, ?, 'f.pdf', 'x/f.pdf',"
+                    + " (SELECT coalesce(max(numero), 0) + 1 FROM version_document WHERE document_id = ?))",
+                    versionId, documentId, documentId);
         }
     }
 
     /** Version supplémentaire d'un document existant, avec son chemin dans l'ancien stockage en clair. */
     public void version(UUID documentId, UUID versionId, String cheminEnClair, boolean principale) {
         document(documentId, null);
-        jdbc().update("INSERT INTO version_document (id, document_id, file_name, file_path, is_default) "
-                + "VALUES (?, ?, 'f.pdf', ?, ?)", versionId, documentId, cheminEnClair, principale);
+        jdbc().update("INSERT INTO version_document (id, document_id, file_name, file_path, courante, numero) "
+                + "VALUES (?, ?, 'f.pdf', ?, ?, (SELECT coalesce(max(numero), 0) + 1 FROM version_document WHERE document_id = ?))",
+                versionId, documentId, cheminEnClair, principale, documentId);
     }
 
     /** Clé de fichier (clé étrangère ocr_job.cle_fichier_id). */

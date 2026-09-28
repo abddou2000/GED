@@ -115,12 +115,12 @@ public class RepriseVersionsEnClair {
     }
 
     private List<Version> lot(UUID apres) {
-        String sql = "SELECT v.id, v.document_id, v.file_path, v.is_default, t.code FROM version_document v "
+        String sql = "SELECT v.id, v.document_id, v.file_path, v.courante, t.code FROM version_document v "
                 + "JOIN document d ON d.id = v.document_id JOIN type_document t ON t.id = d.type_document_id "
                 + "WHERE v.cle_fichier_id IS NULL AND v.file_path IS NOT NULL "
                 + (apres == null ? "" : "AND v.id > ? ") + "ORDER BY v.id LIMIT " + PAGE;
         org.springframework.jdbc.core.RowMapper<Version> m = (rs, i) -> new Version(rs.getObject("id", UUID.class),
-                rs.getObject("document_id", UUID.class), rs.getString("file_path"), rs.getBoolean("is_default"),
+                rs.getObject("document_id", UUID.class), rs.getString("file_path"), rs.getBoolean("courante"),
                 rs.getString("code"));
         return apres == null ? jdbc.query(sql, m) : jdbc.query(sql, m, apres);
     }

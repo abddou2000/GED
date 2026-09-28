@@ -7,7 +7,7 @@ import { Workflow, WorkflowRequest, PageResult } from './workflow.model';
 @Injectable({ providedIn: 'root' })
 export class WorkflowService {
   private http = inject(HttpClient);
-  private url = `${API_BASE}/workflowgeds`;
+  private url = `${API_BASE}/workflow/regles`;
 
   /** Liste active (hors corbeille), paginée + recherche + tri. */
   list(page = 0, size = 10, search = '', sortBy = '', sortDir = 'desc'): Observable<PageResult<Workflow>> {

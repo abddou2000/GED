@@ -90,8 +90,8 @@ public class ServiceContratApi {
     /* ------------------------------------------------------------ dossier */
 
     /**
-     * Crée un dossier sous le nœud donné. Le dossier hérite du circuit de son
-     * parent ; son propriétaire est la personne de la requête (l'utilisateur, ou
+     * Crée un dossier sous le nœud donné. Le dossier suit la règle de workflow
+     * de ses ancêtres (§12.8) ; son propriétaire est la personne de la requête (l'utilisateur, ou
      * l'utilisateur délégué d'une application), à défaut celui du parent.
      */
     public WorkSpaceResponse creerDossier(UUID parentId, DossierRequest demande) {
@@ -105,7 +105,8 @@ public class ServiceContratApi {
                 : "DOS-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
         return espaces.create(new WorkSpaceRequest(demande.nom().trim(), code, demande.description(),
                 WorkspaceStatus.ACTIF, proprietaire, parentId,
-                parent.getWorkflow() != null ? parent.getWorkflow().getId() : null));
+                // Aucune règle propre : le dossier suit celle du nœud le plus proche (E8).
+                null, null));
     }
 
     /* ------------------------------------------------------------ recherche */

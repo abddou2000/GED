@@ -203,7 +203,7 @@ class PorteeEtDelegationApiTest {
         String code = "DOS-V4-" + UUID.randomUUID().toString().substring(0, 8);
         String corps = "{\"name\":\"Dossier délégué\",\"code\":\"" + code + "\",\"employeId\":\""
                 + jeu.employeId(Comptes.ADMIN) + "\",\"parentId\":\"" + espaceA + "\",\"workflowId\":\""
-                + jdbc.queryForObject("SELECT workflow_ged_id FROM noeud WHERE id = ?", UUID.class, espaceA) + "\"}";
+                + jdbc.queryForObject("SELECT regle_workflow_id FROM noeud WHERE id = ?", UUID.class, espaceA) + "\"}";
         UUID dossier = UUID.fromString(json(mvc.perform(parCle(post("/api/v1/workspaces"), c)
                         .header(FiltreCleApi.ENTETE_DELEGATION, Comptes.SECOND_ACTEUR)
                         .contentType(APPLICATION_JSON).content(corps))

@@ -53,6 +53,8 @@ public class ServiceHabilitations {
     private final UploadDocumentRepository documents;
     private final VersionHabilitations version;
     private final ApplicationEventPublisher evenements;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public ServiceHabilitations(HabilitationRepository habilitations, RoleRepository roles,
                                 UtilisateurRepository utilisateurs, AccessGroupRepository groupes,
@@ -183,6 +185,27 @@ public class ServiceHabilitations {
                 .collect(Collectors.groupingBy(Habilitation::getGroupeGedId,
                         Collectors.mapping(Habilitation::getNoeudId, Collectors.collectingAndThen(
                                 Collectors.toList(), l -> l.stream().distinct().toList()))));
+    }
+
+    /** Ancien lien groupe / espace consigné par la reprise (point 9, lot E7). */
+    public record LienRepris(UUID groupeId, String groupe, UUID noeudId, String noeud, Instant reprisLe,
+                             boolean habilitationPosee) {}
+
+    /**
+     * Rapport de reprise : les espaces que chaque groupe « couvrait » dans
+     * l'ancienne application, sans aucun droit associé. L'Administrateur s'en
+     * sert pour poser les habilitations voulues ; {@code habilitationPosee}
+     * dit si le groupe en porte déjà une sur le nœud.
+     */
+    @Transactional(readOnly = true)
+    public List<LienRepris> liensRepris() {
+        return jdbc.query("SELECT r.groupe_ged_id, g.name, r.noeud_id, n.name, r.repris_le,"
+                        + " EXISTS (SELECT 1 FROM habilitation h WHERE h.sujet_type = 'GROUPE'"
+                        + " AND h.groupe_ged_id = r.groupe_ged_id AND h.noeud_id = r.noeud_id)"
+                        + " FROM reprise_lien_groupe_espace r JOIN groupe_ged g ON g.id = r.groupe_ged_id"
+                        + " JOIN noeud n ON n.id = r.noeud_id ORDER BY g.name, n.chemin",
+                (rs, i) -> new LienRepris(rs.getObject(1, UUID.class), rs.getString(2), rs.getObject(3, UUID.class),
+                        rs.getString(4), rs.getTimestamp(5).toInstant(), rs.getBoolean(6)));
     }
 
     /* ---------------------------------------------------------------- vues */

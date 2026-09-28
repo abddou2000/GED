@@ -162,8 +162,13 @@ class RepriseVersionsEnClairTest {
         VerificationPeriodique mensuelle = new VerificationPeriodique(verification, new SourceEmpreintesVersions(jdbc));
         assertEquals(Map.of(VerificationIntegrite.Statut.CONFORME, 2), mensuelle.executer());
 
-        // Empreinte enregistrée falsifiée : la divergence est détectée.
+        // Empreinte enregistrée falsifiée : la divergence est détectée. L'empreinte
+        // d'une version est immuable (lot modèle, déclencheur de lecture seule) :
+        // la falsification simulée est celle d'un propriétaire du schéma qui
+        // contourne le déclencheur, seul chemin qui reste.
+        jdbc.execute("ALTER TABLE version_document DISABLE TRIGGER trg_version_document_lecture_seule");
         jdbc.update("UPDATE version_document SET empreinte = ? WHERE id = ?", "0".repeat(64), a);
+        jdbc.execute("ALTER TABLE version_document ENABLE TRIGGER trg_version_document_lecture_seule");
         Map<VerificationIntegrite.Statut, Integer> bilan = mensuelle.executer();
         assertEquals(1, bilan.get(VerificationIntegrite.Statut.EMPREINTE_DIVERGENTE));
         assertEquals(1, bilan.get(VerificationIntegrite.Statut.CONFORME));
