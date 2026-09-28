@@ -102,7 +102,10 @@ class SourceDepotApiTest {
                 .getContentAsString();
         assertFalse(api.contains(id.toString()));
 
-        // En base : pas de délégation sans application ni personne désignée.
+        // En base : pas de délégation sans application ni personne désignée. Seules ces
+        // contraintes sont éprouvées par écriture directe : le dépôt d'une application, en son
+        // nom ou pour le compte d'une personne (X-On-Behalf-Of), l'est par l'API réelle dans
+        // ContratApiTest.depotParApplication (ANO-E9-001).
         assertThrows(Exception.class, () -> jdbc.update(
                 "UPDATE document SET depot_delegue = true, deposant_utilisateur_id = NULL WHERE id = ?", id));
         assertThrows(Exception.class, () -> jdbc.update("UPDATE document SET canal_depot = 'COURRIEL' WHERE id = ?", id));
