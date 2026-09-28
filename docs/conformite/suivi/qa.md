@@ -2,9 +2,9 @@
 
 ## Lot en cours
 
-Vague 5 : correctifs de dev3 (a92c10d : T-040, ANO-E7-001, ANO-E5-002) et lot final de dev2
-(4d28528 : contrat §5.3.1, T-065, P-05, P-10 à P-12, P-16, P-17, ANO-E1-005, ANO-E4-004), fusionnés
-dans `ct/qa` (88af353). Vagues précédentes : E1 à E7, E4, E9, notifications. E8 attend la branche de dev1.
+Vague 6 : tout le code intégré, `ct/qa` en avance rapide jusqu'à 68a1f90 (b7274bc dev1 E7 modèle, E8,
+E8-API ; 74a60da correctifs dev2 ; 68a1f90 T-112). Critères de sortie E4, E7 et E8 atteints. Vagues
+précédentes : E1 à E7, E9, notifications, contrat §5.3.1, E10/E11 sur papier.
 
 ## Livrables
 
@@ -12,18 +12,21 @@ dans `ct/qa` (88af353). Vagues précédentes : E1 à E7, E4, E9, notifications. 
 |---|---|---|
 | Ligne de base | `docs/conformite/recette/LIGNE-DE-BASE.md` | 143 tests (H2, avant les vagues) |
 | Plan de recette E0–E11 | `docs/conformite/recette/PLAN-DE-RECETTE.md` | D1–D14 intégrées |
-| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-5.md` | 257 → 360 → 443 → 534 → 552 tests verts |
-| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 11 vérifiées, 9 ouvertes : ANO-E7-002, ANO-E4-001, ANO-E9-001 majeures ; ANO-E4-002, 003, ANO-E5-003, ANO-E11-001, 002, ANO-E10-001 mineures |
-| E4 | `recette/e4/` : `verifier-journal.sh` (12/12), `verifier-scellement.sh` (6/6, S06 bornes numériques), `RecetteAudit.java` (26/29) | — |
+| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-6.md` | 257 → 360 → 443 → 534 → 552 → 586 tests verts |
+| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 19 vérifiées, 6 ouvertes : ANO-E1-006, ANO-E8-001, ANO-E8-002 majeures ; ANO-E5-003, ANO-E7-003, ANO-E8-003 mineures |
+| E4 | `recette/e4/` : `verifier-journal.sh` (12/12), `verifier-scellement.sh` (6/6), `RecetteAudit.java` (29/29) | critère de sortie atteint |
+| E7 modèle | `recette/e7/RecetteModele.java` | 16/17 (M-02 = ANO-E7-003) |
+| E8 workflow, E8-API | `recette/e8/RecetteWorkflow.java` | 28/29 (A-02 = ANO-E8-001) ; critère de sortie E8 atteint |
+| T-112 échéance | `recette/e8/RecetteEcheance.java` (deux instances) | 6/6 |
 | E9 | `recette/e9/RecetteApi.java` | 23 OK, 2 AVERT (compte désactivé délégué ; chemins du contrat : voir ligne suivante) |
-| Contrat §5.3.1 et réception | `recette/e9/RecetteContrat.java`, `RecetteReception.java` | contrat 15/15 ; T-040 2 OK, 3 ÉCHEC (ANO-E9-001) |
+| Contrat §5.3.1 et réception | `recette/e9/RecetteContrat.java`, `RecetteReception.java` | contrat 15/15 ; T-040 5/5 hors règle de workflow (ANO-E9-001 close), 500 sous règle (ANO-E8-002) |
 | Notifications | `recette/e8/RecetteNotifications.java` (+ `lib/SmtpSimule.java`) | 8/8, circuits et échéance NA (E8) |
 | E1 | `recette/e1/` | base vierge, rollback, catalogue, changelogs (Java), autotests |
 | E2 | `recette/e2/verifier-identite.sh` (+ `controles-identite.sql`) | 33/33 (ANO-E2-001 corrigée) |
 | E3 | `recette/e3/` (`RecetteAutorisation.java`) | 28/28, rejoué en vague 3 |
 | E5 | `recette/e5/` (bash HTTP + banc des composants) | tous verts par HTTP ; altération 9 OK, 1 ÉCHEC (A11 export, ANO-E5-003) |
 | E6 | `recette/e6/RecetteOcrRecherche.java` | 24/24 |
-| E7 | `recette/e7/RecetteCycleDeVie.java` | 22/23 (E7-03 = ANO-E7-002) |
+| E7 | `recette/e7/RecetteCycleDeVie.java` | 23/23 ; critère de sortie E7 atteint |
 | Fumée | `recette/fumee/fumee.sh` (`GED_URL_SANTE` pour le port de management) | 7/7 |
 | Outils | `recette/lib/` : `ClientGed.java`, `lancer-java.sh`, `ClamdSimule.java`, `LiquibaseRecette.java` | — |
 
@@ -42,15 +45,19 @@ démarrage uat refusé), 4.5 schéma de base (P-05), 12.10 export hors périmèt
 lecture d'un fichier altéré (téléchargement, aperçu), 7.4.2 bornes des scellements, 12.1 UUID ;
 sur papier avec réserves : 6.1.3 LUKS (P-10), 6.2.3 A04 menaces (P-11), 7.4.2 pgaudit (P-16),
 10.4 garantie (P-17).
-Non conforme : 7.4.1 (ANO-E4-001), 12.6 archivage (ANO-E7-002), 5.1 source d'un dépôt par
-application (ANO-E9-001), 12.10 export d'un fichier altéré (ANO-E5-003), 6.2.3 A10 preuve SSRF
-(ANO-E11-001, 002), 10.4 retour arrière (ANO-E10-001).
+Vague 6 : 12.7 méta-modèle, type, plan versionné, re-typologisation ; 12.8 versions (D9), verrou
+(409 partout), workflow parallèle (D7, Q1), diffusion ; 12.5 déplacement et renommage ; R-03 / D12 ;
+D8 décision déléguée et pilotage (hors création de règle) ; 12.9 T-112 ; 7.4.1 (ANO-E4-001 à 003) ;
+12.6 (ANO-E7-002) ; 5.1 source du dépôt (ANO-E9-001) ; 6.2.3 A10 (ANO-E11-001 ; ANO-E11-002 sur papier) ;
+10.4 (ANO-E10-001, papier) ; critères de sortie E4, E7, E8.
+Non conforme : 4.2.2 montée sur base peuplée (ANO-E1-006), D8 création de règle par API
+(ANO-E8-001), 5.1 dépôt par application sous règle (ANO-E8-002), 12.10 export d'un fichier altéré
+(ANO-E5-003), 12.7 valeur par défaut (ANO-E7-003), retour arrière de la reprise (ANO-E8-003).
 
 ## Ce qui reste
 
 - Vérifier les corrections des anomalies ouvertes.
-- E8 (circuits, échéance, notifications associées) et anomalies de dev1, dès l'intégration de sa branche.
-- Rejouer P-10 et P-16 en UAT.
+- Rejouer P-10, P-16 et ANO-E11-002 en UAT.
 - 12.11 : issues `SANS_PLAN` / `A_INDEXER` ; réindexation complète ; vérification mensuelle d'intégrité.
 - UAT : AD réel, ClamAV réel, LibreOffice, NGINX (413 de plateforme, IP client), rollback sur copie UAT.
 

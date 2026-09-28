@@ -77,6 +77,30 @@ public class RecetteReception extends ClientGed {
         for (JsonNode t : g.get("/api/v1/type-documents?size=200", tAdmin).json().path("content"))
             if (t.path("code").asText().equals("TD-FACT")) typeA = t.path("id").asText();
         String m = Long.toString(System.currentTimeMillis(), 36);
+        if ("1".equals(env("GED_E9_ESPACE_LIBRE", "0"))) {
+            // Emplacement sans règle de workflow (isole la source du dépôt de l'ouverture d'un circuit).
+            String emp = g.get("/api/v1/auth/me", tAdmin).json().path("employeId").asText();
+            A = g.json("POST", "/api/v1/workspaces", tAdmin, Map.of("name", "QA-E9-libre-" + m, "code", "QAE9L-" + m, "employeId", emp))
+                    .json().path("id").asText();
+            Map<String, Object> ty = new LinkedHashMap<>();
+            ty.put("code", "QAE9T-" + m);
+            ty.put("typeDeDocument", "Réception " + m);
+            ty.put("description", "recette T-040");
+            ty.put("workspaceId", A);
+            ty.put("typeAutorise", List.of("pdf"));
+            ty.put("tailleMaxMo", 5);
+            typeA = g.json("POST", "/api/v1/type-documents", tAdmin, ty).json().path("id").asText();
+            String roleStd = null;
+            for (JsonNode r : g.get("/api/v1/admin/roles", tAdmin).json()) if (r.path("code").asText().equals("UTILISATEUR_STANDARD")) roleStd = r.path("id").asText();
+            Map<String, Object> h = new LinkedHashMap<>();
+            h.put("sujetType", "UTILISATEUR");
+            h.put("sujetId", uTiers);
+            h.put("roleId", roleStd);
+            h.put("noeudId", A);
+            h.put("ruptureHeritage", false);
+            g.json("POST", "/api/v1/admin/habilitations", tAdmin, h);
+            info("emplacement sans règle de workflow : " + A);
+        }
 
         // Interface (jeton utilisateur) ; tentative de forcer le canal par un champ du formulaire
         Instant t0 = Instant.now().minusSeconds(1);
@@ -97,6 +121,7 @@ public class RecetteReception extends ClientGed {
         JsonNode dApi = g.deposer(Map.of("X-API-Key", api[1], "Idempotency-Key", UUID.randomUUID().toString()), pdf, "api.pdf",
                 "application/pdf", Map.of("name", "qarecep-" + m + "-api", "typeDocumentId", typeA)).json();
         String e2 = controle(dApi, "API", api[0], null, false, t0);
+        if (!dApi.has("id")) e2 += "réponse " + dApi + " ; ";
         verif("R-02", e2.isEmpty(), "Dépôt par une application (clé d'API) : canal API, application appelante identifiée [5.1, 5.2, T-040]",
                 e2.isEmpty() ? "application " + dApi.path("applicationId").asText() + ", déposant " + dApi.path("deposantUtilisateurId").asText() : e2);
 
@@ -105,6 +130,7 @@ public class RecetteReception extends ClientGed {
         JsonNode dBo = g.deposer(Map.of("X-API-Key", bo[1], "Idempotency-Key", UUID.randomUUID().toString()), pdf, "bo.pdf",
                 "application/pdf", Map.of("name", "qarecep-" + m + "-bo", "typeDocumentId", typeA)).json();
         String e3 = controle(dBo, "BUREAU_ORDRE", bo[0], null, false, t0);
+        if (!dBo.has("id")) e3 += "réponse " + dBo + " ; ";
         verif("R-03", e3.isEmpty(), "Dépôt par le bureau d'ordre digital : canal BUREAU_ORDRE, application et horodatage [5.1, T-040]",
                 e3.isEmpty() ? "canal " + dBo.path("canalDepot").asText() : e3 + " (l'instance déclare-t-elle ged.depot.applications-bureau-ordre ?)");
 
