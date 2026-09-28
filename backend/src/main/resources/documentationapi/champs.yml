@@ -22,7 +22,7 @@ objets:
   TreeNode: Nœud de l'arborescence des espaces, avec ses enfants.
   StepRequest: Étape d'une règle de workflow (validateur désigné).
   StepResponse: Étape d'une règle de workflow.
-  WorkflowRequest: Création ou modification d'une règle de workflow.
+  WorkflowRequest: "Création ou modification d'une règle de workflow. Utilisateur : permission GERER_REFERENTIELS. Application (D8) : pour le compte d'une personne (X-On-Behalf-Of) qui a GERER_REFERENTIELS, et avec l'opération WORKFLOW_PILOTAGE dans la portée de la clé sur chaque nœud où la règle s'applique et sur chaque périmètre de validateur par rôle (au moins un nœud pour une règle non rattachée) ; double identité au journal."
   WorkflowResponse: Règle de workflow et espaces qui l'utilisent.
   TypeDocumentRequest: Création ou modification d'un type de document.
   TypeDocumentResponse: Type de document, avec son espace et son plan d'indexation.
