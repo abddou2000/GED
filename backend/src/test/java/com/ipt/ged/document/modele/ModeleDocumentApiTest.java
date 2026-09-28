@@ -155,6 +155,33 @@ class ModeleDocumentApiTest {
     }
 
     @Test
+    @DisplayName("ANO-E7-003 : la valeur par défaut d'un index non transmis est conservée au dépôt (index et fiche)")
+    void valeurParDefaut() throws Exception {
+        IndexField observation = jeu.index("OBS", IndexFieldType.TEXTE, false, null);
+        IndexField ref = jeu.index("REFD", IndexFieldType.TEXTE, true, null);
+        jdbc.update("UPDATE index_def SET valeur_par_defaut = 'sans observation' WHERE id = ?", observation.getId());
+        observation.setValeurParDefaut("sans observation");   // l'entité en mémoire suit la base
+        UUID autreType = jeu.type(espace, Confidentialite.PUBLIC);
+        jeu.planPour(autreType, ref, observation);
+
+        // Dépôt avec métadonnées, sans l'index à défaut.
+        JsonNode d = json(mvc.perform(depot(autreType, "défaut").file(meta("{\"" + ref.getCode() + "\":\"R-1\"}")))
+                .andExpect(status().isCreated()));
+        assertEquals("sans observation", d.get("metadonnees").get(observation.getCode()).asText());
+        UUID doc = UUID.fromString(d.get("id").asText());
+        assertEquals("sans observation", jdbc.queryForObject("SELECT valeur FROM document_index_valeur WHERE document_id = ?"
+                + " AND index_def_id = ?", String.class, doc, observation.getId()));
+        // Relue par la fiche : toujours là.
+        mvc.perform(get(DOCS + "/" + doc)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.metadonnees." + observation.getCode()).value("sans observation"));
+
+        // Dépôt en deux temps (aucune métadonnée) : le défaut est posé, l'obligatoire attend l'indexation.
+        JsonNode sans = json(mvc.perform(depot(autreType, "deux temps")).andExpect(status().isCreated()));
+        assertEquals("sans observation", sans.get("metadonnees").get(observation.getCode()).asText());
+        assertFalse(sans.get("metadonnees").has(ref.getCode()));
+    }
+
+    @Test
     @DisplayName("Plan versionné : modifier le plan n'altère pas les documents déjà déposés")
     void planVersionne() throws Exception {
         UUID ancien = deposer("Ancien", "{\"" + date.getCode() + "\":\"2026-01-10\"}", null);

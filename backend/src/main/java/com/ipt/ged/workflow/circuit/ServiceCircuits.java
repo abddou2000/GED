@@ -198,11 +198,35 @@ public class ServiceCircuits {
         apres.put("documentId", doc.getId());
         apres.put("regleId", c.getRegleWorkflowId());
         apres.put("validateurs", c.getValidateurs().stream().map(CircuitValidateur::getLibelle).toList());
+        // Dépôt par une application sans délégation (clé d'API, bureau d'ordre, §5.1) :
+        // aucune personne n'ouvre le circuit. L'application est tracée (l'audit la
+        // prend aussi dans la requête) et nommée comme auteur de l'ouverture.
+        if (c.getInitiateurId() == null && doc.getApplicationId() != null) {
+            apres.put("applicationId", doc.getApplicationId());
+        }
+        String auteur = acteur != null ? acteur.libelle() : auteurDuDepot(c, doc);
+        Map<String, Object> variables = new LinkedHashMap<>();
+        variables.put("document", doc.getName());
+        variables.put("auteur", auteur);
         DemandeNotification n = DemandeNotification.a(TypeNotification.CIRCUIT_OUVERT, destinataires(c),
-                "DOCUMENT", doc.getId(), Map.of("document", doc.getName(),
-                        "auteur", acteur != null ? acteur.libelle() : nomUtilisateur(c.getInitiateurId(), new HashMap<>())),
-                lien(doc));
+                "DOCUMENT", doc.getId(), variables, lien(doc));
         publier(action, c, null, apres, null, acteur, n);
+    }
+
+    /**
+     * Qui a déposé : la personne (déposant ou déposant délégué), sinon
+     * l'application appelante, sinon le canal du dépôt. Jamais nul.
+     */
+    private String auteurDuDepot(Circuit c, UploadDocument doc) {
+        String personne = nomUtilisateur(c.getInitiateurId(), new HashMap<>());
+        if (personne != null) return personne;
+        if (doc.getApplicationId() != null) {
+            List<String> nom = jdbc.queryForList("SELECT nom FROM application WHERE id = ?", String.class,
+                    doc.getApplicationId());
+            if (!nom.isEmpty() && nom.get(0) != null) return "Application « " + nom.get(0) + " »";
+        }
+        if (doc.getCanalDepot() == com.ipt.ged.depot.source.CanalDepot.BUREAU_ORDRE) return "Bureau d'ordre";
+        return "Application cliente";
     }
 
     /* ============================================================ décisions */

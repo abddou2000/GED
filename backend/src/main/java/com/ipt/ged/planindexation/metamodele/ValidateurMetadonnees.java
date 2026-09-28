@@ -17,8 +17,9 @@ import java.util.Optional;
  * <p>En sortie, les métadonnées sont NORMALISÉES (voir
  * {@link ValeursMetadonnees}) et indexées par le CODE de l'index : c'est la
  * forme stockée dans {@code document.metadonnees} et lue par la recherche.
- * Un index obligatoire absent reçoit sa valeur par défaut si le plan en donne
- * une.
+ * Un index absent reçoit sa valeur par défaut si le plan en donne une, que le
+ * jeu soit complet ou non (ANO-E7-003) : la valeur par défaut est celle d'un
+ * index non renseigné, au dépôt en deux temps comme à l'indexation.
  */
 public final class ValidateurMetadonnees {
 
@@ -38,10 +39,10 @@ public final class ValidateurMetadonnees {
 
     /**
      * @param complet vrai : jeu complet de métadonnées, les index obligatoires
-     *                sont exigés et les valeurs par défaut appliquées. Faux :
-     *                dépôt SANS métadonnées (dépôt en deux temps, §12.11) —
-     *                le document est à indexer, les obligatoires le seront à
-     *                l'indexation.
+     *                sont exigés. Faux : dépôt SANS métadonnées (dépôt en deux
+     *                temps, §12.11) ou miroir des valeurs d'index — le document
+     *                est à indexer, les obligatoires le seront à l'indexation.
+     *                Dans les deux cas, un index absent reçoit sa valeur par défaut.
      */
     public static Map<String, Object> valider(DefinitionPlan plan, Map<String, ?> brutes, boolean complet) {
         Map<String, String> erreurs = new LinkedHashMap<>();
@@ -62,7 +63,7 @@ public final class ValidateurMetadonnees {
                 }
             }
         }
-        for (ChampPlan c : complet ? plan.champs() : java.util.List.<ChampPlan>of()) {
+        for (ChampPlan c : plan.champs()) {
             if (normalisees.containsKey(c.code()) || erreurs.containsKey(c.code())) continue;
             if (c.valeurDefaut() != null && !c.valeurDefaut().isBlank()) {
                 try {
@@ -72,7 +73,7 @@ public final class ValidateurMetadonnees {
                     // Valeur par défaut incohérente avec la nature : traitée comme absente.
                 }
             }
-            if (c.obligatoire()) erreurs.put(c.code(), "est obligatoire.");
+            if (complet && c.obligatoire()) erreurs.put(c.code(), "est obligatoire.");
         }
         if (!erreurs.isEmpty()) throw new MetadonneesInvalidesException(erreurs);
         return normalisees;

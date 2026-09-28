@@ -309,6 +309,117 @@ class SchemaLiquibaseTest {
     }
 
     @Test
+    @DisplayName("ANO-E1-006 : montée de version sur une base peuplée qui contient un document archivé")
+    void monteeAvecDocumentArchive() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                // État d'une base où l'archivage de dev3 a servi, avant la numérotation des versions (lot modèle).
+                List<liquibase.changelog.ChangeSet> aJouer = liquibase.listUnrunChangeSets(new Contexts(),
+                        new LabelExpression());
+                int avant = 0;
+                while (!aJouer.get(avant).getId().equals("202609301049-1")) avant++;
+                liquibase.update(avant, new Contexts(), new LabelExpression());
+                String s = schema + ".";
+                executer(c, "INSERT INTO " + s + "employe (id, first_name, last_name) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000e001', 'Karim', 'El Fassi')");
+                executer(c, "INSERT INTO " + s + "workflow_ged (id, name) VALUES ('01920000-0000-7000-8000-00000000f001', 'WF')");
+                executer(c, "INSERT INTO " + s + "noeud (id, name, code, status, employe_id, workflow_ged_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000a001', 'Compta', 'WS-C', 'ACTIF',"
+                        + " '01920000-0000-7000-8000-00000000e001', '01920000-0000-7000-8000-00000000f001')");
+                executer(c, "INSERT INTO " + s + "type_document (id, code, type_de_document, description, noeud_id,"
+                        + " type_autorise, taille_max_mo) VALUES ('01920000-0000-7000-8000-00000000d001', 'TD', 'Facture',"
+                        + " 'd', '01920000-0000-7000-8000-00000000a001', 'pdf', 5)");
+                executer(c, "INSERT INTO " + s + "document (id, name, noeud_principal_id, type_document_id)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000b001', 'Facture archivée',"
+                        + " '01920000-0000-7000-8000-00000000a001', '01920000-0000-7000-8000-00000000d001')");
+                executer(c, "INSERT INTO " + s + "version_document (id, document_id, file_name, file_path, is_default)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000b101', '01920000-0000-7000-8000-00000000b001',"
+                        + " 'v1.pdf', 'x/v1.pdf', false),"
+                        + " ('01920000-0000-7000-8000-00000000b102', '01920000-0000-7000-8000-00000000b001',"
+                        + " 'v2.pdf', 'x/v2.pdf', true)");
+                executer(c, "UPDATE " + s + "document SET statut_conservation = 'ARCHIVE', archive_le = now()"
+                        + " WHERE id = '01920000-0000-7000-8000-00000000b001'");
+                if (!c.getAutoCommit()) c.commit();
+
+                // Toute la suite de la montée passe (avant la correction : refus du gel sur 202609301050-1).
+                liquibase.update(new Contexts(), new LabelExpression());
+
+                assertEquals(2, compter(c, "SELECT count(*) FROM " + s + "version_document"
+                        + " WHERE document_id = '01920000-0000-7000-8000-00000000b001' AND numero IN (1, 2)"));
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "version_document"
+                        + " WHERE id = '01920000-0000-7000-8000-00000000b102' AND courante"));
+                // Le gel est rétabli : une version d'un document archivé reste intouchable.
+                assertEquals("O", texte(c, "SELECT tgenabled::text FROM pg_trigger WHERE tgname = 'trg_version_document_archive'"
+                        + " AND tgrelid = '" + s + "version_document'::regclass"));
+                SQLException refus = org.junit.jupiter.api.Assertions.assertThrows(SQLException.class, () -> executer(c,
+                        "INSERT INTO " + s + "version_document (id, document_id, file_name, numero) VALUES"
+                                + " ('01920000-0000-7000-8000-00000000b103', '01920000-0000-7000-8000-00000000b001', 'v3.pdf', 3)"));
+                assertTrue(refus.getMessage().contains("archivé"), refus.getMessage());
+            } finally {
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("ANO-E8-003 : retour arrière de la reprise des signatures refusé s'il perd des données, sauf décision explicite")
+    void retourArriereRepriseAvecPerte() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                liquibase.update(new Contexts(), new LabelExpression());
+                String s = schema + ".";
+                executer(c, "INSERT INTO " + s + "employe (id, first_name, last_name) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000e001', 'Karim', 'El Fassi')");
+                executer(c, "INSERT INTO " + s + "regle_workflow (id, name) VALUES ('01920000-0000-7000-8000-00000000f001', 'WF')");
+                executer(c, "INSERT INTO " + s + "noeud (id, name, code, status, employe_id, regle_workflow_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000a001', 'Compta', 'WS-C', 'ACTIF',"
+                        + " '01920000-0000-7000-8000-00000000e001', '01920000-0000-7000-8000-00000000f001')");
+                executer(c, "INSERT INTO " + s + "type_document (id, code, type_de_document, description, noeud_id,"
+                        + " type_autorise, taille_max_mo) VALUES ('01920000-0000-7000-8000-00000000d001', 'TD', 'Facture',"
+                        + " 'd', '01920000-0000-7000-8000-00000000a001', 'pdf', 5)");
+                executer(c, "INSERT INTO " + s + "document (id, name, noeud_principal_id, type_document_id)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000b001', 'Facture',"
+                        + " '01920000-0000-7000-8000-00000000a001', '01920000-0000-7000-8000-00000000d001')");
+                // Un circuit annulé : l'ancien modèle ne sait pas le représenter.
+                executer(c, "INSERT INTO " + s + "circuit (id, document_id, statut, annule_le, motif_annulation) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000c001', '01920000-0000-7000-8000-00000000b001', 'ANNULE',"
+                        + " now(), 'Document remplacé')");
+                // Liquibase laisse la connexion hors auto-validation : les données du test sont validées
+                // avant le retour arrière, comme celles d'une base en service.
+                if (!c.getAutoCommit()) c.commit();
+
+                Exception refus = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
+                        () -> liquibase.rollback("modele-e7", (String) null));
+                assertTrue(causes(refus).contains("1 circuit(s) annulé(s)"), causes(refus));
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "circuit"), "rien n'est perdu");
+
+                // Décision explicite de l'exploitant : le retour arrière passe, avec la perte annoncée.
+                // Paramètre de session (en exploitation : options=-c … dans l'URL de la CLI) ; un SET
+                // est transactionnel, il est validé avant que Liquibase n'ouvre ses transactions.
+                executer(c, "SET ged.retour_arriere_avec_perte = 'oui'");
+                if (!c.getAutoCommit()) c.commit();
+                liquibase.rollback("modele-e7", (String) null);
+                assertEquals(new TreeSet<>(TABLES_E7), tablesMetier(c, schema));
+            } finally {
+                executer(c, "RESET ged.retour_arriere_avec_perte");
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    private static String causes(Throwable t) {
+        StringBuilder b = new StringBuilder();
+        for (Throwable x = t; x != null; x = x.getCause()) b.append(x.getMessage()).append(" | ");
+        return b.toString();
+    }
+
+    @Test
     @DisplayName("E8 : les signatures séquentielles deviennent un circuit, ses validateurs et ses décisions ; retour arrière fidèle")
     void signaturesRepriseEnCircuits() throws Exception {
         String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);

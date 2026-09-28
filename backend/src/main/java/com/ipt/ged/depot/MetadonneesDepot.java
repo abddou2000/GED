@@ -89,6 +89,13 @@ public class MetadonneesDepot {
             }
             valeurs.put(champ.get().getId(), v.isNull() ? null : v.asText());
         }
+        // Index non transmis : sa valeur par défaut, s'il en a une (§12.7, ANO-E7-003),
+        // écrite comme une valeur reçue (index et miroir JSON de la fiche).
+        for (IndexField f : plan) {
+            if (!valeurs.containsKey(f.getId()) && f.getValeurParDefaut() != null && !f.getValeurParDefaut().isBlank()) {
+                valeurs.put(f.getId(), f.getValeurParDefaut().trim());
+            }
+        }
         ValidationPlan.erreurs(plan, valeurs, inconnus).forEach(erreurs::putIfAbsent);
         if (!erreurs.isEmpty()) throw ErreurDepot.invalides(erreurs);
 
