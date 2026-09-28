@@ -55,9 +55,10 @@ public class RechercheMetadonnees {
 
     /**
      * @param statutConservation ACTIF ou ARCHIVE pour filtrer ; absent = les deux
+     * @param echeanceDepassee   vrai : documents dont l'échéance de conservation est atteinte (§12.9)
      */
     public record Requete(UUID typeDocumentId, UUID noeudId, String texte, List<Critere> criteres,
-                          String statutConservation, Integer page, Integer size) {}
+                          String statutConservation, Integer page, Integer size, Boolean echeanceDepassee) {}
 
     private final NamedParameterJdbcTemplate nomme;
     private final JdbcTemplate jdbc;
@@ -107,6 +108,10 @@ public class RechercheMetadonnees {
             }
             ou.append(" AND d.statut_conservation = :statut");
             p.addValue("statut", s);
+        }
+        if (Boolean.TRUE.equals(r.echeanceDepassee())) {
+            ou.append(" AND d.echeance_conservation <= :echeance");
+            p.addValue("echeance", com.ipt.ged.document.conservation.Echeances.aujourdhui());
         }
         List<Critere> criteres = r.criteres() == null ? List.of() : r.criteres();
         for (int i = 0; i < criteres.size(); i++) {

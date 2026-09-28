@@ -112,10 +112,11 @@ public class DocumentService {
     /** Colonnes sur lesquelles le tri est accepte ; toute autre valeur est ignoree. */
     private static final Set<String> TRIS = Set.of(
             "id", "name", "extension", "sizeKo", "createdAt", "expirationDate",
-            "workspace.name", "typeDocument.typeDeDocument");
+            "workspace.name", "typeDocument.typeDeDocument", "echeanceConservation");
 
     /** Colonnes numeriques ou temporelles : triees telles quelles. */
-    private static final Set<String> TRIS_NUM = Set.of("id", "sizeKo", "createdAt", "expirationDate");
+    private static final Set<String> TRIS_NUM = Set.of("id", "sizeKo", "createdAt", "expirationDate",
+            "echeanceConservation");
 
     private final UploadDocumentRepository repo;
     private final TypeDocumentRepository typeRepo;
@@ -191,10 +192,24 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public PageResponse<DocumentResponse> list(int page, int size, String search, UUID workspaceId,
                                                String sortBy, String sortDir) {
+        return list(page, size, search, workspaceId, sortBy, sortDir, false);
+    }
+
+    /**
+     * @param echeanceDepassee vrai : seuls les documents dont l'échéance de
+     *                         conservation est atteinte (filtre « échéance dépassée », §12.9)
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<DocumentResponse> list(int page, int size, String search, UUID workspaceId,
+                                               String sortBy, String sortDir, boolean echeanceDepassee) {
         Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
         Specification<UploadDocument> spec = criteres(false, search)
                 .and(droits.documents(appelant(), CodePermission.CONSULTER));
         if (workspaceId != null) spec = spec.and(dansLeNoeud(workspaceId));
+        if (echeanceDepassee) {
+            java.time.LocalDate jour = com.ipt.ged.document.conservation.Echeances.aujourdhui();
+            spec = spec.and((r, q, cb) -> cb.lessThanOrEqualTo(r.get("echeanceConservation"), jour));
+        }
         return pageDe(repo.findAll(spec, pageable));
     }
 

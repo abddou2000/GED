@@ -62,6 +62,8 @@ export interface DocumentItem {
   metadonnees?: Record<string, unknown>;
   /** Échéance de conservation (§12.9), calculée par la base. */
   echeanceConservation?: string | null;
+  /** Échéance atteinte : document à examiner par l'Agent d'archive (aucune suppression automatique). */
+  echeanceDepassee?: boolean;
   /** Verrou (§12.8). */
   verrouMotif?: string | null;
   verrouLe?: string | null;

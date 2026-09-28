@@ -220,6 +220,18 @@ ged:
       seuil-octets: 2147483648       # 2 Go
       retention: 7d                  # puis destruction de l'archive produite
 
+  # ------------------------------------------------------------
+  #  Alerte d'échéance de conservation (T-112, §12.9) : tâche quotidienne sous
+  #  verrou de tâche (une seule instance l'exécute), notification aux Agents
+  #  d'archive. Aucune suppression automatique (P4).
+  # ------------------------------------------------------------
+  conservation:
+    alertes:
+      actif: ${GED_ALERTE_ECHEANCE_ACTIVE:true}
+      cron: "${GED_ALERTE_ECHEANCE_CRON:0 0 6 * * *}"   # chaque jour à 6 h, heure de MMED
+      tranche: 200                   # documents signalés par transaction
+      bail: 2h                       # durée maximale du verrou de tâche
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

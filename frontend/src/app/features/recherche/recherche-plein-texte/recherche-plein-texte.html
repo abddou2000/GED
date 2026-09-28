@@ -43,6 +43,10 @@
           <option value="SEULEMENT">Seuls</option>
         </select>
       </label>
+      <label class="case">
+        <input type="checkbox" name="echeanceDepassee" [(ngModel)]="criteres.echeanceDepassee" />
+        Échéance dépassée
+      </label>
       <label>Tri
         <select name="tri" [(ngModel)]="criteres.tri">
           @for (t of TRIS; track t.valeur) { <option [ngValue]="t.valeur">{{ t.libelle }}</option> }
@@ -60,6 +64,9 @@
           <li>
             <a class="nom" [routerLink]="['/televerser', d.documentId]">{{ d.nom }}</a>
             @if (d.statutConservation === 'ARCHIVE') { <span class="badge-archive">Archivé</span> }
+            @if (d.echeanceDepassee) {
+              <span class="badge-echeance" title="Échéance de conservation atteinte : à examiner par l'Agent d'archive">Échéance dépassée</span>
+            }
             <span class="meta">
               {{ d.typeDocument ?? '—' }} · {{ d.espace ?? '—' }}
               @if (d.deposeLe) { · déposé le {{ d.deposeLe | date: 'dd/MM/yyyy' }} }

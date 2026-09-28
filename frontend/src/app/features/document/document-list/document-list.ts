@@ -63,6 +63,8 @@ export class DocumentList implements OnInit {
   dataSource = new MatTableDataSource<DocumentItem>([]);
   selection = new SelectionModel<DocumentItem>(true, []);
   archiveView = signal(false);
+  /** Filtre « échéance dépassée » (§12.9), porté par l'URL comme l'archive. */
+  echeanceView = signal(false);
   loading = signal(true);
   /**
    * Cle des preferences de colonnes. Reprend le nom d'ecran de l'application
@@ -86,6 +88,7 @@ export class DocumentList implements OnInit {
     { cle: 'workspace', libelle: 'Espace de travail' },
     { cle: 'type', libelle: 'Type de document' },
     { cle: 'expiration', libelle: "Date d'expiration" },
+    { cle: 'echeance', libelle: 'Échéance de conservation', masqueeParDefaut: true },
     { cle: 'etiquettes', libelle: 'Étiquettes' },
     { cle: 'actions', libelle: 'Actions', toujours: true },
   ];
@@ -114,8 +117,10 @@ export class DocumentList implements OnInit {
     // ailleurs ramenait aux documents actifs sans prevenir.
     this.route.queryParamMap.subscribe(q => {
       const archive = q.get('trashed') === '1';
-      if (archive !== this.archiveView()) {
+      const echeance = !archive && q.get('echeance') === '1';
+      if (archive !== this.archiveView() || echeance !== this.echeanceView()) {
         this.archiveView.set(archive);
+        this.echeanceView.set(echeance);
         this.pageCourante.set(0);
       }
       this.load();
@@ -127,9 +132,12 @@ export class DocumentList implements OnInit {
   load(): void {
     this.selection.clear();
     this.loading.set(true);
-    const source = this.archiveView() ? this.service.trashed : this.service.list;
-    source.call(this.service, this.pageCourante(), this.taillePage(), this.recherche(),
-                undefined, this.triChamp(), this.triSens()).subscribe({
+    const requete = this.archiveView()
+      ? this.service.trashed(this.pageCourante(), this.taillePage(), this.recherche(),
+                             undefined, this.triChamp(), this.triSens())
+      : this.service.list(this.pageCourante(), this.taillePage(), this.recherche(),
+                          undefined, this.triChamp(), this.triSens(), this.echeanceView());
+    requete.subscribe({
       next: res => {
         this.dataSource.data = res.content;
         this.total.set(res.total);
@@ -184,6 +192,20 @@ export class DocumentList implements OnInit {
     this.recherche.set((v ?? '').trim());
     this.pageCourante.set(0);
     this.load();
+  }
+
+  /** Info-bulle de la pastille « Échéance dépassée ». */
+  infoEcheance(d: DocumentItem): string {
+    return `Échéance de conservation atteinte le ${this.dateCourte(d.echeanceConservation ?? '')} : `
+      + "à examiner par l'Agent d'archive (aucune suppression automatique)";
+  }
+
+  /** Bascule le filtre « échéance dépassée » (documents actifs seulement). */
+  toggleEcheance(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.echeanceView() ? {} : { echeance: 1 },
+    });
   }
 
   toggleArchive(): void {

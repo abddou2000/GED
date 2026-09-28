@@ -13,10 +13,12 @@ import java.util.UUID;
  * {@code d} (document) de la requête de recherche.
  *
  * @param deposeDu borne basse incluse de la date de dépôt ;
- * @param deposeAu borne haute incluse de la date de dépôt.
+ * @param deposeAu borne haute incluse de la date de dépôt ;
+ * @param echeanceDepassee documents dont l'échéance de conservation est
+ *                         atteinte seulement (§12.9, jour de MMED).
  */
 public record CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDate deposeDu, LocalDate deposeAu,
-                                  Archives archives, String canalDepot) {
+                                  Archives archives, String canalDepot, boolean echeanceDepassee) {
 
     public static final CriteresMetadonnees AUCUN = new CriteresMetadonnees(null, null, null, null);
 
@@ -27,12 +29,17 @@ public record CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDa
     public enum Archives { INCLURE, EXCLURE, SEULEMENT }
 
     public CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDate deposeDu, LocalDate deposeAu) {
-        this(typeDocumentId, workspaceId, deposeDu, deposeAu, Archives.INCLURE, null);
+        this(typeDocumentId, workspaceId, deposeDu, deposeAu, Archives.INCLURE, null, false);
     }
 
     public CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDate deposeDu, LocalDate deposeAu,
                                Archives archives) {
-        this(typeDocumentId, workspaceId, deposeDu, deposeAu, archives, null);
+        this(typeDocumentId, workspaceId, deposeDu, deposeAu, archives, null, false);
+    }
+
+    public CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDate deposeDu, LocalDate deposeAu,
+                               Archives archives, String canalDepot) {
+        this(typeDocumentId, workspaceId, deposeDu, deposeAu, archives, canalDepot, false);
     }
 
     public CriteresMetadonnees {
@@ -69,6 +76,11 @@ public record CriteresMetadonnees(UUID typeDocumentId, UUID workspaceId, LocalDa
             f.add(new FragmentSql("d.statut_conservation <> 'ARCHIVE'", Map.of()));
         } else if (archives == Archives.SEULEMENT) {
             f.add(new FragmentSql("d.statut_conservation = 'ARCHIVE'", Map.of()));
+        }
+        if (echeanceDepassee) {
+            // Filtre « échéance dépassée » (§12.9) : même jour de référence que l'alerte.
+            f.add(new FragmentSql("d.echeance_conservation <= :critere_echeance", Map.of("critere_echeance",
+                    com.ipt.ged.document.conservation.Echeances.aujourdhui())));
         }
         return f;
     }

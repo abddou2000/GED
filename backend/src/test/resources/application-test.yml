@@ -45,6 +45,11 @@ ged:
       actif: false
     archivage:
       repertoire-travail: ./target/test-conservation-travail
+  # Alerte d'échéance : pas de déclenchement planifié, les tests appellent
+  # AlertesEcheanceConservation.executer eux-mêmes.
+  conservation:
+    alertes:
+      actif: false
 
   # Notifications : pas d'expédition automatique, les tests la déclenchent
   # eux-mêmes (ExpediteurCourriels.expedier) vers un SMTP simulé (GreenMail).

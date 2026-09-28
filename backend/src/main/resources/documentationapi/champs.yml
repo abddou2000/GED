@@ -458,6 +458,7 @@ champs:
   objet: {description: "Objet du document (socle commun, §12.7).", exemple: "Marché de travaux de voirie"}
   dateDocument: {description: "Date du document (AAAA-MM-JJ) ; date de dépôt si absente.", exemple: "2026-09-01"}
   echeanceConservation: {description: "Échéance de conservation calculée par la base (§12.9) ; nulle sans durée.", exemple: "2036-09-01"}
+  echeanceDepassee: {description: "Échéance de conservation atteinte (jour de MMED) : document à examiner par l'Agent d'archive ; aucune suppression automatique (§12.9).", exemple: false}
   verrouLe: {description: "Date de pose du verrou ; nulle sans verrou.", exemple: "2026-09-30T08:00:00Z"}
   verrouMotif: {description: "Motif du verrou ; nul sans verrou.", exemple: "Contrôle fiscal"}
   numero: {description: "Numéro de la version, à partir de 1.", exemple: 2}
@@ -604,6 +605,7 @@ surcharges:
 
 # Paramètres de chemin et de requête, par nom.
 parametres:
+  echeanceDepassee: "Vrai : seuls les documents dont l'échéance de conservation est atteinte (filtre « échéance dépassée », §12.9)."
   objet: Objet du document (socle commun, §12.7).
   dateDocument: "Date du document (AAAA-MM-JJ) ; date de dépôt si absente."
   motif: Motif du verrou (500 caractères au plus).

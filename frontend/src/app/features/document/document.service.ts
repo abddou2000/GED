@@ -78,9 +78,11 @@ export class DocumentService {
   /** `workspaceId` restreint la liste aux documents d'un dossier — le serveur
    *  sait déjà le faire, inutile de tout charger pour filtrer ensuite. */
   list(page = 0, size = 10, search = '', workspaceId?: string,
-       sortBy = '', sortDir = 'desc'): Observable<PageResult<DocumentItem>> {
+       sortBy = '', sortDir = 'desc', echeanceDepassee = false): Observable<PageResult<DocumentItem>> {
     const params = this.params(page, size, search, sortBy, sortDir);
     if (workspaceId != null) params['workspaceId'] = workspaceId;
+    // Filtre « échéance dépassée » (§12.9) : documents à examiner par l'Agent d'archive.
+    if (echeanceDepassee) params['echeanceDepassee'] = 'true';
     return this.http.get<PageResult<DocumentItem>>(this.url, { params });
   }
 

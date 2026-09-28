@@ -84,6 +84,27 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
+**T-112 — alerte d'échéance de conservation** (§12.9 p. 35 ; dossier
+fonctionnel §4.6.3, §4.6.6) : terminé, sur `ct/dev1` après fusion de
+`conformite-technique` (b7274bc). Fusions précédentes intégrées (b7274bc).
+
+| Réf. | Exigence | Réalisation |
+|---|---|---|
+| 12.9 (T-112) | Tâche planifiée quotidienne avec verrou de tâche (pas de double exécution à plusieurs instances) | `TacheAlertesEcheance` (`@Scheduled`, fuseau Africa/Casablanca) → `AlertesEcheanceConservation.executer` sous `common.tache.VerrouTache` : table `verrou_tache` (bail : `UPDATE` conditionnel validé dans sa propre transaction, repris à expiration si l'instance tombe ; libération par le seul détenteur). Paramétrable : `ged.conservation.alertes.actif` / `GED_ALERTE_ECHEANCE_ACTIVE`, `…cron` / `GED_ALERTE_ECHEANCE_CRON` (6 h par défaut), `tranche`, `bail`. |
+| 12.9 | Sélection des documents échus non encore signalés, marquage | `document.echeance_signalee_le` (index partiel `idx_document_echeance_a_signaler`) ; tranches `FOR UPDATE SKIP LOCKED`, une transaction par tranche ; échéance <= jour de MMED ; corbeille exclue, archivés inclus. Échéance repoussée dans le futur (type, date, métadonnée) : signalement levé par déclencheur (`trg_document_echeance_resignaler`), nouvelle alerte à la nouvelle échéance. |
+| 12.9 / 4.6.3 / 4.6.6 | Notification aux Agents d'archive (famille « fin de conservation ») | `EcheanceConservationAtteinte` implémente `EvenementNotifiable` (`TypeNotification.ECHEANCE_CONSERVATION`, moteur de dev2, boîte d'envoi dans la transaction du marquage). Destinataires : porteurs du rôle Agent d'archive (direct ou par groupe, global ou sur un nœud) qui détiennent **Archiver sur le document** (`AccessPredicate`, confidentialité comprise : un agent non désigné n'apprend pas l'existence d'un document confidentiel). |
+| 7.4.1 | Événement d'audit | `ECHEANCE_CONSERVATION_ATTEINTE` au catalogue `ActionAudit`, une trace par document signalé (échéance, nombre d'agents notifiés). |
+| 12.9 | Filtre « échéance dépassée », mise en évidence | `echeanceDepassee` : `GET /documents`, `POST /documents/recherche`, `GET /recherche/plein-texte` ; `DocumentResponse.echeanceDepassee` et `Resultat.echeanceDepassee` ; échéance triable. Écrans : bouton « Échéance dépassée » et pastille dans « Documents déposés » (ligne teintée, colonne « Échéance de conservation »), bandeau sur la fiche, case à cocher et pastille dans la recherche plein texte. |
+| P4 | Aucune suppression automatique | Seul `echeance_signalee_le` change ; vérifié par test. |
+
+Tests : `AlertesEcheanceConservationTest` (5 : signalement unique et
+destinataires, verrou tenu ailleurs, deux exécutions simultanées sans double
+signalement ni double notification, échéance repoussée puis de nouveau
+atteinte, filtres), `VerrouTacheTest` (bail, reprise après panne, libération
+par le seul détenteur), `SchemaLiquibaseTest` (table `verrou_tache`, retour
+arrière au jalon `workflow-e8`) ; `mvn test` **585 verts**, `ng build` vert. Non fait : filtre dans l'API contrat §5.3.1
+(`POST /recherches`, lot de dev2) ; écrans vérifiés par `ng build` seulement.
+
 **Fusion de `conformite-technique` (e8a75d9 : dev3 E5-E7, dev2 vagues 2 à 4)
 dans `ct/dev1`, réconciliation et correctifs de recette** : faite (commit de
 fusion ci-dessous). E8 workflow : terminé (0a6a33e). E7 modèle : accepté
