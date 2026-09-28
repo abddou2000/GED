@@ -10,8 +10,8 @@ ajoutées, numéros P-01 à P-22) et revue technique client (`DECISIONS-REVUE-TE
 décision tentative ou une question ouverte ne change rien (le V3 s'applique). Pour le reste, le
 PDF fait foi. Les lignes modifiées par la revue portent la mention « Source : revue client (Dx) ».
 
-Dernière mise à jour : 28/09/2026 — intégrés : vague 1, `ct/dev1` jusqu'à `62da57a` (`96c7c2c` ; E7 modèle,
-E8 workflow, E8-API, correctifs ANO-E7-002 et ANO-E4-001 à 003), `ct/dev3` jusqu'à `3f22c6d` (`c7b491e`),
+Dernière mise à jour : 28/09/2026 — intégrés : vague 1, `ct/dev1` jusqu'à `54882f1` (`96c7c2c` : E7 modèle,
+E8 workflow, E8-API, correctifs ANO-E7-002 et ANO-E4-001 à 003 ; `a552062` : T-112), `ct/dev3` jusqu'à `3f22c6d` (`c7b491e`),
 `ct/dev2` jusqu'à `83354f7` (`020ced3` ; correctifs ANO-E9-001, ANO-E11-001, ANO-E11-002, ANO-E10-001),
 `ct/qa` jusqu'à `cf982d2` (`95482f1`, recette de la vague 5).
 Anomalies ouvertes : ANO-E5-003 (dev3). Corrigées, à revérifier par qa : ANO-E7-002, ANO-E4-001,
@@ -46,9 +46,9 @@ est marquée **« Identique contesté »** dans la colonne Init. et suivie comme
 
 | Statut courant | Lignes | Part |
 |---|---|---|
-| À faire | 4 | 3 % |
+| À faire | 3 | 2 % |
 | En cours | 3 | 2 % |
-| Livré | 39 | 28 % |
+| Livré | 40 | 28 % |
 | Vérifié | 18 | 13 % |
 | Proche | 1 | 1 % |
 | Identique (réserve UAT) | 9 | 6 % |
@@ -89,13 +89,13 @@ changement (T-008, T-012, T-026, T-080, T-095, T-099, T-110), 2 renvoient à une
 | E5 | Stockage sécurisé des fichiers (branché) | 1 + 2 | 9 | 0 | 0 | 2 | 2 | 0 | 2 | 3 |
 | E6 | OCR asynchrone et plein texte (+ dépôt en deux temps) | 3 | 15 | 1 | 0 | 2 | 3 | 0 | 0 | 9 |
 | E7 | Modèle documentaire et cycle de vie (+ espace de partage R-03) | 4 | 12 | 0 | 0 | 9 | 1 | 0 | 1 | 1 |
-| E8 | Workflow, conservation, notifications | 5 | 5 | 1 | 0 | 3 | 0 | 0 | 1 | 0 |
+| E8 | Workflow, conservation, notifications | 5 | 5 | 0 | 0 | 4 | 0 | 0 | 1 | 0 |
 | E8-API | Pilotage du workflow par API (revue client D8) | 5 | 2 | 0 | 0 | 2 | 0 | 0 | 0 | 0 |
 | E9 | API d'intégration | 2 à 5 | 14 | 0 | 0 | 3 | 0 | 1 | 0 | 10 |
 | E10 | Exploitation et infrastructure | 1 + 5 | 13 | 0 | 0 | 8 | 4 | 0 | 1 | 0 |
 | E11 | Recette de conformité (lignes déjà Identique, points hors code) | 6 | 26 | 2 | 0 | 0 | 1 | 0 | 0 | 23 |
 | — | Hors périmètre (R-04) | — | 1 | — | — | — | — | — | — | — |
-| **Total** | | | **141** | **4** | **3** | **39** | **18** | **1** | **9** | **66** |
+| **Total** | | | **141** | **3** | **3** | **40** | **18** | **1** | **9** | **66** |
 
 ### Répartition par responsable
 
@@ -103,7 +103,7 @@ changement (T-008, T-012, T-026, T-080, T-095, T-099, T-110), 2 renvoient à une
 |---|---|---|---|---|---|---|---|---|---|
 | dev1 | 47 | 0 | 1 | 14 | 5 | 0 | 4 | 23 | ANO-E4-001, ANO-E4-002, ANO-E4-003, ANO-E7-002 corrigées, à revérifier par qa |
 | dev2 | 56 | 1 | 2 | 20 | 7 | 1 | 1 | 24 | ANO-E9-001, ANO-E11-001, ANO-E11-002, ANO-E10-001 corrigées, à revérifier par qa |
-| dev3 | 36 | 2 | 0 | 5 | 6 | 0 | 4 | 19 | ANO-E5-003 ouverte |
+| dev3 | 36 | 1 | 0 | 6 | 6 | 0 | 4 | 19 | ANO-E5-003 ouverte |
 | pm | 2 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | — (P-18 engagement contractuel ; R-04 hors périmètre) |
 
 qa vérifie toutes les lignes (passage à « Vérifié ») ; il n'est responsable d'aucune ligne
@@ -284,7 +284,7 @@ Légende Init. : I = Identique, P = Proche, N = Non, IC = Identique contesté pa
 | T-109 | 12.8 | Circuit figé au dépôt | I | E11 | dev1 | Identique | À revérifier après E8 (tables `circuit`, `circuit_validateur`). |
 | T-110 | 12.8 | Décisions VALIDE, REFUSE, ANNULEE sans ordre, statut recalculé sur la version courante (**confirmé par la revue client D7** : parallèle, tous les validateurs sollicités en même temps, aucun validateur optionnel, logique entièrement côté back) | N | E8 | dev1 | Livré | Table `decision` ; tests : deux validateurs dans les deux ordres ; nouveau versement qui rend caduques les décisions ; aucun validateur facultatif. Reprise des circuits existants. Source : revue client (D7). **Livré** : fusion `96c7c2c` (ct/dev1 `62da57a`), 579 tests verts sur PostgreSQL (base recréée par Liquibase) ; en attente de recette qa. Décisions sans ordre sur la version courante, statut recalculé dans la transaction de chaque décision ou versement ; reprise des anciennes signatures (`202610021120`). |
 | T-111 | 12.8 | Annulation de circuit et diffusion ; validateur empêché : **réaffectation explicite par l'Administrateur** d'un validateur en attente, tracée (revue client D1 : la GED ne détecte plus les comptes désactivés ; figement du circuit : question QR1) | N | E8 | dev1 | Livré | Annulation avec motif (statut `ANNULE`, décisions conservées, notification) ; diffusion par habilitation de lecture ; réaffectation d'un validateur en attente par l'Administrateur, auditée. Source : revue client (D1, QR1). **Livré** : fusion `96c7c2c` (ct/dev1 `62da57a`), 579 tests verts sur PostgreSQL (base recréée par Liquibase) ; en attente de recette qa. Annulation de circuit, diffusion (rôle lecteur, `202610021130`), réaffectation manuelle d'un validateur par l'Administrateur. |
-| T-112 | 12.9 | Échéance de conservation et tâche planifiée d'alerte | N | E8 | dev3 | À faire | `document.echeance_conservation` recalculée ; tâche quotidienne avec verrou de tâche ; filtre « échéance dépassée » ; aucune suppression automatique. Non livré par le lot E8 de dev1 (fusion `96c7c2c`) : reste à faire. |
+| T-112 | 12.9 | Échéance de conservation et tâche planifiée d'alerte | N | E8 | dev3 | Livré | `document.echeance_conservation` recalculée ; tâche quotidienne avec verrou de tâche ; filtre « échéance dépassée » ; aucune suppression automatique. Non livré par le lot E8 de dev1 (fusion `96c7c2c`) : reste à faire. **Livré** : fusion `a552062` (ct/dev1 `54882f1`), 586 tests verts sur PostgreSQL (base recréée par Liquibase) ; en attente de recette qa. Tâche quotidienne paramétrable sous verrou à bail (`verrou_tache`), `document.echeance_signalee_le`, notification « fin de conservation » aux Agents d'archive détenant Archiver (confidentialité respectée), audit `ECHEANCE_CONSERVATION_ATTEINTE`, aucune suppression automatique, filtre « échéance dépassée » sur les listes, la recherche et les écrans. |
 | T-113 | 12.9 | Notifications : boîte d'envoi, e-mail SMTP et pastille in-app | N | E8 | dev3 | Identique (réserve UAT) | Table `notification` écrite dans la transaction de l'événement ; envoi asynchrone, 3 reprises ; 3 cas exclusivement ; préférence e-mail ; tests avec serveur SMTP simulé. **Livré par dev2** (fusion `e8a75d9`) : table `notification` écrite dans la transaction du déclencheur, e-mail asynchrone avec reprises, pastille, préférence e-mail ; en attente de recette qa. Réserve : relais SMTP réel non éprouvé (GreenMail). Recette qa vague 4 (`recette/RESULTATS-VAGUE-4.md`) : vérifié (N-01 à N-08 : boîte d'envoi, pastille, e-mail, préférence, trois cas exclusivement). Relu par pm contre le §12.9 : mécanisme conforme ; **réserve UAT** : relais SMTP de MMED (GreenMail simulé). Les déclencheurs des circuits et de l'échéance relèvent de T-110 et T-112. |
 | T-114 | 12.10 | Export de dossier en ZIP en flux avec manifeste CSV | N | E7 | dev3 | Vérifié | `ZipOutputStream` sans fichier temporaire ; `manifeste.csv` UTF-8 avec les colonnes du 12.10 ; omission silencieuse des documents non autorisés ; traitement de fond au-delà de 500 documents ou 2 Go ; `DOCUMENT_EXPORTE` par document. **Livré** : fusion `b47e54c` (ct/dev3 `8f4a888`), 443 tests verts sur PostgreSQL ; en attente de recette qa. Réserve : aucun essai de charge sur plusieurs milliers de documents. **ANO-E7-001** (majeure, dev3) : export d'un dossier hors périmètre → 200 et nom du dossier révélé au lieu de 404 ; critère de sortie E7 non atteint. **ANO-E7-001 corrigée** (f5dc85e, fusion `c7b491e`) : dossier hors périmètre → 404 ; à revérifier par qa. Reste « En cours » jusqu'à cette revérification. Recette qa vague 5 (`recette/RESULTATS-VAGUE-5.md`, fusion `95482f1`) : **ANO-E7-001 vérifiée** (404 au corps identique à celui d'un dossier absent, sans `Content-Disposition` ni `job_export`, export de fond compris). **ANO-E5-003** ouverte (mineure, dev3) : export synchrone d'un dossier contenant un fichier altéré → 200 et archive tronquée, sans `INTEGRITE_COMPROMISE`. Pas « Identique » tant qu'elle est ouverte ; réserve de charge maintenue. |
 | T-115 | 12.11 | Dépôt en deux temps : fichier reçu, puis indexation INDEXE, SANS_PLAN ou A_INDEXER | P | E6 | dev3 | Livré | Temps 1 et temps 2 en transactions séparées ; issues `INDEXE`, `SANS_PLAN`, `A_INDEXER` et reprise ; HTTP 201 ou 202 ; rejeu sans effet (Idempotency-Key). **Livré** : fusion `b47e54c` (ct/dev3 `8f4a888`), 443 tests verts sur PostgreSQL ; en attente de recette qa. Réserve : rejeu sans effet par Idempotency-Key à venir (dev2, T-049). Idempotency-Key livrée (fusion `e8a75d9`) : la réserve est levée. Recette qa vague 3 (`recette/RESULTATS-VAGUE-3.md`) : partiel (202 et statut vérifiés ; issues `SANS_PLAN` et `A_INDEXER` non exercées). |
