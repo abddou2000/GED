@@ -477,4 +477,44 @@ class CircuitApiTest {
                 .get("pendingSignatures").asLong());
         assertEquals(1, json(mvc.perform(get(WF + "/historique").with(comme(KARIM)))).size());
     }
+    @Test
+    @DisplayName("ANO-E8-002 : dépôt par une application sans délégation sous une règle : circuit ouvert, application tracée")
+    void depotParApplicationSansDelegation() throws Exception {
+        rattacherNoeud(espace, regle("Règle bureau d'ordre", nomme(KARIM)));
+        String code = "bo-" + UUID.randomUUID().toString().substring(0, 8);
+        JsonNode app = json(mvc.perform(post("/api/v1/applications").contentType(APPLICATION_JSON)
+                        .content("{\"code\":\"" + code + "\",\"nom\":\"Bureau d'ordre central\","
+                                + "\"adressesAutorisees\":[\"127.0.0.1\"]}"))
+                .andExpect(status().isCreated()));
+        JsonNode g = json(mvc.perform(post("/api/v1/applications/" + app.get("id").asText() + "/cles")
+                .contentType(APPLICATION_JSON).content("{\"delegation\":false}")).andExpect(status().isCreated()));
+        mvc.perform(put("/api/v1/cles-api/" + g.get("details").get("id").asText() + "/portee")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"portee\":[{\"noeudId\":\"" + espace + "\",\"operations\":[\"DEPOT\"]}]}"))
+                .andExpect(status().isOk());
+
+        JsonNode d = json(mvc.perform(multipart("/api/v1/documents")
+                        .file(new MockMultipartFile("file", "courrier.pdf", "application/pdf",
+                                com.ipt.ged.support.Pdfs.pdf("courrier " + UUID.randomUUID())))
+                        .param("name", "Courrier entrant").param("typeDocumentId", type.toString())
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                                .anonymous())
+                        .header(com.ipt.ged.cleapi.FiltreCleApi.ENTETE_CLE, g.get("cle").asText()))
+                .andExpect(status().is2xxSuccessful()));
+        UUID doc = UUID.fromString(d.get("id").asText());
+        UUID appId = UUID.fromString(app.get("id").asText());
+
+        // Circuit ouvert sans initiateur (aucune personne), notification au validateur.
+        assertEquals("EN_COURS", jdbc.queryForObject("SELECT statut FROM circuit WHERE document_id = ?", String.class, doc));
+        assertNull(jdbc.queryForObject("SELECT initiateur_id FROM circuit WHERE document_id = ?", UUID.class, doc));
+        EvenementWorkflow ouverture = evenements.stream(EvenementWorkflow.class)
+                .filter(e -> e.action().equals(EvenementWorkflow.CIRCUIT_OUVERT) && e.objetId().equals(doc))
+                .findFirst().orElseThrow();
+        assertEquals(appId, ouverture.apres().get("applicationId"));
+        assertEquals("Application « Bureau d'ordre central »", ouverture.demande().variables().get("auteur"));
+        assertTrue(ouverture.demande().destinataires().contains(jeu.utilisateurId(KARIM)));
+        // Journal : l'application est l'actrice de l'ouverture.
+        assertEquals(appId, jdbc.queryForObject("SELECT acteur_application_id FROM journal_audit"
+                + " WHERE action = 'CIRCUIT_OUVERT' AND objet_id = ?", UUID.class, doc));
+    }
 }

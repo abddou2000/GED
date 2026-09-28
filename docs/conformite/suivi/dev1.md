@@ -84,6 +84,24 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
+**Correctifs de recette vague 6** (qa, `ANOMALIES.md`), sur `ct/dev1` après
+fusion de `conformite-technique` (68262bc) :
+
+| Anomalie | Correction | Test |
+|---|---|---|
+| ANO-E1-006 (majeure) | Montée bloquée sur une base avec document archivé : `202609301049` suspend le gel des versions (`trg_version_document_archive`) le temps de la numérotation de `202609301050` (non modifié : déjà appliqué ailleurs), `202609301051` le rétablit ; retours arrière symétriques ; relance possible si la montée s'interrompt entre les deux (`DEPLOIEMENT.md` §8). | `SchemaLiquibaseTest.monteeAvecDocumentArchive` : montée jusqu'avant la numérotation, document archivé à deux versions, fin de montée, versions numérotées, gel rétabli (insertion refusée). |
+| ANO-E8-002 (majeure) | `ServiceCircuits.publierOuverture` : auteur jamais nul (personne, sinon « Application « nom » », sinon « Bureau d'ordre » / « Application cliente ») ; `applicationId` ajouté à la trace quand aucune personne n'ouvre le circuit (l'audit prend aussi l'application dans la requête). | `CircuitApiTest.depotParApplicationSansDelegation` : clé sans délégation, portée DEPOT, espace sous règle → 2xx, circuit EN_COURS sans initiateur, notification au validateur, `acteur_application_id` au journal. |
+| ANO-E7-003 (mineure) | Valeur par défaut d'un index non transmis : écrite au dépôt avec métadonnées (`MetadonneesDepot`, index et miroir JSON) ; `ValidateurMetadonnees` applique les défauts même hors jeu complet (dépôt en deux temps, miroir `synchroniser`), sans exiger les obligatoires. | `ModeleDocumentApiTest.valeurParDefaut`. |
+| ANO-E8-003 (mineure) | Retour arrière de `202610021120` : refusé (exception avec décompte, rien supprimé) s'il perdrait circuits annulés, validateurs par rôle, réaffectations ou historique de décisions ; poursuivi seulement sur décision explicite (`ged.retour_arriere_avec_perte = oui`, paramètre de session de la CLI), documentée dans `DEPLOIEMENT.md` §8. Le bloc rollback n'entre pas dans la somme de contrôle. Un retour arrière fidèle est impossible : l'ancien modèle ne sait pas représenter ces données. | `SchemaLiquibaseTest.retourArriereRepriseAvecPerte` (refus puis décision explicite) ; `signaturesRepriseEnCircuits` inchangé (sans perte : fidèle). |
+
+Tests : `mvn test` **591 verts**, `ng build` vert.
+
+ANO-E8-001 (règle créée par API → 403) : confiée à dev2 (`GardeDroitsRequetes`,
+`/api/v1/workflow/regles`) ; `AccesApiWorkflowCles` n'est pas en cause (il
+fournit déjà la personne déléguée ; les droits d'administration de la personne
+sont calculés comme dans `RattachementRegles.exigerReferentiels`).
+
+
 **T-112 — alerte d'échéance de conservation** (§12.9 p. 35 ; dossier
 fonctionnel §4.6.3, §4.6.6) : terminé, sur `ct/dev1` après fusion de
 `conformite-technique` (b7274bc). Fusions précédentes intégrées (b7274bc).

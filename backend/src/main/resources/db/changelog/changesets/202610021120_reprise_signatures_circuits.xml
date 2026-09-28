@@ -43,7 +43,39 @@
                FROM ${database.defaultSchemaName}.workflow_ged_signature s
               WHERE s.status IN ('SIGNED', 'REJECTED')</sql>
         <dropTable tableName="workflow_ged_signature"/>
+        <!--
+            Retour arrière (ANO-E8-003) : l'ancien modèle (une signature par
+            validateur nommé, un seul état) ne peut pas représenter les circuits
+            annulés, les validateurs par rôle, les réaffectations ni l'historique
+            des décisions (décisions caduques, retirées). Un retour arrière qui
+            les perdrait est REFUSÉ, sauf décision explicite de l'exploitant :
+            paramètre de session ged.retour_arriere_avec_perte = 'oui'
+            (DEPLOIEMENT.md §8). Sans ces données, le retour arrière est fidèle.
+            Le bloc rollback n'entre pas dans la somme de contrôle Liquibase :
+            les bases où ce changeset est appliqué ne sont pas invalidées.
+        -->
         <rollback>
+            <sql splitStatements="false"><![CDATA[DO $garde$
+DECLARE
+    annules INTEGER; par_role INTEGER; reaffectes INTEGER; historique INTEGER;
+BEGIN
+    SELECT count(*) INTO annules FROM ${database.defaultSchemaName}.circuit WHERE statut = 'ANNULE';
+    SELECT count(*) INTO par_role FROM ${database.defaultSchemaName}.circuit_validateur WHERE employe_id IS NULL;
+    SELECT count(*) INTO reaffectes FROM ${database.defaultSchemaName}.circuit_validateur WHERE reaffecte_le IS NOT NULL;
+    -- Tout ce qui dépasse « une dernière décision par validateur » : décisions
+    -- antérieures (caduques, retirées) et décisions de retrait.
+    SELECT count(*) INTO historique FROM (
+        SELECT d.id, row_number() OVER (PARTITION BY d.circuit_validateur_id ORDER BY d.cree_le DESC, d.id DESC) AS rang,
+               d.decision
+          FROM ${database.defaultSchemaName}.decision d) x
+     WHERE x.rang > 1 OR x.decision = 'ANNULEE';
+    IF (annules + par_role + reaffectes + historique) > 0
+       AND coalesce(current_setting('ged.retour_arriere_avec_perte', true), '') <> 'oui' THEN
+        RAISE EXCEPTION 'Retour arrière de la reprise des signatures refusé : il perdrait % circuit(s) annulé(s), % validateur(s) par rôle, % réaffectation(s) et % décision(s) d''historique, que l''ancien modèle ne sait pas représenter. Décision explicite requise : ged.retour_arriere_avec_perte = oui (DEPLOIEMENT.md §8).',
+            annules, par_role, reaffectes, historique;
+    END IF;
+END
+$garde$]]></sql>
             <sql>CREATE TABLE ${database.defaultSchemaName}.workflow_ged_signature (
                 id UUID NOT NULL CONSTRAINT pk_workflow_ged_signature PRIMARY KEY,
                 document_id UUID NOT NULL CONSTRAINT fk_workflow_ged_signature_document REFERENCES ${database.defaultSchemaName}.document (id),

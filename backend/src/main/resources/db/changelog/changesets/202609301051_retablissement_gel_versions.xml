@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301051_retablissement_gel_versions.xml">
+
+    <!-- ANO-E1-006 : gel des versions d'un document archivé rétabli après la numérotation (voir 202609301049). -->
+    <changeSet id="202609301051-1" author="ged">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">SELECT count(*) FROM pg_trigger WHERE tgname = 'trg_version_document_archive' AND tgrelid = '${database.defaultSchemaName}.version_document'::regclass</sqlCheck>
+        </preConditions>
+        <comment>Rétablissement du gel des versions archivées.</comment>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.version_document ENABLE TRIGGER trg_version_document_archive</sql>
+        <rollback>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.version_document DISABLE TRIGGER trg_version_document_archive</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

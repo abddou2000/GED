@@ -135,7 +135,10 @@
     <include file="changesets/202609301030_index_def_booleen.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301040_plan_indexation_version.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301045_empreinte_version_document.xml" relativeToChangelogFile="true"/>
+    <!-- ANO-E1-006 : gel des versions archivées suspendu le temps de la numérotation (202609301050). -->
+    <include file="changesets/202609301049_suspension_gel_versions_numerotation.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301050_versions_document.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202609301051_retablissement_gel_versions.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301060_creation_table_job_retypage.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301070_usage_espace_noeud.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202609301200_jalon_modele.xml" relativeToChangelogFile="true"/>

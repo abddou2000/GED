@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202609301049_suspension_gel_versions_numerotation.xml">
+
+    <!--
+        ANO-E1-006 : 202609301050-1 (lot modèle) numérote les versions EXISTANTES
+        et désigne la courante par UPDATE ; sur une base qui contient déjà un
+        document archivé, le déclencheur de gel de dev3 (202609301020,
+        trg_version_document_archive) refusait ces écritures et la montée
+        échouait. Le gel est suspendu pour la seule numérotation, puis rétabli
+        par 202609301051 : aucune écriture applicative ne passe entre les deux
+        (la montée se fait application arrêtée, DEPLOIEMENT.md §8), et la
+        numérotation ne change ni le contenu ni l'empreinte d'une version.
+
+        Changesets distincts : 202609301050 est déjà appliqué sur des bases
+        sans document archivé et ne se modifie pas (somme de contrôle). Sur ces
+        bases, 202609301049 et 202609301051 s'exécutent l'un après l'autre sans
+        effet net.
+    -->
+    <changeSet id="202609301049-1" author="ged">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">SELECT count(*) FROM pg_trigger WHERE tgname = 'trg_version_document_archive' AND tgrelid = '${database.defaultSchemaName}.version_document'::regclass</sqlCheck>
+        </preConditions>
+        <comment>Suspension du gel des versions archivées pour la numérotation des versions existantes.</comment>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.version_document DISABLE TRIGGER trg_version_document_archive</sql>
+        <rollback>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.version_document ENABLE TRIGGER trg_version_document_archive</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

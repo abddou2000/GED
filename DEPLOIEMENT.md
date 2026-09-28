@@ -351,8 +351,15 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
     rejetée (`decision`, sur la version courante ; un rejet sans motif reçoit
     « Refus repris sans motif »). Statut : REFUSE s'il y avait un rejet, VALIDE
     si tout était signé, EN_COURS sinon. La table d'origine est supprimée ; le
-    retour arrière la recrée à partir des circuits (les circuits annulés après
-    la montée ne sont pas restitués) ;
+    retour arrière la recrée à partir des circuits. **Retour arrière avec perte
+    bloqué (ANO-E8-003)** : l'ancien modèle ne sait représenter ni les circuits
+    annulés, ni les validateurs par rôle, ni les réaffectations, ni l'historique
+    des décisions (décisions caduques ou retirées). S'il en existe, le retour
+    arrière au-delà de `workflow-e8` s'arrête avec leur décompte et ne supprime
+    rien. Le poursuivre est une **décision explicite** de l'exploitant, après
+    export de ces données (`circuit`, `circuit_validateur`, `decision`) : ajouter
+    à l'URL de la CLI `&options=-c%20ged.retour_arriere_avec_perte%3Doui`, puis
+    relancer la même commande ;
   - un rôle ordinaire **Lecteur (diffusion)** (`LECTEUR`, permission Consulter)
     est livré : c'est lui que la diffusion d'un document validé attribue ;
   - une règle sans validateur ne masque plus celle d'un nœud ancêtre ; les
@@ -362,6 +369,16 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
     contrôles 3, 4, 18 et 19 de `03_controles.sql` ;
   - propriété `ged.workflow.inactivite-jours` (90 par défaut) : au-delà, un
     validateur nommé sans connexion est signalé à l'Administrateur.
+- **Montée sur une base qui contient des documents archivés (ANO-E1-006)** : la
+  numérotation des versions existantes (`202609301050`) écrit sur les versions
+  de documents archivés ; le gel de ces versions (`trg_version_document_archive`)
+  est suspendu par `202609301049` et rétabli par `202609301051`, application
+  arrêtée. Si une montée s'interrompt entre les deux, relancer la montée : elle
+  reprend et rétablit le gel. Contrôle après montée :
+  `SELECT tgenabled FROM pg_trigger WHERE tgname = 'trg_version_document_archive'` → `O`.
+- **Alerte d'échéance de conservation (T-112)** : table `verrou_tache` et colonne
+  `document.echeance_signalee_le` (`202610031000`) ; à la première exécution, tous
+  les documents déjà échus sont signalés d'un coup aux Agents d'archive.
 - **Index d'expression d'une métadonnée fréquente** (§12.7) : un changeset par
   champ, sur les fonctions immuables de la base, par exemple :
   ```sql
