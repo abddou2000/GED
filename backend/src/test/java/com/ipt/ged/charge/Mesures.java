@@ -84,9 +84,11 @@ final class Mesures {
     static int performanceCpu() {
         if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) return -1;
         try {
+            // Aucun guillemet dans la commande : Java les transmet mal à un
+            // argument Windows qui contient des espaces.
             Process p = new ProcessBuilder("powershell", "-NoProfile", "-Command",
-                    "(Get-CimInstance Win32_PerfFormattedData_Counters_ProcessorInformation -Filter \"Name='_Total'\")"
-                            + ".PercentProcessorPerformance").redirectErrorStream(true).start();
+                    "Get-CimInstance Win32_PerfFormattedData_Counters_ProcessorInformation | Where-Object Name -eq _Total"
+                            + " | ForEach-Object PercentProcessorPerformance").redirectErrorStream(true).start();
             String s = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip();
             p.waitFor();
             return Integer.parseInt(s);
