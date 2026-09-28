@@ -585,6 +585,7 @@ surcharges:
   ConfidentialiteVue.motif: {description: "Raison de la décision.", exemple: "Déposant du document"}
   RechercheRequest.archives: {description: "Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6).", exemple: INCLURE}
   RechercheContratRequest.archives: {description: "Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6).", exemple: INCLURE}
+  RechercheContratRequest.echeanceDepassee: {description: "Vrai : seuls les documents dont l'échéance de conservation est atteinte au jour de MMED (filtre « échéance dépassée », §12.9), avec ou sans plein texte ; faux ou absent : aucun filtre.", exemple: true}
   RechercheContratRequest.criteres: {description: "Filtres sur les index (TEXTE, LISTE : valeur ; DATE, NOMBRE : de / a), combinés en ET avec le plein texte.", exemple: null}
   RechercheContratRequest.noeudId: {description: "Restreindre à un espace ou un dossier (emplacement principal ou rattachement).", exemple: "0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f"}
   DossierRequest.nom: {description: "Nom du dossier.", exemple: "Offres 2026"}

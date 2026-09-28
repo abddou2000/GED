@@ -8,6 +8,7 @@ import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.common.erreur.RessourceIntrouvableException;
 import com.ipt.ged.contratapi.dto.DtoContratApi.DossierRequest;
 import com.ipt.ged.contratapi.dto.DtoContratApi.RechercheContratRequest;
+import com.ipt.ged.document.conservation.Echeances;
 import com.ipt.ged.identite.Utilisateur;
 import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.indexation.IndexationService;
@@ -130,7 +131,8 @@ public class ServiceContratApi {
 
         if (texte) {
             List<FragmentSql> filtres = new ArrayList<>(new CriteresMetadonnees(r.typeDocumentId(), r.noeudId(),
-                    r.deposeDu(), r.deposeAu(), CriteresMetadonnees.Archives.valueOf(archives), r.canal()).fragments());
+                    r.deposeDu(), r.deposeAu(), CriteresMetadonnees.Archives.valueOf(archives), r.canal(),
+                    Boolean.TRUE.equals(r.echeanceDepassee())).fragments());
             if (!criteres.isEmpty()) {
                 if (parCriteres.isEmpty()) return new PageResultats(List.of(), 0, page, taille);
                 filtres.add(new FragmentSql("d.id IN (:contrat_criteres)", Map.of("contrat_criteres", parCriteres)));
@@ -146,12 +148,14 @@ public class ServiceContratApi {
                                         int taille) {
         Map<UUID, Instant> deposes = new HashMap<>();
         Map<UUID, String> canaux = new HashMap<>();
+        Map<UUID, LocalDate> echeances = new HashMap<>();
         if (!resultats.isEmpty()) {
-            jdbc.query("SELECT id, created_at, canal_depot FROM document WHERE id = ANY (?)",
+            jdbc.query("SELECT id, created_at, canal_depot, echeance_conservation FROM document WHERE id = ANY (?)",
                     rs -> {
                         UUID id = rs.getObject(1, UUID.class);
                         deposes.put(id, instant(rs.getTimestamp(2)));
                         canaux.put(id, rs.getString(3));
+                        echeances.put(id, rs.getObject(4, LocalDate.class));
                     },
                     (Object) resultats.stream().map(ResultatResponse::id).toArray(UUID[]::new));
         }
@@ -166,7 +170,10 @@ public class ServiceContratApi {
         };
         List<PageResultats.Resultat> tous = resultats.stream()
                 .map(x -> new PageResultats.Resultat(x.id(), null, 0, List.of(), x.name(), x.typeDocument(),
-                        x.workspace(), deposes.get(x.id()), x.statutConservation(), canaux.get(x.id())))
+                        x.workspace(), deposes.get(x.id()), x.statutConservation(), canaux.get(x.id()),
+                        Echeances.depassee(echeances.get(x.id()))))
+                // « Échéance dépassée » (T-112, §12.9) : même jour de référence que l'alerte et le plein texte.
+                .filter(x -> !Boolean.TRUE.equals(r.echeanceDepassee()) || x.echeanceDepassee())
                 .filter(x -> du == null || (x.deposeLe() != null && !x.deposeLe().isBefore(du)))
                 .filter(x -> au == null || (x.deposeLe() != null && x.deposeLe().isBefore(au)))
                 .sorted(ordre)

@@ -238,6 +238,50 @@ class ContratApiTest {
     }
 
     @Test
+    @DisplayName("POST /recherches : filtre « échéance dépassée » (T-112), avec et sans plein texte, dès le jour même")
+    void rechercheEcheanceDepassee() throws Exception {
+        UUID[] echu = deposer("Echu-" + suffixe, Pdfs.pdf("echu-" + suffixe));
+        UUID[] jourMeme = deposer("JourMeme-" + suffixe, Pdfs.pdf("jour-" + suffixe));
+        UUID[] vivant = deposer("Vivant-" + suffixe, Pdfs.pdf("vivant-" + suffixe));
+        // Conservation de 12 mois à compter de la date du document ; échéance calculée par la base.
+        jdbc.update("UPDATE type_document SET duree_conservation_mois = 12, point_depart = 'DATE_DOCUMENT' WHERE id = ?",
+                type);
+        java.time.LocalDate jour = com.ipt.ged.document.conservation.Echeances.aujourdhui();
+        jdbc.update("UPDATE document SET date_document = ? WHERE id = ?", java.sql.Date.valueOf(jour.minusYears(2)), echu[0]);
+        jdbc.update("UPDATE document SET date_document = ? WHERE id = ?", java.sql.Date.valueOf(jour.minusMonths(12)),
+                jourMeme[0]);
+        jdbc.update("UPDATE document SET date_document = ? WHERE id = ?", java.sql.Date.valueOf(jour), vivant[0]);
+
+        // Sans plein texte : seuls les documents échus, signalés comme tels.
+        String base = "{\"noeudId\":\"" + espace + "\",\"tri\":\"NOM\"";
+        JsonNode echus = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content(base + ",\"echeanceDepassee\":true}")).andExpect(status().isOk()));
+        assertThat(echus.get("total").asLong()).isEqualTo(2);
+        assertThat(echus.get("resultats").findValuesAsText("documentId"))
+                .containsExactly(echu[0].toString(), jourMeme[0].toString());
+        assertThat(echus.get("resultats").findValues("echeanceDepassee")).allMatch(JsonNode::asBoolean);
+        // Sans le filtre (ou à faux) : tous, avec la mise en évidence propre à chacun.
+        JsonNode tous = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content(base + ",\"echeanceDepassee\":false}")).andExpect(status().isOk()));
+        assertThat(tous.get("total").asLong()).isEqualTo(3);
+        assertThat(tous.get("resultats").get(2).get("documentId").asText()).isEqualTo(vivant[0].toString());
+        assertThat(tous.get("resultats").get(2).get("echeanceDepassee").asBoolean()).isFalse();
+
+        // Avec plein texte : même filtre, appliqué dans la requête d'indexation.
+        String mot = "conservation" + suffixe.replaceAll("[0-9]", "");
+        for (UUID[] d : java.util.List.of(echu, jourMeme, vivant)) {
+            indexeur.indexer(new SearchIndexer.TexteAIndexer(d[0], d[1], "fra", "Registre " + mot, "OCR", 1));
+        }
+        JsonNode texte = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content("{\"texte\":\"" + mot + "\",\"echeanceDepassee\":true}")).andExpect(status().isOk()));
+        assertThat(texte.get("total").asLong()).isEqualTo(2);
+        assertThat(texte.get("resultats").findValuesAsText("documentId"))
+                .containsExactlyInAnyOrder(echu[0].toString(), jourMeme[0].toString());
+        assertThat(json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content("{\"texte\":\"" + mot + "\"}"))).get("total").asLong()).isEqualTo(3);
+    }
+
+    @Test
     @DisplayName("GET …/droits : droits de l'appelant, d'un tiers (administration), d'une clé d'API ; 403 et 404")
     void droits() throws Exception {
         UUID[] d = deposer("Droits-" + suffixe, Pdfs.pdf("d-" + suffixe));
