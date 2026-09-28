@@ -2,6 +2,79 @@
 
 Branche `ct/dev2`. Mise à jour : 28/09/2026.
 
+## T-088 (§9.3) : UAT et déploiement incrémental par module — **livré sur ct/dev2**
+
+| Livré | Détail |
+|---|---|
+| Modules | Socle toujours actif (identité, habilitations, arborescence, dépôt, consultation, typologie, audit) + six modules métier du dossier fonctionnel : `ocr` (§4.2, §4.4), `workflow` (§4.5), `cycledevie` (§4.6, §4.7), `export`, `notifications`, `integration` (§4.10, DAT §5) — catalogue `com.ipt.ged.modules.ModuleMetier` |
+| Drapeaux | `ged.modules.<code>.actif` / `GED_MODULES_<CODE>_ACTIF` (vrai par défaut, code inconnu = démarrage refusé) ; module inactif : routes en 404 `MODULE_INACTIF` avant l'authentification (intégration : toute requête `X-API-Key`), traitements de fond arrêtés par propriétés imposées (`ModulesEnvironnement` : chaîne OCR, alertes d'échéance, écriture et expédition des notifications) ; état : `GET /api/v1/modules`, métrique `ged_module_actif{module}` |
+| Outillage | `deployer.sh <env> --activer-module <code>` / `--desactiver-module <code>` / `--modules` : `/etc/ged/modules.env`, redémarrage, sonde, contrôle de l'état publié, test de fumée, retour à l'état précédent en cas d'échec ; `EnvironmentFile=-/etc/ged/modules.env` dans le service ; `modules.env.exemple`, `.env.example` |
+| Procédure | `DEPLOIEMENT.md` § 10 (modules, configuration, procédure UAT pas à pas, limites) |
+| Tests | Suite complète : **605 verts** (0 échec). `ModulesTest` (5 : défauts, arrêt imposé contre un réglage contraire, routes fermées et ouvertes, code inconnu, catalogue), `ModulesInactifsApiTest` (3, contexte avec quatre modules inactifs : 404 `MODULE_INACTIF`, clé d'API fermée, socle et module actif servis, API et métrique, tâche d'alertes absente, aucune notification écrite) |
+
+Statut proposé : **Identique** (script vérifié sur le papier : pas de systemd sur le poste). Limites
+(DEPLOIEMENT.md § 10.4) : schéma commun à tous les modules ; `workflow` inactif n'empêche pas
+l'ouverture d'un circuit au dépôt si une règle est déjà rattachée (code de dev1, non modifié) ;
+redémarrage nécessaire pour changer un module. Front (masquage des menus par `GET /api/v1/modules`) :
+à faire par dev4 / dev5.
+
+## T-025 (§12.1) : aide à dev1 — tables du modèle de référence
+
+Comparaison du tableau 12.1 du PDF (34 tables principales en sept groupes, plus
+`document.metadonnees` en JSONB) avec une base créée par Liquibase (`ged_dev2_test`,
+`conformite-technique` bc371ad) : **aucune table absente, aucune sous un autre nom**.
+`ModeleDeReferenceTest` le fige désormais (tables des sept groupes, `noeud.parent_id` et
+`chemin`, `document.metadonnees` JSONB, `utilisateur` sans mot de passe, clés UUID sauf
+`journal_audit`).
+
+- **Mon périmètre** (Identités et accès côté API : `application`, `cle_api`, `cle_api_portee` ;
+  Traçabilité et exploitation : `journal_audit`, `journal_audit_scellement`, `notification`,
+  `idempotence_cle`, `job_archivage`) : conforme, **aucun changeset nécessaire**.
+- **Écarts dans les groupes de dev1** (structure, pas nom de table), à traiter par dev1 :
+  1. `groupe_ged` porte encore les huit colonnes booléennes de l'ancien modèle
+     (`droit_access`, `droit_lecture`, `droit_modifier`, `droit_uploader`, `droit_supprimer`,
+     `droit_deplacer`, `droit_ajouter_version`, `droit_verrouiller_deverrouiller`, entité
+     `accessgroup.GedRights`) : au §12.2.1 un groupe n'est qu'un sujet d'habilitation, les droits
+     passent par `role`, `role_permission` et `habilitation`. À retirer (expand / contract) ou à
+     justifier comme reliquat sans effet ;
+  2. `groupe_membre` rattache un **employé** (`employe_id`) et non une identité GED
+     (`utilisateur_id`), alors qu'`habilitation` et `document_confidentiel_designe` désignent un
+     `utilisateur` : deux clés d'identité pour un même sujet (résolution faite dans
+     `ServiceCircuits` par `employe_id`). À aligner ou à justifier ;
+  3. (mineur, conventions §4.2.2) colonnes `name` en anglais sur `groupe_ged`, `noeud`,
+     `regle_workflow`, héritées de l'application d'origine.
+
+## T-055 (§5.5) : question à poser à Marchica Med pour lever l'écart (QR9, R28)
+
+**Objet** : délégation d'identité (`X-On-Behalf-Of`) vers un compte Active Directory désactivé.
+
+**Ce que dit le dossier technique (§5.5, « Vérification »)** : « le back-end résout l'identifiant dans
+l'annuaire, vérifie que le compte est actif […] ; un en-tête […] correspondant à un compte désactivé
+est rejeté (HTTP 422, IDENTITE_DELEGUEE_INVALIDE) ».
+
+**Ce que MMED a décidé ensuite (revue technique, D1)** : la GED ne lit pas l'attribut d'activation
+AD (`userAccountControl`) ; un compte désactivé échoue à la connexion, cela suffit.
+
+**Le conflit** : la délégation ne passe pas par une connexion de la personne. L'application (par
+exemple le bureau d'ordre ou l'intranet) s'authentifie avec sa clé et désigne la personne par son
+identifiant. Sans lecture de l'état du compte, la GED trouve encore dans l'annuaire un agent parti
+ou suspendu, et accepte qu'une application dépose, pilote un circuit ou valide **en son nom**
+(constaté en recette, vague 4, cas 22).
+
+**Question** — MMED autorise-t-elle la GED, **pour la seule vérification d'une identité
+déléguée**, à lire l'attribut `userAccountControl` (bit 2, « compte désactivé ») de la personne
+désignée, avec le compte de service LDAP en lecture déjà prévu ?
+
+| Réponse | Conséquence | Délai |
+|---|---|---|
+| **Oui** (recommandé) | Lecture ponctuelle au moment de la délégation, une requête LDAP par appel délégué (cache court de quelques minutes au plus), aucune tâche périodique : D1 reste vrai pour l'authentification et les sessions. Compte désactivé = 422 `IDENTITE_DELEGUEE_INVALIDE`, tracé. T-055 passe à « Identique ». | 1 jour de développement et de test (simulateur d'annuaire déjà prêt : il porte le bit ACCOUNTDISABLE) |
+| **Non, mais** les comptes désactivés sont déplacés dans une OU dédiée (ou retirés d'un groupe) | La recherche de l'identité déléguée exclut cette OU (ou exige ce groupe) : même résultat sans lire l'attribut. MMED fournit le DN de l'OU ou du groupe. | 1 jour |
+| **Non** | MMED accepte par écrit l'écart au §5.5 : une application habilitée à déléguer peut agir pour un compte désactivé. Mesures qui restent : attribut « délégation » accordé par l'Administrateur, adresses sources obligatoires, portée limitée par espace, double identité au journal, revue périodique des clés. T-055 reste « Proche » avec dérogation (risque R28 accepté). | — |
+
+**Ce qu'il faut en retour** : le choix (oui / OU dédiée / non), le nom du signataire, et, pour
+l'OU ou le groupe, son DN exact. Destinataires : DSI de MMED (annuaire) et responsable de la
+sécurité ; question QR9 du registre des risques.
+
 ## ANO-E8-001 (majeure, D8) : règles de workflow par une application — **corrigée sur ct/dev2**
 
 Une application peut créer, modifier, supprimer et restaurer une règle de workflow (désignation
