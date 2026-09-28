@@ -2,6 +2,29 @@
 
 Branche `ct/dev2`. Mise à jour : 28/09/2026.
 
+## ANO-E8-001 (majeure, D8) : règles de workflow par une application — **corrigée sur ct/dev2**
+
+Une application peut créer, modifier, supprimer et restaurer une règle de workflow (désignation
+des validateurs, D8) sur `/api/v1/workflow/regles` (et l'ancien `/workflowgeds`). Décision,
+intersection explicite de trois conditions (`cleapi.GardeReglesWorkflowApplications`, appelée
+par `GardeDroitsRequetes` pour une application ; utilisateurs inchangés) :
+1. **délégation** §5.5 : `X-On-Behalf-Of` obligatoire (403 `DELEGATION_REQUISE`), la personne est
+   l'auteur, double identité au journal (`WORKFLOW_CREE`, `WORKFLOW_MODIFIE`…) ;
+2. **portée de la clé** : opération `WORKFLOW_PILOTAGE` lue explicitement dans `cle_api_portee`
+   (une clé de versement ne pilote pas), sur chaque nœud où la règle s'applique (nœuds, types de
+   document, périmètres de validateurs par rôle, sous-arborescence comprise) ; règle non rattachée :
+   portée sur au moins un nœud ; périmètres du corps contrôlés par `PorteeReglesWorkflowCorps` ;
+3. **droits de la personne** : `GERER_REFERENTIELS`, comme dans l'interface et comme le rattachement
+   par API de dev1 (`RattachementRegles`) : la clé ne donne à personne un droit qu'il n'a pas.
+
+Opérations de masse (`multiple-*`) réservées à l'interface. Aucun changement dans `workflow`
+(`ServiceCircuits`, contrôleurs) ; seul ajout chez dev1 : une branche dans `GardeDroitsRequetes`.
+Description OpenAPI (`WorkflowRequest`). Test de bout en bout `ReglesWorkflowApplicationsTest`
+(clé avec et sans `WORKFLOW_PILOTAGE`, délégué Administrateur et non administrateur, sans
+délégation, règle hors portée, périmètre de rôle hors portée, masse). `mvn test` **589 verts**.
+**Pour dev1** : la ligne `POST /regles` du contrat E8-API (suivi dev1) peut indiquer
+« application : délégué avec `GERER_REFERENTIELS` et portée `WORKFLOW_PILOTAGE` ».
+
 ## Contrat d'API : filtre « échéance dépassée » (T-112) sur `POST /recherches` — **livré sur ct/dev2** (bdff78c)
 
 Après fusion de `conformite-technique` (68a1f90, T-112 de dev1) : critère `echeanceDepassee`

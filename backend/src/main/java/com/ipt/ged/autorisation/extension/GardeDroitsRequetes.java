@@ -3,6 +3,9 @@ package com.ipt.ged.autorisation.extension;
 import com.ipt.ged.autorisation.CodePermission;
 import com.ipt.ged.autorisation.ControleAcces;
 import com.ipt.ged.autorisation.HorsPerimetreException;
+import com.ipt.ged.cleapi.ApplicationAuthentifiee;
+import com.ipt.ged.cleapi.GardeReglesWorkflowApplications;
+import org.springframework.security.core.context.SecurityContextHolder;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -48,7 +51,12 @@ public class GardeDroitsRequetes implements HandlerInterceptor {
             "/api/v1/workflow/regles/**", "/api/v1/workflow/regles",
             "/api/v1/etiquettes/**", "/api/v1/etiquettes");
 
-    private static final List<String> GROUPES = List.of("/api/v1/access-groups/**", "/api/v1/access-groups");
+    /** Règles de workflow : référentiel, mais pilotable par une application (D8). */
+    private static final List<String> REGLES_WORKFLOW = List.of(
+            "/api/v1/workflowgeds/**", "/api/v1/workflowgeds",
+            "/api/v1/workflow/regles/**", "/api/v1/workflow/regles");
+
+    private static final List<String> GROUPES =List.of("/api/v1/access-groups/**", "/api/v1/access-groups");
 
     private static final List<String> DOCUMENT = List.of(
             "/api/v1/ocr/documents/{id}/**", "/api/v1/indexation/documents/{id}/**",
@@ -59,10 +67,13 @@ public class GardeDroitsRequetes implements HandlerInterceptor {
     private final AntPathMatcher chemins = new AntPathMatcher();
     private final ControleAcces controle;
     private final com.ipt.ged.document.GardeEcriture garde;
+    private final GardeReglesWorkflowApplications reglesParApplication;
 
-    public GardeDroitsRequetes(ControleAcces controle, com.ipt.ged.document.GardeEcriture garde) {
+    public GardeDroitsRequetes(ControleAcces controle, com.ipt.ged.document.GardeEcriture garde,
+                               GardeReglesWorkflowApplications reglesParApplication) {
         this.controle = controle;
         this.garde = garde;
+        this.reglesParApplication = reglesParApplication;
     }
 
     @Override
@@ -70,7 +81,12 @@ public class GardeDroitsRequetes implements HandlerInterceptor {
         String chemin = requete.getRequestURI().substring(requete.getContextPath().length());
         boolean ecriture = ECRITURES.contains(requete.getMethod());
 
-        if (ecriture && correspond(REFERENTIELS, chemin)) {
+        if (ecriture && correspond(REGLES_WORKFLOW, chemin)
+                && SecurityContextHolder.getContext().getAuthentication() instanceof ApplicationAuthentifiee a) {
+            // D8 (ANO-E8-001) : une application gère les règles pour le compte d'une personne, dans la
+            // portée WORKFLOW_PILOTAGE de sa clé ET avec les droits d'administration de la personne.
+            reglesParApplication.exigerEcriture(a, chemin);
+        } else if (ecriture && correspond(REFERENTIELS, chemin)) {
             controle.exigerAdministration(CodePermission.GERER_REFERENTIELS);
         }
         if (ecriture && correspond(GROUPES, chemin)) {
