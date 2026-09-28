@@ -27,17 +27,21 @@ public class SmtpSimule {
         GreenMail smtp = new GreenMail(new ServerSetup(port, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         smtp.start();
         System.out.println("SMTP simulé à l'écoute sur 127.0.0.1:" + port + ", messages dans " + dossier);
-        Set<Integer> ecrits = new HashSet<>();
+        // GreenMail regroupe les messages reçus par boîte : leur rang dans getReceivedMessages() change
+        // dès qu'un autre destinataire reçoit un message. Chaque message est donc identifié par son
+        // Message-ID et ses destinataires, jamais par son rang (sinon doublons et pertes).
+        Set<String> ecrits = new HashSet<>();
+        int n = 0;
         while (true) {
             MimeMessage[] recus = smtp.getReceivedMessages();
             for (int i = 0; i < recus.length; i++) {
-                if (ecrits.add(i)) {
+                if (ecrits.add(recus[i].getMessageID() + "|" + java.util.Arrays.toString(recus[i].getAllRecipients()))) {
                     StringBuilder s = new StringBuilder();
                     for (Address a : recus[i].getAllRecipients()) s.append("A: ").append(a).append('\n');
                     s.append("De: ").append(recus[i].getFrom()[0]).append('\n');
                     s.append("Sujet: ").append(recus[i].getSubject()).append("\n\n");
                     s.append(GreenMailUtil.getBody(recus[i]));
-                    Files.writeString(dossier.resolve(String.format("%04d.eml", i)), s, StandardCharsets.UTF_8);
+                    Files.writeString(dossier.resolve(String.format("%04d.eml", n++)), s, StandardCharsets.UTF_8);
                 }
             }
             Thread.sleep(500);

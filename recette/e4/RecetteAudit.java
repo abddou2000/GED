@@ -139,10 +139,14 @@ public class RecetteAudit extends ClientGed {
         verif("E4-A17", refus403.stream().anyMatch(e -> e.path("resultat").asText().contains("REFUS")),
                 "Refus de droit en 403 tracé — ACCES_REFUSE avec la route refusée [7.4.1]", refus403.size() + " événement(s)");
         String idHors = dB.path("id").asText();
-        boolean trace404 = refus403.stream().anyMatch(e -> e.toString().contains(idHors))
-                || !evenements("ACCES_REFUSE", idHors, t0).isEmpty();
-        res("E4-A17b", trace404 ? "OK" : "ECHEC", "Accès à un objet hors périmètre (réponse 404) tracé au journal [7.4.1 « les refus de droits sont tracés »]",
-                trace404 ? "" : "aucun événement pour GET d'un document confidentiel hors périmètre");
+        // Code retenu par le correctif d'ANO-E4-002 : ACCES_HORS_PERIMETRE (réponse 404 inchangée pour le client).
+        List<JsonNode> hors = evenements("ACCES_HORS_PERIMETRE", idHors, t0);
+        boolean trace404 = !hors.isEmpty() && hors.get(0).path("resultat").asText().contains("REFUS");
+        boolean inconnuTrace = !evenements("ACCES_HORS_PERIMETRE", inconnu, t0).isEmpty();
+        res("E4-A17b", trace404 && !inconnuTrace ? "OK" : "ECHEC",
+                "Accès à un objet hors périmètre (réponse 404) tracé ACCES_HORS_PERIMETRE ; identifiant inexistant non tracé [7.4.1 « les refus de droits sont tracés », ANO-E4-002]",
+                trace404 ? (inconnuTrace ? "identifiant inexistant tracé" : "acteur " + hors.get(0).path("acteurNom").asText())
+                        : "aucun ACCES_HORS_PERIMETRE pour GET d'un document confidentiel hors périmètre");
         byte[] eicar = (new StringBuilder("-DRADNATS-RACIE$}7)CC7)^P(45XZP\\4[PA@%P!O5X").reverse()
                 + new StringBuilder("*H+H$!ELIF-TSET-SURIVITNA").reverse().toString()).getBytes();
         String typeTxt = null;
