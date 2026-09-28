@@ -53,8 +53,9 @@ public class DocumentController {
             @RequestParam(defaultValue = "") String search,
             @RequestParam(required = false) UUID workspaceId,
             @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String sortDir) {
-        return service.list(page, size, search, workspaceId, sortBy, sortDir);
+            @RequestParam(required = false) String sortDir,
+            @RequestParam(defaultValue = "false") boolean echeanceDepassee) {
+        return service.list(page, size, search, workspaceId, sortBy, sortDir, echeanceDepassee);
     }
 
     @GetMapping("/trashed")

@@ -24,7 +24,16 @@ public record PageResultats(List<Resultat> resultats, long total, int page, int 
                            /** {@code ACTIF} ou {@code ARCHIVE} : badge de statut (§12.6). */
                            String statutConservation,
                            /** Canal du dépôt (T-040). */
-                           String canalDepot) {
+                           String canalDepot,
+                           /** Échéance de conservation atteinte : mise en évidence (§12.9). */
+                           boolean echeanceDepassee) {
+
+        public Resultat(UUID documentId, UUID versionId, double pertinence, List<Segment> extrait, String nom,
+                        String typeDocument, String espace, java.time.Instant deposeLe, String statutConservation,
+                        String canalDepot) {
+            this(documentId, versionId, pertinence, extrait, nom, typeDocument, espace, deposeLe, statutConservation,
+                    canalDepot, false);
+        }
     }
 
     public record Segment(String texte, boolean surligne) {

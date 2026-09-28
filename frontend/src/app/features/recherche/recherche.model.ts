@@ -17,6 +17,8 @@ export interface ResultatRecherche {
   statutConservation?: 'ACTIF' | 'ARCHIVE' | null;
   /** Canal du dépôt (T-040). */
   canalDepot?: string | null;
+  /** Échéance de conservation atteinte (§12.9) : mise en évidence. */
+  echeanceDepassee?: boolean;
 }
 
 export interface PageResultats {
@@ -39,6 +41,8 @@ export interface CriteresRecherche {
   archives?: 'INCLURE' | 'EXCLURE' | 'SEULEMENT';
   /** Canal du dépôt (T-040) ; tous si absent. */
   canal?: string | null;
+  /** Seuls les documents dont l'échéance de conservation est atteinte (§12.9). */
+  echeanceDepassee?: boolean;
 }
 
 export type StatutOcr = 'EN_ATTENTE_OCR' | 'EN_COURS_OCR' | 'OCR_TERMINE' | 'OCR_ECHEC';

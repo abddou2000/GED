@@ -91,3 +91,13 @@
   font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
   border: 1px solid var(--line); color: var(--ink);
 }
+
+/* Échéance de conservation atteinte (§12.9) : à examiner, jamais supprimé
+   automatiquement. Même pastille que « Archivé », teintée d'alerte. */
+.badge-echeance {
+  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid var(--danger); color: var(--danger);
+}
+.doc-table tr.ligne-echue td { background: var(--danger-050); }
+button.actif { border-color: var(--danger); color: var(--danger); }

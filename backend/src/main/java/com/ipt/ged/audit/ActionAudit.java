@@ -48,6 +48,8 @@ public enum ActionAudit {
     DOCUMENT_PURGE,
     /** Re-typologisation d'un document (lot modèle, job_retypage, §12.7). */
     DOCUMENT_RETYPE,
+    /** Échéance de conservation atteinte, signalée aux Agents d'archive (T-112, §12.9) ; aucune suppression. */
+    ECHEANCE_CONSERVATION_ATTEINTE,
 
     // --- Documents : traitements techniques et contrôles ----------------------
     CONTENU_INDEXE,

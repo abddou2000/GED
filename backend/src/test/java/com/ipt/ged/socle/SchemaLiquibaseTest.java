@@ -123,13 +123,19 @@ class SchemaLiquibaseTest {
      * de workflow_ged, circuits, décisions ; signatures séquentielles reprises).
      */
     private static final Set<String> TABLES_ATTENDUES;
+    /** Tables au jalon workflow-e8 (avant l'alerte d'échéance de conservation). */
+    private static final Set<String> TABLES_E8;
     static {
         Set<String> t = new TreeSet<>(TABLES_E7);
         t.add("reprise_lien_groupe_espace");
         t.removeAll(Set.of("workflow_ged", "workflow_ged_etape", "workflow_ged_signature"));
         t.addAll(Set.of("regle_workflow", "regle_validateur", "circuit", "circuit_validateur", "decision"));
+        TABLES_E8 = Set.copyOf(t);
+        // Alerte d'échéance (T-112) : verrou des tâches planifiées.
+        t.add("verrou_tache");
         TABLES_ATTENDUES = Set.copyOf(t);
     }
+
 
     /**
      * Seule exception à la clé {@code id} UUID (§12.1) : {@code journal_audit}, dont
@@ -216,9 +222,11 @@ class SchemaLiquibaseTest {
                         "neuf permissions élémentaires, sept d'administration, deux de confidentialité");
                 assertEquals(1, compter(c, "SELECT count(*) FROM " + schema + ".version_habilitations"));
 
-                // Rien n'est postérieur au jalon E8 : le schéma ne bouge pas.
+                // Retour au jalon E8 : l'alerte d'échéance (verrou de tâche, marquage) se défait.
                 liquibase.rollback("workflow-e8", (String) null);
-                assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
+                assertEquals(new TreeSet<>(TABLES_E8), tablesMetier(c, schema));
+                assertEquals(0, compter(c, "SELECT count(*) FROM information_schema.columns WHERE table_schema = '"
+                        + schema + "' AND table_name = 'document' AND column_name = 'echeance_signalee_le'"));
 
                 // Retour au jalon E7 (modèle) : rapport de reprise et workflow parallèle se défont.
                 liquibase.rollback("modele-e7", (String) null);

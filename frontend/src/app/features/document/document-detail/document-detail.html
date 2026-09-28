@@ -76,6 +76,17 @@
       </div>
     }
 
+    @if (d.echeanceDepassee) {
+      <!-- Échéance de conservation atteinte (§12.9) : signalée aux Agents
+           d'archive ; aucune suppression n'est automatique (P4). -->
+      <div class="bandeau-verrou echeance">
+        <mat-icon svgIcon="archive"></mat-icon>
+        <span><span class="badge-echeance">Échéance dépassée</span>
+          Durée de conservation échue le {{ dateCourte(d.echeanceConservation ?? '') }} : document à examiner
+          par l'Agent d'archive. Aucune suppression n'est automatique.</span>
+      </div>
+    }
+
     @if (d.verrouille) {
       <div class="bandeau-verrou">
         <mat-icon svgIcon="archive"></mat-icon>

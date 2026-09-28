@@ -67,6 +67,8 @@ public record DocumentResponse(
         java.util.Map<String, Object> metadonnees,
         /** Échéance de conservation (§12.9). */
         String echeanceConservation,
+        /** Échéance atteinte (jour de MMED) : document à examiner par l'Agent d'archive, mis en évidence (§12.9). */
+        boolean echeanceDepassee,
         /** Verrou (§12.8) : motif et date ; absents si le document est libre. */
         String verrouMotif,
         Instant verrouLe,
@@ -133,6 +135,7 @@ public record DocumentResponse(
                 d.getObjet(), d.getDateDocument() != null ? d.getDateDocument().toString() : null,
                 d.getMetadonnees(),
                 d.getEcheanceConservation() != null ? d.getEcheanceConservation().toString() : null,
+                com.ipt.ged.document.conservation.Echeances.depassee(d.getEcheanceConservation()),
                 d.getVerrouMotif(), d.getVerrouLe(),
                 d.getCanalDepot() != null ? d.getCanalDepot().name() : null,
                 d.getApplicationId(), d.getDeposantUtilisateurId(), d.isDepotDelegue());
@@ -143,7 +146,7 @@ public record DocumentResponse(
         return new DocumentResponse(id, name, workspace, typeDocument, fileName, extension, sizeKo, sizeLabel,
                 expirationDate, active, verrouille, supprime, chemin, createdBy, etiquettes, versions, createdAt,
                 confidentialite, permissions, rattachements, statutOcr, statut, motif, statutConservation, archiveLe,
-                objet, dateDocument, metadonnees, echeanceConservation, verrouMotif, verrouLe,
+                objet, dateDocument, metadonnees, echeanceConservation, echeanceDepassee, verrouMotif, verrouLe,
                 canalDepot, applicationId, deposantUtilisateurId, depotDelegue);
     }
 
