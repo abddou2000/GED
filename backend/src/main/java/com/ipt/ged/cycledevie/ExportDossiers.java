@@ -80,11 +80,14 @@ public class ExportDossiers {
     private final TransactionTemplate transaction;
     private final com.ipt.ged.autorisation.ControleAcces controle;
     private final com.ipt.ged.fichier.integrite.LectureControlee lectures;
+    private final com.ipt.ged.fichier.integrite.VerificationIntegrite integrite;
 
     public ExportDossiers(JdbcTemplate jdbc, Dossiers dossiers, PredicatDroits droits, StockageChiffre stockage,
                           ApplicationEventPublisher evenements, ProprietesCycleDeVie proprietes,
                           PlatformTransactionManager transactions, com.ipt.ged.autorisation.ControleAcces controle,
-                          com.ipt.ged.fichier.integrite.LectureControlee lectures) {
+                          com.ipt.ged.fichier.integrite.LectureControlee lectures,
+                          com.ipt.ged.fichier.integrite.VerificationIntegrite integrite) {
+        this.integrite = integrite;
         this.jdbc = jdbc;
         this.nomme = new NamedParameterJdbcTemplate(jdbc);
         this.dossiers = dossiers;
@@ -229,6 +232,34 @@ public class ExportDossiers {
     public void journaliser(Selection s, Acteur acteur, UUID exportId) {
         transaction.executeWithoutResult(t -> s.lignes().forEach(l -> evenements.publishEvent(
                 new DocumentExporte(l.documentId(), l.versionId(), acteur, Instant.now(), exportId, l.empreinte()))));
+    }
+
+    /**
+     * Vérifie l'intégrité de chaque document de la sélection (authentification
+     * GCM de tous les segments et empreinte SHA-256 recalculée) AVANT que la
+     * réponse soit engagée : l'export synchrone sert ensuite l'archive en flux,
+     * statut 200 et en-têtes déjà envoyés, et une altération découverte en
+     * cours d'écriture ne pouvait plus produire qu'une archive tronquée
+     * (ANO-E5-003).
+     *
+     * <p>L'export est refusé en entier plutôt que privé du document altéré :
+     * le §12.10 définit l'archive comme les documents autorisés du dossier à
+     * leur version courante, empreinte au manifeste ; seuls les documents hors
+     * droits y sont « omis silencieusement ». Une archive incomplète passerait
+     * pour fidèle ; le refus porte le même code que le téléchargement
+     * (INTEGRITE_COMPROMISE), et l'anomalie est publiée pour l'exploitation.
+     *
+     * <p>Coût : une lecture complète de plus, bornée par le seuil de l'export
+     * synchrone (2 Go) ; mesuré dans {@code docs/exploitation/ESSAIS-DE-CHARGE.md}.
+     */
+    public void verifierIntegrite(Selection s) {
+        for (Ligne l : s.lignes()) {
+            var r = integrite.verifier(l.cleFichierId(), l.empreinte(), "export du document " + l.documentId());
+            if (!r.conforme()) {
+                throw com.ipt.ged.fichier.Refus.integriteCompromise("document " + l.documentId() + " du dossier exporté, "
+                        + r.statut(), null);
+            }
+        }
     }
 
     /** Écrit l'archive en flux : manifeste d'abord, puis chaque document déchiffré au fil de l'eau. */
