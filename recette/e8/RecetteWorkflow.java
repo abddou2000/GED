@@ -366,6 +366,26 @@ public class RecetteWorkflow extends ClientGed {
         verif("A-02", k2.code() == 201,
                 "Désigner les validateurs par API (création d'une règle pour le compte d'un Administrateur, portée PILOTAGE) [D8, contrat E8-API « POST /regles : PILOTAGE »]",
                 "HTTP " + k2.code() + " " + k2.codeMetier() + " " + (k2.code() == 201 ? "" : k2.json().path("detail").asText()));
+        if (k2.code() == 201) {
+            // ANO-E8-001 : modification et suppression par API ; refus hors des trois conditions ; double identité.
+            String Rapi = k2.json().path("id").asText();
+            Rep m1 = api(cles[0], cAdmin, "PUT", WF + "/regles/" + Rapi, Map.of("name", "QA-E8-API-" + m + "-v2", "steps",
+                    List.of(Map.of("employeId", eV2, "label", "Visa API", "stepOrder", 1), Map.of("employeId", eDg, "label", "Visa DG", "stepOrder", 2))));
+            Rep m2 = api(cles[0], cV2, "POST", WF + "/regles", Map.of("name", "QA-E8-API-intrus-" + m, "steps",
+                    List.of(Map.of("employeId", eV2, "label", "x", "stepOrder", 1))));
+            Rep m3 = api(cles[1], cAdmin, "POST", WF + "/regles", Map.of("name", "QA-E8-API-sansportee-" + m, "steps",
+                    List.of(Map.of("employeId", eV2, "label", "x", "stepOrder", 1))));
+            Rep m4 = api(cles[0], null, "POST", WF + "/regles", Map.of("name", "QA-E8-API-anonyme-" + m, "steps",
+                    List.of(Map.of("employeId", eV2, "label", "x", "stepOrder", 1))));
+            Rep m5 = api(cles[0], cAdmin, "DELETE", WF + "/regles/" + Rapi, Map.of());
+            JsonNode cree = g.get("/api/v1/audit/evenements?action=WORKFLOW_CREE&objetId=" + Rapi, tAdmin).json().path("content").path(0);
+            boolean doubleId = meAdmin.path("id").asText().equals(cree.path("acteurUtilisateurId").asText()) && idApp.equals(cree.path("acteurApplicationId").asText());
+            verif("A-08", m1.code() == 200 && m1.json().path("steps").size() == 2 && m2.code() == 403 && m3.code() == 403 && m4.code() == 403
+                            && (m5.code() == 204 || m5.code() == 200) && doubleId,
+                    "Règles par API : modification et suppression pour un Administrateur délégué ; refus pour une personne sans gestion des référentiels, une clé sans PILOTAGE, sans délégation ; double identité au journal [D8, R-01, ANO-E8-001]",
+                    "modification " + m1.code() + ", personne non habilitée " + m2.code() + ", clé sans PILOTAGE " + m3.code() + ", sans délégation " + m4.code()
+                            + " " + m4.codeMetier() + ", suppression " + m5.code() + ", audit " + cree.path("acteurNom").asText() + " / application " + doubleId);
+        }
         Rep k3 = api(cles[0], cAdmin, "PUT", WF + "/noeuds/" + E2 + "/regle", Map.of("regleId", R3));
         Rep k4 = api(cles[0], cAdmin, "POST", WF + "/documents/" + dL + "/circuits", Map.of());
         Rep k4b = k4.code() == 201 ? api(cles[0], cAdmin, "PUT", WF + "/circuits/" + k4.json().path("id").asText() + "/validateurs/"
