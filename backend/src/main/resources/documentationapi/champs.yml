@@ -143,7 +143,7 @@ champs:
   tailleEstimee: {description: "Taille estimée de l'archive, en octets.", exemple: 2147483648}
   moteurDisponible: {description: "Vrai si le moteur OCR (Tesseract) répond.", exemple: true}
   languesInstallees: {description: "Langues OCR installées.", exemple: [fra, ara]}
-  langueDefaut: {description: "Langue OCR par défaut.", exemple: fra+ara}
+  langueDefaut: {description: "Langue OCR par défaut.", exemple: ara+fra}
   langue: {description: "Langue de reconnaissance appliquée.", exemple: fra}
   indexeLe: {description: "Date d'entrée du texte dans l'index plein texte.", exemple: "2026-09-27T09:31:00Z"}
   interrogeable: {description: "Vrai si le texte de la version courante est dans l'index plein texte.", exemple: true}

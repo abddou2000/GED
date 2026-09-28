@@ -65,12 +65,21 @@ class MoteurTesseractTest {
     }
 
     @Test
-    @DisplayName("Scan bilingue reconnu avec la langue par défaut fra+ara")
+    @DisplayName("Scan bilingue reconnu avec fra+ara")
     void bilingue() throws Exception {
         String texte = moteur.reconnaitre(Scans.png(Scans.page(police, List.of(
                 "محضر استلام الأشغال", "Procès-verbal de réception des travaux"))), "fra+ara", DELAI);
         assertTrue(sansEspaces(texte).contains(sansEspaces("محضر استلام الأشغال")), texte);
         assertTrue(texte.contains("Procès-verbal de réception des travaux"), texte);
+    }
+
+    @Test
+    @DisplayName("Langue par défaut ara+fra : arabe et français (accents compris) reconnus sur un même scan")
+    void bilingueArabePrincipal() throws Exception {
+        String texte = moteur.reconnaitre(Scans.png(Scans.page(police, List.of(
+                "عقد الإيجار السنوي للشركة", "Procès-verbal de réception définitive des travaux"))), "ara+fra", DELAI);
+        assertTrue(sansEspaces(texte).contains(sansEspaces("عقد الإيجار السنوي للشركة")), texte);
+        assertTrue(texte.contains("Procès-verbal de réception définitive des travaux"), texte);
     }
 
     @Test

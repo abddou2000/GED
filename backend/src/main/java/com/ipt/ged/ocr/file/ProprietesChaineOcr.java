@@ -42,7 +42,7 @@ public class ProprietesChaineOcr {
     /** Objectif dépôt → disponibilité en recherche (décision D6 : 24 h). */
     private Duration objectifDisponibilite = Duration.ofHours(24);
     /** Langue par défaut et réglage par code de type documentaire. */
-    private String langueDefaut = "fra+ara";
+    private String langueDefaut = "ara+fra";
     private Map<String, String> languesParType = new LinkedHashMap<>();
     /** Réindexation complète : taille des lots et pause entre lots. */
     private int reindexationLot = 500;

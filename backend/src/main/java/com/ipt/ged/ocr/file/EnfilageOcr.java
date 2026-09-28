@@ -31,7 +31,7 @@ public class EnfilageOcr {
     }
 
     /**
-     * @param codeTypeDocument fixe la langue de reconnaissance (défaut fra+ara).
+     * @param codeTypeDocument fixe la langue de reconnaissance (défaut ara+fra).
      * @return {@link StatutOcr#EN_ATTENTE_OCR} si un job a été enfilé, vide sinon.
      */
     public Optional<StatutOcr> enfiler(UUID documentId, UUID versionId, UUID cleFichierId, String typeMime,

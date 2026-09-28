@@ -196,8 +196,12 @@ ged:
       dpi: 300
       seuil-caracteres-par-page: 25    # sous ce seuil, la page PDF passe à l'OCR
       objectif-disponibilite: ${ged.supervision.ocr.objectif-disponibilite:${GED_OCR_OBJECTIF_DISPONIBILITE:24h}}  # D6 ; même source que la supervision
-      langue-defaut: fra+ara
-      langues-par-type: {}             # ex. TD-FACT: fra
+      # ara+fra et non fra+ara : mêmes modèles, mais la première langue est la
+      # langue principale de Tesseract (la seconde n'est essayée que sur les mots
+      # peu sûrs). Mesuré (docs/exploitation/ESSAIS-DE-CHARGE.md § 2) : CER arabe
+      # 10,3 -> 5,1 %, bilingue 10,4 -> 8,9 %, français inchangé (0,18 %), +4 % de temps.
+      langue-defaut: ${GED_OCR_LANGUE_DEFAUT:ara+fra}
+      langues-par-type: {}             # ex. TD-FACT: fra (deux fois plus rapide sur un type tout en français)
       reindexation-lot: 500
       reindexation-pause: 200ms
 
