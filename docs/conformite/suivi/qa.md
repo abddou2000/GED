@@ -2,9 +2,10 @@
 
 ## Lot en cours
 
-Vague 6 : tout le code intégré, `ct/qa` en avance rapide jusqu'à 68a1f90 (b7274bc dev1 E7 modèle, E8,
-E8-API ; 74a60da correctifs dev2 ; 68a1f90 T-112). Critères de sortie E4, E7 et E8 atteints. Vagues
-précédentes : E1 à E7, E9, notifications, contrat §5.3.1, E10/E11 sur papier.
+Vague 7 : revérification des correctifs (ab6b392 : ANO-E8-001, ANO-E1-006, ANO-E8-002, ANO-E7-003,
+ANO-E8-003, ANO-E5-003, toutes vérifiées) et compléments T-105, P-21, R-03, T-101. Vague 6 : tout le code
+intégré, critères de sortie E4, E7 et E8 atteints. Vagues précédentes : E1 à E7, E9, notifications,
+contrat §5.3.1, E10/E11 sur papier.
 
 ## Livrables
 
@@ -12,11 +13,12 @@ précédentes : E1 à E7, E9, notifications, contrat §5.3.1, E10/E11 sur papier
 |---|---|---|
 | Ligne de base | `docs/conformite/recette/LIGNE-DE-BASE.md` | 143 tests (H2, avant les vagues) |
 | Plan de recette E0–E11 | `docs/conformite/recette/PLAN-DE-RECETTE.md` | D1–D14 intégrées |
-| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-6.md` | 257 → 360 → 443 → 534 → 552 → 586 tests verts |
-| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 19 vérifiées, 6 ouvertes : ANO-E1-006, ANO-E8-001, ANO-E8-002 majeures ; ANO-E5-003, ANO-E7-003, ANO-E8-003 mineures |
+| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-7.md` | 257 → 360 → 443 → 534 → 552 → 586 → 594 tests verts |
+| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 25 vérifiées, 3 ouvertes (mineures) : ANO-E7-004, ANO-E7-005, ANO-E8-004 |
 | E4 | `recette/e4/` : `verifier-journal.sh` (12/12), `verifier-scellement.sh` (6/6), `RecetteAudit.java` (29/29) | critère de sortie atteint |
-| E7 modèle | `recette/e7/RecetteModele.java` | 16/17 (M-02 = ANO-E7-003) |
-| E8 workflow, E8-API | `recette/e8/RecetteWorkflow.java` | 28/29 (A-02 = ANO-E8-001) ; critère de sortie E8 atteint |
+| E7 modèle | `recette/e7/RecetteModele.java` | 17/17 |
+| E7 compléments | `recette/e7/RecetteComplements.java` (T-105, P-21, R-03, T-101 annulation et reprise) | 8/10 (P21-02 = ANO-E7-004, R03-03 = ANO-E7-005) |
+| E8 workflow, E8-API | `recette/e8/RecetteWorkflow.java` | 30/30 ; critère de sortie E8 atteint |
 | T-112 échéance | `recette/e8/RecetteEcheance.java` (deux instances) | 6/6 |
 | E9 | `recette/e9/RecetteApi.java` | 23 OK, 2 AVERT (compte désactivé délégué ; chemins du contrat : voir ligne suivante) |
 | Contrat §5.3.1 et réception | `recette/e9/RecetteContrat.java`, `RecetteReception.java` | contrat 15/15 ; T-040 5/5 hors règle de workflow (ANO-E9-001 close), 500 sous règle (ANO-E8-002) |
