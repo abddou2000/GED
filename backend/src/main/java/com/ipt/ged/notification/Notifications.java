@@ -3,6 +3,7 @@ package com.ipt.ged.notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,13 @@ public class Notifications {
     private final ApplicationEventPublisher evenements;
     private final Clock horloge;
 
+    /**
+     * Faux quand le module « notifications » est désactivé (T-088, {@code ged.modules.notifications.actif}) :
+     * aucune notification n'est écrite, l'opération déclenchante se poursuit normalement.
+     */
+    @Value("${ged.notification.active:true}")
+    boolean active = true;
+
     @Autowired
     public Notifications(NotificationRepository notifications, PreferenceNotificationRepository preferences,
                          AnnuaireDestinataires annuaire, ModelesNotification modeles,
@@ -70,6 +78,10 @@ public class Notifications {
      */
     @Transactional
     public List<UUID> envoyer(DemandeNotification demande) {
+        if (!active) {
+            journal.debug("Module notifications inactif : notification {} non écrite", demande.type());
+            return List.of();
+        }
         Set<UUID> destinataires = new LinkedHashSet<>(demande.destinatairesNommes());
         if (demande.roleDestinataire() != null && !demande.roleDestinataire().isBlank()) {
             destinataires.addAll(annuaire.porteursDuRole(demande.roleDestinataire()));

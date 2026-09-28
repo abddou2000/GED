@@ -53,6 +53,7 @@ objets:
   MarquageResponse: Résultat du marquage global des notifications.
   PreferenceRequest: Préférence de notification ; l'e-mail peut être désactivé.
   PreferenceResponse: Préférence de notification de l'utilisateur.
+  ModuleResponse: "Module métier de l'environnement (DAT §9.3) : un module inactif ferme ses routes (404 MODULE_INACTIF) ; le socle est toujours actif."
   FiltreIndex: Critère de recherche sur un index.
   RechercheRequest: Recherche multicritère sur les index, filtrée par les droits de l'appelant.
   GroupeResponse: Groupe de résultats de recherche (index de groupage).
@@ -576,6 +577,10 @@ surcharges:
   AccessGroupRequest.name: {description: "Nom du groupe d'accès.", exemple: "Comptables"}
   AccessGroupResponse.name: {description: "Nom du groupe d'accès.", exemple: "Comptables"}
   WorkflowRequest.name: {description: "Nom de la règle de workflow.", exemple: "Validation DAF"}
+  ModuleResponse.code: {description: "Code du module : ocr, workflow, cycledevie, export, notifications, integration (ged.modules.<code>.actif).", exemple: "workflow"}
+  ModuleResponse.libelle: {description: "Processus métier couvert.", exemple: "Circuits de validation et diffusion"}
+  ModuleResponse.reference: {description: "Sections du dossier fonctionnel (DF) et du dossier technique (DAT) couvertes.", exemple: "DF §4.5 ; DAT §12.8, D8"}
+  ModuleResponse.actif: {description: "Vrai si le module est déployé et ouvert sur cet environnement.", exemple: true}
   WorkflowResponse.name: {description: "Nom de la règle de workflow.", exemple: "Validation DAF"}
   ProfilResponse.email: {description: "Adresse e-mail du compte de connexion.", exemple: "sara.bennani@marchica.ma"}
   PageResponseMapStringObject.content: {description: "Éléments de la page courante (objets libres).", exemple: null}

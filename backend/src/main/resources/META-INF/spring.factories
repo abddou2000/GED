@@ -1,0 +1,2 @@
+# Modules métier (T-088, DAT §9.3) : arrêt des traitements de fond d'un module désactivé.
+org.springframework.boot.env.EnvironmentPostProcessor=com.ipt.ged.modules.ModulesEnvironnement
