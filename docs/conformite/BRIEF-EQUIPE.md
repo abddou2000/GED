@@ -12,18 +12,26 @@ avec son statut actuel ; `FEUILLE-DE-ROUTE.md` répartit les 86 exigences non co
 - En cas de doute sur un mécanisme : **le PDF fait foi**, pas la matrice.
 - Le dossier fonctionnel V3 (`MATRICE-FONCTIONNELLE.md`) fait foi pour les règles métier.
 
-## Équipe (5 personnes, pas une de plus)
+## Équipe (8 personnes)
 
-| Nom | Rôle | Copie de travail | Branche |
-|---|---|---|---|
-| dev1 | Développeur back-end senior — données, identité, autorisation | `C:\Users\abdou\ged-wt\dev1` | `ct/dev1` |
-| dev2 | Développeur back-end senior — qualité, exploitation, traçabilité, API | `C:\Users\abdou\ged-wt\dev2` | `ct/dev2` |
-| dev3 | Développeur back-end senior — fichiers, OCR, recherche, cycle de vie | `C:\Users\abdou\ged-wt\dev3` | `ct/dev3` |
-| qa | Testeur | `C:\Users\abdou\ged-wt\qa` | `ct/qa` |
-| pm | Chef de projet et intégrateur | `C:\Users\abdou\ged-app` | `conformite-technique` |
+L'équipe est passée de 5 à 8 membres sur autorisation de l'utilisateur (dev4, dev5 et qa2
+ajoutés ; leurs copies partent de `bc371ad`).
 
-Les développeurs back-end prennent aussi en charge les adaptations Angular nécessaires à
-leurs lots (il n'y a pas de développeur front dans l'équipe).
+| Nom | Rôle | Copie de travail | Branche | Bases |
+|---|---|---|---|---|
+| dev1 | Développeur back-end senior — données, identité, autorisation | `C:\Users\abdou\ged-wt\dev1` | `ct/dev1` | `ged_dev1` / `ged_dev1_test` |
+| dev2 | Développeur back-end senior — qualité, exploitation, traçabilité, API | `C:\Users\abdou\ged-wt\dev2` | `ct/dev2` | `ged_dev2` / `ged_dev2_test` |
+| dev3 | Développeur back-end senior — fichiers, OCR, recherche, cycle de vie | `C:\Users\abdou\ged-wt\dev3` | `ct/dev3` | `ged_dev3` / `ged_dev3_test` |
+| dev4 | Développeur full-stack — écrans d'administration et d'exploitation (`administration/*`, clés d'API, règles de workflow, journal d'audit, traitements OCR, référentiels, corbeille, archivage de dossier, réindexation, intégrité) | `C:\Users\abdou\ged-wt\dev4` | `ct/dev4` | `ged_dev4` / `ged_dev4_test` |
+| dev5 | Développeur full-stack — écrans utilisateur (dépôt en deux temps, fiche document et versions, recherche, mes validations, notifications, espaces de partage, exports) | `C:\Users\abdou\ged-wt\dev5` | `ct/dev5` | `ged_dev5` / `ged_dev5_test` |
+| qa | Testeur — recette technique (dossier technique V3) | `C:\Users\abdou\ged-wt\qa` | `ct/qa` | `ged_qa` / `ged_qa_test` |
+| qa2 | Testeur — recette fonctionnelle des 77 exigences du dossier fonctionnel V3 (`docs/conformite/recette/RESULTATS-FONCTIONNELS.md`, anomalies `ANO-F-xxx` dans `docs/conformite/recette/ANOMALIES-FONCTIONNELLES.md`) | `C:\Users\abdou\ged-wt\qa2` | `ct/qa2` | `ged_qa2` / `ged_qa2_test` |
+| pm | Chef de projet et intégrateur | `C:\Users\abdou\ged-app` | `conformite-technique` | `ged_pm` / `ged_pm_test` |
+
+Les développeurs back-end prennent en charge les adaptations Angular nécessaires à leurs
+lots ; dev4 et dev5 portent les écrans. `app.routes.ts`, le menu et `layout/shell` sont
+partagés entre dev4 et dev5 : chacun y ajoute ses entrées sans réorganiser celles de l'autre
+(conflits d'union attendus à la fusion, résolus par pm selon `INTEGRATION.md` §4).
 
 ## Règles de travail
 
@@ -48,8 +56,22 @@ leurs lots (il n'y a pas de développeur front dans l'équipe).
 6. **Ports** : ne jamais démarrer l'application sur 8080, 8081 ni 4301, ni utiliser le port
    d'annuaire 33389 ni la base `ged_demo` : ils servent à l'instance de tests manuels de
    l'utilisateur, lancée depuis `C:\Users\abdou\ged-app` (ne jamais l'arrêter). Si un
-   démarrage est indispensable, utiliser 18081 (dev1), 18082 (dev2), 18083 (dev3),
-   18084 (qa), 18085 (pm), et arrêter le processus ensuite.
+   démarrage est indispensable, utiliser les ports ci-dessous, et arrêter le processus
+   ensuite :
+
+   | Membre | Back (API) | Front (`ng serve`) |
+   |---|---|---|
+   | dev1 | 18081 | — |
+   | dev2 | 18082 | — |
+   | dev3 | 18083 | — |
+   | qa | 18084 | — |
+   | pm | 18085 | — |
+   | dev4 | 18086 | 4386 |
+   | dev5 | 18087 | 4387 |
+   | qa2 | 18088 | 4388 |
+
+   Le port de management (actuator) se déplace avec `GED_MANAGEMENT_PORT` (défaut 8081,
+   réservé) : prendre le port back + 10 (18091 à 18098).
 6 bis. **Tests en parallèle** : les suites de plusieurs membres tournent en même temps sur le
    même poste. Sans réglage, elles se bloquent : même port d'annuaire simulé (33390) et
    saturation de PostgreSQL (`max_connections` = 100, un pool par contexte Spring gardé en
@@ -62,7 +84,12 @@ leurs lots (il n'y a pas de développeur front dans l'équipe).
    | dev3 | 33393 | `ldap://localhost:33393` | 3033 |
    | qa | 33394 | `ldap://localhost:33394` | 3034 |
    | pm | 33395 | `ldap://localhost:33395` | 3035 |
+   | dev4 | 33397 | `ldap://localhost:33397` | 3037 |
+   | dev5 | 33398 | `ldap://localhost:33398` | 3038 |
+   | qa2 | 33399 | `ldap://localhost:33399` | 3039 |
    | instance manuelle de l'utilisateur | 33389 (ne pas utiliser) | — | — |
+
+   (33396 et 3036 ont servi à une copie de travail de dev1 : ne pas les réattribuer.)
 
    et `SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE=3`, ainsi que **toujours `DB_NAME` et
    `DB_NAME_TEST`**, tous deux explicites et à ses propres bases. Sans eux, le profil `test`
@@ -88,7 +115,7 @@ leurs lots (il n'y a pas de développeur front dans l'équipe).
 
    Limite connue : une erreur « remaining connection slots are reserved » signale une
    saturation de PostgreSQL par les suites des autres membres : relancer, sans modifier le
-   code.
+   code. Avec huit membres, le pool de 3 est un maximum : ne jamais l'augmenter.
 7. **Front** : `node_modules` n'existe que dans `C:\Users\abdou\ged-app\frontend`. Dans une
    copie de travail, créer une jonction avant de compiler :
    `cmd /c mklink /J frontend\node_modules C:\Users\abdou\ged-app\frontend\node_modules`
