@@ -125,8 +125,11 @@ class EssaiOcrChargeIT extends BaseCharge {
                 }
             }
             Mesures.noter("ocr.file.depot_s", Duration.between(debut, Instant.now()).toSeconds());
-            // Attente : tous les jobs terminés (ou en échec), au plus 90 minutes.
-            Instant limite = Instant.now().plus(Duration.ofMinutes(90));
+            // Attente : tous les jobs terminés (ou en échec), au plus GED_CHARGE_ATTENTE_MIN
+            // minutes (240 par défaut : un attachement de 400 pages, traité par un seul
+            // worker, a dépassé 90 min sur le poste chargé).
+            Instant limite = Instant.now().plus(Duration.ofMinutes(
+                    Long.parseLong(System.getenv().getOrDefault("GED_CHARGE_ATTENTE_MIN", "240"))));
             while (Instant.now().isBefore(limite)) {
                 Integer restants = jdbc.queryForObject("SELECT count(*) FROM ocr_job WHERE document_id = ANY(?) "
                         + "AND statut IN ('EN_ATTENTE_OCR', 'EN_COURS_OCR')", Integer.class,

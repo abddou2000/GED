@@ -188,12 +188,12 @@ class OcrApiTest {
     }
 
     @Test
-    @DisplayName("3. État de la chaîne : active, modèles fra et ara installés, fra+ara par défaut")
+    @DisplayName("3. État de la chaîne : active, modèles fra et ara installés, ara+fra par défaut")
     void etat() throws Exception {
         mvc.perform(get("/api/v1/ocr/etat"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.actif", is(true)))
-                .andExpect(jsonPath("$.langueDefaut", is("fra+ara")))
+                .andExpect(jsonPath("$.langueDefaut", is("ara+fra")))
                 .andExpect(jsonPath("$.languesInstallees", hasItems("fra", "ara")));
     }
 

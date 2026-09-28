@@ -197,14 +197,60 @@ class BancTesseractIT {
         List<String> sansInversion = List.of("-c", "tessedit_do_invert=0");
         List<String> sansInversionDpi = List.of("-c", "tessedit_do_invert=0", "--dpi", "300");
         for (String cle : List.of("FR.PROPRE", "AR.PROPRE", "MIXTE.NB", "FR.DEGRADE")) {
-            for (String m : List.of("best", "fast")) {
-                serie(cle + ".fra+ara.psm3.300.defaut", CORPUS.get(cle), m, "fra+ara", 3, 300);
-                serie(cle + ".fra+ara.psm3.300.sans_inversion", CORPUS.get(cle), m, "fra+ara", 3, 300, sansInversion);
-                serie(cle + ".fra+ara.psm3.300.sans_inversion_dpi", CORPUS.get(cle), m, "fra+ara", 3, 300,
-                        sansInversionDpi);
-            }
+            serie(cle + ".fra+ara.psm3.300.defaut", CORPUS.get(cle), "best", "fra+ara", 3, 300);
+            serie(cle + ".fra+ara.psm3.300.sans_inversion", CORPUS.get(cle), "best", "fra+ara", 3, 300, sansInversion);
+            serie(cle + ".fra+ara.psm3.300.sans_inversion_dpi", CORPUS.get(cle), "best", "fra+ara", 3, 300,
+                    sansInversionDpi);
+        }
+        // Modèle mixte (fra rapide, ara précis) : ne vaut que si fra rapide fait gagner du temps.
+        for (String cle : List.of("FR.PROPRE", "MIXTE.NB")) {
             serie(cle + ".fra+ara.psm3.300.defaut", CORPUS.get(cle), "mixte", "fra+ara", 3, 300);
-            serie(cle + ".fra+ara.psm3.300.sans_inversion", CORPUS.get(cle), "mixte", "fra+ara", 3, 300, sansInversion);
+        }
+    }
+
+    /**
+     * Ordre des langues : la première est la langue principale de Tesseract,
+     * les suivantes ne sont essayées que sur les mots peu sûrs. Avec
+     * {@code fra+ara}, une page arabe perd beaucoup (CER triplé) : on mesure
+     * {@code ara+fra} sur les trois langues de document.
+     */
+    @Test
+    void ordreDesLangues() throws Exception {
+        extracteur(BEST, 3, 300).extraire(new ByteArrayInputStream(CORPUS.get("FR.PROPRE").get(0).pdf()), PDF,
+                "ara+fra", ExtracteurDocumentOcr.SuiviPages.AUCUN);
+        Mesures.noterPoste("banc.langues");
+        for (String cle : List.of("FR.PROPRE", "FR.DEGRADE", "AR.PROPRE", "AR.DEGRADE", "MIXTE.PROPRE", "MIXTE.NB")) {
+            for (String langue : List.of("fra+ara", "ara+fra")) {
+                serie(cle + "." + langue + ".psm3.300", CORPUS.get(cle), "best", langue, 3, 300);
+            }
+        }
+    }
+
+    /**
+     * Attachement (D6 : 400 à 800 pages) traité par UN worker : la chaîne va
+     * page par page, sa durée est linéaire en pages et sa mémoire bornée à une
+     * page rendue. On mesure les {@code GED_BANC_PAGES_ATTACHEMENT} premières
+     * pages (50 par défaut) du même document bilingue 1 bit que
+     * {@code EssaiOcrChargeIT} et on extrapole à 400 et 800 pages.
+     */
+    @Test
+    void attachement() throws Exception {
+        int pages = Integer.parseInt(System.getenv().getOrDefault("GED_BANC_PAGES_ATTACHEMENT", "50"));
+        byte[] pdf = CorpusOcr.document(Langue.MIXTE, Qualite.NB, pages, 400);
+        Mesures.noterPoste("banc.attachement");
+        for (String langue : List.of("fra+ara", "ara+fra")) {
+            try (Mesures.PicTas pic = new Mesures.PicTas(); Mesures.PerfMoyenne pm = new Mesures.PerfMoyenne()) {
+                long t0 = System.nanoTime();
+                TexteDocument t = extracteur(BEST, 3, 300).extraire(new ByteArrayInputStream(pdf), PDF, langue,
+                        ExtracteurDocumentOcr.SuiviPages.AUCUN);
+                double sParPage = (System.nanoTime() - t0) / 1e9 / t.nbPages();
+                String k = "banc.attachement." + langue;
+                Mesures.noter(k + ".pages", t.nbPages());
+                Mesures.noter(k + ".s_par_page", Mesures.f(sParPage) + " ; " + pm.resume());
+                Mesures.noter(k + ".extrapole_400_pages_min", Mesures.f(sParPage * 400 / 60));
+                Mesures.noter(k + ".extrapole_800_pages_min", Mesures.f(sParPage * 800 / 60));
+                Mesures.noter(k + ".pic_tas_mo", pic.picMo());
+            }
         }
     }
 

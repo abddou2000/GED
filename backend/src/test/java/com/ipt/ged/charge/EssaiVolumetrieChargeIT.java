@@ -118,6 +118,12 @@ class EssaiVolumetrieChargeIT extends BaseCharge {
                 @Override public void write(int b) { octets[0]++; }
                 @Override public void write(byte[] b, int off, int len) { octets[0] += len; }
             };
+            // Vérification d'intégrité avant la réponse (ANO-E5-003) : délai
+            // avant le premier octet de l'export synchrone.
+            long v0 = System.nanoTime();
+            exports.verifierIntegrite(s);
+            long verificationMs = (System.nanoTime() - v0) / 1_000_000;
+            Mesures.noter("export.verification_integrite_s", Mesures.f(verificationMs / 1000.0));
             long e0 = System.nanoTime();
             exports.ecrire(s, compteur);
             long ecritureMs = (System.nanoTime() - e0) / 1_000_000;
