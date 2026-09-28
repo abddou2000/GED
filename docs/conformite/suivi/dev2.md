@@ -2,6 +2,15 @@
 
 Branche `ct/dev2`. Mise à jour : 28/09/2026.
 
+## Contrat d'API : filtre « échéance dépassée » (T-112) sur `POST /recherches` — **livré sur ct/dev2** (bdff78c)
+
+Après fusion de `conformite-technique` (68a1f90, T-112 de dev1) : critère `echeanceDepassee`
+avec la même sémantique que chez dev1 (échéance ≤ jour de MMED, `Echeances`) — fragment de
+`CriteresMetadonnees` avec plein texte, filtre des résultats de l'indexation sans plein texte ;
+colonne `echeanceDepassee` des résultats renseignée dans les deux cas ; décrit dans `champs.yml`
+(OpenAPI). Test `ContratApiTest.rechercheEcheanceDepassee` (échéance passée, du jour même,
+future ; avec et sans plein texte). `mvn test` **587 verts**, `ng build` vert.
+
 ## Anomalies de la recette de la vague 5 : **corrigées sur ct/dev2**
 
 | Anomalie | Correction | Commit |
