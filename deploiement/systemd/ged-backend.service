@@ -33,6 +33,10 @@ Group=ged
 # Secrets et configuration de l'environnement (DAT 10.1) : fichier propriété
 # de ged, permissions 0400, jamais versionné. Modèle : ged.env.exemple.
 EnvironmentFile=/etc/ged/ged.env
+# Modules métier activés sur ce serveur (DAT 9.3, T-088) : GED_MODULES_<CODE>_ACTIF,
+# écrit par deployer.sh --activer-module / --desactiver-module ; lu après
+# ged.env, il l'emporte. Facultatif (« - ») : sans lui, tous les modules sont actifs.
+EnvironmentFile=-/etc/ged/modules.env
 # Surcharges facultatives sans redéploiement (niveau de log, par exemple) :
 # un application.yml déposé dans /etc/ged/ est lu en plus de celui du JAR.
 Environment=SPRING_CONFIG_ADDITIONAL_LOCATION=optional:file:/etc/ged/
