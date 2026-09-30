@@ -43,8 +43,10 @@
             <mat-icon svgIcon="archive"></mat-icon> {{ echeanceView() ? 'Tous les documents' : 'Échéance dépassée' }}
           </button>
         }
-        <button mat-stroked-button (click)="toggleArchive()">
-          <mat-icon svgIcon="archive"></mat-icon> {{ archiveView() ? 'Actifs' : 'Archive' }}
+        <!-- La corbeille (suppression réversible puis purge), pas l'archivage
+             (statut « archivé », lecture seule, D10) : ANO-F-023. -->
+        <button mat-stroked-button class="corbeille" (click)="toggleArchive()">
+          <mat-icon [svgIcon]="archiveView() ? 'nav-upload' : 'delete'"></mat-icon> {{ archiveView() ? 'Documents' : 'Corbeille' }}
         </button>
       </div>
     </div>
@@ -91,6 +93,10 @@
                 <!-- ANO-F-005 : la reprise se fait sur la fiche. -->
                 <a class="badge-a-indexer" [routerLink]="['/televerser', d.id]"
                    matTooltip="Index non enregistrés : ouvrez la fiche pour les saisir">À indexer</a>
+              }
+              @if (etatOcr(d.statutOcr); as o) {
+                <!-- ANO-F-017 : contenu pas encore, ou pas, interrogeable en plein texte. -->
+                <span class="badge-ocr" [class.echec]="o.echec" [matTooltip]="o.info">{{ o.libelle }}</span>
               }
               @if (d.echeanceDepassee) {
                 <span class="badge-echeance"
@@ -213,7 +219,7 @@
             <div class="empty-state">
               <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
               @if (archiveView()) {
-                <span class="empty-title">L'archive est vide</span>
+                <span class="empty-title">La corbeille est vide</span>
                 <span class="empty-sub">Aucun document supprimé n'attend d'être restauré.</span>
               } @else {
                 <span class="empty-title">Aucun document</span>

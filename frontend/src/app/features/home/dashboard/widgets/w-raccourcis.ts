@@ -51,8 +51,9 @@ export class WRaccourcis {
     { libelle: 'Déposer un document', precision: 'Téléverser et lancer le circuit', icone: 'nav-upload', route: '/televerser', teinte: 'd-cramoisi', permission: 'DEPOSER' },
     { libelle: 'Créer un espace', precision: 'Nouvel espace de travail', icone: 'folder-plus', route: '/espaces-de-travail', teinte: 'd-marine', permission: 'GERER_ESPACES' },
     { libelle: 'Mes validations', precision: 'Tout ce que je dois valider', icone: 'nav-mesworkflow', route: '/mes-workflow', teinte: 'd-vert', permission: null },
-    /* La recherche, pas le référentiel des index (`/index`, administration). */
-    { libelle: 'Rechercher un document', precision: 'Par contenu, type, dossier ou date', icone: 'search', route: '/recherche', teinte: 'd-ambre', permission: null },
+    /* L'écran de recherche multicritère sur les index (ANO-F-010), pas le
+       référentiel des index (`/index`, administration). */
+    { libelle: 'Rechercher par index', precision: 'Index, type, date du document, déposant', icone: 'search', route: '/recherche-par-index', teinte: 'd-ambre', permission: null },
   ];
 
   /**

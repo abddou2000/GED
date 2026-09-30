@@ -18,7 +18,7 @@
         <!-- Seules les actions permises sur le nœud sont proposées (ANO-F-018). -->
         @if (peutCreerSousDossier()) {
           <button mat-stroked-button class="act-sous-dossier" (click)="creerSousDossier()">
-            <mat-icon svgIcon="folder-plus"></mat-icon> Sous-dossier
+            <mat-icon svgIcon="folder-plus"></mat-icon> {{ echange() ? 'Nouveau dossier' : 'Sous-dossier' }}
           </button>
         }
         @if (peut('MODIFIER')) {
@@ -109,6 +109,12 @@
           <span class="tb-titre">Documents</span>
           <span class="tb-sub">{{ docs().length }}</span>
         </div>
+        <!-- Espace d'échange (D12, ANO-F-016) : déposer ici, dossier cible au choix. -->
+        @if (echange() && peut('DEPOSER')) {
+          <button mat-stroked-button type="button" class="deposer-ici" (click)="deposerIci()">
+            <mat-icon svgIcon="nav-upload"></mat-icon> Déposer ici
+          </button>
+        }
       </div>
 
       <div class="table-wrap">

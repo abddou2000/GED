@@ -143,4 +143,41 @@ describe('DocumentDetail', () => {
     expect(put.request.body.dateDocument).toBe('2026-02-05');
     put.flush(doc({ objet: 'Maintenance annuelle', dateDocument: '2026-02-05' }));
   });
+
+  /* ---------- Tour 2 (dev5) : auteur des versions, emplacements, désignation ---------- */
+
+  /** Ouvre la fiche en servant d'abord la liste des personnes (identités GED). */
+  function ouvrirAvecPersonnes(d: DocumentItem): ComponentFixture<DocumentDetail> {
+    const f = TestBed.createComponent(DocumentDetail);
+    f.detectChanges();
+    serveur.expectOne(r => r.url === `${API_BASE}/employes`).flush([
+      { id: 'e1', firstName: 'N', lastName: 'Idrissi', fullName: 'N. Idrissi', utilisateurId: 'u-1' },
+      { id: 'e2', firstName: 'K', lastName: 'El Fassi', fullName: 'K. El Fassi', utilisateurId: 'u-2' },
+    ]);
+    repondreAuChargement(d);
+    f.detectChanges();
+    return f;
+  }
+
+  it("ANO-F-012 : le tableau des versions affiche l'auteur de chaque versement", () => {
+    const f = ouvrirAvecPersonnes(doc({ versions: [
+      { id: 'v2', fileName: 'v2.pdf', observation: null, principale: true, sizeLabel: '1 Ko', createdAt: '2026-09-30T10:00:00Z', numero: 2, auteurId: 'u-2' },
+      { id: 'v1', fileName: 'v1.pdf', observation: null, principale: false, sizeLabel: '1 Ko', createdAt: '2026-09-29T10:00:00Z', numero: 1, auteurId: 'u-1' },
+    ] }));
+    const el: HTMLElement = f.nativeElement;
+    expect(Array.from(el.querySelectorAll('.ver-table th')).map(th => th.textContent?.trim())).toContain('Auteur');
+    expect(Array.from(el.querySelectorAll('td.c-auteur')).map(td => td.textContent?.trim()))
+      .toEqual(['K. El Fassi', 'N. Idrissi']);
+  });
+
+  it('ANO-F-013, ANO-F-014 : la fiche porte les emplacements, et la désignation pour un document Confidentiel', () => {
+    const publicDoc = ouvrirAvecPersonnes(doc());
+    expect(publicDoc.nativeElement.querySelector('app-document-emplacements')).toBeTruthy();
+    expect(publicDoc.nativeElement.querySelector('app-document-designes')).toBeNull();
+
+    const conf = ouvrirAvecPersonnes(doc({ confidentialite: 'CONFIDENTIEL' }));
+    for (const r of serveur.match(() => true)) r.flush([]);   // dossiers proposés, personnes désignées
+    conf.detectChanges();
+    expect(conf.nativeElement.querySelector('app-document-designes')).toBeTruthy();
+  });
 });

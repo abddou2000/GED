@@ -142,6 +142,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/recherche/recherche-plein-texte/recherche-plein-texte').then(m => m.RecherchePleinTexte),
       },
       {
+        // Recherche multicritère sur les index et le socle commun (§4.4.3,
+        // ANO-F-010) : métadonnées seules, indépendante du module OCR.
+        path: 'recherche-par-index',
+        loadComponent: () => import('./features/recherche/recherche-index/recherche-index').then(m => m.RechercheIndex),
+      },
+      {
         // Exports de dossier préparés en arrière-plan (§12.10).
         path: 'mes-exports',
         canActivate: [moduleGuard('export')],

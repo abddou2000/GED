@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, of } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 // Directives autonomes, pas le module : libellés français du calendrier (ANO-F-024).
 import { CHAMP_DATE } from '../../../core/calendrier-fr';
@@ -46,6 +46,15 @@ interface ChampApercu extends Proposition {}
 type DemandeApercu = { typeId: string; fichier: File } | null;
 
 /**
+ * Ouverture depuis un espace d'échange (D12, ANO-F-016) : les dossiers de
+ * l'espace où ranger le document, et celui d'où l'on vient, proposé par défaut.
+ */
+export interface DonneesDepot {
+  dossiers?: { id: string; name: string }[];
+  dossierId?: string | null;
+}
+
+/**
  * Dépôt d'un document — **une seule fenêtre, un seul bouton**.
  *
  * <p>Le type, le fichier, le réglage d'indexation, les champs indexés, le nom,
@@ -79,6 +88,9 @@ export class DocumentUpload implements OnInit {
   private plans = inject(PlanIndexationService);
   private index = inject(IndexService);
   private ref = inject(MatDialogRef<DocumentUpload, IssueDepot | false>);
+  /** Dossiers de l'espace d'échange d'où le dépôt est lancé (ANO-F-016) ; vide ailleurs. */
+  protected readonly donnees = inject<DonneesDepot | null>(MAT_DIALOG_DATA, { optional: true });
+  protected readonly dossiersCibles = this.donnees?.dossiers ?? [];
   private destroyRef = inject(DestroyRef);
 
   /** Types disponibles, avec leur plan — nécessaire pour prévenir quand il manque. */
@@ -151,6 +163,10 @@ export class DocumentUpload implements OnInit {
        serveur prend la date du dépôt. */
     objet: ['', Validators.maxLength(1000)],
     dateDocument: [null as Date | null],
+    /* Espace d'échange (D12, ANO-F-016) : dossier où ranger le document ; vide
+       = dossier du type. Le serveur refuse (422) un dossier hors de l'espace
+       d'échange du type. */
+    noeudId: [this.donnees?.dossierId ?? null as string | null],
   });
 
   ngOnInit(): void {
@@ -701,7 +717,7 @@ export class DocumentUpload implements OnInit {
     }
     this.service.upload(file, v.typeDocumentId, (v.name || '').trim(), versIso(v.expirationDate),
                         v.etiquetteIds ?? [], v.confidentialite ?? null, metadonnees,
-                        { objet: v.objet ?? null, dateDocument: versIso(v.dateDocument) })
+                        { objet: v.objet ?? null, dateDocument: versIso(v.dateDocument), noeudId: v.noeudId ?? null })
       .subscribe({
         next: doc => {
           this.documentDepose.set(doc.id);

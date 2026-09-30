@@ -15,6 +15,8 @@ import { DocumentItem } from '../../document/document.model';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { CycleDossier } from '../../cycle-de-vie/cycle-dossier/cycle-dossier';
+import { DossierSimpleForm } from '../dossier-simple-form/dossier-simple-form';
+import { DocumentUpload, DonneesDepot } from '../../document/document-upload/document-upload';
 import { AuthService } from '../../../core/auth.service';
 
 /**
@@ -42,6 +44,9 @@ export class WorkspaceDetail implements OnInit {
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
   private auth = inject(AuthService);
+
+  /** Arborescence reçue au chargement : les dossiers de l'espace d'échange en viennent (ANO-F-016). */
+  private arbre: TreeNode[] = [];
 
   id = signal<string | null>(null);
   espace = signal<WorkSpace | null>(null);
@@ -99,6 +104,7 @@ export class WorkspaceDetail implements OnInit {
     }).subscribe({
       next: r => {
         this.espace.set(r.espace);
+        this.arbre = r.arbre;
         this.sousDossiers.set(this.enfantsDe(r.arbre, id));
         this.chemin.set(this.cheminVers(r.arbre, id));
         this.docs.set(r.docs.content);
@@ -160,9 +166,15 @@ export class WorkspaceDetail implements OnInit {
     });
   }
 
+  /** Espace d'échange (R-03, D12) : dossiers et dépôts ouverts aux membres qui peuvent Déposer. */
+  echange(): boolean {
+    return this.espace()?.usageEspace === 'ECHANGE';
+  }
+
   creerSousDossier(): void {
     const id = this.id();
     if (id == null) return;
+    if (this.echange()) { this.creerDossierEchange(id); return; }
     this.dialog.open(WorkspaceForm, {
       data: { workspace: null, parentId: id }, width: '540px', maxWidth: '95vw', autoFocus: false,
     }).afterClosed().subscribe(ok => {
@@ -170,6 +182,60 @@ export class WorkspaceDetail implements OnInit {
       this.charger();
       this.notify.success('Sous-dossier créé.');
     });
+  }
+
+  /**
+   * Espace d'échange (ANO-F-016) : formulaire simple (nom, description) sur
+   * POST /noeuds/{id}/dossiers, et non le formulaire d'administration des
+   * espaces (POST /workspaces, réservé à l'Administrateur).
+   */
+  private creerDossierEchange(parentId: string): void {
+    this.dialog.open(DossierSimpleForm, {
+      data: { parentId, parentNom: this.espace()?.name ?? '' }, width: '480px', maxWidth: '95vw',
+    }).afterClosed().subscribe(cree => {
+      if (!cree) return;
+      this.charger();
+      this.notify.success('Dossier créé.');
+    });
+  }
+
+  /**
+   * Dossiers de l'espace d'échange qui contient ce dossier (l'espace et tous
+   * ses descendants), libellés par leur chemin : le dépôt peut y ranger le
+   * document (D12, ANO-F-016).
+   */
+  dossiersDeLEspace(): { id: string; name: string }[] {
+    const racine = this.chemin()[0];
+    const trouve = (noeuds: TreeNode[]): TreeNode | null => {
+      for (const n of noeuds) {
+        if (n.id === racine?.id) return n;
+        const t = trouve(n.children ?? []);
+        if (t) return t;
+      }
+      return null;
+    };
+    const depart = racine ? trouve(this.arbre) : null;
+    const liste: { id: string; name: string }[] = [];
+    const parcourir = (n: TreeNode, prefixe: string) => {
+      const nom = prefixe ? `${prefixe} / ${n.name}` : n.name;
+      if (!n.passage) liste.push({ id: n.id, name: nom });
+      for (const e of n.children ?? []) parcourir(e, nom);
+    };
+    if (depart) parcourir(depart, '');
+    return liste;
+  }
+
+  /** Dépôt dans ce dossier d'un espace d'échange, avec choix du dossier cible (ANO-F-016). */
+  deposerIci(): void {
+    const id = this.id();
+    if (id == null) return;
+    const data: DonneesDepot = { dossiers: this.dossiersDeLEspace(), dossierId: id };
+    this.dialog.open(DocumentUpload, { data, width: '560px', maxWidth: '95vw', autoFocus: false })
+      .afterClosed().subscribe(issue => {
+        if (!issue) return;
+        this.charger();
+        this.notify.success('Document déposé.');
+      });
   }
 
   /** Identifiants en cours de téléchargement : un clic répété sur la même ligne

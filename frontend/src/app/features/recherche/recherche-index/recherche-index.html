@@ -1,0 +1,178 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Recherche par index</h1>
+      <p class="breadcrumb">Accueil - Recherche multicritère sur les métadonnées des documents</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <form class="criteres" (ngSubmit)="lancer()">
+      <fieldset class="bloc">
+        <legend>Document</legend>
+        <div class="champs">
+          <label class="large">Nom ou objet contient
+            <input name="texte" [(ngModel)]="socle.texte" maxlength="500" placeholder="Ex. maintenance" />
+          </label>
+          <label>Type de document
+            <select name="type" [(ngModel)]="socle.typeDocumentId">
+              <option [ngValue]="null">Tous</option>
+              @for (t of listeTypes(); track t.id) { <option [ngValue]="t.id">{{ t.name }}</option> }
+            </select>
+          </label>
+          <label>Emplacement
+            <select name="noeud" [(ngModel)]="socle.noeudId">
+              <option [ngValue]="null">Tous</option>
+              @for (w of listeEspaces(); track w.id) { <option [ngValue]="w.id">{{ w.name }}</option> }
+            </select>
+          </label>
+          <label>Date du document, du
+            <input type="date" name="dateDocumentDu" [(ngModel)]="socle.dateDocumentDu" />
+          </label>
+          <label>au
+            <input type="date" name="dateDocumentAu" [(ngModel)]="socle.dateDocumentAu" />
+          </label>
+          <label>Confidentialité
+            <select name="confidentialite" [(ngModel)]="socle.confidentialite">
+              <option [ngValue]="null">Tous niveaux</option>
+              @for (n of niveaux; track n.valeur) { <option [ngValue]="n.valeur">{{ n.libelle }}</option> }
+            </select>
+          </label>
+          <label>Déposant
+            <select name="deposant" [(ngModel)]="socle.deposantUtilisateurId">
+              <option [ngValue]="null">Tous</option>
+              @for (p of personnes(); track p.utilisateurId) { <option [ngValue]="p.utilisateurId">{{ p.nom }}</option> }
+            </select>
+          </label>
+          <label>Archivés
+            <select name="statut" [(ngModel)]="socle.statutConservation">
+              <option value="">Inclus</option>
+              <option value="ACTIF">Exclus</option>
+              <option value="ARCHIVE">Seuls</option>
+            </select>
+          </label>
+          <label class="case">
+            <input type="checkbox" name="echeanceDepassee" [(ngModel)]="socle.echeanceDepassee" />
+            Échéance dépassée
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="bloc">
+        <legend>Index</legend>
+        @if (criteresIndex().length) {
+          <div class="champs">
+            @for (c of criteresIndex(); track c.id) {
+              @switch (c.fieldType) {
+                @case ('DATE') {
+                  <label [attr.data-critere]="c.code">{{ c.libelle }}, du
+                    <input type="date" [name]="'de-' + c.code" [attr.name]="'de-' + c.code" [(ngModel)]="saisie(c.code).de" />
+                  </label>
+                  <label>au
+                    <input type="date" [name]="'a-' + c.code" [attr.name]="'a-' + c.code" [(ngModel)]="saisie(c.code).a" />
+                  </label>
+                }
+                @case ('NOMBRE') {
+                  <label [attr.data-critere]="c.code">{{ c.libelle }}, de
+                    <input type="number" [name]="'de-' + c.code" [attr.name]="'de-' + c.code" [(ngModel)]="saisie(c.code).de" />
+                  </label>
+                  <label>à
+                    <input type="number" [name]="'a-' + c.code" [attr.name]="'a-' + c.code" [(ngModel)]="saisie(c.code).a" />
+                  </label>
+                }
+                @case ('LISTE') {
+                  <label [attr.data-critere]="c.code">{{ c.libelle }}
+                    <select [name]="'v-' + c.code" [attr.name]="'v-' + c.code" [(ngModel)]="saisie(c.code).valeur">
+                      <option value="">Toutes</option>
+                      @for (o of c.options; track o) { <option [value]="o">{{ o }}</option> }
+                    </select>
+                  </label>
+                }
+                @case ('BOOLEEN') {
+                  <label [attr.data-critere]="c.code">{{ c.libelle }}
+                    <select [name]="'v-' + c.code" [attr.name]="'v-' + c.code" [(ngModel)]="saisie(c.code).valeur">
+                      <option value="">Indifférent</option>
+                      <option value="oui">Oui</option>
+                      <option value="non">Non</option>
+                    </select>
+                  </label>
+                }
+                @default {
+                  <label [attr.data-critere]="c.code">{{ c.libelle }} contient
+                    <input [name]="'v-' + c.code" [attr.name]="'v-' + c.code" [(ngModel)]="saisie(c.code).valeur" maxlength="500" />
+                  </label>
+                }
+              }
+            }
+          </div>
+        } @else {
+          <p class="aide">Aucun index n'est proposé comme critère de recherche (case « Indexé pour recherche » du référentiel des index).</p>
+        }
+      </fieldset>
+
+      <div class="actions">
+        <span class="aide-et">Les critères renseignés se cumulent (ET) ; les champs vides ne filtrent pas.</span>
+        <button mat-button type="button" (click)="effacer()">Effacer</button>
+        <button mat-flat-button color="primary" type="submit" class="lancer" [disabled]="chargement()">
+          <mat-icon svgIcon="search"></mat-icon> Rechercher
+        </button>
+      </div>
+    </form>
+
+    @if (erreur(); as e) { <p class="erreur">{{ e }}</p> }
+
+    @if (resultat(); as r) {
+      <p class="total">{{ r.total }} document(s) trouvé(s)</p>
+      <div class="table-wrap">
+        <table mat-table [dataSource]="r.content" matSort [matSortActive]="triChamp" [matSortDirection]="triSens"
+               (matSortChange)="trier($event)" class="res-table">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Nom</th>
+            <td mat-cell *matCellDef="let d">
+              <a class="nom" [routerLink]="['/televerser', d.id]">{{ d.name }}</a>
+              @if (d.objet) { <span class="objet">{{ d.objet }}</span> }
+              @if (d.statutConservation === 'ARCHIVE') { <span class="badge-archive">Archivé</span> }
+              @if (etatOcr(d.statutOcr); as o) {
+                <span class="badge-ocr" [class.echec]="o.echec" [matTooltip]="o.info">{{ o.libelle }}</span>
+              }
+              @if (d.echeanceDepassee) { <span class="badge-echeance">Échéance dépassée</span> }
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="type">
+            <th mat-header-cell *matHeaderCellDef>Type</th>
+            <td mat-cell *matCellDef="let d">{{ d.typeDocument?.label || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="emplacement">
+            <th mat-header-cell *matHeaderCellDef>Emplacement</th>
+            <td mat-cell *matCellDef="let d">{{ d.workspace?.label || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="dateDocument">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="dateDocument">Date du document</th>
+            <td mat-cell *matCellDef="let d">{{ dateCourte(d.dateDocument) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="createdAt">Déposé le</th>
+            <td mat-cell *matCellDef="let d">{{ dateCourte(d.createdAt) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="createdBy">
+            <th mat-header-cell *matHeaderCellDef>Déposant</th>
+            <td mat-cell *matCellDef="let d">{{ d.createdBy || '—' }}</td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="colonnes"></tr>
+          <tr mat-row *matRowDef="let row; columns: colonnes"></tr>
+          <tr class="no-data-row" *matNoDataRow>
+            <td class="vide" [attr.colspan]="colonnes.length">Aucun document ne répond à ces critères dans votre périmètre.</td>
+          </tr>
+        </table>
+      </div>
+      <mat-paginator [length]="r.total" [pageIndex]="page" [pageSize]="taille" [pageSizeOptions]="[10, 20, 50]"
+                     (page)="pagination($event)" showFirstLastButtons></mat-paginator>
+    } @else {
+      <p class="aide">
+        Renseignez un ou plusieurs critères, puis lancez la recherche. Les documents dont le contenu n'est pas encore
+        interrogeable (OCR en attente ou en échec) sont trouvés ici par leurs métadonnées.
+      </p>
+    }
+  </div>
+</div>

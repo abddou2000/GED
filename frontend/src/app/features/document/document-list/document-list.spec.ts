@@ -48,6 +48,27 @@ describe('DocumentList', () => {
     expect(badge.getAttribute('href')).toBe('/televerser/d1');
   });
 
+  it("ANO-F-017 : signale l'état OCR (en attente, en échec) dans la liste", () => {
+    const f = TestBed.createComponent(DocumentList);
+    f.detectChanges();
+    serveur.expectOne(r => r.url === `${API_BASE}/documents`).flush({ content: [
+      { ...DOC, id: 'a', statutIndexation: 'INDEXE', statutOcr: 'EN_ATTENTE_OCR' },
+      { ...DOC, id: 'b', statutIndexation: 'INDEXE', statutOcr: 'OCR_ECHEC' },
+      { ...DOC, id: 'c', statutIndexation: 'INDEXE', statutOcr: 'OCR_TERMINE' },
+    ], total: 3, page: 0, size: 10, totalPages: 1 });
+    f.detectChanges();
+    const badges = Array.from(f.nativeElement.querySelectorAll('.badge-ocr') as NodeListOf<HTMLElement>);
+    expect(badges.map(b => b.textContent?.trim())).toEqual(['OCR en attente', 'OCR en échec']);
+    expect(badges[1].classList).toContain('echec');
+  });
+
+  it("ANO-F-023 : la corbeille s'appelle « Corbeille », pas « Archive » (l'archivage est autre chose, D10)", () => {
+    const el: HTMLElement = ouvrir().nativeElement;
+    const bouton = el.querySelector('button.corbeille') as HTMLButtonElement;
+    expect(bouton.textContent?.trim()).toBe('Corbeille');
+    expect(Array.from(el.querySelectorAll('button')).some(b => b.textContent?.trim() === 'Archive')).toBe(false);
+  });
+
   it('ANO-F-006 : affiche la date du document et trie la liste sur elle (sortBy=dateDocument)', () => {
     const f = ouvrir();
     const el: HTMLElement = f.nativeElement;

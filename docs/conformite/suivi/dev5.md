@@ -45,3 +45,51 @@ Aucun changeset Liquibase : pas d'évolution de schéma.
    relève du back (dev3).
 4. `CritereResponse` (module indexation, dev3) porte un champ `obligatoire` de plus : ajout
    compatible, déjà décrit dans `documentationapi/champs.yml`.
+
+## Tour 2 — ANO-F-010 à 014, 016, 017, puis ANO-F-021 à 023 (ajoutées par pm)
+
+Branche `ct/dev5-r2`, partie de `claude/inspiring-lovelace-10bg1c` à 08c710c ; `ct/dev4-r2`
+fusionnée (d13216b) à la demande de pm, conflits résolus en ajoutant.
+
+| Anomalie | Cause | Correctif | Preuve (échoue sans le correctif) | Commits |
+|---|---|---|---|---|
+| ANO-F-010 | Aucun écran n'appelait `POST /documents/recherche` ; l'API ne triait que par date du document ; raccourci d'accueil vers la recherche plein texte. | Écran `#/recherche-par-index` (menu « Recherche par index », raccourci « Rechercher par index ») : un critère par index coché « recherche » (`GET /indexation/criteres`), plages de dates et de nombres, liste et booléen en valeur exacte, texte en « contient » ; seuls les critères renseignés partent, en ET ; résultats paginés et triés côté serveur. Back : `sortBy` / `sortDir` sur `POST /documents/recherche` (dateDocument par défaut, name, createdAt ; hors liste blanche = 400), départage par identifiant. | `recherche-index.spec.ts` (4 tests), `w-raccourcis.spec.ts`, `app.routes.spec.ts`, `ModeleDocumentApiTest.rechercheTriable` | 0327d25, 40feb26 |
+| ANO-F-011 (écran) | Critères imposés absents (API : dev3). | Plage de date du document, confidentialité, déposant (personnes dotées d'une identité GED) dans l'écran, envoyés sous `dateDocumentDu`, `dateDocumentAu`, `confidentialite`, `deposantUtilisateurId` : **noms identiques à ceux de dev3** (552fdf0 sur `ct/dev3-r2`, corps refusant tout champ inconnu). | `recherche-index.spec.ts` (corps envoyé) | 40feb26 |
+| ANO-F-012 | La fiche n'affichait pas `versions[].auteurId`, et aucune API lisible par un utilisateur ne donnait le nom d'une identité GED. | Colonne « Auteur » au tableau des versions ; `GET /employes` expose `utilisateurId` (ajout compatible, dictionnaire OpenAPI complété) et l'écran traduit l'identité en nom. | `document-detail.spec.ts` (auteur), `EmployeApiTest.identiteGedExposee` | 1d334e1, 1145800 |
+| ANO-F-013 | `GET/POST/DELETE /documents/{id}/designes` non appelés par le front. | Bloc « Personnes autorisées (Confidentiel) » sur la fiche d'un document Confidentiel : liste, désigner (parmi les personnes ayant une identité GED, hors déjà désignées), retirer ; lecture seule sur document verrouillé ou archivé. | `document-designes.spec.ts` (3 tests), `document-detail.spec.ts` | fe61d82, 1145800 |
+| ANO-F-014 | Déplacement et rattachements servis par l'API sans écran. | Bloc « Emplacements » : déplacer vers un dossier choisi (avec Déplacer), rattacher à un dossier de plus et retirer un rattachement (avec Modifier) ; fiche rechargée après chaque opération. | `document-emplacements.spec.ts` (3 tests) | 00ed0d1, 1145800 |
+| ANO-F-016 (écran) | « Sous-dossier » ouvrait le formulaire d'administration (`POST /workspaces`) ; le dépôt n'avait pas d'emplacement. | Espace d'échange : « Nouveau dossier » ouvre un formulaire simple (nom, description) sur `POST /noeuds/{id}/dossiers` ; « Déposer ici » (si Déposer sur le nœud) ouvre le dépôt avec les dossiers de l'espace, celui d'où l'on vient proposé ; le dossier part en `noeudId` (API de dev1, 35adde1 sur `ct/dev1-r2`). Espaces métier inchangés. | `workspace-detail-echange.spec.ts` (3), `dossier-simple-form.spec.ts` (2), `document-upload-dossier.spec.ts` (3) | 0149f4e |
+| ANO-F-017 | `statutOcr` affiché sur la seule fiche. | Pastille « OCR en attente » / « OCR en échec » (info-bulle explicative) dans la liste des documents et dans les résultats de la recherche par index ; la recherche plein texte renvoie vers la recherche par index pour un document non OCRisé. Par construction, un document non OCRisé n'apparaît pas dans les résultats plein texte. | `document-list.spec.ts` (OCR), `recherche-index.spec.ts` | 397f828, 40feb26 |
+| ANO-F-021 | `.page > .colonnes { flex: 1 1 auto; min-height: 0 }` et `.colonnes > * { max-height: 100%; overflow: auto }` comprimaient le bloc central dans la hauteur restante. | Blocs à hauteur naturelle, la fiche défile dans son cadre (`.page` défile déjà) ; seul le tableau des versions défile (420 px au plus). | `document-detail-mise-en-page.spec.ts` (styles calculés, échoue avec l'ancienne feuille : vérifié) ; **mesure réelle** Chromium sans tête sur le front construit, API simulée : 1366×768 → colonnes 799/799 et 819/819 px (avant, règles d'origine réinjectées : 40/799 et 40/819) ; 1440×1000 « à indexer » → 799/799 (avant : 120/799). Script : `dev5-mesure-f021.js` (bloc-notes de session). | 9426632 |
+| ANO-F-022 | `provideNativeDateAdapter()` : `Date.parse` lit mm/jj/aaaa. | `DateAdapterFr` (core) fourni à toute l'application : jj/mm/aaaa (/, . ou -) ou AAAA-MM-JJ, date impossible invalide (31/02), affichage jj/mm/aaaa, semaine du lundi. | `date-adapter-fr.spec.ts` (3 tests, dont un champ Material réel : « 03/04/2026 » → 3 avril) | ed23b46 |
+| ANO-F-023 | Libellé « Archive » sur la corbeille. | Bouton « Corbeille », état vide « La corbeille est vide ». | `document-list.spec.ts` | bf6d3df |
+
+Aucun changeset Liquibase : pas d'évolution de schéma.
+
+### Vérifications
+
+- Front (après fusion de `ct/dev4-r2`) : `ng build` vert (avertissements de budget habituels) ;
+  `ng test` **35 fichiers, 148 tests verts** (84 à la référence, 106 avant la fusion).
+- Back : suite complète `mvn test` (environnement dev5, après fusion de `ct/dev4-r2`) :
+  **633 tests, 0 échec, 0 erreur** (référence : 630, 0 échec).
+
+### Points pour pm
+
+1. **Statuts** : ANO-F-010, 012, 013, 014 et 017 passées « Corrigée » dans
+   `ANOMALIES-FONCTIONNELLES.md`. ANO-F-011 et ANO-F-016 sont partagées (dev3, dev1) : statut
+   laissé à leurs auteurs, écran prêt et aligné sur leurs contrats. ANO-F-021, 022 et 023 ne
+   figurent que sur `ct/qa2-r2` : statut à reporter à la fusion (9426632, ed23b46, bf6d3df).
+2. **Ordre de fusion** : l'écran de recherche envoie `dateDocumentDu`… que seul `ct/dev3-r2`
+   accepte ; sans lui, ces critères partiraient vers une API qui les ignore (aujourd'hui) ou
+   les refuse (après dev3). Fusionner `ct/dev3-r2` avec ou avant `ct/dev5-r2`. De même,
+   « Déposer ici » suppose `noeudId` au dépôt (`ct/dev1-r2`). Mes changements de
+   `RechercheMetadonnees` (tri) et ceux de dev3 (critères) touchent des blocs distincts.
+3. **« Archive » ailleurs** : les corbeilles des référentiels (index, plans, étiquettes, types,
+   groupes, règles de workflow) et de la liste des espaces s'intitulent encore « Archive ».
+   Hors de mon périmètre ; même correction à prévoir (dev4), surtout pour les espaces, où
+   l'archivage d'un dossier existe (D10).
+4. **Champs date** : les nouveaux écrans n'importent pas `MatDatepickerModule` (consigne de
+   dev4, ANO-F-024) ; les plages de la recherche par index sont des champs date natifs du
+   navigateur (format local du poste), comme la recherche plein texte.
+5. `GET /employes` expose désormais `utilisateurId` à tout utilisateur doté d'un rôle (la
+   liste des noms l'était déjà) : nécessaire pour désigner une personne ou filtrer par déposant.

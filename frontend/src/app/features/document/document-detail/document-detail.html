@@ -328,6 +328,14 @@
             <p class="etat">Aucune valeur d'index enregistrée pour ce document.</p>
           }
         </div>
+
+        <!-- Emplacements : déplacer, rattacher, retirer un rattachement (ANO-F-014). -->
+        <app-document-emplacements [doc]="d" [lectureSeule]="verrouille" (modifie)="charger()"></app-document-emplacements>
+
+        <!-- Personnes désignées d'un document Confidentiel (ANO-F-013). -->
+        @if (d.confidentialite === 'CONFIDENTIEL') {
+          <app-document-designes [documentId]="d.id" [lectureSeule]="verrouille"></app-document-designes>
+        }
       </div>
     </div>
 
@@ -387,6 +395,12 @@
           <ng-container matColumnDef="date">
             <th mat-header-cell *matHeaderCellDef>Déposée le</th>
             <td mat-cell *matCellDef="let v">{{ dateCourte(v.createdAt) }}</td>
+          </ng-container>
+
+          <!-- Auteur du versement (§4.6.3, ANO-F-012). -->
+          <ng-container matColumnDef="auteur">
+            <th mat-header-cell *matHeaderCellDef>Auteur</th>
+            <td mat-cell *matCellDef="let v" class="c-auteur">{{ nomAuteur(v) }}</td>
           </ng-container>
 
           <ng-container matColumnDef="actions">

@@ -83,7 +83,10 @@
             </p>
           </li>
         } @empty {
-          <li class="vide">Aucun document ne contient ces termes, ou leur contenu n'est pas encore interrogeable.</li>
+          <li class="vide">Aucun document ne contient ces termes, ou leur contenu n'est pas encore interrogeable.
+            <!-- ANO-F-017 : un document non OCRisé (en attente, en échec) se trouve par ses métadonnées. -->
+            Un document dont l'OCR est en attente ou en échec se trouve par ses métadonnées :
+            <a class="vers-index" routerLink="/recherche-par-index">recherche par index</a>.</li>
         }
       </ul>
       <mat-paginator [length]="r.total" [pageIndex]="page" [pageSize]="taille" [pageSizeOptions]="[10, 20, 50]"
@@ -91,6 +94,8 @@
     } @else {
       <p class="aide">
         Le contenu d'un document devient interrogeable après son traitement OCR (au plus tard 24 h après le dépôt).
+        Avant, ou si l'OCR a échoué, cherchez-le par ses métadonnées :
+        <a class="vers-index" routerLink="/recherche-par-index">recherche par index</a>.
       </p>
     }
   </div>

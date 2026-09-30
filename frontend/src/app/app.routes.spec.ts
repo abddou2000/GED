@@ -102,7 +102,7 @@ describe('Gardes des écrans d\'administration (ANO-F-003)', () => {
 
   it('les écrans de l\'utilisateur restent ouverts sans permission d\'administration', async () => {
     auth.utilisateur.set(identite(['CONSULTER']));
-    for (const chemin of ['espaces-de-travail', 'televerser', 'profil']) {
+    for (const chemin of ['espaces-de-travail', 'televerser', 'profil', 'recherche-par-index']) {
       expect(await franchir(chemin)).toBe(true);
     }
   });

@@ -19,6 +19,20 @@
       }
     </mat-form-field>
 
+    <!-- Espace d'échange (D12, ANO-F-016) : choix du dossier où ranger le document. -->
+    @if (dossiersCibles.length) {
+      <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+        <mat-label>Dossier</mat-label>
+        <mat-select formControlName="noeudId" class="dossier-cible">
+          <mat-option [value]="null">Dossier du type</mat-option>
+          @for (d of dossiersCibles; track d.id) {
+            <mat-option [value]="d.id">{{ d.name }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>Dossier de l'espace d'échange où ranger le document (type rattaché à cet espace)</mat-hint>
+      </mat-form-field>
+    }
+
     <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
       <mat-label>Confidentialité</mat-label>
       <mat-select formControlName="confidentialite">

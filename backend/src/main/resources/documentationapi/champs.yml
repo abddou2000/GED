@@ -413,6 +413,7 @@ champs:
   tokenType: {description: "Type du jeton.", exemple: "Bearer"}
   expiresIn: {description: "Durée de validité du jeton en secondes.", exemple: 28800}
   fullName: {description: "Nom complet.", exemple: "Sara Bennani"}
+  utilisateurId: {description: "Identité GED de la personne ; absente si elle n'a pas de compte (désignation, déposant, auteur d'une version).", exemple: "0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f"}
   firstName: {description: "Prénom.", exemple: "Sara"}
   lastName: {description: "Nom de famille.", exemple: "Bennani"}
 
@@ -642,7 +643,7 @@ parametres:
   size: "Taille de page : 50 par défaut, plafonnée à 200 (DAT §5.3.2)."
   taille: "Taille de page (alias de size) : 50 par défaut, plafonnée à 200."
   search: Texte recherché dans les colonnes affichées de la liste.
-  sortBy: Colonne de tri, parmi une liste blanche ; ignorée si elle n'y figure pas.
+  sortBy: "Colonne de tri, parmi une liste blanche ; hors liste, ignorée par les listes et refusée (400) par la recherche sur métadonnées (dateDocument, name, createdAt)."
   sortDir: "Sens du tri : asc ou desc (défaut)."
   typeDocumentId: Identifiant du type de document.
   workspaceId: Identifiant de l'espace de travail.

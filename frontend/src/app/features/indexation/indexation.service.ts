@@ -9,6 +9,14 @@ export class IndexationService {
   private http = inject(HttpClient);
   private url = `${API_BASE}/indexation`;
 
+  /**
+   * Critères de recherche : un par index coché « indexé pour recherche »
+   * (ANO-F-010). L'écran de recherche les génère, rien n'y est codé en dur.
+   */
+  criteres(): Observable<Critere[]> {
+    return this.http.get<Critere[]>(`${this.url}/criteres`);
+  }
+
   /** Champs à renseigner pour un document (issus du plan d'indexation de son type). */
   champs(documentId: string): Observable<Critere[]> {
     return this.http.get<Critere[]>(`${this.url}/documents/${documentId}/champs`);
