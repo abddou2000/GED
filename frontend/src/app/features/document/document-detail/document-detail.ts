@@ -19,7 +19,7 @@ import { Etiquette } from '../../etiquette/etiquette.model';
 import { TypeDocumentService } from '../../type-document/type-document.service';
 import { SelectOption } from '../../type-document/type-document.model';
 import { IndexationService } from '../../indexation/indexation.service';
-import { Critere } from '../../indexation/indexation.model';
+import { Critere, afficherValeurIndex, lireBooleen } from '../../indexation/indexation.model';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { formaterDate, versDate, versIso } from '../../../core/dates';
@@ -214,7 +214,19 @@ export class DocumentDetail implements OnInit {
   valeurSaisie(c: Critere): string {
     const saisie = this.saisieIndex()[c.id];
     if (saisie !== undefined) return saisie;
-    return this.valeurs().find(v => v.indexFieldId === c.id)?.valeur ?? '';
+    const enregistree = this.valeurs().find(v => v.indexFieldId === c.id)?.valeur ?? '';
+    // Booléen : le serveur renvoie true / false, la liste propose oui / non (ANO-F-020).
+    if (c.fieldType === 'BOOLEEN') {
+      const b = lireBooleen(enregistree);
+      if (b !== null) return b ? 'oui' : 'non';
+    }
+    return enregistree;
+  }
+
+  /** Valeur enregistrée telle qu'on l'affiche : Oui / Non pour un booléen (ANO-F-020). */
+  valeurAffichee(v: ValeurIndex): string {
+    const nature = this.champs().find(c => c.id === v.indexFieldId)?.fieldType;
+    return afficherValeurIndex(nature, v.valeur);
   }
 
   majIndex(c: Critere, valeur: string | null): void {

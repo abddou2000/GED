@@ -321,7 +321,7 @@
           } @else if (valeurs().length) {
             <dl class="index-liste">
               @for (v of valeurs(); track v.label) {
-                <div><dt>{{ v.label }}</dt><dd>{{ v.valeur || '—' }}</dd></div>
+                <div><dt>{{ v.label }}</dt><dd>{{ valeurAffichee(v) || '—' }}</dd></div>
               }
             </dl>
           } @else {

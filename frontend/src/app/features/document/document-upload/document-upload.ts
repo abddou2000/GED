@@ -12,13 +12,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { DocumentService } from '../document.service';
 import { IndexationService } from '../../indexation/indexation.service';
 import { versDate, versIso } from '../../../core/dates';
 import { TypeDocumentService } from '../../type-document/type-document.service';
 import { SelectOption } from '../../type-document/type-document.model';
 import { NIVEAUX_CONFIDENTIALITE } from '../document.model';
-import { Apercu, Proposition } from '../../indexation/indexation.model';
+import { Apercu, Proposition, lireBooleen } from '../../indexation/indexation.model';
 import { EtiquetteService } from '../../etiquette/etiquette.service';
 import { Etiquette } from '../../etiquette/etiquette.model';
 import { PlanIndexationService } from '../../plan-indexation/plan-indexation.service';
@@ -63,7 +64,7 @@ type DemandeApercu = { typeId: string; fichier: File } | null;
   selector: 'app-document-upload',
   imports: [
     ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatDatepickerModule, MatInputModule,
-    MatSelectModule, MatButtonModule, MatIconModule, MatTooltipModule, MatSlideToggleModule,
+    MatSelectModule, MatButtonModule, MatIconModule, MatTooltipModule, MatSlideToggleModule, MatCheckboxModule,
   ],
   templateUrl: './document-upload.html',
   styleUrl: './document-upload.scss',
@@ -315,6 +316,15 @@ export class DocumentUpload implements OnInit {
    */
   protected valeurDe(champ: ChampApercu): string {
     return this.valeursIndex()[champ.indexFieldId] ?? '';
+  }
+
+  /**
+   * Index booléen, saisi par une case à cocher (ANO-F-020) : cochée = oui,
+   * décochée = non, indéterminée tant que rien n'est choisi (un index
+   * obligatoire reste alors à renseigner).
+   */
+  protected booleenDe(champ: ChampApercu): boolean | null {
+    return lireBooleen(this.valeurDe(champ));
   }
 
   /** L'opérateur corrige une proposition, ou saisit un champ que la GED n'a pas su lire. */
