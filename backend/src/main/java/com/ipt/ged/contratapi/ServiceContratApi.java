@@ -11,13 +11,11 @@ import com.ipt.ged.contratapi.dto.DtoContratApi.RechercheContratRequest;
 import com.ipt.ged.document.conservation.Echeances;
 import com.ipt.ged.identite.Utilisateur;
 import com.ipt.ged.identite.UtilisateurRepository;
-import com.ipt.ged.indexation.IndexationService;
-import com.ipt.ged.indexation.dto.GroupeResponse;
-import com.ipt.ged.indexation.dto.RechercheRequest;
-import com.ipt.ged.indexation.dto.ResultatResponse;
+import com.ipt.ged.indexation.CriteresIndexSql;
 import com.ipt.ged.recherche.CriteresMetadonnees;
 import com.ipt.ged.recherche.FragmentSql;
 import com.ipt.ged.recherche.PageResultats;
+import com.ipt.ged.recherche.PredicatDroits;
 import com.ipt.ged.recherche.RequeteRecherche;
 import com.ipt.ged.recherche.SearchIndexer;
 import com.ipt.ged.security.UtilisateurConnecte;
@@ -28,22 +26,19 @@ import com.ipt.ged.workspace.WorkspaceStatus;
 import com.ipt.ged.workspace.dto.WorkSpaceRequest;
 import com.ipt.ged.workspace.dto.WorkSpaceResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -55,7 +50,7 @@ import java.util.UUID;
  * <ul>
  *   <li>dossier : {@link WorkSpaceService#create} (Déposer sur le parent) ;</li>
  *   <li>recherche : plein texte de {@link SearchIndexer} (droits à la source,
- *       pagination), critères d'index de {@link IndexationService#rechercher}
+ *       pagination), critères d'index traduits en SQL ({@link CriteresIndexSql})
  *       (droits à la source), combinés en ET ;</li>
  *   <li>droits : {@link ServiceDroitsEffectifs} (même fonction de décision).</li>
  * </ul>
@@ -68,24 +63,26 @@ public class ServiceContratApi {
 
     private final WorkSpaceService espaces;
     private final WorkSpaceRepository noeuds;
-    private final IndexationService indexation;
+    private final CriteresIndexSql criteresIndex;
+    private final PredicatDroits perimetre;
     private final SearchIndexer pleinTexte;
     private final ServiceDroitsEffectifs droits;
     private final ControleAcces controle;
     private final UtilisateurRepository utilisateurs;
-    private final JdbcTemplate jdbc;
+    private final NamedParameterJdbcTemplate jdbc;
 
-    public ServiceContratApi(WorkSpaceService espaces, WorkSpaceRepository noeuds, IndexationService indexation,
-                             SearchIndexer pleinTexte, ServiceDroitsEffectifs droits, ControleAcces controle,
-                             UtilisateurRepository utilisateurs, JdbcTemplate jdbc) {
+    public ServiceContratApi(WorkSpaceService espaces, WorkSpaceRepository noeuds, CriteresIndexSql criteresIndex,
+                             PredicatDroits perimetre, SearchIndexer pleinTexte, ServiceDroitsEffectifs droits,
+                             ControleAcces controle, UtilisateurRepository utilisateurs, JdbcTemplate jdbc) {
         this.espaces = espaces;
         this.noeuds = noeuds;
-        this.indexation = indexation;
+        this.criteresIndex = criteresIndex;
+        this.perimetre = perimetre;
         this.pleinTexte = pleinTexte;
         this.droits = droits;
         this.controle = controle;
         this.utilisateurs = utilisateurs;
-        this.jdbc = jdbc;
+        this.jdbc = new NamedParameterJdbcTemplate(jdbc);
     }
 
     /* ------------------------------------------------------------ dossier */
@@ -117,86 +114,68 @@ public class ServiceContratApi {
         int taille = r.taille() == null || r.taille() < 1 ? TAILLE_DEFAUT : Math.min(r.taille(), TAILLE_MAX);
         String archives = r.archives() == null || r.archives().isBlank() ? "INCLURE" : r.archives();
         boolean texte = r.texte() != null && !r.texte().isBlank();
-        List<RechercheRequest.FiltreIndex> criteres = r.criteres() == null ? List.of() : r.criteres();
 
-        // Critères d'index : documents retenus par l'indexation (droits à la source).
-        Set<UUID> parCriteres = null;
-        List<ResultatResponse> resultatsCriteres = List.of();
-        if (!criteres.isEmpty() || !texte) {
-            List<GroupeResponse> groupes = indexation.rechercher(new RechercheRequest(r.noeudId(), r.typeDocumentId(),
-                    criteres, null, archives, r.canal()));
-            resultatsCriteres = groupes.stream().flatMap(g -> g.documents().stream()).toList();
-            parCriteres = new LinkedHashSet<>(resultatsCriteres.stream().map(ResultatResponse::id).toList());
-        }
+        // Métadonnées (espace ou dossier : emplacement principal ou rattachement, §12.4),
+        // puis critères d'index, en SQL et combinés en ET (R32 : rien n'est chargé
+        // en mémoire au-delà de la page).
+        List<FragmentSql> filtres = new ArrayList<>(new CriteresMetadonnees(r.typeDocumentId(), r.noeudId(),
+                r.deposeDu(), r.deposeAu(), CriteresMetadonnees.Archives.valueOf(archives), r.canal(),
+                Boolean.TRUE.equals(r.echeanceDepassee())).fragments());
+        filtres.addAll(criteresIndex.fragments(r.criteres()));
 
         if (texte) {
-            List<FragmentSql> filtres = new ArrayList<>(new CriteresMetadonnees(r.typeDocumentId(), r.noeudId(),
-                    r.deposeDu(), r.deposeAu(), CriteresMetadonnees.Archives.valueOf(archives), r.canal(),
-                    Boolean.TRUE.equals(r.echeanceDepassee())).fragments());
-            if (!criteres.isEmpty()) {
-                if (parCriteres.isEmpty()) return new PageResultats(List.of(), 0, page, taille);
-                filtres.add(new FragmentSql("d.id IN (:contrat_criteres)", Map.of("contrat_criteres", parCriteres)));
-            }
             return pleinTexte.rechercher(new RequeteRecherche(r.texte(), page, taille,
                     r.tri() == null ? RequeteRecherche.Tri.PERTINENCE : r.tri(), filtres), appelant);
         }
-        return pageSansTexte(resultatsCriteres, r, page, taille);
+        return pageSansTexte(filtres, r.tri(), page, taille, appelant);
     }
 
-    /** Sans plein texte : bornes de dépôt appliquées, tri en liste blanche, pagination. */
-    private PageResultats pageSansTexte(List<ResultatResponse> resultats, RechercheContratRequest r, int page,
-                                        int taille) {
-        Map<UUID, Instant> deposes = new HashMap<>();
-        Map<UUID, String> canaux = new HashMap<>();
-        Map<UUID, LocalDate> echeances = new HashMap<>();
-        Map<UUID, LocalDate> datesDocument = new HashMap<>();
-        if (!resultats.isEmpty()) {
-            jdbc.query("SELECT id, created_at, canal_depot, echeance_conservation, date_document FROM document"
-                            + " WHERE id = ANY (?)",
-                    rs -> {
-                        UUID id = rs.getObject(1, UUID.class);
-                        deposes.put(id, instant(rs.getTimestamp(2)));
-                        canaux.put(id, rs.getString(3));
-                        echeances.put(id, rs.getObject(4, LocalDate.class));
-                        datesDocument.put(id, rs.getObject(5, LocalDate.class));
-                    },
-                    (Object) resultats.stream().map(ResultatResponse::id).toArray(UUID[]::new));
+    /**
+     * Sans plein texte : filtrage par droits à la source, tri en liste blanche et
+     * pagination par la base ; total exact sur le seul périmètre autorisé.
+     */
+    private PageResultats pageSansTexte(List<FragmentSql> filtres, RequeteRecherche.Tri tri, int page, int taille,
+                                        Authentication appelant) {
+        MapSqlParameterSource p = new MapSqlParameterSource()
+                .addValue("contrat_taille", taille)
+                .addValue("contrat_decalage", (long) page * taille);
+        StringBuilder ou = new StringBuilder(" FROM document d LEFT JOIN type_document t ON t.id = d.type_document_id"
+                + " LEFT JOIN noeud w ON w.id = d.noeud_principal_id WHERE NOT d.supprime");
+        List<FragmentSql> tous = new ArrayList<>();
+        tous.add(perimetre.predicat("d.id", appelant));
+        tous.addAll(filtres);
+        for (FragmentSql f : tous) {
+            ou.append(" AND (").append(f.sql()).append(')');
+            for (Map.Entry<String, Object> e : f.parametres().entrySet()) {
+                if (p.hasValue(e.getKey())) throw new IllegalArgumentException("Paramètre SQL en double : " + e.getKey());
+                p.addValue(e.getKey(), e.getValue());
+            }
         }
-        Instant du = debut(r.deposeDu());
-        Instant au = r.deposeAu() == null ? null : debut(r.deposeAu().plusDays(1));
         // Sans texte, la pertinence n'a pas de sens : la date du document est la clé
-        // de tri par défaut (§12.7, P-21, ANO-E7-004), départagée par l'identifiant
-        // décroissant comme en SQL (ordre des UUID = ordre de leur forme textuelle).
-        Comparator<PageResultats.Resultat> ordre = switch (r.tri() == null ? RequeteRecherche.Tri.DATE_DOCUMENT : r.tri()) {
-            case NOM -> Comparator.comparing(PageResultats.Resultat::nom, Comparator.nullsLast(String::compareToIgnoreCase));
-            case TYPE -> Comparator.comparing(PageResultats.Resultat::typeDocument,
-                    Comparator.nullsLast(String::compareToIgnoreCase));
-            case DATE_DEPOT, INDEXATION_RECENTE -> Comparator.comparing(PageResultats.Resultat::deposeLe,
-                    Comparator.nullsLast(Comparator.reverseOrder()));
-            case DATE_DOCUMENT, PERTINENCE -> Comparator.comparing(PageResultats.Resultat::dateDocument,
-                            Comparator.nullsLast(Comparator.<LocalDate>reverseOrder()))
-                    .thenComparing(x -> x.documentId().toString(), Comparator.reverseOrder());
+        // de tri par défaut (§12.7, P-21, ANO-E7-004), départagée par l'identifiant.
+        // Colonnes en liste blanche : jamais de texte de l'appelant dans l'ORDER BY.
+        String ordre = switch (tri == null ? RequeteRecherche.Tri.DATE_DOCUMENT : tri) {
+            case NOM -> "lower(d.name) ASC, d.id DESC";
+            case TYPE -> "lower(t.type_de_document) ASC NULLS LAST, d.id DESC";
+            case DATE_DEPOT, INDEXATION_RECENTE -> "d.created_at DESC NULLS LAST, d.id DESC";
+            case DATE_DOCUMENT, PERTINENCE -> "d.date_document DESC NULLS LAST, d.id DESC";
         };
-        List<PageResultats.Resultat> tous = resultats.stream()
-                .map(x -> new PageResultats.Resultat(x.id(), null, 0, List.of(), x.name(), x.typeDocument(),
-                        x.workspace(), deposes.get(x.id()), x.statutConservation(), canaux.get(x.id()),
-                        Echeances.depassee(echeances.get(x.id())), datesDocument.get(x.id())))
-                // « Échéance dépassée » (T-112, §12.9) : même jour de référence que l'alerte et le plein texte.
-                .filter(x -> !Boolean.TRUE.equals(r.echeanceDepassee()) || x.echeanceDepassee())
-                .filter(x -> du == null || (x.deposeLe() != null && !x.deposeLe().isBefore(du)))
-                .filter(x -> au == null || (x.deposeLe() != null && x.deposeLe().isBefore(au)))
-                .sorted(ordre)
-                .toList();
-        int debut = (int) Math.min((long) page * taille, tous.size());
-        return new PageResultats(tous.subList(debut, Math.min(debut + taille, tous.size())), tous.size(), page, taille);
+        Long total = jdbc.queryForObject("SELECT count(*)" + ou, p, Long.class);
+        List<PageResultats.Resultat> lignes = jdbc.query("SELECT d.id, d.name, t.type_de_document, w.name AS espace,"
+                        + " d.created_at, d.statut_conservation, d.canal_depot, d.echeance_conservation, d.date_document"
+                        + ou + " ORDER BY " + ordre + " LIMIT :contrat_taille OFFSET :contrat_decalage", p,
+                (rs, i) -> new PageResultats.Resultat(rs.getObject("id", UUID.class), null, 0, List.of(),
+                        rs.getString("name"), rs.getString("type_de_document"), rs.getString("espace"),
+                        instant(rs.getTimestamp("created_at")), rs.getString("statut_conservation"),
+                        rs.getString("canal_depot"),
+                        // « Échéance dépassée » (T-112, §12.9) : même jour de référence que l'alerte.
+                        Echeances.depassee(rs.getObject("echeance_conservation", LocalDate.class)),
+                        rs.getObject("date_document", LocalDate.class)));
+        return new PageResultats(lignes, total == null ? 0 : total, page, taille);
     }
 
     private static Instant instant(Timestamp t) {
         return t == null ? null : t.toInstant();
-    }
-
-    private static Instant debut(LocalDate jour) {
-        return jour == null ? null : jour.atStartOfDay().toInstant(ZoneOffset.UTC);
     }
 
     /* ------------------------------------------------------------ droits */

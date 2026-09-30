@@ -22,6 +22,14 @@ public final class ValeursMetadonnees {
 
     private ValeursMetadonnees() {}
 
+    /**
+     * Formes textuelles (minuscules) que {@link #booleen} lit comme {@code valeur} :
+     * la recherche sur index les compare en SQL, avec la même règle.
+     */
+    public static Set<String> formes(boolean valeur) {
+        return valeur ? VRAI : FAUX;
+    }
+
     /** Booléen lu d'un texte usuel (oui / non, vrai / faux, 1 / 0) ; {@code null} si illisible. */
     public static Boolean booleen(Object v) {
         if (v instanceof Boolean b) return b;

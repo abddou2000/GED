@@ -274,6 +274,70 @@ class ContratApiTest {
         assertThat(texte.get("resultats").findValuesAsText("documentId")).containsExactlyElementsOf(attendu);
     }
 
+    @Test
+    @DisplayName("R32 : critères d'index évalués en SQL, même règle par nature (texte, liste, date, nombre, booléen)")
+    void criteresIndexEnSql() throws Exception {
+        UUID a = deposerDate("IdxA-" + suffixe, "2026-01-01");
+        UUID b = deposerDate("IdxB-" + suffixe, "2026-01-02");
+        UUID c = deposerDate("IdxC-" + suffixe, "2026-01-03");
+        UUID txt = index("TEXTE"), lst = index("LISTE"), dt = index("DATE"), nb = index("NOMBRE"), bo = index("BOOLEEN");
+        valeur(a, txt, "Marché de Travaux");
+        valeur(a, lst, "Lot 1");
+        valeur(a, dt, "2026-03-15");
+        valeur(a, nb, "1 500");          // illisible : écarté de tout critère numérique
+        valeur(a, bo, "oui");
+        valeur(b, txt, "fournitures");
+        valeur(b, lst, "lot 2");
+        valeur(b, dt, "2025-12-01");
+        valeur(b, nb, "2500,50");
+        valeur(b, bo, "Non");
+        valeur(c, txt, "   ");           // blanche : ne satisfait aucun critère
+
+        assertThat(parCriteres(critere(txt, "travaux", null, null))).containsExactly(a.toString());
+        assertThat(parCriteres(critere(lst, "LOT 2", null, null))).containsExactly(b.toString());
+        assertThat(parCriteres(critere(dt, null, "2026-01-01", null))).containsExactly(a.toString());
+        assertThat(parCriteres(critere(dt, null, null, "2026-01-01"))).containsExactly(b.toString());
+        assertThat(parCriteres(critere(nb, null, "2000", "2500.5"))).containsExactly(b.toString());
+        assertThat(parCriteres(critere(nb, "x", null, null))).containsExactly(b.toString());
+        assertThat(parCriteres(critere(bo, "vrai", null, null))).containsExactly(a.toString());
+        assertThat(parCriteres(critere(bo, "N", null, null))).containsExactly(b.toString());
+        assertThat(parCriteres(critere(txt, "a", null, null) + "," + critere(lst, "lot 1", null, null)))
+                .containsExactly(a.toString());
+        // Filtre non renseigné : ignoré (tous les documents de l'espace, date du document décroissante).
+        assertThat(parCriteres(critere(txt, "", null, null)))
+                .containsExactly(c.toString(), b.toString(), a.toString());
+        assertThat(parCriteres(critere(UUID.randomUUID(), "x", null, null))).isEmpty();
+
+        // Recherche historique (POST /indexation/recherche) : même règle, désormais en SQL.
+        String historique = mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON)
+                        .content("{\"workspaceId\":\"" + espace + "\",\"criteres\":[" + critere(txt, "travaux", null, null)
+                                + "]}")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(historique).contains(a.toString()).doesNotContain(b.toString()).doesNotContain(c.toString());
+    }
+
+    private UUID index(String nature) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO index_def (id, code, nom_index, type_champs, valeurs) VALUES (?, ?, ?, ?, ?)", id,
+                "IDX-" + nature + "-" + suffixe, "Index " + nature, nature, "LISTE".equals(nature) ? "Lot 1,Lot 2" : null);
+        return id;
+    }
+
+    private void valeur(UUID document, UUID index, String valeur) {
+        jdbc.update("INSERT INTO document_index_valeur (id, document_id, index_def_id, valeur) VALUES (?, ?, ?, ?)",
+                UUID.randomUUID(), document, index, valeur);
+    }
+
+    private static String critere(UUID index, String valeur, String de, String a) {
+        return "{\"indexFieldId\":\"" + index + "\"" + (valeur == null ? "" : ",\"valeur\":\"" + valeur + "\"")
+                + (de == null ? "" : ",\"de\":\"" + de + "\"") + (a == null ? "" : ",\"a\":\"" + a + "\"") + "}";
+    }
+
+    private java.util.List<String> parCriteres(String criteres) throws Exception {
+        JsonNode r = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content("{\"noeudId\":\"" + espace + "\",\"criteres\":[" + criteres + "]}")).andExpect(status().isOk()));
+        return r.get("resultats").findValuesAsText("documentId");
+    }
+
     /** Identifiants des lignes d'une page, dans l'ordre (sans les identifiants imbriqués). */
     private static java.util.List<String> ids(JsonNode lignes) {
         java.util.List<String> ids = new java.util.ArrayList<>();

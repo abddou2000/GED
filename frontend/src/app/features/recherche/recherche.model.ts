@@ -28,6 +28,8 @@ export interface PageResultats {
   total: number;
   page: number;
   taille: number;
+  /** Plus de correspondances que le plafond (5 000) : lire « plus de total », affiner (R32). */
+  totalPlafonne?: boolean;
 }
 
 export type TriRecherche = 'PERTINENCE' | 'DATE_DOCUMENT' | 'DATE_DEPOT' | 'NOM' | 'TYPE' | 'INDEXATION_RECENTE';

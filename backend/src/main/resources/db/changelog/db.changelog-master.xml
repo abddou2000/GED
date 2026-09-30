@@ -152,5 +152,7 @@
     <include file="changesets/202610031000_alerte_echeance_conservation.xml" relativeToChangelogFile="true"/>
     <!-- R31 (T-035, D6) : priorité du flux courant sur la reprise dans la file OCR. -->
     <include file="changesets/202610041310_priorite_ocr_job.xml" relativeToChangelogFile="true"/>
+    <!-- R32 (P-14) : statistiques de document_texte tenues à jour pendant les chargements de masse. -->
+    <include file="changesets/202610041320_statistiques_document_texte.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

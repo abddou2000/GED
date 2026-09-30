@@ -610,6 +610,7 @@ surcharges:
   PageResultats.taille: {description: "Taille de page appliquée.", exemple: 50}
   PageResultats.page: {description: "Numéro de page (à partir de 0).", exemple: 0}
   PageResultats.total: {description: "Nombre total de documents trouvés dans le périmètre autorisé.", exemple: 128}
+  PageResultats.totalPlafonne: {description: "Vrai si le plein texte trouve plus de correspondances que son plafond (5 000) : total vaut alors ce plafond, à lire « plus de 5 000 résultats » ; affiner la recherche.", exemple: false}
   PageResultatsResultat.typeDocument: {description: "Libellé du type documentaire.", exemple: "Marché public"}
   PageResultatsResultat.nom: {description: "Nom du document.", exemple: MAR_2026_014}
   Job.archives: {description: "Documents archivés.", exemple: 118}

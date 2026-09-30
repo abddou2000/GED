@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610041320_statistiques_document_texte.xml">
+
+    <!--
+        Risque R32 (P-14, essais de charge §5.3 et §5.4) : tant que les
+        statistiques de document_texte n'ont pas suivi un chargement de masse
+        (reprise, réindexation), le planificateur ignore l'index GIN et balaie
+        toute la table, TOAST compris : 5 s à 50 000 documents même pour un
+        terme rare. Seuil d'analyse automatique abaissé de 10 % à 2 % des
+        lignes sur cette table : les statistiques suivent le remplissage
+        progressif par l'OCR. Un VACUUM ANALYZE reste à passer à la main en
+        fin de reprise (procédure de reprise, docs/conformite/suivi/dev3.md).
+
+        Retour arrière sans perte : réglage de stockage seulement, remis au
+        défaut du serveur.
+    -->
+    <changeSet id="202610041320-1" author="ged">
+        <comment>Analyse automatique plus fréquente de document_texte (R32).</comment>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.document_texte SET (autovacuum_analyze_scale_factor = 0.02, autovacuum_vacuum_scale_factor = 0.05)</sql>
+        <rollback>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.document_texte RESET (autovacuum_analyze_scale_factor, autovacuum_vacuum_scale_factor)</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

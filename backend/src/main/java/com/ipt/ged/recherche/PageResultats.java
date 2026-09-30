@@ -10,8 +10,18 @@ import java.util.UUID;
  * l'OCR de documents déposés, il peut contenir n'importe quoi (y compris
  * {@code <script>}). Le client affiche chaque segment comme du texte et
  * surligne ceux marqués — aucun HTML à assainir (OWASP A03).
+ *
+ * @param totalPlafonne vrai quand les correspondances dépassent le plafond de
+ *                      la recherche plein texte : {@code total} vaut alors ce
+ *                      plafond et se lit « plus de {@code total} résultats »
+ *                      (affiner la recherche) ; faux : total exact.
  */
-public record PageResultats(List<Resultat> resultats, long total, int page, int taille) {
+public record PageResultats(List<Resultat> resultats, long total, int page, int taille, boolean totalPlafonne) {
+
+    /** Page au total exact. */
+    public PageResultats(List<Resultat> resultats, long total, int page, int taille) {
+        this(resultats, total, page, taille, false);
+    }
 
     /**
      * @param nom          nom du document ;

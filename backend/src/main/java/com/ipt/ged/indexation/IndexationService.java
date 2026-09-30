@@ -69,6 +69,12 @@ public class IndexationService {
     /** Point d'application unique des droits (lot E3). */
     private final com.ipt.ged.autorisation.AccessPredicate droits;
 
+    /** Recherche multicritère filtrée en SQL (R32). */
+    @org.springframework.beans.factory.annotation.Autowired
+    private CriteresIndexSql criteresIndex;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     /* ===================== Critères ===================== */
 
     /** Critères de recherche disponibles, dérivés des index. */
@@ -642,88 +648,92 @@ public class IndexationService {
      * <b>tous</b> les filtres renseignés (ET logique).
      */
     public List<GroupeResponse> rechercher(RechercheRequest requete) {
-        // Filtre de droits À LA SOURCE (point d'application unique, P5) : un
-        // document hors périmètre n'entre ni dans les résultats ni dans les totaux.
-        List<UploadDocument> candidats = documentRepository.findAll(
-                        droits.documents(org.springframework.security.core.context.SecurityContextHolder
-                                .getContext().getAuthentication(), com.ipt.ged.autorisation.CodePermission.CONSULTER)
-                                .and((r, q, cb) -> cb.isFalse(r.get("supprime"))),
-                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id"))
-                .stream()
-                .filter(d -> requete.workspaceId() == null
-                        || (d.getWorkspace() != null && d.getWorkspace().getId().equals(requete.workspaceId())))
-                .filter(d -> requete.typeDocumentId() == null
-                        || (d.getTypeDocument() != null && d.getTypeDocument().getId().equals(requete.typeDocumentId())))
-                // Archivés inclus par défaut, filtre pour les exclure ou ne garder qu'eux (§12.6).
-                .filter(d -> !"EXCLURE".equals(requete.archives()) || !d.estArchive())
-                .filter(d -> !"SEULEMENT".equals(requete.archives()) || d.estArchive())
-                .filter(d -> requete.canal() == null || requete.canal().isBlank()
-                        || d.getCanalDepot().name().equalsIgnoreCase(requete.canal().trim()))
-                .toList();
-        if (candidats.isEmpty()) return List.of();
+        // Filtres, critères d'index et droits évalués par la base (R32) : seuls les
+        // documents retenus sont chargés, au lieu de tout le fonds autorisé.
+        // Droits À LA SOURCE (point d'application unique, P5) : un document hors
+        // périmètre n'entre ni dans les résultats ni dans les totaux.
+        // Projection SQL (pas d'entités JPA) : la mémoire suit le nombre de résultats,
+        // sans le graphe d'objets et le contexte de persistance de chaque document.
+        List<LigneRecherche> retenus = documentsRetenus(requete);
+        if (retenus.isEmpty()) return List.of();
 
-        // Valeurs de tous les candidats en une seule requête
         Map<UUID, Map<UUID, String>> parDocument = new HashMap<>();
-        valeurRepository.findByDocumentIds(candidats.stream().map(UploadDocument::getId).toList())
-                .forEach(v -> parDocument
-                        .computeIfAbsent(v.getDocument().getId(), k -> new HashMap<>())
-                        .put(v.getIndexField().getId(), v.getValeur()));
-
-        List<RechercheRequest.FiltreIndex> filtres = requete.criteres() == null ? List.of()
-                : requete.criteres().stream().filter(IndexationService::filtreRenseigne).toList();
+        // Par tranches, en tableau (= ANY) : un paramètre par requête, quel que soit le nombre.
+        List<UUID> ids = retenus.stream().map(LigneRecherche::id).toList();
+        for (int i = 0; i < ids.size(); i += TRANCHE_RECHERCHE) {
+            UUID[] tranche = ids.subList(i, Math.min(i + TRANCHE_RECHERCHE, ids.size())).toArray(UUID[]::new);
+            jdbc.query("SELECT document_id, index_def_id, valeur FROM document_index_valeur WHERE document_id = ANY (?)",
+                    rs -> {
+                        parDocument.computeIfAbsent(rs.getObject(1, UUID.class), k -> new HashMap<>())
+                                .put(rs.getObject(2, UUID.class), rs.getString(3));
+                    }, (Object) tranche);
+        }
 
         Map<UUID, IndexField> champs = indexRepository.findBySupprimeFalseOrderByIdAsc().stream()
                 .collect(Collectors.toMap(IndexField::getId, f -> f));
 
-        List<UploadDocument> retenus = candidats.stream()
-                .filter(d -> filtres.stream().allMatch(f -> satisfait(
-                        parDocument.getOrDefault(d.getId(), Map.of()).get(f.indexFieldId()),
-                        champs.get(f.indexFieldId()), f)))
-                .toList();
-
         return grouper(retenus, parDocument, champs, requete.grouperPar());
     }
 
-    private static boolean filtreRenseigne(RechercheRequest.FiltreIndex f) {
-        return estRenseigne(f.valeur()) || estRenseigne(f.de()) || estRenseigne(f.a());
+    /** Taille des tranches de lecture des valeurs d'index des documents retenus. */
+    private static final int TRANCHE_RECHERCHE = 10_000;
+
+    /** Colonnes d'un document retenu, lues en SQL. */
+    private record LigneRecherche(UUID id, String name, String extension, long sizeKo, String workspace,
+                                  String typeDocument, java.time.LocalDate expirationDate, String reference,
+                                  String statutConservation) {
     }
 
-    private static boolean estRenseigne(String s) { return s != null && !s.isBlank(); }
+    /**
+     * Documents vivants, visibles, qui satisfont la requête, du plus récent au
+     * plus ancien (ordre historique de cette recherche).
+     */
+    private List<LigneRecherche> documentsRetenus(RechercheRequest requete) {
+        List<com.ipt.ged.recherche.FragmentSql> fragments = new ArrayList<>();
+        fragments.add(droits.predicatSql("d.id", org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication(), com.ipt.ged.autorisation.CodePermission.CONSULTER));
+        if (requete.workspaceId() != null) {
+            // Emplacement principal, comme la recherche historique.
+            fragments.add(new com.ipt.ged.recherche.FragmentSql("d.noeud_principal_id = :recherche_espace",
+                    Map.of("recherche_espace", requete.workspaceId())));
+        }
+        if (requete.typeDocumentId() != null) {
+            fragments.add(new com.ipt.ged.recherche.FragmentSql("d.type_document_id = :recherche_type",
+                    Map.of("recherche_type", requete.typeDocumentId())));
+        }
+        // Archivés inclus par défaut, filtre pour les exclure ou ne garder qu'eux (§12.6).
+        if ("EXCLURE".equals(requete.archives())) {
+            fragments.add(new com.ipt.ged.recherche.FragmentSql("d.statut_conservation <> 'ARCHIVE'", Map.of()));
+        } else if ("SEULEMENT".equals(requete.archives())) {
+            fragments.add(new com.ipt.ged.recherche.FragmentSql("d.statut_conservation = 'ARCHIVE'", Map.of()));
+        }
+        if (requete.canal() != null && !requete.canal().isBlank()) {
+            fragments.add(new com.ipt.ged.recherche.FragmentSql("upper(d.canal_depot) = :recherche_canal",
+                    Map.of("recherche_canal", requete.canal().trim().toUpperCase(java.util.Locale.ROOT))));
+        }
+        fragments.addAll(criteresIndex.fragments(requete.criteres()));
 
-    /** Confronte la valeur portée par le document au filtre demandé. */
-    private static boolean satisfait(String valeur, IndexField champ, RechercheRequest.FiltreIndex filtre) {
-        if (champ == null) return false;
-        if (valeur == null || valeur.isBlank()) return false;   // document non indexé sur ce champ
-
-        return switch (champ.getFieldType()) {
-            case TEXTE -> !estRenseigne(filtre.valeur())
-                    || valeur.toLowerCase().contains(filtre.valeur().trim().toLowerCase());
-            case LISTE -> !estRenseigne(filtre.valeur())
-                    || valeur.equalsIgnoreCase(filtre.valeur().trim());
-            // Dates au format ISO : l'ordre alphabétique vaut ordre chronologique
-            case DATE -> (!estRenseigne(filtre.de()) || valeur.compareTo(filtre.de()) >= 0)
-                    && (!estRenseigne(filtre.a()) || valeur.compareTo(filtre.a()) <= 0);
-            case NOMBRE -> {
-                Double v = nombre(valeur);
-                if (v == null) yield false;
-                Double min = nombre(filtre.de()), max = nombre(filtre.a());
-                yield (min == null || v >= min) && (max == null || v <= max);
-            }
-            case BOOLEEN -> !estRenseigne(filtre.valeur())
-                    || java.util.Objects.equals(com.ipt.ged.planindexation.metamodele.ValeursMetadonnees.booleen(valeur),
-                            com.ipt.ged.planindexation.metamodele.ValeursMetadonnees.booleen(filtre.valeur()));
-        };
-    }
-
-    private static Double nombre(String s) {
-        if (s == null || s.isBlank()) return null;
-        try { return Double.valueOf(s.trim().replace(',', '.')); }
-        catch (NumberFormatException e) { return null; }
+        org.springframework.jdbc.core.namedparam.MapSqlParameterSource p =
+                new org.springframework.jdbc.core.namedparam.MapSqlParameterSource();
+        StringBuilder sql = new StringBuilder("SELECT d.id, d.name, d.extension, d.size_ko, w.name AS espace, "
+                + "t.type_de_document, d.expiration_date, d.reference, d.statut_conservation FROM document d "
+                + "LEFT JOIN noeud w ON w.id = d.noeud_principal_id "
+                + "LEFT JOIN type_document t ON t.id = d.type_document_id WHERE NOT d.supprime");
+        for (com.ipt.ged.recherche.FragmentSql f : fragments) {
+            sql.append(" AND (").append(f.sql()).append(')');
+            f.parametres().forEach(p::addValue);
+        }
+        return new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(jdbc)
+                .query(sql.append(" ORDER BY d.id DESC").toString(), p, (rs, i) -> new LigneRecherche(
+                        rs.getObject("id", UUID.class), rs.getString("name"), rs.getString("extension"),
+                        rs.getLong("size_ko"), rs.getString("espace"), rs.getString("type_de_document"),
+                        rs.getObject("expiration_date", java.time.LocalDate.class), rs.getString("reference"),
+                        rs.getString("statut_conservation")));
     }
 
     /* ===================== Regroupement ===================== */
 
-    private List<GroupeResponse> grouper(List<UploadDocument> documents,
+    private List<GroupeResponse> grouper(List<LigneRecherche> documents,
                                          Map<UUID, Map<UUID, String>> parDocument,
                                          Map<UUID, IndexField> champs,
                                          UUID grouperPar) {
@@ -734,8 +744,8 @@ public class IndexationService {
         }
 
         Map<String, List<ResultatResponse>> groupes = new TreeMap<>();
-        for (UploadDocument d : documents) {
-            String cle = parDocument.getOrDefault(d.getId(), Map.of()).get(grouperPar);
+        for (LigneRecherche d : documents) {
+            String cle = parDocument.getOrDefault(d.id(), Map.of()).get(grouperPar);
             if (cle == null || cle.isBlank()) cle = "(non renseigné)";
             groupes.computeIfAbsent(cle, k -> new ArrayList<>()).add(versResultat(d, parDocument, champs));
         }
@@ -744,10 +754,10 @@ public class IndexationService {
                 .toList();
     }
 
-    private static ResultatResponse versResultat(UploadDocument d,
+    private static ResultatResponse versResultat(LigneRecherche d,
                                                  Map<UUID, Map<UUID, String>> parDocument,
                                                  Map<UUID, IndexField> champs) {
-        List<ResultatResponse.ValeurResponse> valeurs = parDocument.getOrDefault(d.getId(), Map.of())
+        List<ResultatResponse.ValeurResponse> valeurs = parDocument.getOrDefault(d.id(), Map.of())
                 .entrySet().stream()
                 .filter(e -> champs.containsKey(e.getKey()))
                 .map(e -> {
@@ -758,13 +768,13 @@ public class IndexationService {
                 .toList();
 
         return new ResultatResponse(
-                d.getId(), d.getName(), d.getExtension(), humanSize(d.getSizeKo()),
-                d.getWorkspace() != null ? d.getWorkspace().getName() : null,
-                d.getTypeDocument() != null ? d.getTypeDocument().getTypeDeDocument() : null,
-                d.getExpirationDate() != null ? d.getExpirationDate().toString() : null,
-                d.getReference(),
+                d.id(), d.name(), d.extension(), humanSize(d.sizeKo()),
+                d.workspace(),
+                d.typeDocument(),
+                d.expirationDate() != null ? d.expirationDate().toString() : null,
+                d.reference(),
                 valeurs,
-                d.getStatutConservation() != null ? d.getStatutConservation().name() : null);
+                d.statutConservation());
     }
 
     private static ResultatResponse.ValeurResponse versValeur(DocumentIndex v) {
