@@ -265,6 +265,27 @@ class SearchIndexerPostgresTest {
     }
 
     @Test
+    @DisplayName("ANO-E6-001 : texte extrait de 150 Mo, la recherche répond (extrait sur les 32 768 premiers caractères)")
+    void texteDe150Mo() {
+        // Recette qa : .txt de 150 Mo déposé → toute recherche qui le rencontrait
+        // échouait (« invalid memory alloc request size 1610612736 », ts_headline
+        // sur le texte entier normalisé). Le texte est écrit par la base (repeat) :
+        // rien ne transite par la JVM ; le vecteur reste celui de la phrase.
+        String phrase = "zarkolinet ligne de recette ";
+        UUID doc = indexer(phrase);
+        jdbc.update("UPDATE document_texte SET texte = repeat(?, 5617371) WHERE document_id = ?", phrase, doc);
+        assertEquals(157_286_388L, jdbc.queryForObject(
+                "SELECT length(texte) FROM document_texte WHERE document_id = ?", Long.class, doc));
+
+        PageResultats p = indexer.rechercher(RequeteRecherche.simple("recette", 0, 5), UTILISATEUR);
+        assertEquals(List.of(doc), p.resultats().stream().map(PageResultats.Resultat::documentId).toList());
+        String extrait = p.resultats().get(0).extrait().stream().map(PageResultats.Segment::texte)
+                .collect(Collectors.joining());
+        assertTrue(extrait.contains("recette") && extrait.length() < 2_000, extrait);
+        jdbc.update("DELETE FROM document_texte WHERE document_id = ?", doc);
+    }
+
+    @Test
     @DisplayName("Requête vide ou composée de mots vides : aucun résultat, aucune erreur")
     void requeteVide() {
         indexer("le la les");
