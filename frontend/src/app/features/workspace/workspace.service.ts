@@ -64,4 +64,13 @@ export class WorkspaceService {
   multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids });
   }
+
+  /**
+   * Crée un dossier dans un espace ou un dossier (POST /noeuds/{id}/dossiers,
+   * Déposer sur le parent) : le formulaire simple des espaces d'échange
+   * (D12, ANO-F-016), sans code, propriétaire ni statut.
+   */
+  creerDossier(parentId: string, corps: { nom: string; description?: string | null }): Observable<WorkSpace> {
+    return this.http.post<WorkSpace>(`${API_BASE}/noeuds/${parentId}/dossiers`, corps);
+  }
 }

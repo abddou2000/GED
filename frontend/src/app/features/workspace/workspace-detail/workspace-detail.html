@@ -16,7 +16,7 @@
     @if (espace()) {
       <div class="tete-actions">
         <button mat-stroked-button (click)="creerSousDossier()">
-          <mat-icon svgIcon="folder-plus"></mat-icon> Sous-dossier
+          <mat-icon svgIcon="folder-plus"></mat-icon> {{ echange() ? 'Nouveau dossier' : 'Sous-dossier' }}
         </button>
         <button mat-flat-button color="primary" (click)="modifier()">
           <mat-icon svgIcon="edit"></mat-icon> Modifier
@@ -103,6 +103,12 @@
           <span class="tb-titre">Documents</span>
           <span class="tb-sub">{{ docs().length }}</span>
         </div>
+        <!-- Espace d'échange (D12, ANO-F-016) : déposer ici, dossier cible au choix. -->
+        @if (echange() && auth.peut('DEPOSER')) {
+          <button mat-stroked-button type="button" class="deposer-ici" (click)="deposerIci()">
+            <mat-icon svgIcon="nav-upload"></mat-icon> Déposer ici
+          </button>
+        }
       </div>
 
       <div class="table-wrap">
