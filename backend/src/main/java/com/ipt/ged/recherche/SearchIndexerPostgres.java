@@ -117,7 +117,7 @@ public class SearchIndexerPostgres implements SearchIndexer {
             }
         }
         // Colonnes de tri en liste blanche : jamais de texte de l'appelant dans l'ORDER BY.
-        // « candidats » : ordre de sélection des correspondances retenues sous le plafond
+        // « cles » : ordre de sélection des correspondances retenues sous le plafond
         // (aucun pour la pertinence : le rang n'est connu qu'après lecture du vecteur) ;
         // « ordre » : ordre de la page, sur les colonnes nommées de l'ensemble retenu.
         String cles = switch (r.tri()) {

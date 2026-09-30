@@ -129,11 +129,20 @@ Outil : `RepriseVersionsEnClair` (+ `LanceurReprise`, activé par `ged.fichiers.
    Pour chaque version : chemin confiné sous la racine, type réel, chiffrement sous une DEK
    neuve, empreinte, **relecture complète de contrôle**, puis dans une transaction mise à jour de
    la version (conditionnelle `cle_fichier_id IS NULL`) et, pour une version courante, envoi à
-   l'OCR. Rapport CSV
+   l'OCR **en priorité REPRISE** (`ocr_job.priorite = 1`, R31) : le flux courant passe
+   toujours devant, l'accès utilisateurs peut donc rouvrir dès la fin de cette étape sans
+   attendre l'OCR de la reprise (plusieurs semaines sur 4 vCPU). Rapport CSV
    `version_id;chemin_relatif;fichier_id;empreinte_sha256;taille_octets;type_mime;statut`.
    Reprenable ; aucun original supprimé.
 4. Contrôle : `SELECT count(*) FROM version_document WHERE cle_fichier_id IS NULL;` → 0.
-5. Vérification d'intégrité complète, traiter les lignes en échec.
+5. Vérification d'intégrité complète (`POST /api/v1/admin/integrite/verification`,
+   Administrateur, T-059 ; état par `GET` sur le même chemin), traiter les lignes en échec.
+5 bis. En fin d'OCR de la reprise (file `REPRISE` vide :
+   `SELECT count(*) FROM ocr_job WHERE priorite = 1 AND statut IN ('EN_ATTENTE_OCR','EN_COURS_OCR')` → 0),
+   et après tout chargement de masse : `VACUUM ANALYZE document_texte;` par le compte
+   propriétaire (R32, essais de charge §5.3 : sans statistiques, l'index GIN est ignoré).
+   L'analyse automatique est abaissée à 2 % des lignes sur cette table (changeset
+   `202610041320`) : ce passage manuel reste le filet de sécurité.
 6. Seulement ensuite : effacer l'ancien stockage en clair (sur SSD, prévoir le chiffrement du
    volume), puis montée incluant le changeset « contract ».
 
