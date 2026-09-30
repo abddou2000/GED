@@ -59,12 +59,28 @@ public final class Tri {
      */
     public static Pageable pageable(int page, int size, String sortBy, String sortDir,
                                     Set<String> champsAutorises, Set<String> champsNumeriques) {
+        return pageable(page, size, sortBy, sortDir, champsAutorises, champsNumeriques, null);
+    }
+
+    /**
+     * @param triParDefaut champ trié en décroissant quand aucun champ autorisé
+     *                     n'est demandé ({@code null} : identifiant décroissant),
+     *                     départagé par l'identifiant décroissant : deux lignes
+     *                     de même valeur gardent un ordre stable d'une page à
+     *                     l'autre.
+     */
+    public static Pageable pageable(int page, int size, String sortBy, String sortDir,
+                                    Set<String> champsAutorises, Set<String> champsNumeriques,
+                                    String triParDefaut) {
         int taille = taille(size);
         int numero = numeroDePage(page, taille);
 
         String champ = sortBy == null ? "" : sortBy.trim();
         if (!champsAutorises.contains(champ)) {
-            return PageRequest.of(numero, taille, Sort.by(Sort.Direction.DESC, DEFAUT));
+            Sort defaut = triParDefaut == null || DEFAUT.equals(triParDefaut)
+                    ? Sort.by(Sort.Direction.DESC, DEFAUT)
+                    : Sort.by(Sort.Direction.DESC, triParDefaut).and(Sort.by(Sort.Direction.DESC, DEFAUT));
+            return PageRequest.of(numero, taille, defaut);
         }
         Sort.Direction sens = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
         Sort.Order ordre = new Sort.Order(sens, champ);

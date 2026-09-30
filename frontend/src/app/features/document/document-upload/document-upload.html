@@ -190,6 +190,28 @@
       }
     </mat-form-field>
 
+    <!-- Socle commun (ANO-F-006) : objet et date du document. La date du
+         document n'est pas celle du dépôt ; c'est elle que les tris retiennent. -->
+    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+      <mat-label>Objet (optionnel)</mat-label>
+      <textarea matInput formControlName="objet" rows="2" maxlength="1000"
+                placeholder="Ex. Facture de maintenance du mois de mars"></textarea>
+      @if (form.get('objet')?.invalid) {
+        <mat-error>L'objet est limité à 1000 caractères</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+      <mat-label>Date du document</mat-label>
+      <input matInput [matDatepicker]="dpDocument" formControlName="dateDocument"
+             placeholder="Choisir une date" />
+      <mat-datepicker-toggle matIconSuffix [for]="dpDocument">
+        <mat-icon matDatepickerToggleIcon svgIcon="calendar"></mat-icon>
+      </mat-datepicker-toggle>
+      <mat-datepicker #dpDocument></mat-datepicker>
+      <mat-hint>Date portée par le document (facture, courrier…) ; par défaut, la date du dépôt</mat-hint>
+    </mat-form-field>
+
     <!-- Étiquettes : facultatives, et le libellé le dit. Le champ n'apparaît
          que si le référentiel en contient — proposer un sélecteur vide
          laisserait croire à une panne. -->

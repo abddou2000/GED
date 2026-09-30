@@ -129,11 +129,20 @@ Outil : `RepriseVersionsEnClair` (+ `LanceurReprise`, activé par `ged.fichiers.
    Pour chaque version : chemin confiné sous la racine, type réel, chiffrement sous une DEK
    neuve, empreinte, **relecture complète de contrôle**, puis dans une transaction mise à jour de
    la version (conditionnelle `cle_fichier_id IS NULL`) et, pour une version courante, envoi à
-   l'OCR. Rapport CSV
+   l'OCR **en priorité REPRISE** (`ocr_job.priorite = 1`, R31) : le flux courant passe
+   toujours devant, l'accès utilisateurs peut donc rouvrir dès la fin de cette étape sans
+   attendre l'OCR de la reprise (plusieurs semaines sur 4 vCPU). Rapport CSV
    `version_id;chemin_relatif;fichier_id;empreinte_sha256;taille_octets;type_mime;statut`.
    Reprenable ; aucun original supprimé.
 4. Contrôle : `SELECT count(*) FROM version_document WHERE cle_fichier_id IS NULL;` → 0.
-5. Vérification d'intégrité complète, traiter les lignes en échec.
+5. Vérification d'intégrité complète (`POST /api/v1/admin/integrite/verification`,
+   Administrateur, T-059 ; état par `GET` sur le même chemin), traiter les lignes en échec.
+5 bis. En fin d'OCR de la reprise (file `REPRISE` vide :
+   `SELECT count(*) FROM ocr_job WHERE priorite = 1 AND statut IN ('EN_ATTENTE_OCR','EN_COURS_OCR')` → 0),
+   et après tout chargement de masse : `VACUUM ANALYZE document_texte;` par le compte
+   propriétaire (R32, essais de charge §5.3 : sans statistiques, l'index GIN est ignoré).
+   L'analyse automatique est abaissée à 2 % des lignes sur cette table (changeset
+   `202610041320`) : ce passage manuel reste le filet de sécurité.
 6. Seulement ensuite : effacer l'ancien stockage en clair (sur SSD, prévoir le chiffrement du
    volume), puis montée incluant le changeset « contract ».
 
@@ -522,3 +531,56 @@ Rapport : [`docs/exploitation/ESSAIS-DE-CHARGE.md`](../../exploitation/ESSAIS-DE
 - Vérifié sur un poste portable partagé et bridé par intermittence : valeurs absolues à
   confirmer sur le serveur de recette ; CER sur corpus synthétique, protocole §4.3.2 sur
   l'échantillon réel toujours dû.
+
+---
+
+## Tour 1 de la mise en conformité (`ct/dev3-r1`, depuis `claude/inspiring-lovelace-10bg1c` @ `71bdc1d`)
+
+Poste : conteneur Linux, 4 vCPU partagés avec six autres membres ; bases `ged_dev3` /
+`ged_dev3_test`. `ct/dev5-r1` fusionnée à la demande de pm (`8dc269e`) avant de finir
+ANO-E7-004 : sa liste blanche `dateDocument` et son départage par identifiant sont gardés tels
+quels, le tri par défaut s'appuie dessus.
+
+| Id | État | Commit(s) | Cause, correctif, preuve |
+|---|---|---|---|
+| ANO-E7-004 | Corrigée | `88625f3` (+ résolution `8dc269e`) | Cause : `Tri.pageable` retombait sur `id DESC` ; `POST /recherches` sans texte triait en Java sur la date de dépôt et son énumération n'avait pas la date du document. Correctif : tri par défaut `date_document DESC, id DESC` sur `GET /documents` (et corbeille) et sur `POST /recherches` sans texte ; `DATE_DOCUMENT` ajouté au contrat (plein texte compris, et à l'écran de recherche) ; `dateDocument` rendu dans les résultats. Test : `ContratApiTest.triParDateDuDocument` (a 01/02, b 01/05, c 01/03 → b, c, a), rouge sans le correctif (vérifié). |
+| R31 / T-035 | Corrigé | `46efa0d` | Cause : `ocr_job` servi `ORDER BY depose_le` ; la reprise (~150 000 jobs) aurait bloqué le flux pendant des semaines (D6). Correctif : colonne `ocr_job.priorite` (0 flux, 1 reprise ; changeset `202610041310`, retour arrière explicite, aucune donnée métier perdue), réservation `ORDER BY priorite, depose_le, id`, `RepriseVersionsEnClair` enfile en `REPRISE`, âge de file (métrique D6) sur le flux seul. Tests : `OcrJobQueuePostgresTest.fluxCourantAvantReprise` (rouge avec l'ancien ORDER BY, vérifié), `RepriseVersionsEnClairTest` (priorité 1). T-035 peut remonter à « Livré ». |
+| R32 / P-14 | Corrigé, remesuré | `9ebe15d`, `8e538d5` | Correctifs du § 5.4 appliqués ; remesure à 50 000 documents : `docs/exploitation/ESSAIS-DE-CHARGE.md` § 5.5 (terme très fréquent 2,4 s → 0,4 s ; 8 utilisateurs p95 6,7 s → 2,1 s ; multicritère par type 4,0 s → 0,04 s ; tout le fonds 4,2 s / 463 Mo → 0,26 s / 212 Mo ; `POST /recherches` paginé 54 ms). Tests : `SearchIndexerPostgresTest.plafond` (total « plus de N », tri exact sous le plafond ; rouge sans le correctif : champ absent, tri sur candidats arbitraires), `ContratApiTest.criteresIndexEnSql` (règle par nature inchangée). Changeset `202610041320` (analyse automatique à 2 %). Limite : pertinence classée sur les 5 000 premières correspondances au-delà du plafond. |
+| Tests LibreOffice de la référence | Corrigé | `8873d70` | Cause : `ArchivageApiTest.conversionEnEchec` et `ApercuTelechargementApiTest.apercuBureautiqueSansLibreOffice` utilisaient le `soffice` du PATH. Correctif : le profil de test désigne un binaire introuvable (`application-test.yml`) ; chaque test vérifie d'abord que le convertisseur se déclare indisponible, puis prouve toujours le 503 et la copie ECHEC. |
+| T-059 | Corrigé | `21bc675` | Manque : aucun point d'entrée de vérification à la demande (recette E5-A08 NA, plan CR-E5-04). Livré : `POST /api/v1/admin/integrite/documents/{id}` (versions et copies de conservation, bilan par fichier), `POST`/`GET /api/v1/admin/integrite/verification` (fonds entier en tâche de fond, 409 si une passe tourne, état et bilan). Réservé Administrateur + `SUPERVISER_TRAITEMENTS` ; tracé `INTEGRITE_VERIFIEE` (nouveau code d'`ActionAudit`), divergences en `INTEGRITE_ANOMALIE`. La passe du fonds n'est plus conditionnée à la planification. Tests : `IntegriteALaDemandeApiTest` (3), `VerificationIntegriteTest.passeEnFond`. Reste « tâche mensuelle non exercée » par qa (planification inchangée). |
+| T-060 / T-064 | Prouvé avec LibreOffice réel | `078017b` | LibreOffice 24.2.7.2 installé sur le poste. `LibreOfficeReelApiTest` (profil de test, `soffice` du PATH) : aperçu d'un Word en PDF (texte rendu, `ApercuConsulte`, cache chiffré relu) ; archivage d'un Word, copie `LIBREOFFICE` validée **PDF/A-2B par veraPDF 1.30.2**, original servi sur `?original=true`. 2 tests verts, non ignorés. La réserve « LibreOffice simulé » de T-009/T-060/T-064 est levée sur ce poste (à confirmer par qa). |
+
+### Autres lignes de SUIVI.md à mon nom (tâche 6)
+
+Aucune ne demande de code ou de documentation supplémentaire de ma part ce tour-ci :
+
+- **T-009** : LibreOffice désormais réel (ci-dessus) ; reste la recette qa.
+- **T-028** : **bloqué** — échantillon MMED (Q09, R23) et réponse à QR8 attendus.
+- **T-031** (langue par type), **T-039** (réindexation complète), **P-09** (relance manuelle),
+  **T-115** (issues `SANS_PLAN`, `A_INDEXER`) : code et tests automatisés en place ; seule la
+  recette qa manque.
+- **T-034** : livré, en attente de recette.
+- **T-101** : ANO-E7-005 appartient à dev1.
+- **P-13** : livré par dev2.
+
+### Points pour pm
+
+1. T-035 peut remonter (R31 levé) ; P-14 : correctifs appliqués et remesurés (§ 5.5), l'écart
+   de débit OCR (R30) reste à porter à MMED.
+2. Prochain gain de la recherche pour les utilisateurs à droits restreints : réécrire le
+   prédicat `AccessPredicate.predicatSql` (dev1) en jointure sur les emplacements autorisés
+   au lieu d'un `EXISTS` par document (0,4 à 0,5 s restants sur les listes sans texte).
+3. `POST /indexation/recherche` n'est plus appelé par l'écran et reste non paginé par
+   contrat : à retirer ou à paginer à la prochaine version de l'API.
+4. Front : `ng build` refuse le Node 22.22.2 du poste ; construit avec le Node 24 déposé par
+   dev5 dans le bloc-notes (vert, avertissements de budget préexistants).
+5. Banc de charge : schéma jetable `ged_charge` dans `ged_dev3` (le compte propriétaire ne peut
+   pas créer de base) ; à supprimer en fin d'essais (`DROP SCHEMA ged_charge CASCADE`).
+
+### Tests du tour 1
+
+Suite back complète (`29d0480`) : **609 tests, 3 échecs**, aucun nouveau : les deux de la
+référence dépendant de l'ordre ou des données (`WorkflowApiTest.employesWithAccount`,
+`WorkSpaceApiTest.moveIntoDescendant`) et `SupervisionIntegrationTest.portDeManagement`, dû à
+`GED_MANAGEMENT_PORT` exporté par l'environnement d'équipe (même constat chez dev5). Les deux
+échecs LibreOffice de la référence sont corrigés. Front : `ng build` vert.

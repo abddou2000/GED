@@ -58,7 +58,11 @@
     </form>
 
     @if (resultat(); as r) {
-      <p class="total">{{ r.total }} document(s) trouvé(s)</p>
+      @if (r.totalPlafonne) {
+        <p class="total">Plus de {{ r.total }} documents trouvés : affinez la recherche (critères, expression exacte).</p>
+      } @else {
+        <p class="total">{{ r.total }} document(s) trouvé(s)</p>
+      }
       <ul class="resultats">
         @for (d of r.resultats; track d.documentId) {
           <li>

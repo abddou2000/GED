@@ -58,13 +58,31 @@ public interface OcrJobQueue {
     /** Nombre de jobs en attente ou en cours (profondeur de la file). */
     long profondeur();
 
-    /** Dépôt le plus ancien encore en attente ou en cours ; vide si la file est vide. */
+    /**
+     * Dépôt le plus ancien du flux courant encore en attente ou en cours ; vide
+     * si aucun. La reprise en est exclue : son arriéré, attendu, masquerait le
+     * retard du flux, seul soumis au délai D6.
+     */
     Optional<Instant> plusAncienDepotEnAttente();
 
     Map<StatutOcr, Long> compterParStatut();
 
-    /** Données d'un job à créer. */
+    /**
+     * Données d'un job à créer.
+     *
+     * @param priorite flux courant (défaut) ou reprise : le flux est toujours servi d'abord
+     */
     record NouveauJob(UUID documentId, UUID versionId, UUID fichierId, String typeMime, String langue,
-                      Instant deposeLe) {
+                      Instant deposeLe, PrioriteOcr priorite) {
+
+        public NouveauJob {
+            priorite = priorite == null ? PrioriteOcr.FLUX_COURANT : priorite;
+        }
+
+        /** Job du flux courant. */
+        public NouveauJob(UUID documentId, UUID versionId, UUID fichierId, String typeMime, String langue,
+                          Instant deposeLe) {
+            this(documentId, versionId, fichierId, typeMime, langue, deposeLe, PrioriteOcr.FLUX_COURANT);
+        }
     }
 }

@@ -36,8 +36,9 @@ import java.util.UUID;
  * arrêté brutalement laisse un bail qui expire ; le job redevient alors
  * éligible, et l'exécution interrompue compte comme une tentative.
  *
- * <p><b>Ordre.</b> Le plus ancien dépôt d'abord : c'est lui qui menace
- * l'objectif de délai de disponibilité.
+ * <p><b>Ordre.</b> Le flux courant avant la reprise ({@link PrioriteOcr},
+ * colonne {@code priorite}, R31), puis le plus ancien dépôt d'abord : c'est lui
+ * qui menace l'objectif de délai de disponibilité (D6, 24 h).
  *
  * <p>Toutes les dates viennent de l'horloge de la base : les workers de
  * plusieurs serveurs comparent ainsi la même heure.
@@ -82,10 +83,10 @@ public class OcrJobQueuePostgres implements OcrJobQueue {
     public UUID enfiler(NouveauJob job) {
         UUID id = UuidV7.suivant();
         int crees = jdbc.update("INSERT INTO ocr_job (id, document_id, version_id, cle_fichier_id, type_mime, langue, "
-                        + "statut, depose_le) VALUES (?, ?, ?, ?, ?, ?, 'EN_ATTENTE_OCR', ?) "
+                        + "statut, depose_le, priorite) VALUES (?, ?, ?, ?, ?, ?, 'EN_ATTENTE_OCR', ?, ?) "
                         + "ON CONFLICT (version_id) WHERE statut IN " + ACTIFS + " DO NOTHING",
                 id, job.documentId(), job.versionId(), job.fichierId(), job.typeMime(), job.langue(),
-                Timestamp.from(job.deposeLe() != null ? job.deposeLe() : Instant.now()));
+                Timestamp.from(job.deposeLe() != null ? job.deposeLe() : Instant.now()), job.priorite().code());
         if (crees == 1) return id;
         return jdbc.queryForObject("SELECT id FROM ocr_job WHERE version_id = ? AND statut IN " + ACTIFS,
                 UUID.class, job.versionId());
@@ -106,7 +107,7 @@ public class OcrJobQueuePostgres implements OcrJobQueue {
                         + "WHERE j.id IN (SELECT id FROM ocr_job "
                         + "  WHERE (statut = 'EN_ATTENTE_OCR' AND prochaine_tentative_le <= now()) "
                         + "     OR (statut = 'EN_COURS_OCR' AND verrouille_jusqu_a < now()) "
-                        + "  ORDER BY depose_le, id "
+                        + "  ORDER BY priorite, depose_le, id "
                         + "  LIMIT ? FOR UPDATE SKIP LOCKED) "
                         + "RETURNING " + prefixer(COLONNES),
                 LIGNE, worker, bail.toMillis(), nombre);
@@ -194,8 +195,8 @@ public class OcrJobQueuePostgres implements OcrJobQueue {
 
     @Override
     public Optional<Instant> plusAncienDepotEnAttente() {
-        OffsetDateTime t = jdbc.queryForObject("SELECT MIN(depose_le) FROM ocr_job WHERE statut IN " + ACTIFS,
-                OffsetDateTime.class);
+        OffsetDateTime t = jdbc.queryForObject("SELECT MIN(depose_le) FROM ocr_job WHERE statut IN " + ACTIFS
+                        + " AND priorite = " + PrioriteOcr.FLUX_COURANT.code(), OffsetDateTime.class);
         return Optional.ofNullable(t).map(OffsetDateTime::toInstant);
     }
 

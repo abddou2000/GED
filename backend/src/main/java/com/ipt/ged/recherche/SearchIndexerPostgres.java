@@ -19,10 +19,21 @@ import java.util.UUID;
  *       {@code to_tsvector('french', unaccent) || to_tsvector('arabic', normalisé)} ;</li>
  *   <li>requête : {@code ged_requete_texte(q)} = {@code websearch_to_tsquery}
  *       française OU arabe, avec les mêmes normalisations ;</li>
- *   <li>tri {@code ts_rank_cd}, total par fenêtre {@code count(*) OVER ()} sur
- *       le périmètre autorisé, pagination ;</li>
+ *   <li><b>ensemble classé borné</b> (R32, essais de charge §5.4) : les
+ *       correspondances autorisées (droits et critères appliqués <b>avant</b>
+ *       le classement) sont limitées à {@link #PLAFOND_PAR_DEFAUT} candidats ;
+ *       pour un tri par date, nom, type ou indexation, ce sont les premiers
+ *       selon ce tri (résultat exact) ; pour la pertinence, les premiers
+ *       trouvés par l'index, classés par {@code ts_rank} (sans positions,
+ *       moins coûteux que {@code ts_rank_cd}) ;</li>
+ *   <li><b>total plafonné</b> : exact jusqu'au plafond, « plus de N » au-delà
+ *       ({@link PageResultats#totalPlafonne()}), au lieu d'un
+ *       {@code count(*) OVER ()} qui lisait et classait toutes les
+ *       correspondances (10 à 40 s pour un terme fréquent à 50 000 documents) ;</li>
  *   <li>extraits {@code ts_headline} calculés <b>après</b> filtre et pagination,
- *       sur les seules lignes de la page.</li>
+ *       sur les seules lignes de la page, et sur les
+ *       {@link #EXTRAIT_MAX_CARACTERES} premiers caractères du texte (un
+ *       attachement de 800 pages en compte plus d'un million).</li>
  * </ul>
  */
 public class SearchIndexerPostgres implements SearchIndexer {
@@ -33,14 +44,27 @@ public class SearchIndexerPostgres implements SearchIndexer {
     private static final String OPTIONS_EXTRAIT = "StartSel=" + DEBUT + ", StopSel=" + FIN
             + ", MaxWords=35, MinWords=12, MaxFragments=3, FragmentDelimiter=\" … \"";
 
+    /** Nombre maximal de correspondances classées et comptées (§5.4 des essais de charge). */
+    public static final int PLAFOND_PAR_DEFAUT = 5000;
+    /** Longueur du texte sur laquelle l'extrait est cherché. */
+    static final int EXTRAIT_MAX_CARACTERES = 32_768;
+
     private final JdbcTemplate jdbc;
     private final NamedParameterJdbcTemplate nomme;
     private final PredicatDroits droits;
+    private final int plafond;
 
     public SearchIndexerPostgres(JdbcTemplate jdbc, PredicatDroits droits) {
+        this(jdbc, droits, PLAFOND_PAR_DEFAUT);
+    }
+
+    /** @param plafond nombre maximal de correspondances classées et comptées (au moins 1). */
+    public SearchIndexerPostgres(JdbcTemplate jdbc, PredicatDroits droits, int plafond) {
+        if (plafond < 1) throw new IllegalArgumentException("Le plafond de la recherche doit être au moins 1.");
         this.jdbc = jdbc;
         this.nomme = new NamedParameterJdbcTemplate(jdbc);
         this.droits = droits;
+        this.plafond = plafond;
     }
 
     @Override
@@ -72,7 +96,11 @@ public class SearchIndexerPostgres implements SearchIndexer {
                 .addValue("q", r.texte().strip())
                 .addValue("taille", r.taille())
                 .addValue("decalage", (long) r.page() * r.taille())
-                .addValue("options", OPTIONS_EXTRAIT);
+                .addValue("options", OPTIONS_EXTRAIT)
+                // Un de plus que le plafond : sait dire « plus de N » sans tout compter.
+                .addValue("plafond", plafond + 1)
+                .addValue("plafond_classe", plafond)
+                .addValue("extrait_max", EXTRAIT_MAX_CARACTERES);
         // Corbeille exclue : un document supprimé est invisible de tous ses
         // emplacements (§12.5), recherche comprise.
         StringBuilder where = new StringBuilder("dt.tsv @@ q.requete AND NOT d.supprime");
@@ -89,32 +117,56 @@ public class SearchIndexerPostgres implements SearchIndexer {
             }
         }
         // Colonnes de tri en liste blanche : jamais de texte de l'appelant dans l'ORDER BY.
+        // « cles » : ordre de sélection des correspondances retenues sous le plafond
+        // (pour la pertinence, un ordre stable : le rang n'est connu qu'après lecture du vecteur) ;
+        // « ordre » : ordre de la page, sur les colonnes nommées de l'ensemble retenu.
+        String cles = switch (r.tri()) {
+            case INDEXATION_RECENTE -> "dt.indexe_le DESC, dt.version_id";
+            case DATE_DOCUMENT -> "d.date_document DESC NULLS LAST, dt.document_id DESC, dt.version_id";
+            case DATE_DEPOT -> "d.created_at DESC NULLS LAST, dt.version_id";
+            case NOM -> "lower(d.name) ASC, dt.version_id";
+            case TYPE -> "lower(t.type_de_document) ASC, dt.version_id";
+            // Pas de rang connu avant lecture du vecteur : ordre stable quelconque. Sans
+            // ORDER BY, la LIMIT pousse le planificateur vers un balayage de la table,
+            // désastreux pour un terme rare (mesuré : 0,17 s → 1 s à 50 000 documents).
+            case PERTINENCE -> "dt.version_id";
+        };
         String ordre = switch (r.tri()) {
             case INDEXATION_RECENTE -> "indexe_le DESC";
+            case DATE_DOCUMENT -> "date_document DESC NULLS LAST, document_id DESC";
             case DATE_DEPOT -> "cree_le DESC NULLS LAST";
             case NOM -> "lower(nom) ASC";
             case TYPE -> "lower(type_document) ASC, rang DESC";
             case PERTINENCE -> "rang DESC";
         };
-        String depuis = "FROM document_texte dt "
+        // Correspondances autorisées, critères compris, bornées AVANT tout classement :
+        // le vecteur (dans le TOAST) n'est relu pour le rang que sur cet ensemble.
+        // Rang de sélection « rn » : le candidat en sus du plafond ne sert qu'à savoir
+        // qu'il y en a plus ; il n'est ni classé ni affiché.
+        String correspondances = "SELECT dt.document_id, dt.version_id, row_number() OVER ("
+                + "ORDER BY " + cles + ") AS rn FROM document_texte dt "
                 + "JOIN document d ON d.id = dt.document_id "
                 + "LEFT JOIN type_document t ON t.id = d.type_document_id "
                 + "LEFT JOIN noeud w ON w.id = d.noeud_principal_id "
-                + "CROSS JOIN (SELECT ged_requete_texte(:q) AS requete) q ";
-        String sql = "SELECT p.*, "
-                + "ts_headline('ged_francais', ged_normaliser_arabe(dt.texte), "
-                + "            websearch_to_tsquery('ged_francais', ged_normaliser_arabe(:q)), :options) AS extrait "
-                + "FROM (SELECT * FROM (SELECT dt.document_id, dt.version_id, dt.indexe_le, d.name AS nom, "
-                + "             d.created_at AS cree_le, t.type_de_document AS type_document, w.nom AS espace, "
-                + "             d.statut_conservation, d.canal_depot, d.echeance_conservation, "
-                + "             ts_rank_cd(dt.tsv, q.requete) AS rang, count(*) OVER () AS total "
-                + "      " + depuis + "WHERE " + where + ") a "
-                + "      ORDER BY " + ordre + ", version_id "
-                + "      LIMIT :taille OFFSET :decalage) p "
-                + "JOIN document_texte dt ON dt.version_id = p.version_id "
-                + "ORDER BY " + ordre.replace("lower(nom)", "lower(p.nom)").replace("lower(type_document)", "lower(p.type_document)")
-                        .replace("indexe_le", "p.indexe_le").replace("cree_le", "p.cree_le").replace("rang", "p.rang")
-                + ", p.version_id";
+                + "CROSS JOIN q WHERE " + where + " ORDER BY rn" + " LIMIT :plafond";
+        String sql = "WITH q AS MATERIALIZED (SELECT ged_requete_texte(:q) AS requete), "
+                + "c AS MATERIALIZED (" + correspondances + "), "
+                + "n AS (SELECT count(*) AS total FROM c), "
+                + "p AS (SELECT * FROM (SELECT c.document_id, c.version_id, dt.indexe_le, d.name AS nom, "
+                + "         d.created_at AS cree_le, d.date_document, t.type_de_document AS type_document, "
+                + "         w.nom AS espace, d.statut_conservation, d.canal_depot, d.echeance_conservation, "
+                + "         ts_rank(dt.tsv, q.requete) AS rang "
+                + "       FROM c JOIN document_texte dt ON dt.version_id = c.version_id "
+                + "       JOIN document d ON d.id = c.document_id "
+                + "       LEFT JOIN type_document t ON t.id = d.type_document_id "
+                + "       LEFT JOIN noeud w ON w.id = d.noeud_principal_id CROSS JOIN q "
+                + "       WHERE c.rn <= :plafond_classe) a "
+                + "     ORDER BY " + ordre + ", version_id LIMIT :taille OFFSET :decalage) "
+                + "SELECT * FROM (SELECT p.*, n.total, "
+                + "  ts_headline('ged_francais', ged_normaliser_arabe(left(dt.texte, :extrait_max)), "
+                + "              websearch_to_tsquery('ged_francais', ged_normaliser_arabe(:q)), :options) AS extrait "
+                + "  FROM p JOIN document_texte dt ON dt.version_id = p.version_id CROSS JOIN n) r "
+                + "ORDER BY " + ordre + ", version_id";
         long[] total = {-1};
         List<PageResultats.Resultat> resultats = nomme.query(sql, p, (rs, i) -> {
             total[0] = rs.getLong("total");
@@ -124,13 +176,16 @@ public class SearchIndexerPostgres implements SearchIndexer {
                     rs.getString("nom"), rs.getString("type_document"), rs.getString("espace"),
                     cree != null ? cree.toInstant() : null, rs.getString("statut_conservation"),
                     rs.getString("canal_depot"), com.ipt.ged.document.conservation.Echeances.depassee(
-                            rs.getObject("echeance_conservation", java.time.LocalDate.class)));
+                            rs.getObject("echeance_conservation", java.time.LocalDate.class)),
+                    rs.getObject("date_document", java.time.LocalDate.class));
         });
         if (total[0] < 0) {
             // Page au-delà de la fin : le total n'a pas pu être lu sur une ligne.
-            total[0] = r.page() == 0 ? 0 : nomme.queryForObject("SELECT COUNT(*) " + depuis + "WHERE " + where, p, Long.class);
+            total[0] = r.page() == 0 ? 0 : nomme.queryForObject("WITH q AS MATERIALIZED (SELECT ged_requete_texte(:q) "
+                    + "AS requete) SELECT count(*) FROM (" + correspondances + ") c", p, Long.class);
         }
-        return new PageResultats(resultats, total[0], r.page(), r.taille());
+        boolean plafonne = total[0] > plafond;
+        return new PageResultats(resultats, plafonne ? plafond : total[0], r.page(), r.taille(), plafonne);
     }
 
     /** Découpe l'extrait selon les marqueurs de surlignage. */

@@ -315,6 +315,43 @@ class SearchIndexerPostgresTest {
                 .stream().filter(r -> r.documentId().equals(a)).findFirst().orElseThrow().statutConservation());
     }
 
+    @Test
+    @DisplayName("R32 : total plafonné (« plus de N ») ; sous le plafond, tri par nom ou date exact sur toutes les correspondances")
+    void plafond() {
+        SearchIndexerPostgres plafonne = new SearchIndexerPostgres(jdbc, (colonne, utilisateur) -> FragmentSql.VRAI, 5);
+        // Indexés à rebours : « doc-1 », premier par nom, est trouvé en dernier par un parcours de la table.
+        List<UUID> docs = new java.util.ArrayList<>();
+        for (int i = 8; i >= 1; i--) {
+            UUID d = indexer("quai numéro " + i + " du port");
+            jdbc.update("UPDATE document SET name = ?, date_document = ? WHERE id = ?", "doc-" + i,
+                    java.sql.Date.valueOf(java.time.LocalDate.of(2026, 1, 1).plusDays(i)), d);
+            docs.add(0, d);
+        }
+        PageResultats p = plafonne.rechercher(new RequeteRecherche("quai", 0, 3, RequeteRecherche.Tri.NOM, List.of()),
+                UTILISATEUR);
+        assertTrue(p.totalPlafonne(), "8 correspondances pour un plafond de 5");
+        assertEquals(5, p.total(), "total borné au plafond, à lire « plus de 5 »");
+        assertEquals(docs.subList(0, 3), p.resultats().stream().map(PageResultats.Resultat::documentId).toList(),
+                "les premiers par nom parmi TOUTES les correspondances");
+        PageResultats recents = plafonne.rechercher(new RequeteRecherche("quai", 0, 2, RequeteRecherche.Tri.DATE_DOCUMENT,
+                List.of()), UTILISATEUR);
+        assertEquals(List.of(docs.get(7), docs.get(6)),
+                recents.resultats().stream().map(PageResultats.Resultat::documentId).toList());
+        // Pertinence : classement sur l'ensemble borné, total plafonné aussi.
+        PageResultats pertinence = plafonne.rechercher(RequeteRecherche.simple("quai", 0, 10), UTILISATEUR);
+        assertEquals(5, pertinence.resultats().size());
+        assertTrue(pertinence.totalPlafonne());
+        // Page au-delà de l'ensemble borné : vide, total toujours plafonné.
+        PageResultats loin = plafonne.rechercher(RequeteRecherche.simple("quai", 3, 3), UTILISATEUR);
+        assertTrue(loin.resultats().isEmpty());
+        assertEquals(5, loin.total());
+        assertTrue(loin.totalPlafonne());
+        // Sous le plafond : total exact, non plafonné.
+        PageResultats exact = plafonne.rechercher(RequeteRecherche.simple("\"quai numéro 3\"", 0, 10), UTILISATEUR);
+        assertEquals(1, exact.total());
+        assertFalse(exact.totalPlafonne());
+    }
+
     private List<UUID> chercherAvec(CriteresMetadonnees c, RequeteRecherche.Tri tri) {
         return indexer.rechercher(new RequeteRecherche("bail", 0, 10, tri, c.fragments()), UTILISATEUR)
                 .resultats().stream().map(PageResultats.Resultat::documentId).toList();

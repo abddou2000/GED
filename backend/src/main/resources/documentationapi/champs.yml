@@ -126,6 +126,10 @@ objets:
   ATraiter: Validation attendue de l'acteur.
   DecisionRendue: Décision rendue par l'acteur (historique).
   VuesWorkflowAnomalie: Validateur qui ne peut pas décider (tableau de bord de l'Administrateur).
+  # --- Intégrité à la demande (T-059, §6.1.4), dev3 ---------------------------
+  BilanDocument: Vérification d'intégrité à la demande d'un document (versions et copies de conservation), tracée.
+  VerificationALaDemandeLigne: Résultat de la vérification d'intégrité d'un fichier du document.
+  VerificationPeriodiqueEtat: État de la vérification d'intégrité du fonds entier (passe en cours ou dernière passe).
 
 champs:
   # --- Envoi multipart -------------------------------------------------------
@@ -135,7 +139,7 @@ champs:
   deposeDu: {description: "Date de dépôt minimale (incluse, AAAA-MM-JJ).", exemple: "2026-01-01"}
   deposeAu: {description: "Date de dépôt maximale (incluse, AAAA-MM-JJ).", exemple: "2026-12-31"}
   taille: {description: "Taille de page : 50 par défaut, plafonnée à 200.", exemple: 50}
-  tri: {description: "Tri en liste blanche : PERTINENCE (défaut avec texte), DATE_DEPOT (défaut sans texte), NOM, TYPE, INDEXATION_RECENTE.", exemple: PERTINENCE}
+  tri: {description: "Tri en liste blanche : PERTINENCE (défaut avec texte), DATE_DOCUMENT (date du document décroissante, défaut sans texte, §12.7), DATE_DEPOT, NOM, TYPE, INDEXATION_RECENTE.", exemple: PERTINENCE}
   pertinence: {description: "Score de pertinence plein texte (0 sans texte).", exemple: 0.42}
   deposeLe: {description: "Date de dépôt du document.", exemple: "2026-09-27T09:30:00Z"}
   espace: {description: "Nom de l'espace (emplacement principal) du document.", exemple: "Marchés"}
@@ -524,6 +528,13 @@ champs:
   depuis: {description: "Depuis quand l'anomalie est constatée.", exemple: "2026-09-01T00:00:00Z"}
 
 surcharges:
+  BilanDocument.conforme: {description: "Vrai si tous les fichiers du document sont conformes à leur empreinte.", exemple: true}
+  BilanDocument.fichiers: {description: "Résultat par fichier : versions chiffrées, puis copies de conservation.", exemple: null}
+  VerificationALaDemandeLigne.statut: {description: "CONFORME, EMPREINTE_DIVERGENTE, ALTERE, ABSENT ou ILLISIBLE ; toute divergence est tracée (INTEGRITE_ANOMALIE).", exemple: CONFORME}
+  VerificationPeriodiqueEtat.enCours: {description: "Vrai pendant une passe (planifiée ou demandée).", exemple: false}
+  VerificationPeriodiqueEtat.debut: {description: "Début de la passe en cours ou de la dernière ; nul si aucune.", exemple: "2026-10-01T03:00:00Z"}
+  VerificationPeriodiqueEtat.fin: {description: "Fin de la dernière passe ; nulle pendant une passe.", exemple: "2026-10-01T05:12:00Z"}
+  VerificationPeriodiqueEtat.bilan: {description: "Décompte par statut de la dernière passe terminée.", exemple: null}
   DocumentResponse.applicationId: {description: "Application appelante (clé d'API) ; nulle pour un dépôt par l'interface (T-040).", exemple: null}
   CircuitResponse.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}
   DecisionRendue.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}
@@ -599,6 +610,7 @@ surcharges:
   PageResultats.taille: {description: "Taille de page appliquée.", exemple: 50}
   PageResultats.page: {description: "Numéro de page (à partir de 0).", exemple: 0}
   PageResultats.total: {description: "Nombre total de documents trouvés dans le périmètre autorisé.", exemple: 128}
+  PageResultats.totalPlafonne: {description: "Vrai si le plein texte trouve plus de correspondances que son plafond (5 000) : total vaut alors ce plafond, à lire « plus de 5 000 résultats » ; affiner la recherche.", exemple: false}
   PageResultatsResultat.typeDocument: {description: "Libellé du type documentaire.", exemple: "Marché public"}
   PageResultatsResultat.nom: {description: "Nom du document.", exemple: MAR_2026_014}
   Job.archives: {description: "Documents archivés.", exemple: 118}

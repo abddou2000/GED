@@ -238,6 +238,46 @@ class ModeleDocumentApiTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
     }
 
+    @Test
+    @DisplayName("ANO-F-006 : la liste des documents se trie sur la date du document, ex-aequo départagés")
+    void listeTrieeParDateDuDocument() throws Exception {
+        String prefixe = "TRI-" + UUID.randomUUID().toString().substring(0, 6);
+        UUID a = deposer(prefixe + "-A", null, "2026-02-01");
+        UUID b = deposer(prefixe + "-B", null, "2025-11-15");
+        UUID c = deposer(prefixe + "-C", null, "2026-05-01");
+        UUID d = deposer(prefixe + "-D", null, "2026-02-01");
+
+        List<UUID> croissant = liste(prefixe, "asc");
+        List<UUID> decroissant = liste(prefixe, "desc");
+        assertEquals(b, croissant.get(0));
+        assertEquals(c, croissant.get(3));
+        assertEquals(java.util.Set.of(a, d), java.util.Set.copyOf(croissant.subList(1, 3)));
+        assertEquals(c, decroissant.get(0));
+        assertEquals(b, decroissant.get(3));
+        // Ex-aequo (même date) : ordre stable d'un appel à l'autre, pages comprises.
+        assertEquals(croissant.subList(1, 3), liste(prefixe, "asc").subList(1, 3));
+    }
+
+    private List<UUID> liste(String recherche, String sens) throws Exception {
+        JsonNode r = json(mvc.perform(get(DOCS).param("search", recherche).param("sortBy", "dateDocument")
+                .param("sortDir", sens)).andExpect(status().isOk()));
+        List<UUID> l = new ArrayList<>();
+        r.get("content").forEach(n -> l.add(UUID.fromString(n.get("id").asText())));
+        return l;
+    }
+
+    @Test
+    @DisplayName("ANO-F-005 : les champs à saisir d'un document disent lesquels sont obligatoires")
+    void champsObligatoiresExposes() throws Exception {
+        UUID doc = deposer("À indexer", null, null);
+        JsonNode champs = json(mvc.perform(get("/api/v1/indexation/documents/" + doc + "/champs"))
+                .andExpect(status().isOk()));
+        java.util.Map<String, Boolean> parCode = new java.util.HashMap<>();
+        champs.forEach(c -> parCode.put(c.get("code").asText(), c.get("obligatoire").asBoolean()));
+        assertEquals(Boolean.TRUE, parCode.get(date.getCode()));
+        assertEquals(Boolean.FALSE, parCode.get(montant.getCode()));
+    }
+
     private List<UUID> ids(String requete) throws Exception {
         JsonNode r = json(mvc.perform(post(DOCS + "/recherche").contentType(APPLICATION_JSON).content(requete))
                 .andExpect(status().isOk()));

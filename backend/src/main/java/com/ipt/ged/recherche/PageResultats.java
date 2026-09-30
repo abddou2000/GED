@@ -10,8 +10,18 @@ import java.util.UUID;
  * l'OCR de documents déposés, il peut contenir n'importe quoi (y compris
  * {@code <script>}). Le client affiche chaque segment comme du texte et
  * surligne ceux marqués — aucun HTML à assainir (OWASP A03).
+ *
+ * @param totalPlafonne vrai quand les correspondances dépassent le plafond de
+ *                      la recherche plein texte : {@code total} vaut alors ce
+ *                      plafond et se lit « plus de {@code total} résultats »
+ *                      (affiner la recherche) ; faux : total exact.
  */
-public record PageResultats(List<Resultat> resultats, long total, int page, int taille) {
+public record PageResultats(List<Resultat> resultats, long total, int page, int taille, boolean totalPlafonne) {
+
+    /** Page au total exact. */
+    public PageResultats(List<Resultat> resultats, long total, int page, int taille) {
+        this(resultats, total, page, taille, false);
+    }
 
     /**
      * @param nom          nom du document ;
@@ -26,13 +36,15 @@ public record PageResultats(List<Resultat> resultats, long total, int page, int 
                            /** Canal du dépôt (T-040). */
                            String canalDepot,
                            /** Échéance de conservation atteinte : mise en évidence (§12.9). */
-                           boolean echeanceDepassee) {
+                           boolean echeanceDepassee,
+                           /** Date du document, clé de tri {@code DATE_DOCUMENT} (§12.7, P-21). */
+                           java.time.LocalDate dateDocument) {
 
         public Resultat(UUID documentId, UUID versionId, double pertinence, List<Segment> extrait, String nom,
                         String typeDocument, String espace, java.time.Instant deposeLe, String statutConservation,
                         String canalDepot) {
             this(documentId, versionId, pertinence, extrait, nom, typeDocument, espace, deposeLe, statutConservation,
-                    canalDepot, false);
+                    canalDepot, false, null);
         }
     }
 

@@ -57,6 +57,7 @@ class ApercuTelechargementApiTest {
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper om;
     @Autowired private ApplicationEvents evenements;
+    @Autowired private ConvertisseurBureautique libreOffice;
     @Autowired private WorkflowRepository workflowRepository;
     @Autowired private EmployeRepository employeRepository;
     @Autowired private WorkSpaceRepository workspaceRepository;
@@ -169,6 +170,10 @@ class ApercuTelechargementApiTest {
     @WithUserDetails(Comptes.ADMIN)
     @DisplayName("Aperçu bureautique sans LibreOffice sur le poste : 503 CONVERSION_INDISPONIBLE, aucun événement")
     void apercuBureautiqueSansLibreOffice() throws Exception {
+        // Profil de test : binaire soffice introuvable, que LibreOffice soit installé
+        // ou non sur le poste (application-test.yml). L'aperçu réel est prouvé par
+        // LibreOfficeReelApiTest.
+        assertFalse(libreOffice.disponible(), "le profil de test doit simuler LibreOffice absent");
         UUID[] ids = deposer("contrat.docx", Echantillons.docx());
         mvc.perform(get("/api/v1/versions/{id}/apercu", ids[1]))
                 .andExpect(status().isServiceUnavailable())

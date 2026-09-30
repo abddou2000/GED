@@ -87,6 +87,22 @@
       </div>
     }
 
+    @if (aIndexer()) {
+      <!-- Issue « à indexer » (§4.1.7, ANO-F-005) : le fichier est conservé,
+           ses métadonnées restent à saisir — ici même, bloc « Champs indexés ». -->
+      <div class="bandeau-verrou a-indexer">
+        <mat-icon svgIcon="alert"></mat-icon>
+        <span><span class="badge-a-indexer">À indexer</span>
+          Les index de ce document n'ont pas été enregistrés.
+          @if (modifiable && champs().length) {
+            Saisissez-les dans le bloc « Champs indexés » ci-dessous.
+          } @else if (!modifiable) {
+            Une personne habilitée à modifier ce document doit les saisir.
+          }
+        </span>
+      </div>
+    }
+
     @if (d.verrouille) {
       <div class="bandeau-verrou">
         <mat-icon svgIcon="archive"></mat-icon>
@@ -114,7 +130,7 @@
         @if (d.objet) {
           <div class="cartouche"><span class="val">{{ d.objet }}</span><span class="lib">Objet</span></div>
         }
-        <div class="cartouche"><span class="val">{{ d.dateDocument || '—' }}</span><span class="lib">Date du document</span></div>
+        <div class="cartouche"><span class="val">{{ d.dateDocument ? dateCourte(d.dateDocument) : '—' }}</span><span class="lib">Date du document</span></div>
         @if (d.echeanceConservation) {
           <div class="cartouche"><span class="val">{{ d.echeanceConservation }}</span><span class="lib">Échéance de conservation</span></div>
         }
@@ -145,6 +161,28 @@
               }
             </mat-select>
             <mat-hint>Changer le type déplace le document dans le dossier associé</mat-hint>
+          </mat-form-field>
+
+          <!-- Socle commun (ANO-F-006) : l'objet, et la date DU DOCUMENT (pas
+               celle du dépôt), sur laquelle portent les tris. -->
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Objet</mat-label>
+            <textarea matInput formControlName="objet" rows="2" maxlength="1000"
+                      [readonly]="verrouille"></textarea>
+            @if (form.get('objet')?.invalid) {
+              <mat-error>L'objet est limité à 1000 caractères</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full">
+            <mat-label>Date du document</mat-label>
+            <input matInput [matDatepicker]="dpDoc" formControlName="dateDocument"
+                   [readonly]="verrouille" placeholder="Choisir une date" />
+            <mat-datepicker-toggle matIconSuffix [for]="dpDoc" [disabled]="verrouille">
+              <mat-icon matDatepickerToggleIcon svgIcon="calendar"></mat-icon>
+            </mat-datepicker-toggle>
+            <mat-datepicker #dpDoc></mat-datepicker>
+            <mat-hint>Date portée par le document ; les tris de la liste s'y appuient</mat-hint>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="full">
@@ -205,10 +243,82 @@
           }
         </div>
 
-        <!-- Valeurs d'index -->
-        <div class="card">
-          <div class="bloc-tete"><mat-icon svgIcon="nav-index"></mat-icon><span>Champs indexés</span></div>
-          @if (valeurs().length) {
+        <!-- Valeurs d'index : lecture, ou saisie (reprise d'un document « à indexer »). -->
+        <div class="card" id="champs-indexes">
+          <div class="bloc-tete">
+            <mat-icon svgIcon="nav-index"></mat-icon><span>Champs indexés</span>
+            @if (modifiable && champs().length && !saisieIndexOuverte()) {
+              <button mat-stroked-button type="button" class="bloc-action" (click)="ouvrirSaisieIndex()">
+                <mat-icon svgIcon="edit"></mat-icon> Saisir les index
+              </button>
+            }
+          </div>
+          @if (saisieIndexOuverte()) {
+            <div class="index-saisie">
+              @for (c of champs(); track c.id) {
+                @switch (c.fieldType) {
+                  @case ('LISTE') {
+                    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+                      <mat-label>{{ c.libelle }}{{ c.obligatoire ? ' *' : '' }}</mat-label>
+                      <mat-select [value]="valeurSaisie(c)" (selectionChange)="majIndex(c, $event.value)">
+                        <mat-option value="">—</mat-option>
+                        @for (o of c.options; track o) { <mat-option [value]="o">{{ o }}</mat-option> }
+                      </mat-select>
+                    </mat-form-field>
+                  }
+                  @case ('BOOLEEN') {
+                    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+                      <mat-label>{{ c.libelle }}{{ c.obligatoire ? ' *' : '' }}</mat-label>
+                      <mat-select [value]="valeurSaisie(c)" (selectionChange)="majIndex(c, $event.value)">
+                        <mat-option value="">—</mat-option>
+                        <mat-option value="oui">Oui</mat-option>
+                        <mat-option value="non">Non</mat-option>
+                      </mat-select>
+                    </mat-form-field>
+                  }
+                  @case ('DATE') {
+                    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+                      <mat-label>{{ c.libelle }}{{ c.obligatoire ? ' *' : '' }}</mat-label>
+                      <input matInput [matDatepicker]="dpIdx" [value]="versDate(valeurSaisie(c))"
+                             (dateChange)="majIndex(c, versIso($event.value))" />
+                      <mat-datepicker-toggle matIconSuffix [for]="dpIdx">
+                        <mat-icon matDatepickerToggleIcon svgIcon="calendar"></mat-icon>
+                      </mat-datepicker-toggle>
+                      <mat-datepicker #dpIdx></mat-datepicker>
+                    </mat-form-field>
+                  }
+                  @case ('NOMBRE') {
+                    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+                      <mat-label>{{ c.libelle }}{{ c.obligatoire ? ' *' : '' }}</mat-label>
+                      <input matInput type="number" [value]="valeurSaisie(c)"
+                             (input)="majIndex(c, $any($event.target).value)" />
+                    </mat-form-field>
+                  }
+                  @default {
+                    <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
+                      <mat-label>{{ c.libelle }}{{ c.obligatoire ? ' *' : '' }}</mat-label>
+                      <input matInput [value]="valeurSaisie(c)" [attr.data-index]="c.code"
+                             (input)="majIndex(c, $any($event.target).value)" />
+                    </mat-form-field>
+                  }
+                }
+              }
+              @if (erreurIndex(); as e) { <p class="erreur-index">{{ e }}</p> }
+              <div class="actions-form">
+                @if (indexObligatoiresVides().length) {
+                  <span class="reste-index">{{ indexObligatoiresVides().length }} champ(s) obligatoire(s) à renseigner</span>
+                }
+                @if (!aIndexer()) {
+                  <button mat-button type="button" (click)="annulerSaisieIndex()">Annuler</button>
+                }
+                <button mat-flat-button color="primary" type="button" class="enregistrer-index"
+                        [disabled]="enregistrementIndex() || indexObligatoiresVides().length > 0"
+                        (click)="enregistrerIndex()">
+                  {{ enregistrementIndex() ? 'Enregistrement…' : 'Enregistrer les index' }}
+                </button>
+              </div>
+            </div>
+          } @else if (valeurs().length) {
             <dl class="index-liste">
               @for (v of valeurs(); track v.label) {
                 <div><dt>{{ v.label }}</dt><dd>{{ v.valeur || '—' }}</dd></div>

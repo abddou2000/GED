@@ -1,5 +1,7 @@
 package com.ipt.ged.charge;
 
+import com.ipt.ged.contratapi.ServiceContratApi;
+import com.ipt.ged.contratapi.dto.DtoContratApi.RechercheContratRequest;
 import com.ipt.ged.cycledevie.ArchivageDossiers;
 import com.ipt.ged.cycledevie.ExportDossiers;
 import com.ipt.ged.document.dto.DocumentResponse;
@@ -50,6 +52,7 @@ class EssaiVolumetrieChargeIT extends BaseCharge {
     @Autowired private ExportDossiers exports;
     @Autowired private SearchIndexer indexer;
     @Autowired private IndexationService indexation;
+    @Autowired private ServiceContratApi contrat;
 
     @Test
     void archivageDossierMille() throws Exception {
@@ -245,12 +248,13 @@ class EssaiVolumetrieChargeIT extends BaseCharge {
             for (RequeteRecherche.Tri tri : List.of(RequeteRecherche.Tri.PERTINENCE, RequeteRecherche.Tri.DATE_DEPOT)) {
                 for (Map.Entry<String, String> q : requetes.entrySet()) {
                     List<Long> ms = new ArrayList<>();
-                    long total = 0;
+                    String total = "";
                     for (int rep = 0; rep < 6; rep++) {
                         long q0 = System.nanoTime();
                         PageResultats p = indexer.rechercher(new RequeteRecherche(q.getValue(), 0, 20, tri, List.of()), a);
                         if (rep > 0) ms.add((System.nanoTime() - q0) / 1_000_000); // 1er passage : cache froid
-                        total = p.total();
+                        // « + » : total plafonné, à lire « plus de » (R32).
+                        total = p.total() + (p.totalPlafonne() ? "+" : "");
                     }
                     Mesures.noter(cle + "." + tri + "." + q.getKey(), "p50=" + Mesures.centile(ms, 50) + " ms, max="
                             + Mesures.centile(ms, 100) + " ms, resultats=" + total);
@@ -288,6 +292,30 @@ class EssaiVolumetrieChargeIT extends BaseCharge {
                 Mesures.noter(mc + ".pic_tas_mo", pic.picMo());
             } catch (Exception e) {
                 Mesures.noter(mc + ".echec", e.getClass().getSimpleName() + " : " + racine(e));
+            }
+            // Multicritère du contrat (POST /recherches sans texte) : filtré, trié et paginé
+            // par la base (R32) ; un type, puis tout le fonds, première page et page 100.
+            String mcc = n + ".multicritere_contrat." + (qui.equals(Comptes.ADMIN) ? "admin" : "standard_1_4");
+            try (Mesures.PicTas pic = new Mesures.PicTas()) {
+                List<Long> multi = new ArrayList<>();
+                long totalType = 0;
+                for (int rep = 0; rep < 3; rep++) {
+                    long m0 = System.nanoTime();
+                    totalType = contrat.rechercher(new RechercheContratRequest(null, List.of(), f.types().get(rep), null,
+                            null, null, null, null, null, null, 0, 50), a).total();
+                    multi.add((System.nanoTime() - m0) / 1_000_000);
+                }
+                Mesures.noter(mcc + ".un_type.p50_ms", Mesures.centile(multi, 50) + " (total " + totalType + ")");
+                for (int pageNo : List.of(0, 100)) {
+                    long m0 = System.nanoTime();
+                    long total = contrat.rechercher(new RechercheContratRequest(null, List.of(), null, null, null, null,
+                            null, null, null, null, pageNo, 50), a).total();
+                    Mesures.noter(mcc + ".tout_le_fonds_page_" + pageNo + "_ms", (System.nanoTime() - m0) / 1_000_000
+                            + " (total " + total + ")");
+                }
+                Mesures.noter(mcc + ".pic_tas_mo", pic.picMo());
+            } catch (Exception e) {
+                Mesures.noter(mcc + ".echec", e.getClass().getSimpleName() + " : " + racine(e));
             }
             // Liste paginée des documents (filtrage par droits à la source).
             List<Long> liste = new ArrayList<>();

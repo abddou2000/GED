@@ -19,6 +19,8 @@ export interface ResultatRecherche {
   canalDepot?: string | null;
   /** Échéance de conservation atteinte (§12.9) : mise en évidence. */
   echeanceDepassee?: boolean;
+  /** Date du document (AAAA-MM-JJ), clé de tri DATE_DOCUMENT (§12.7). */
+  dateDocument?: string | null;
 }
 
 export interface PageResultats {
@@ -26,9 +28,11 @@ export interface PageResultats {
   total: number;
   page: number;
   taille: number;
+  /** Plus de correspondances que le plafond (5 000) : lire « plus de total », affiner (R32). */
+  totalPlafonne?: boolean;
 }
 
-export type TriRecherche = 'PERTINENCE' | 'DATE_DEPOT' | 'NOM' | 'TYPE' | 'INDEXATION_RECENTE';
+export type TriRecherche = 'PERTINENCE' | 'DATE_DOCUMENT' | 'DATE_DEPOT' | 'NOM' | 'TYPE' | 'INDEXATION_RECENTE';
 
 export interface CriteresRecherche {
   q: string;

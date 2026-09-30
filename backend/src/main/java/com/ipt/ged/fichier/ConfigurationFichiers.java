@@ -12,6 +12,7 @@ import com.ipt.ged.fichier.controle.ControleFichiers;
 import com.ipt.ged.fichier.controle.DetecteurTypeReel;
 import com.ipt.ged.fichier.integrite.SourceEmpreintes;
 import com.ipt.ged.fichier.integrite.SourceEmpreintesVersions;
+import com.ipt.ged.fichier.integrite.VerificationALaDemande;
 import com.ipt.ged.fichier.integrite.VerificationIntegrite;
 import com.ipt.ged.fichier.integrite.VerificationPeriodique;
 import com.ipt.ged.fichier.previsualisation.ControleAccesPrevisualisation;
@@ -99,6 +100,23 @@ public class ConfigurationFichiers {
         return new SourceEmpreintesVersions(jdbc);
     }
 
+    /**
+     * Passe de vérification du fonds : planifiée ({@link VerificationPlanifiee})
+     * ou déclenchée à la demande par l'Administrateur (T-059).
+     */
+    @Bean
+    public VerificationPeriodique verificationPeriodique(VerificationIntegrite verification, SourceEmpreintes source) {
+        return new VerificationPeriodique(verification, source);
+    }
+
+    /** Vérification à la demande d'un document ou du fonds, tracée (T-059). */
+    @Bean
+    public VerificationALaDemande verificationALaDemande(JdbcTemplate jdbc, VerificationIntegrite verification,
+                                                         VerificationPeriodique fonds,
+                                                         ApplicationEventPublisher evenements) {
+        return new VerificationALaDemande(jdbc, verification, fonds, evenements);
+    }
+
     @Bean
     public DetecteurTypeReel detecteurTypeReel() {
         return new DetecteurTypeReel();
@@ -167,9 +185,15 @@ public class ConfigurationFichiers {
     @EnableScheduling
     @ConditionalOnProperty(prefix = "ged.fichiers.integrite", name = "verification-planifiee", havingValue = "true")
     static class VerificationPlanifiee {
-        @Bean
-        public VerificationPeriodique verificationPeriodique(VerificationIntegrite verification, SourceEmpreintes source) {
-            return new VerificationPeriodique(verification, source);
+        private final VerificationPeriodique verification;
+
+        VerificationPlanifiee(VerificationPeriodique verification) {
+            this.verification = verification;
+        }
+
+        @Scheduled(cron = "${ged.fichiers.integrite.cron:0 0 3 1 * *}")
+        public void planifiee() {
+            verification.executer();
         }
     }
 

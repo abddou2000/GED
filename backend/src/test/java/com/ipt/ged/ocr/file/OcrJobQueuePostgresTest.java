@@ -271,4 +271,42 @@ class OcrJobQueuePostgresTest {
         assertEquals(recent, file.reserver("w", 1, BAIL).get(0).id());
         assertEquals(2, file.lister(StatutOcr.EN_COURS_OCR, 10, 0).size());
     }
+
+    private UUID enfilerReprise(Instant depose) {
+        UUID doc = UUID.randomUUID(), version = UUID.randomUUID(), fichier = UUID.randomUUID();
+        base.document(doc, version);
+        base.cleFichier(fichier);
+        return file.enfiler(new OcrJobQueue.NouveauJob(doc, version, fichier, "application/pdf", "fra+ara", depose,
+                PrioriteOcr.REPRISE));
+    }
+
+    @Test
+    @DisplayName("R31 / D6 : un dépôt courant passe avant tout l'arriéré de la reprise, qui avance ensuite")
+    void fluxCourantAvantReprise() {
+        // Arriéré de reprise enfilé bien avant le dépôt courant (et une tentative reprogrammée échue).
+        List<UUID> reprise = new ArrayList<>();
+        for (int i = 0; i < 5; i++) reprise.add(enfilerReprise(Instant.now().minus(Duration.ofDays(10 - i))));
+        UUID courant = enfiler(Instant.now());
+        assertEquals(1, jdbc.queryForObject("SELECT priorite FROM ocr_job WHERE id = ?", Integer.class, reprise.get(0)));
+        assertEquals(0, jdbc.queryForObject("SELECT priorite FROM ocr_job WHERE id = ?", Integer.class, courant));
+
+        // Un seul worker libre : il prend le dépôt courant, pas le plus ancien job de reprise.
+        assertEquals(courant, file.reserver("w", 1, BAIL).get(0).id());
+        // Âge de la file mesuré sur le flux seul (D6) : l'arriéré de reprise ne le fausse pas.
+        assertTrue(file.plusAncienDepotEnAttente().isPresent());
+        assertTrue(file.terminer(courant, "w", 1));
+        assertTrue(file.plusAncienDepotEnAttente().isEmpty(), "aucun dépôt courant en attente");
+
+        // Flux vide : la reprise avance, dans son ordre de dépôt.
+        List<UUID> servis = new ArrayList<>();
+        // Un par un : l'ordre des lignes rendues par une même réservation n'est pas garanti.
+        servis.add(file.reserver("w", 1, BAIL).get(0).id());
+        servis.add(file.reserver("w", 1, BAIL).get(0).id());
+        assertEquals(reprise.subList(0, 2), servis);
+        // Un nouveau dépôt courant arrivé entre-temps repasse devant le reste de la reprise.
+        UUID suivant = enfiler(Instant.now());
+        assertEquals(suivant, file.reserver("w", 1, BAIL).get(0).id());
+        // Contrainte : priorité hors liste refusée.
+        assertThrows(RuntimeException.class, () -> jdbc.update("UPDATE ocr_job SET priorite = 7 WHERE id = ?", suivant));
+    }
 }

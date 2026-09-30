@@ -112,4 +112,35 @@ class VerificationIntegriteTest {
         assertEquals(2, bilan.get(VerificationIntegrite.Statut.CONFORME));
         assertEquals(1, bilan.get(VerificationIntegrite.Statut.ALTERE));
     }
+
+    @Test
+    @DisplayName("Passe à la demande en tâche de fond : une seule à la fois, état puis bilan consultables")
+    void passeEnFond() throws Exception {
+        StockageChiffre.ResultatStockage a = ecrire(100);
+        java.util.concurrent.CountDownLatch entree = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch sortie = new java.util.concurrent.CountDownLatch(1);
+        SourceEmpreintes source = visiteur -> {
+            entree.countDown();
+            try {
+                assertTrue(sortie.await(10, java.util.concurrent.TimeUnit.SECONDS));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            visiteur.accept(new SourceEmpreintes.EmpreinteAttendue(a.id(), a.empreinte(), "a"));
+        };
+        VerificationPeriodique fonds = new VerificationPeriodique(verification, source);
+        assertFalse(fonds.etat().enCours());
+        assertTrue(fonds.demarrerEnFond());
+        assertTrue(entree.await(10, java.util.concurrent.TimeUnit.SECONDS));
+        assertTrue(fonds.etat().enCours());
+        assertFalse(fonds.demarrerEnFond(), "une passe à la fois");
+        assertTrue(fonds.executer().isEmpty(), "la passe planifiée est ignorée pendant la passe demandée");
+        sortie.countDown();
+        long limite = System.currentTimeMillis() + 10_000;
+        while (fonds.etat().enCours() && System.currentTimeMillis() < limite) Thread.sleep(20);
+        VerificationPeriodique.Etat etat = fonds.etat();
+        assertFalse(etat.enCours());
+        assertNotNull(etat.fin());
+        assertEquals(Map.of(VerificationIntegrite.Statut.CONFORME, 1), etat.bilan());
+    }
 }

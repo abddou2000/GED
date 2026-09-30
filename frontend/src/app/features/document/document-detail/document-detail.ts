@@ -1,8 +1,8 @@
 import { AuthService } from '../../../core/auth.service';
-import { Component, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -19,6 +19,7 @@ import { Etiquette } from '../../etiquette/etiquette.model';
 import { TypeDocumentService } from '../../type-document/type-document.service';
 import { SelectOption } from '../../type-document/type-document.model';
 import { IndexationService } from '../../indexation/indexation.service';
+import { Critere } from '../../indexation/indexation.model';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { formaterDate, versDate, versIso } from '../../../core/dates';
@@ -28,6 +29,7 @@ import { Conservation } from '../../cycle-de-vie/cycle-de-vie.model';
 
 /** Une valeur d'index déjà enregistrée pour ce document. */
 interface ValeurIndex {
+  indexFieldId: string;
   label: string;
   valeur: string;
 }
@@ -74,6 +76,28 @@ export class DocumentDetail implements OnInit {
   etiquettes = signal<Etiquette[]>([]);
   types = signal<SelectOption[]>([]);
   valeurs = signal<ValeurIndex[]>([]);
+
+  /* ---------- Saisie des index (ANO-F-005) ----------
+     Un document déposé « à indexer » (§4.1.7 : fichier conservé, métadonnées
+     non enregistrées) ne se reprenait que par l'API : la fiche montrait ses
+     index en lecture seule. Elle porte désormais la saisie — mêmes champs que
+     le plan du type, même enregistrement (PUT /indexation/documents/{id}), qui
+     fait passer l'issue à « indexé ». */
+  /** Champs du plan d'indexation du type (vide : type sans plan). */
+  champs = signal<Critere[]>([]);
+  /** Saisies en cours, par index ; absentes = valeur enregistrée. */
+  saisieIndex = signal<Record<string, string>>({});
+  editionIndex = signal(false);
+  enregistrementIndex = signal(false);
+  erreurIndex = signal<string | null>(null);
+
+  /** Issue « à indexer » : métadonnées à saisir ou à reprendre (§12.11). */
+  readonly aIndexer = computed(() => this.doc()?.statutIndexation === 'A_INDEXER');
+
+  /** Index obligatoires encore vides dans la saisie : l'envoi serait refusé. */
+  readonly indexObligatoiresVides = computed(() =>
+    this.champs().filter(c => c.obligatoire && !this.valeurSaisie(c).trim()));
+
   chargement = signal(true);
   introuvable = signal(false);
   enregistrement = signal(false);
@@ -91,6 +115,10 @@ export class DocumentDetail implements OnInit {
     active: [true],
     observation: [''],
     confidentialite: ['PUBLIC' as Confidentialite],
+    /* Socle commun (§4.2.3 ; ANO-F-006) : corrigeables ici, comme le reste de
+       la fiche — l'API les acceptait, l'écran les montrait en lecture seule. */
+    objet: ['', Validators.maxLength(1000)],
+    dateDocument: [null as Date | null],
   });
 
   readonly niveaux = NIVEAUX_CONFIDENTIALITE;
@@ -137,6 +165,8 @@ export class DocumentDetail implements OnInit {
           etiquetteIds: (d.etiquettes ?? []).map(e => e.id),
           active: d.active,
           confidentialite: d.confidentialite ?? 'PUBLIC',
+          objet: d.objet ?? '',
+          dateDocument: versDate(d.dateDocument ?? null),
         });
         this.appliquerVerrou(!this.modifiable);
         this.chargement.set(false);
@@ -146,9 +176,80 @@ export class DocumentDetail implements OnInit {
     });
     // Les valeurs d'index viennent du module d'indexation : la fiche les affiche
     // en lecture, les corriger reste du ressort de l'écran de dépôt.
+    this.chargerIndex(id);
+  }
+
+  private chargerIndex(id: string): void {
     this.indexation.valeurs(id).subscribe({
-      next: v => this.valeurs.set(v.map(x => ({ label: x.libelle, valeur: x.valeur }))),
+      next: v => this.valeurs.set(v.map(x => ({ indexFieldId: x.indexFieldId, label: x.libelle, valeur: x.valeur }))),
       error: () => this.valeurs.set([]),
+    });
+    this.indexation.champs(id).subscribe({
+      next: c => this.champs.set(c),
+      error: () => this.champs.set([]),
+    });
+  }
+
+  /**
+   * Le formulaire des index est-il ouvert ? Toujours pour un document « à
+   * indexer » que l'on peut modifier : c'est précisément ce qui reste à faire.
+   */
+  saisieIndexOuverte(): boolean {
+    return this.modifiable && this.champs().length > 0 && (this.editionIndex() || this.aIndexer());
+  }
+
+  ouvrirSaisieIndex(): void {
+    this.saisieIndex.set({});
+    this.erreurIndex.set(null);
+    this.editionIndex.set(true);
+  }
+
+  annulerSaisieIndex(): void {
+    this.saisieIndex.set({});
+    this.erreurIndex.set(null);
+    this.editionIndex.set(false);
+  }
+
+  /** Valeur affichée dans le champ : la saisie en cours, sinon l'enregistrée. */
+  valeurSaisie(c: Critere): string {
+    const saisie = this.saisieIndex()[c.id];
+    if (saisie !== undefined) return saisie;
+    return this.valeurs().find(v => v.indexFieldId === c.id)?.valeur ?? '';
+  }
+
+  majIndex(c: Critere, valeur: string | null): void {
+    this.saisieIndex.update(s => ({ ...s, [c.id]: valeur ?? '' }));
+  }
+
+  /** Date d'un index : le sélecteur manipule des dates, l'API des chaînes. */
+  readonly versDate = versDate;
+  readonly versIso = versIso;
+
+  /**
+   * Enregistre TOUS les champs du plan : un index absent du corps compterait
+   * comme non renseigné au contrôle des obligatoires. Le serveur valide la
+   * nature de chaque valeur, recompose la référence et passe l'issue à
+   * « indexé » ; la fiche est rechargée pour le montrer (nom compris).
+   */
+  enregistrerIndex(): void {
+    const id = this.id();
+    if (id == null || this.enregistrementIndex() || this.indexObligatoiresVides().length) return;
+    const valeurs = this.champs().map(c => ({ indexFieldId: c.id, valeur: this.valeurSaisie(c).trim() || null }));
+    this.enregistrementIndex.set(true);
+    this.erreurIndex.set(null);
+    this.indexation.enregistrer(id, valeurs).subscribe({
+      next: v => {
+        this.enregistrementIndex.set(false);
+        this.valeurs.set(v.map(x => ({ indexFieldId: x.indexFieldId, label: x.libelle, valeur: x.valeur })));
+        this.saisieIndex.set({});
+        this.editionIndex.set(false);
+        this.notify.success('Index enregistrés.');
+        this.charger();
+      },
+      error: err => {
+        this.enregistrementIndex.set(false);
+        this.erreurIndex.set(err?.error?.message ?? "Enregistrement des index impossible.");
+      },
     });
   }
 
@@ -245,6 +346,7 @@ export class DocumentDetail implements OnInit {
   enregistrer(): void {
     const id = this.id();
     if (id == null) return;
+    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     const v = this.form.value;
     this.enregistrement.set(true);
     this.service.update(id, {
@@ -252,6 +354,10 @@ export class DocumentDetail implements OnInit {
       expirationDate: versIso(v.expirationDate),
       active: v.active, etiquetteIds: v.etiquetteIds ?? [],
       confidentialite: v.confidentialite ?? undefined,
+      /* Objet vide = effacé (le serveur le ramène à null). La date du document
+         ne s'efface pas : absente, elle n'est simplement pas modifiée. */
+      objet: (v.objet ?? '').trim(),
+      dateDocument: versIso(v.dateDocument) ?? undefined,
     }).subscribe({
       next: d => {
         this.doc.set(d);

@@ -32,6 +32,7 @@ export class RecherchePleinTexte implements OnInit {
 
   readonly TRIS: { valeur: TriRecherche; libelle: string }[] = [
     { valeur: 'PERTINENCE', libelle: 'Pertinence' },
+    { valeur: 'DATE_DOCUMENT', libelle: 'Date du document' },
     { valeur: 'DATE_DEPOT', libelle: 'Date de dépôt' },
     { valeur: 'NOM', libelle: 'Nom' },
     { valeur: 'TYPE', libelle: 'Type de document' },
