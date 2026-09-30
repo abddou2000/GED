@@ -17,7 +17,8 @@
 #    C. preuve du contrat de connexion (classes LIVRÉES, Jackson + validation) ;
 #    D1. 1er déploiement (base vierge) — GED simulée tolérante ;
 #    D2. changelog altéré : validate en échec, rien n'est arrêté ni migré ;
-#    D3. déploiement v2 avec le contrat réel : fumée en échec → retour auto ;
+#    D3. déploiement v2 avec le contrat réel : fumée en échec → retour auto
+#        (tour 2 : connexion acceptée, échec provoqué à la recherche par la GED simulée) ;
 #    D4. --retour-arriere --base juste après D3 (lien = JAR précédent) ;
 #    D5. témoin : v3 déployée puis --retour-arriere --base (lien = JAR récent) ;
 #    D6. --verifier contre le contrat réel.
@@ -175,10 +176,16 @@ c="$(deployer B3 dev --jar "$W/jars/absent.jar" --module back)"
 # ---------------------------------------------------------------------
 # C. Preuve du contrat de connexion avec les classes LIVRÉES
 # ---------------------------------------------------------------------
+# Tour 2 : le corps est celui que produit RÉELLEMENT le filtre jq du test-fumee.sh livré
+# (filtre extrait de api_connexion, exécuté avec les deux noms de variable connus).
+filtre="$(sed -n '/^api_connexion()/,/^}/p' "$SCRIPTS/test-fumee.sh" | grep -o "'{[^']*}'" | head -1 | tr -d "'")"
+corps_fumee="$(jq -n --arg i svc-fumee --arg e svc-fumee --arg m secret "$filtre" 2>/dev/null || echo '{}')"
 java -Dfile.encoding=UTF-8 -cp "$V8_LB_CP$SEP$(natif "$DEPOT/backend/target/classes")" \
-  "$(natif "$V8_DIR/PreuveContratConnexion.java")" > "$W/contrat.txt" 2>&1 || true
-if grep -q '^CONTRAT|test-fumee.sh.*REFUSÉ 400' "$W/contrat.txt" && grep -q '^CONTRAT|client de recette.*ACCEPTÉ' "$W/contrat.txt"; then
-  resultat T092-05 ECHEC "test-fumee.sh envoie {email, motDePasse} : le back-end livré répond 400 (identifiant obligatoire)" "$(grep '^CONTRAT|test-fumee' "$W/contrat.txt" | cut -d'|' -f3-)"
+  "$(natif "$V8_DIR/PreuveContratConnexion.java")" "$corps_fumee" > "$W/contrat.txt" 2>&1 || true
+if grep -aq '^CONTRAT|test-fumee.sh.*ACCEPT' "$W/contrat.txt" && grep -aq '^CONTRAT|client de recette.*ACCEPT' "$W/contrat.txt"; then
+  resultat T092-05 OK "test-fumee.sh livré : corps de connexion accepté par le back-end livré (DemandeConnexion, D2)" "filtre $filtre → $(grep '^CONTRAT|test-fumee' "$W/contrat.txt" | cut -d'|' -f3-)"
+elif grep -aq '^CONTRAT|test-fumee.sh.*REFUS' "$W/contrat.txt"; then
+  resultat T092-05 ECHEC "test-fumee.sh : le back-end livré refuse son corps de connexion (400)" "filtre $filtre → $(grep '^CONTRAT|test-fumee' "$W/contrat.txt" | cut -d'|' -f3-)"
 else
   resultat T092-05 AVERT "preuve du contrat non concluante" "$(tail -3 "$W/contrat.txt" | tr '\n' ' ')"
 fi
@@ -213,16 +220,20 @@ grep -q 'Sauvegarde préalable' "$W/D2.log" && info "   D2 : la sauvegarde préa
 # ---------------------------------------------------------------------
 # D3. v2 avec le contrat de connexion RÉEL : fumée en échec → retour auto
 # ---------------------------------------------------------------------
-echo reel > "$W/simule/contrat"
+# Tour 2 : la connexion au contrat réel passe (ANO-E10-004 corrigée) ; le test de fumée est mis
+# en échec APRÈS la connexion (document introuvable par la recherche) pour provoquer le retour
+# arrière automatique, qui est le préalable du scénario D4 (ANO-E10-005).
+echo reel > "$W/simule/contrat"; echo ko > "$W/simule/recherche"
 : > "$W/simule/requetes.log"
 c="$(deployer D3 dev --jar "$W/jars/ged-v2.jar" --module back)"
 login="$(grep -m1 'auth/login' "$W/simule/requetes.log" || true)"
-if [[ "$c" != 0 ]] && grep -q "connexion du compte de fumée refusée" "$W/D3.log" && grep -q "RETOUR ARRIÈRE" "$W/D3.log" && jar_de_version v1 \
+if [[ "$c" != 0 ]] && grep -q "\[OK\] connexion" "$W/D3.log" && grep -q "introuvable par la recherche" "$W/D3.log" && grep -q "RETOUR ARRIÈRE" "$W/D3.log" && jar_de_version v1 \
       && [[ "$(table_existe qa_v8_essai)" == t ]]; then
-  resultat T092-13 ECHEC "déploiement v2 : test de fumée en échec à la connexion (contrat réel) → retour arrière automatique vers v1, base laissée migrée" "requête : $login ; puis « $(grep -o 'ÉCHEC.*' "$W/D3.log" | tail -1) »"
+  resultat T092-13 OK "déploiement v2, test de fumée en échec (connexion au contrat réel acceptée, recherche en échec) → retour arrière automatique vers v1, base laissée migrée (D4 la ramène)" "requête : $login ; puis « $(grep -o 'ÉCHEC.*' "$W/D3.log" | tail -1) »"
 else
-  resultat T092-13 AVERT "scénario D3 inattendu" "code $c ; $(grep -o 'ÉCHEC.*' "$W/D3.log" | tail -1)"
+  resultat T092-13 ECHEC "scénario D3 (retour arrière automatique) inattendu" "code $c ; $(grep -o 'ÉCHEC.*' "$W/D3.log" | tail -1)"
 fi
+echo ok > "$W/simule/recherche"
 grep -q "la version précédente ne passe pas les vérifications" "$W/D3.log" \
   && info "   D3 : la version PRÉCÉDENTE échoue aussi (même test de fumée) → « intervention manuelle »"
 
@@ -235,7 +246,12 @@ c="$(deployer D4 dev --retour-arriere --base)"
 if [[ "$(table_existe qa_v8_essai)" == t ]]; then
   resultat T092-14 ECHEC "--retour-arriere --base après un retour automatique : le changeset de v2 n'est PAS défait (rollback exécuté avec le JAR v1, qui ne le connaît pas)" "code $c ; tag $tag ; table ged.qa_v8_essai toujours présente ; $(grep -o -E 'ÉCHEC.*|ERREUR LIQUIBASE.{0,160}|Retour arrière terminé' "$W/D4.log" | head -2 | tr '\n' ' ')"
 else
-  resultat T092-14 OK "--retour-arriere --base après retour automatique : changeset v2 défait" "code $c"
+  apres_tag="$(cat "$W/etat/tag-liquibase" 2>/dev/null || echo consommé)"
+  [[ "$c" == 0 ]] && jar_de_version v1 \
+    && resultat T092-14 OK "--retour-arriere --base après retour automatique : changeset v2 défait avec le JAR qui a migré, v1 reste active, point de retour consommé" "code $c ; tag $tag → $apres_tag ; $(grep -o 'rollback jusqu.*' "$W/D4.log" | head -1)" \
+    || resultat T092-14 ECHEC "--retour-arriere --base : changeset défait mais état incohérent" "code $c ; lien $(lien_jar) ; tag $apres_tag"
+  c2="$(deployer D4bis dev --retour-arriere --base)"
+  info "   D4bis : second --retour-arriere --base : code $c2, « $(grep -o -E 'ÉCHEC.*|Retour arrière terminé' "$W/D4bis.log" | head -1) »"
 fi
 # Remise en état pour le témoin : rollback avec le JAR v2 (celui qui porte le changeset).
 if [[ "$(table_existe qa_v8_essai)" == t ]]; then

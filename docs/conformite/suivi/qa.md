@@ -2,6 +2,13 @@
 
 ## Lot en cours
 
+Vague 9 (tour 2, `ct/qa-r2` depuis `08c710c`) : revérification des six anomalies corrigées au tour 1
+(ANO-E7-004, ANO-E7-005, ANO-E8-004, ANO-E10-003, ANO-E10-004, ANO-E10-005 : **toutes vérifiées**),
+recette des lignes livrées au tour 1 (T-055/D15, T-025, T-059, T-060, T-064, T-035, P-14, T-070, T-087,
+T-089, T-092, T-093) et des réserves levées par dev2 (P-05, P-10, P-11, P-16, P-17). Une anomalie
+nouvelle, mineure : ANO-E7-006 (document restauré de la corbeille sous un dossier archivé).
+`RESULTATS-VAGUE-9.md`. Corrections du tour 2 : revérification au tour 3.
+
 Vague 8 (tour 1 de la recette technique, `ct/qa-r1`) : recette des 25 lignes « Livré » et des parties
 non exercées des lignes « Vérifié », avec les **composants réels installés sur le poste Linux**
 (NGINX, clamd, LibreOffice, Prometheus, Alertmanager, PostgreSQL jetable, systemd-analyze).
@@ -19,16 +26,17 @@ contrat §5.3.1, E10/E11 sur papier.
 |---|---|---|
 | Ligne de base | `docs/conformite/recette/LIGNE-DE-BASE.md` | 143 tests (H2, avant les vagues) |
 | Plan de recette E0–E11 | `docs/conformite/recette/PLAN-DE-RECETTE.md` | D1–D14 intégrées |
-| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-8.md` | 257 → 360 → 443 → 534 → 552 → 586 → 594 tests verts ; vague 8 : 597 tests, 4 échecs de référence + 1 d'environnement |
-| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 25 vérifiées ; ouvertes : ANO-E7-004, ANO-E7-005, ANO-E8-004 et, vague 8, ANO-E10-004 (bloquante), ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-003, ANO-E10-005, ANO-E10-007, ANO-E10-008 (majeures), ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006 (mineures) |
+| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-9.md` | 257 → 360 → 443 → 534 → 552 → 586 → 594 tests verts ; vague 8 : 597 tests, 4 échecs de référence + 1 d'environnement ; vague 9 : 630 tests, 0 échec |
+| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 31 vérifiées (vague 9 : ANO-E7-004, ANO-E7-005, ANO-E8-004, ANO-E10-003, ANO-E10-004, ANO-E10-005) ; ouvertes : ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008 (majeures), ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006, ANO-E7-006 (mineures) |
 | E10 exploitation (vague 8) | `recette/e10/` : `verifier-nginx-reel.sh` (NGINX réel, 10/11), `verifier-front-nginx.sh` (23/23), `verifier-annuaire-bascule.sh` + `AnnuaireAutonome.java` (P-02, P-04), `verifier-modules.sh` (T-088, 5/6), `RecetteExploitation.java` (10/11), `RecetteComplementsV8.java` (7 OK, 1 AVERT), `RecetteRotationJournaux.java` (11/11), `sbom-et-licences-hors-ligne.sh`, `banc-ocr-reduit.sh` | voir `RESULTATS-VAGUE-8.md` |
-| E10 sauvegarde et déploiement | `recette/e10-sauvegarde/` : `recette-t073-p13.sh` (33 OK / 3 ÉCHEC), `recette-t092.sh` (8 OK / 3 ÉCHEC), sur PostgreSQL jetable | portables Linux et Git Bash |
+| E10 sauvegarde et déploiement | `recette/e10-sauvegarde/` : `recette-t073-p13.sh` (33 OK / 3 ÉCHEC), `recette-t092.sh` (tour 2 : 12/12), `recette-ano-e8-004.sh` (tour 2 : 4/4, retour arrière sur copie peuplée), sur PostgreSQL jetable | portables Linux et Git Bash |
+| Tour 2 (vague 9) | `recette/e10/RecetteTour2.java` (E7-004, E7-005, T-059, D15 : 13 OK, 1 ÉCHEC = ANO-E7-006), `verifier-executables.sh` (28/28), `verifier-renvois-tests.sh` (37/37) | voir `RESULTATS-VAGUE-9.md` |
 | E4 | `recette/e4/` : `verifier-journal.sh` (12/12), `verifier-scellement.sh` (6/6), `RecetteAudit.java` (29/29) | critère de sortie atteint |
 | E7 modèle | `recette/e7/RecetteModele.java` | 17/17 |
 | E7 compléments | `recette/e7/RecetteComplements.java` (T-105, P-21, R-03, T-101 annulation et reprise) | 8/10 (P21-02 = ANO-E7-004, R03-03 = ANO-E7-005) |
 | E8 workflow, E8-API | `recette/e8/RecetteWorkflow.java` | 30/30 ; critère de sortie E8 atteint |
 | T-112 échéance | `recette/e8/RecetteEcheance.java` (deux instances) | 6/6 |
-| E9 | `recette/e9/RecetteApi.java` | 23 OK, 2 AVERT (compte désactivé délégué ; chemins du contrat : voir ligne suivante) |
+| E9 | `recette/e9/RecetteApi.java` | 25/25 (vague 9 : compte désactivé délégué → 422, D15) |
 | Contrat §5.3.1 et réception | `recette/e9/RecetteContrat.java`, `RecetteReception.java` | contrat 15/15 ; T-040 5/5 hors règle de workflow (ANO-E9-001 close), 500 sous règle (ANO-E8-002) |
 | Notifications | `recette/e8/RecetteNotifications.java` (+ `lib/SmtpSimule.java`) | 8/8, circuits et échéance NA (E8) |
 | E1 | `recette/e1/` | base vierge, rollback, catalogue, changelogs (Java), autotests |
@@ -66,7 +74,9 @@ Non conforme : 4.2.2 montée sur base peuplée (ANO-E1-006), D8 création de rè
 
 ## Ce qui reste
 
-- Tour suivant : revérifier les corrections des anomalies (ouvertes et vague 8) avec les scripts cités.
+- Tour 3 : revérifier les corrections du tour 2 (ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-002,
+  ANO-E10-006 à 008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E7-006) avec les scripts cités.
+- T-035 : flux courant pendant une reprise, à rejouer à la reprise à blanc de la Phase 7.
 - Rejouer P-10, P-16 et ANO-E11-002 en UAT ; T-070 avec la clé NVD en CI ; P-05 (`SEQUENCES.md`).
 - T-079 : cas « ligne scellée modifiée » détecté par la tâche planifiée (non rejoué en vague 8).
 - UAT : AD réel (LDAPS, délai de connexion), signatures ClamAV officielles, certificat MMED, systemd
