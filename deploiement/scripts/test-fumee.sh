@@ -66,7 +66,9 @@ verifier_front() {
 # ---------------------------------------------------------------------
 api_connexion() {
     local corps
-    corps="$(jq -n --arg e "$GED_FUMEE_IDENTIFIANT" --arg m "$GED_FUMEE_MDP" '{email: $e, motDePasse: $m}')"
+    # Contrat de POST /api/v1/auth/login (DemandeConnexion) : identifiant
+    # d'annuaire (sAMAccountName, décision D2), jamais une adresse e-mail.
+    corps="$(jq -n --arg i "$GED_FUMEE_IDENTIFIANT" --arg m "$GED_FUMEE_MDP" '{identifiant: $i, motDePasse: $m}')"
     JETON="$(curl -fsS --max-time 20 -H 'Content-Type: application/json' -d "$corps" \
         "$URL/api/v1/auth/login" | jq -r '.token // empty')" || true
     [[ -n "$JETON" ]] || echec "connexion du compte de fumée refusée"
@@ -77,7 +79,10 @@ api_depot() {
     local pdf="$TRAVAIL/$MARQUE.pdf" reponse
     # Plus petit PDF valide : une page vide, avec le marqueur dans les métadonnées.
     printf '%%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n4 0 obj<</Title(%s)>>endobj\ntrailer<</Root 1 0 R/Info 4 0 R>>\n%%%%EOF\n' "$MARQUE" > "$pdf"
-    reponse="$(curl -fsS --max-time 60 -H "Authorization: Bearer $JETON" \
+    # Toute création exige une clé d'idempotence (T-049, DAT 5.3.2).
+    local cle
+    cle="$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen)"
+    reponse="$(curl -fsS --max-time 60 -H "Authorization: Bearer $JETON" -H "Idempotency-Key: $cle" \
         -F "file=@$pdf;type=application/pdf" -F "name=$MARQUE" \
         -F "typeDocumentId=$GED_FUMEE_TYPE_DOCUMENT" "$URL/api/v1/documents")" \
         || echec "dépôt refusé"

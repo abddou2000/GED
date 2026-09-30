@@ -251,7 +251,10 @@
                  dependance porte une vulnerabilite de score >= ged.cvss.seuil.
                  En local, `-Ddependency-check.skip=true` evite le telechargement
                  de la base NVD. La cle d'API NVD est lue dans NVD_API_KEY :
-                 sans elle la mise a jour de la base prend plusieurs heures. -->
+                 sans elle la mise a jour de la base prend plusieurs heures.
+                 Reseau filtre : -DnvdDatafeedUrl=<miroir>/nvdcve-{0}.json.gz ;
+                 hors ligne : -DautoUpdate=false -DdataDirectory=<base copiee>
+                 (docs/securite/VULNERABILITES-DEPENDANCES.md). -->
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>

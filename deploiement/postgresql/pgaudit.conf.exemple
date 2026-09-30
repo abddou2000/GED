@@ -6,17 +6,23 @@
 #  À inclure dans postgresql.conf :
 #     include_if_exists = 'conf.d/pgaudit.conf'
 #  Paquet : postgresql-16-pgaudit (Debian/Ubuntu) ou pgaudit16_16 (RHEL/PGDG).
-#  Redémarrage de PostgreSQL requis (shared_preload_libraries).
 #
-#  Principe : RIEN n'est journalisé par défaut (le trafic de l'application,
-#  ged_app, déjà tracé par le journal d'audit applicatif, noierait le reste) ;
-#  les rôles d'administration reçoivent leur réglage par ALTER ROLE
-#  (pgaudit-roles.sql). Les valeurs des paramètres ne sont jamais écrites :
-#  une requête peut porter un mot de passe ou une donnée personnelle.
+#  shared_preload_libraries n'est PAS réglé ici : une seconde ligne
+#  écraserait la liste déjà en place (pg_stat_statements…). pgaudit y est
+#  AJOUTÉ par activer-pgaudit.sh (ALTER SYSTEM), puis PostgreSQL redémarre.
+#
+#  Principe : TOUT compte est tracé par défaut (ci-dessous), y compris un
+#  compte nominatif d'administrateur créé plus tard sans autre réglage ; seul
+#  le compte de l'application, ged_app, en est exempté explicitement
+#  (pgaudit-roles.sql), parce que son trafic est déjà tracé par le journal
+#  d'audit applicatif et noierait le reste. Les rôles d'administration
+#  reçoivent un réglage plus large par ALTER ROLE (pgaudit-roles.sql).
+#  pgaudit.log ne peut être changé que par un superutilisateur, et ce
+#  changement est lui-même tracé (classe MISC_SET).
+#  Les valeurs des paramètres ne sont jamais écrites : une requête peut porter
+#  un mot de passe ou une donnée personnelle.
 # ============================================================
-shared_preload_libraries = 'pgaudit'
-
-pgaudit.log = 'none'
+pgaudit.log = 'ddl, role, write, function, misc_set'
 pgaudit.log_catalog = off
 pgaudit.log_client = off
 pgaudit.log_level = 'log'
@@ -24,7 +30,11 @@ pgaudit.log_parameter = off
 pgaudit.log_relation = on
 pgaudit.log_statement_once = on
 
-# Qui, d'où, quand : indispensable pour exploiter la trace.
+# Qui, d'où, quand : indispensable pour exploiter la trace. %u est le compte
+# de CONNEXION : il reste affiché après un SET ROLE, qui est lui-même tracé.
 log_line_prefix = '%m [%p] user=%u db=%d client=%h app=%a '
 log_connections = on
 log_disconnections = on
+# Connexions de réplication (pg_basebackup de ged_sauvegarde) : BASE_BACKUP,
+# START_REPLICATION… ne passent pas par pgaudit.
+log_replication_commands = on

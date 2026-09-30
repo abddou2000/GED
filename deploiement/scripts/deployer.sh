@@ -72,7 +72,7 @@ ENVIRONNEMENT="$1"; shift
 case "$ENVIRONNEMENT" in dev|uat|prod) ;; *) usage ;; esac
 
 MODE=deployer; JAR=""; FRONT=""; MODULE=tout; AVEC_BASE=non; RETOUR_AUTO=oui
-MODULE_METIER=""; ETAT_MODULE=""
+MODULE_METIER=""; ETAT_MODULE=""; MIGRATION_FAITE=non
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --jar) JAR="$2"; shift 2 ;;
@@ -236,6 +236,10 @@ migrer_base() {
         journal "Liquibase : base vierge, aucun point de retour (première installation)"
         rm -f "$GED_ETAT_DIR/tag-liquibase"
     fi
+    # Le JAR qui migre porte la définition des changesets à défaire : c'est
+    # lui, et non la version active au moment du retour arrière, qui sert au
+    # rollback. Chemin définitif posé par installer_back.
+    MIGRATION_FAITE=oui
     journal "Liquibase : update"
     liquibase_jar "$jar" update || echec "migration en échec : restaurer la sauvegarde « avant-deploiement-$HORO » (docs/exploitation/RESTAURATION.md)"
 }
@@ -266,6 +270,7 @@ installer_back() {
     [[ -f "$jar.sha256" ]] && cp "$jar.sha256" "$dest/ged.jar.sha256"
     [[ -L "$LIEN_JAR" ]] && readlink -f "$LIEN_JAR" > "$GED_ETAT_DIR/back-precedent"
     basculer_lien "$dest/ged.jar" "$LIEN_JAR"
+    [[ "${MIGRATION_FAITE:-non}" == oui ]] && echo "$dest/ged.jar" > "$GED_ETAT_DIR/jar-migration"
     journal "Back-end installé : $dest/ged.jar"
 }
 
@@ -357,11 +362,18 @@ retour_arriere() {
         [[ -f "$GED_ETAT_DIR/tag-liquibase" ]] || echec "aucun point de retour Liquibase enregistré"
         local tag
         tag="$(cat "$GED_ETAT_DIR/tag-liquibase")"
-        # Le rollback s'exécute avec le JAR ACTUEL, le plus récent : c'est lui
-        # qui porte la définition des changesets à défaire.
-        journal "Liquibase : rollback jusqu'à « $tag »"
-        liquibase_jar "$(readlink -f "$LIEN_JAR")" rollback --tag="$tag" \
+        # Le rollback s'exécute avec le JAR qui a fait la migration : c'est lui
+        # qui porte la définition des changesets à défaire. Après un retour
+        # arrière automatique, le lien désigne déjà la version précédente,
+        # qui ne les connaît pas.
+        local jar_migration
+        jar_migration="$(cat "$GED_ETAT_DIR/jar-migration" 2>/dev/null || true)"
+        [[ -f "$jar_migration" ]] || jar_migration="$(readlink -f "$LIEN_JAR")"
+        journal "Liquibase : rollback jusqu'à « $tag » (changesets de $jar_migration)"
+        liquibase_jar "$jar_migration" rollback --tag="$tag" \
             || echec "rollback Liquibase en échec : restaurer la sauvegarde préalable (RESTAURATION.md)"
+        # Point de retour consommé : un second --base ne rejoue rien.
+        rm -f "$GED_ETAT_DIR/tag-liquibase" "$GED_ETAT_DIR/jar-migration"
     fi
     if [[ -f "$GED_ETAT_DIR/back-precedent" && ( "$MODULE" == back || "$MODULE" == tout ) ]]; then
         basculer_lien "$(cat "$GED_ETAT_DIR/back-precedent")" "$LIEN_JAR"
