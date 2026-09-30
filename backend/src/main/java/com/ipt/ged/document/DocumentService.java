@@ -112,11 +112,18 @@ public class DocumentService {
     /** Colonnes sur lesquelles le tri est accepte ; toute autre valeur est ignoree. */
     private static final Set<String> TRIS = Set.of(
             "id", "name", "extension", "sizeKo", "createdAt", "expirationDate",
-            "workspace.name", "typeDocument.typeDeDocument", "echeanceConservation");
+            "workspace.name", "typeDocument.typeDeDocument", "echeanceConservation", "dateDocument");
 
     /** Colonnes numeriques ou temporelles : triees telles quelles. */
     private static final Set<String> TRIS_NUM = Set.of("id", "sizeKo", "createdAt", "expirationDate",
-            "echeanceConservation");
+            "echeanceConservation", "dateDocument");
+
+    /**
+     * Tri par défaut des listes de documents : la date du document, la plus
+     * récente d'abord (§12.7 « clé de tri prioritaire », P-21), puis
+     * l'identifiant (ANO-E7-004).
+     */
+    static final String TRI_PAR_DEFAUT = "dateDocument";
 
     private final UploadDocumentRepository repo;
     private final TypeDocumentRepository typeRepo;
@@ -202,7 +209,7 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public PageResponse<DocumentResponse> list(int page, int size, String search, UUID workspaceId,
                                                String sortBy, String sortDir, boolean echeanceDepassee) {
-        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM, TRI_PAR_DEFAUT);
         Specification<UploadDocument> spec = criteres(false, search)
                 .and(droits.documents(appelant(), CodePermission.CONSULTER));
         if (workspaceId != null) spec = spec.and(dansLeNoeud(workspaceId));
@@ -216,7 +223,7 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public PageResponse<DocumentResponse> trashed(int page, int size, String search,
                                                   String sortBy, String sortDir) {
-        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
+        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM, TRI_PAR_DEFAUT);
         Specification<UploadDocument> spec = criteres(true, search)
                 .and(droits.documents(appelant(), CodePermission.CONSULTER));
         return pageDe(repo.findAll(spec, pageable));

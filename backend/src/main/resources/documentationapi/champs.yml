@@ -135,7 +135,7 @@ champs:
   deposeDu: {description: "Date de dépôt minimale (incluse, AAAA-MM-JJ).", exemple: "2026-01-01"}
   deposeAu: {description: "Date de dépôt maximale (incluse, AAAA-MM-JJ).", exemple: "2026-12-31"}
   taille: {description: "Taille de page : 50 par défaut, plafonnée à 200.", exemple: 50}
-  tri: {description: "Tri en liste blanche : PERTINENCE (défaut avec texte), DATE_DEPOT (défaut sans texte), NOM, TYPE, INDEXATION_RECENTE.", exemple: PERTINENCE}
+  tri: {description: "Tri en liste blanche : PERTINENCE (défaut avec texte), DATE_DOCUMENT (date du document décroissante, défaut sans texte, §12.7), DATE_DEPOT, NOM, TYPE, INDEXATION_RECENTE.", exemple: PERTINENCE}
   pertinence: {description: "Score de pertinence plein texte (0 sans texte).", exemple: 0.42}
   deposeLe: {description: "Date de dépôt du document.", exemple: "2026-09-27T09:30:00Z"}
   espace: {description: "Nom de l'espace (emplacement principal) du document.", exemple: "Marchés"}

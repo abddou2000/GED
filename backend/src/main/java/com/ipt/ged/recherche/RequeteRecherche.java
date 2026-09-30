@@ -21,6 +21,12 @@ public record RequeteRecherche(String texte, int page, int taille, Tri tri, List
     public enum Tri {
         /** {@code ts_rank_cd} décroissant. */
         PERTINENCE,
+        /**
+         * Date du document la plus récente d'abord, puis l'identifiant (§12.7 :
+         * « clé de tri prioritaire », P-21) ; tri par défaut de la recherche
+         * sans texte ({@code POST /recherches}).
+         */
+        DATE_DOCUMENT,
         /** Dépôt le plus récent d'abord. */
         DATE_DEPOT,
         /** Nom du document, alphabétique. */

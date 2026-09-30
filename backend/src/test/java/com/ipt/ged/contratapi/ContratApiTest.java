@@ -238,6 +238,57 @@ class ContratApiTest {
     }
 
     @Test
+    @DisplayName("ANO-E7-004 : date du document, clé de tri par défaut de GET /documents et de POST /recherches")
+    void triParDateDuDocument() throws Exception {
+        // Déposés dans l'ordre a, b, c ; dates du document 01/02, 01/05, 01/03 : attendu b, c, a.
+        UUID a = deposerDate("TriA-" + suffixe, "2026-02-01");
+        UUID b = deposerDate("TriB-" + suffixe, "2026-05-01");
+        UUID c = deposerDate("TriC-" + suffixe, "2026-03-01");
+        java.util.List<String> attendu = java.util.List.of(b.toString(), c.toString(), a.toString());
+
+        JsonNode liste = json(mvc.perform(get("/api/v1/documents").param("workspaceId", espace.toString()))
+                .andExpect(status().isOk()));
+        assertThat(ids(liste.get("content"))).containsExactlyElementsOf(attendu);
+        JsonNode croissant = json(mvc.perform(get("/api/v1/documents").param("workspaceId", espace.toString())
+                .param("sortBy", "dateDocument").param("sortDir", "asc")).andExpect(status().isOk()));
+        assertThat(ids(croissant.get("content"))).containsExactly(a.toString(), c.toString(), b.toString());
+
+        String parEspace = "{\"noeudId\":\"" + espace + "\"";
+        JsonNode defaut = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content(parEspace + "}")).andExpect(status().isOk()));
+        assertThat(defaut.get("resultats").findValuesAsText("documentId")).containsExactlyElementsOf(attendu);
+        assertThat(defaut.get("resultats").get(0).get("dateDocument").asText()).isEqualTo("2026-05-01");
+        JsonNode explicite = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content(parEspace + ",\"tri\":\"DATE_DOCUMENT\"}")).andExpect(status().isOk()));
+        assertThat(explicite.get("resultats").findValuesAsText("documentId")).containsExactlyElementsOf(attendu);
+
+        // Plein texte trié par date du document (le défaut y reste la pertinence).
+        String mot = "cadastral" + suffixe.replaceAll("[0-9]", "");
+        for (UUID d : new UUID[]{a, b, c}) {
+            UUID v = jdbc.queryForObject("SELECT id FROM version_document WHERE document_id = ?", UUID.class, d);
+            indexeur.indexer(new SearchIndexer.TexteAIndexer(d, v, "fra", "Plan " + mot, "OCR", 1));
+        }
+        JsonNode texte = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content(parEspace + ",\"texte\":\"" + mot + "\",\"tri\":\"DATE_DOCUMENT\"}"))
+                .andExpect(status().isOk()));
+        assertThat(texte.get("resultats").findValuesAsText("documentId")).containsExactlyElementsOf(attendu);
+    }
+
+    /** Identifiants des lignes d'une page, dans l'ordre (sans les identifiants imbriqués). */
+    private static java.util.List<String> ids(JsonNode lignes) {
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        lignes.forEach(l -> ids.add(l.get("id").asText()));
+        return ids;
+    }
+
+    private UUID deposerDate(String nom, String dateDocument) throws Exception {
+        JsonNode d = json(mvc.perform(multipart("/api/v1/documents")
+                .file(new MockMultipartFile("file", nom + ".pdf", "application/pdf", Pdfs.pdf(nom)))
+                .param("name", nom).param("typeDocumentId", type.toString()).param("dateDocument", dateDocument)));
+        return UUID.fromString(d.get("id").asText());
+    }
+
+    @Test
     @DisplayName("POST /recherches : filtre « échéance dépassée » (T-112), avec et sans plein texte, dès le jour même")
     void rechercheEcheanceDepassee() throws Exception {
         UUID[] echu = deposer("Echu-" + suffixe, Pdfs.pdf("echu-" + suffixe));

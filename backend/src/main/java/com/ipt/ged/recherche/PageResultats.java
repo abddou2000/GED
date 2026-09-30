@@ -26,13 +26,15 @@ public record PageResultats(List<Resultat> resultats, long total, int page, int 
                            /** Canal du dépôt (T-040). */
                            String canalDepot,
                            /** Échéance de conservation atteinte : mise en évidence (§12.9). */
-                           boolean echeanceDepassee) {
+                           boolean echeanceDepassee,
+                           /** Date du document, clé de tri {@code DATE_DOCUMENT} (§12.7, P-21). */
+                           java.time.LocalDate dateDocument) {
 
         public Resultat(UUID documentId, UUID versionId, double pertinence, List<Segment> extrait, String nom,
                         String typeDocument, String espace, java.time.Instant deposeLe, String statutConservation,
                         String canalDepot) {
             this(documentId, versionId, pertinence, extrait, nom, typeDocument, espace, deposeLe, statutConservation,
-                    canalDepot, false);
+                    canalDepot, false, null);
         }
     }
 

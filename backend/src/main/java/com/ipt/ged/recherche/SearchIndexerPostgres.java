@@ -91,6 +91,7 @@ public class SearchIndexerPostgres implements SearchIndexer {
         // Colonnes de tri en liste blanche : jamais de texte de l'appelant dans l'ORDER BY.
         String ordre = switch (r.tri()) {
             case INDEXATION_RECENTE -> "indexe_le DESC";
+            case DATE_DOCUMENT -> "date_document DESC NULLS LAST, document_id DESC";
             case DATE_DEPOT -> "cree_le DESC NULLS LAST";
             case NOM -> "lower(nom) ASC";
             case TYPE -> "lower(type_document) ASC, rang DESC";
@@ -105,7 +106,7 @@ public class SearchIndexerPostgres implements SearchIndexer {
                 + "ts_headline('ged_francais', ged_normaliser_arabe(dt.texte), "
                 + "            websearch_to_tsquery('ged_francais', ged_normaliser_arabe(:q)), :options) AS extrait "
                 + "FROM (SELECT * FROM (SELECT dt.document_id, dt.version_id, dt.indexe_le, d.name AS nom, "
-                + "             d.created_at AS cree_le, t.type_de_document AS type_document, w.name AS espace, "
+                + "             d.created_at AS cree_le, d.date_document, t.type_de_document AS type_document, w.name AS espace, "
                 + "             d.statut_conservation, d.canal_depot, d.echeance_conservation, "
                 + "             ts_rank_cd(dt.tsv, q.requete) AS rang, count(*) OVER () AS total "
                 + "      " + depuis + "WHERE " + where + ") a "
@@ -114,6 +115,7 @@ public class SearchIndexerPostgres implements SearchIndexer {
                 + "JOIN document_texte dt ON dt.version_id = p.version_id "
                 + "ORDER BY " + ordre.replace("lower(nom)", "lower(p.nom)").replace("lower(type_document)", "lower(p.type_document)")
                         .replace("indexe_le", "p.indexe_le").replace("cree_le", "p.cree_le").replace("rang", "p.rang")
+                        .replace("date_document", "p.date_document").replace("document_id", "p.document_id")
                 + ", p.version_id";
         long[] total = {-1};
         List<PageResultats.Resultat> resultats = nomme.query(sql, p, (rs, i) -> {
@@ -124,7 +126,8 @@ public class SearchIndexerPostgres implements SearchIndexer {
                     rs.getString("nom"), rs.getString("type_document"), rs.getString("espace"),
                     cree != null ? cree.toInstant() : null, rs.getString("statut_conservation"),
                     rs.getString("canal_depot"), com.ipt.ged.document.conservation.Echeances.depassee(
-                            rs.getObject("echeance_conservation", java.time.LocalDate.class)));
+                            rs.getObject("echeance_conservation", java.time.LocalDate.class)),
+                    rs.getObject("date_document", java.time.LocalDate.class));
         });
         if (total[0] < 0) {
             // Page au-delà de la fin : le total n'a pas pu être lu sur une ligne.

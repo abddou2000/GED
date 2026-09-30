@@ -149,29 +149,38 @@ public class ServiceContratApi {
         Map<UUID, Instant> deposes = new HashMap<>();
         Map<UUID, String> canaux = new HashMap<>();
         Map<UUID, LocalDate> echeances = new HashMap<>();
+        Map<UUID, LocalDate> datesDocument = new HashMap<>();
         if (!resultats.isEmpty()) {
-            jdbc.query("SELECT id, created_at, canal_depot, echeance_conservation FROM document WHERE id = ANY (?)",
+            jdbc.query("SELECT id, created_at, canal_depot, echeance_conservation, date_document FROM document"
+                            + " WHERE id = ANY (?)",
                     rs -> {
                         UUID id = rs.getObject(1, UUID.class);
                         deposes.put(id, instant(rs.getTimestamp(2)));
                         canaux.put(id, rs.getString(3));
                         echeances.put(id, rs.getObject(4, LocalDate.class));
+                        datesDocument.put(id, rs.getObject(5, LocalDate.class));
                     },
                     (Object) resultats.stream().map(ResultatResponse::id).toArray(UUID[]::new));
         }
         Instant du = debut(r.deposeDu());
         Instant au = r.deposeAu() == null ? null : debut(r.deposeAu().plusDays(1));
-        Comparator<PageResultats.Resultat> ordre = switch (r.tri() == null ? RequeteRecherche.Tri.DATE_DEPOT : r.tri()) {
+        // Sans texte, la pertinence n'a pas de sens : la date du document est la clé
+        // de tri par défaut (§12.7, P-21, ANO-E7-004), départagée par l'identifiant
+        // décroissant comme en SQL (ordre des UUID = ordre de leur forme textuelle).
+        Comparator<PageResultats.Resultat> ordre = switch (r.tri() == null ? RequeteRecherche.Tri.DATE_DOCUMENT : r.tri()) {
             case NOM -> Comparator.comparing(PageResultats.Resultat::nom, Comparator.nullsLast(String::compareToIgnoreCase));
             case TYPE -> Comparator.comparing(PageResultats.Resultat::typeDocument,
                     Comparator.nullsLast(String::compareToIgnoreCase));
-            default -> Comparator.comparing(PageResultats.Resultat::deposeLe,
+            case DATE_DEPOT, INDEXATION_RECENTE -> Comparator.comparing(PageResultats.Resultat::deposeLe,
                     Comparator.nullsLast(Comparator.reverseOrder()));
+            case DATE_DOCUMENT, PERTINENCE -> Comparator.comparing(PageResultats.Resultat::dateDocument,
+                            Comparator.nullsLast(Comparator.<LocalDate>reverseOrder()))
+                    .thenComparing(x -> x.documentId().toString(), Comparator.reverseOrder());
         };
         List<PageResultats.Resultat> tous = resultats.stream()
                 .map(x -> new PageResultats.Resultat(x.id(), null, 0, List.of(), x.name(), x.typeDocument(),
                         x.workspace(), deposes.get(x.id()), x.statutConservation(), canaux.get(x.id()),
-                        Echeances.depassee(echeances.get(x.id()))))
+                        Echeances.depassee(echeances.get(x.id())), datesDocument.get(x.id())))
                 // « Échéance dépassée » (T-112, §12.9) : même jour de référence que l'alerte et le plein texte.
                 .filter(x -> !Boolean.TRUE.equals(r.echeanceDepassee()) || x.echeanceDepassee())
                 .filter(x -> du == null || (x.deposeLe() != null && !x.deposeLe().isBefore(du)))
