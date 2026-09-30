@@ -25,6 +25,7 @@ confirmée : on garde le mécanisme du dossier V3.
 | D12 | Collaboration « marchés » (CPS) | — | Pas de co-édition. **Espace de partage simple** : déposer, télécharger, modifier en local, téléverser une nouvelle version. | Correspond aux espaces d'échange du dossier fonctionnel ; aucune édition en ligne. | E7 (dev1, vague 4) |
 | D13 | Validateur restreint à un type de document | — | Jugé « **probablement** trop détaillé » pour le périmètre actuel (absent de la liste des décisions clés du compte rendu). | Ne pas implémenter ; confirmation écrite à obtenir. Ne pas confondre avec le rattachement d'une **règle** de workflow à un type (§12.8), qui reste dû. | — |
 | D14 | Habilitations | Proposition « à valider » | Héritage, rupture d'héritage, document isolé et liste des permissions **validés**. Corbeille pour toute suppression confirmée. | Confirme E3. | E3 (dev1) |
+| D15 | Délégation vers un compte désactivé (réponse à QR9, reportée le 30/09/2026) | §5.5 : un `X-On-Behalf-Of` désignant un compte désactivé est rejeté (422) | **MMED autorise la lecture de `userAccountControl`** dans l'AD, en lecture seule, **limitée à ce contrôle** et sécurisée (option « oui » de la question QR9). Si le compte est désactivé, la GED **refuse** qu'une application tierce agisse au nom de cet utilisateur. Les comptes techniques des applications tierces restent gérés à part, avec leurs propres droits. | **Exception bornée à D1** : D1 reste valable pour la connexion interactive, les renouvellements et les sessions (aucune relecture périodique). Lecture ponctuelle au moment de la délégation (cache court de quelques minutes au plus), compte désactivé = 422 `IDENTITE_DELEGUEE_INVALIDE`, tracé. Lève l'écart de T-055 et le risque R28 une fois livré et recetté. | E9 (dev1, identité) |
 
 ## 2. Décisions tentatives (ne rien changer pour l'instant)
 
@@ -74,11 +75,13 @@ confirmée : on garde le mécanisme du dossier V3.
   participant) : PDF/A-2 avec couche texte quand la source en a une.
 - **Q8 — Protocole OCR sans Python** (ajoutée par pm). La comparaison avec PaddleOCR et EasyOCR
   est-elle abandonnée ? En attendant : mesure de Tesseract seul contre les seuils du §4.3.2.
+- **Q9 — Délégation vers un compte désactivé** (relevée par qa, QR9 du registre des risques).
+  **Tranchée le 30/09/2026** : voir la décision D15.
 
 ## 4. Risques introduits
 
 Risques reportés dans `RISQUES.md` sous les numéros R26 (ci-dessous R1) et R27 ; questions
-sous les numéros QR1 à QR8.
+sous les numéros QR1 à QR9 (QR9 tranchée : D15).
 
 - **R1 (D1)** — Sans relecture de l'état AD, un utilisateur désactivé garde l'accès **jusqu'à
   l'expiration de son jeton de renouvellement** (8 h maximum au dossier V3), car le
@@ -89,3 +92,18 @@ sous les numéros QR1 à QR8.
 - **R2 (D1)** — Ajouté par pm. Plus de signalement automatique des validations en attente d'un
   validateur parti ; un circuit parallèle peut rester bloqué. Parade : réaffectation par
   l'Administrateur et tableau de bord des circuits en attente.
+
+## 5. Décisions du chef de projet IPTECH (30/09/2026)
+
+Décisions internes de conduite de projet, prises par le chef de projet côté IPTECH ; elles ne
+modifient pas le dossier V3 mais fixent les conditions de clôture de deux lignes du suivi.
+
+- **P1 — T-088 (déploiement UAT module par module, §9.3) : « Livré sous réserves ».** La
+  validation finale suppose : (1) la démonstration de `deployer.sh`, y compris son retour
+  arrière, sur un environnement systemd (kit UAT de dev2) ; (2) le masquage dans le front des
+  menus des modules désactivés (dev4).
+- **P2 — T-025 (modèle de référence du §12.1) : « à corriger ».** dev1 corrige les trois écarts
+  relevés par dev2 : colonnes `droit_*` de `groupe_ged`, `groupe_membre.employe_id` à remplacer
+  par `utilisateur_id`, colonnes `name` en anglais ; il fournit ensuite le schéma à jour
+  (`docs/modelisation/SCHEMA-BASE.md` régénéré) et les résultats de tests. Tout écart conservé
+  est justifié par écrit et soumis à validation.
