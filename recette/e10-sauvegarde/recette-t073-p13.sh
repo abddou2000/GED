@@ -68,7 +68,7 @@ SQL="$W/sql/jeu.sql"
 {
   echo "begin;"
   echo "insert into ged.employe(id, first_name, last_name) values ('$E1', 'Recette', 'V8');"
-  echo "insert into ged.noeud(id, name, code, status, employe_id, chemin, nature) values ('$N1', 'Espace QA v8', 'QAV8', 'ACTIF', '$E1', '/', 'ESPACE');"
+  echo "insert into ged.noeud(id, nom, code, status, employe_id, chemin, nature) values ('$N1', 'Espace QA v8', 'QAV8', 'ACTIF', '$E1', '/', 'ESPACE');"
   echo "insert into ged.type_document(id, code, type_de_document, description, noeud_id) values ('$T1', 'QAV8', 'Type QA v8', 'Recette vague 8', '$N1');"
 } > "$SQL"
 declare -A ROLE     # uuid de fichier → rôle (VERSION, VERSION_NON_COURANTE, CORBEILLE, PDFA, EXPORT)

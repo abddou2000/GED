@@ -23,7 +23,9 @@ import java.util.regex.Pattern;
  * pour éprouver la suite de l'enchaînement.
  *
  * <p>État piloté par fichiers dans le répertoire de travail : {@code sante}
- * (UP/DOWN), {@code contrat} (reel/tolerant). Journal des requêtes : {@code requetes.log}.
+ * (UP/DOWN), {@code contrat} (reel/tolerant), {@code recherche} (ok/ko : ko rend le document
+ * déposé introuvable, pour faire échouer le test de fumée APRÈS la connexion — tour 2).
+ * Journal des requêtes : {@code requetes.log}.
  *
  * <p>Usage : java ServeurGedSimule.java PORT REPERTOIRE_TRAVAIL
  */
@@ -83,7 +85,8 @@ public class ServeurGedSimule {
             dernierId = UUID.randomUUID().toString();
             repondre(x, 201, "{\"id\":\"" + dernierId + "\",\"name\":\"" + dernierNom + "\"}");
         } else if (chemin.equals("/api/v1/documents") && methode.equals("GET")) {
-            boolean trouve = requete != null && !dernierNom.isEmpty() && requete.contains(dernierNom);
+            boolean trouve = requete != null && !dernierNom.isEmpty() && requete.contains(dernierNom)
+                    && !"ko".equals(etat("recherche", "ok"));
             repondre(x, 200, "{\"content\":[" + (trouve ? "{\"id\":\"" + dernierId + "\"}" : "") + "],\"total\":" + (trouve ? 1 : 0) + "}");
         } else if (chemin.startsWith("/api/v1/documents/") && methode.equals("DELETE")) {
             x.sendResponseHeaders(204, -1);
