@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Bouchon de install(1) : retire -o/-g (utilisateur root et groupe ged absents sous
+# Windows) et -m (chmod refusé par les ACL NTFS du répertoire temporaire), puis
+# délègue à /usr/bin/install. Recette de deployer.sh (T-092) seulement.
+args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in -o|-g|-m) shift 2 ;; *) args+=("$1"); shift ;; esac
+done
+exec /usr/bin/install "${args[@]}"

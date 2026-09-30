@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Bouchon de systemctl (poste sans systemd) pour la recette de deployer.sh (T-092).
+# État du service dans $BOUCHON_ETAT/service-<nom> ; chaque appel est journalisé
+# dans $BOUCHON_ETAT/systemctl.log pour contrôler l'ordre des étapes.
+set -u
+: "${BOUCHON_ETAT:?BOUCHON_ETAT absent}"
+echo "$(date '+%H:%M:%S') systemctl $*" >> "$BOUCHON_ETAT/systemctl.log"
+args=(); for a in "$@"; do [[ "$a" == --* ]] || args+=("$a"); done
+action="${args[0]:-}"; nom="${args[1]:-}"
+case "$action" in
+  stop) echo inactive > "$BOUCHON_ETAT/service-$nom" ;;
+  start|restart) echo active > "$BOUCHON_ETAT/service-$nom" ;;
+  is-active) [[ "$(cat "$BOUCHON_ETAT/service-$nom" 2>/dev/null)" == active ]] && exit 0 || exit 3 ;;
+  *) echo "bouchon systemctl : action non prise en charge : $action" >&2; exit 1 ;;
+esac

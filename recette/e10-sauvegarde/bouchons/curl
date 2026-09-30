@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Adaptateur de curl pour Git Bash : le curl MinGW est un binaire Windows natif qui
+# ne sait pas lire un fichier désigné par un chemin POSIX dans « -F champ=@/chemin »
+# (MSYS ne convertit pas ce chemin, précédé de « champ=@ »). On convertit ce seul
+# chemin avec cygpath ; tout le reste est transmis tel quel. Recette T-092 seulement.
+args=()
+for a in "$@"; do
+  if [[ "$a" =~ ^([A-Za-z0-9_]+=@)(/[^\;]*)(.*)$ ]]; then
+    args+=("${BASH_REMATCH[1]}$(cygpath -m "${BASH_REMATCH[2]}")${BASH_REMATCH[3]}")
+  else
+    args+=("$a")
+  fi
+done
+exec /mingw64/bin/curl "${args[@]}"
