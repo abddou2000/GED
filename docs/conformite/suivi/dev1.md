@@ -84,6 +84,61 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
+### Mise en conformité, tour 2 (branche `ct/dev1-r2`, depuis `claude/inspiring-lovelace-10bg1c` @ `08c710c`)
+
+| Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
+|---|---|---|---|
+| ANO-E2-002 (Majeure, D4) | Corrigé (`3e94067`) | Cause : la liste des contrôleurs était confiée à JNDI, qui ne bascule que sur une connexion **refusée** ; un contrôleur qui accepte TCP sans répondre fait expirer le délai de lecture sur une connexion établie, sans essai du suivant, et le pool resservait la connexion muette (503 à chaque essai ; sans pool, deux délais de lecture par connexion). Reproduit avant correction : pool actif, 1 connexion réussie puis 503 en 1 s (délai de lecture) à chaque essai. Correctif : `ControleursAnnuaire`, une source par contrôleur (mêmes délais, LDAPS, pool) ; connexion, recherches, sonde et lecture D15 rejouées sur le contrôleur suivant en cas de panne, contrôleur fautif mis à l'écart 30 s (`GED_LDAP_MISE_A_L_ECART`) puis de nouveau prioritaire ; un refus (mot de passe faux) n'est jamais rejoué ailleurs (verrouillage AD). Source LDAP par défaut de Spring Boot exclue (`GedApplication`). Inventaire des appels sortants, `REVUE-SSRF.md`, `EXPLOITATION.md`, `.env.example` à jour. | `AnnuaireLdapTest.basculeSurControleurMuet` (faux contrôleur qui accepte sans répondre, pool actif et inactif : 5 connexions réussies, les suivantes sans délai), `.tousMuets` (503 dans la somme des délais) ; `ControleursAnnuaireTest` (ordre, mise à l'écart et retour, tous en panne, refus non rejoué). |
+| ANO-F-019 (Mineure) | Corrigé (`5e6bf1a`) | Libellés des jetons système repris de l'application d'origine (YEAR, MONTH, DAY, HOUR). Libellés ANNÉE, MOIS, JOUR, HEURE ; les **clés** enregistrées dans la charte (`year`, `months`…) et la valeur composée au dépôt ne changent pas (compatibilité des plans). | `PlanIndexationApiTest.jetonsSystemeEnFrancais` (`GET /plan-indexations/jetons-systeme` et `preview` = `ALPHA_ANNÉE_MOIS_JOUR_HEURE`). |
+| ANO-F-016 (Majeure, D12) | Corrigé côté API et droits (`35adde1`) ; écran : dev5 | Cause : le dépôt n'avait pas d'emplacement (dossier du type) et le déplacement exigeait Déplacer, absent du rôle standard. Correctif selon l'arbitrage : `POST /api/v1/documents` accepte `noeudId` (dossier cible) ; admis seulement dans le **même espace d'échange** que le dossier du type, Déposer exigé sur ce dossier (hors périmètre : 404), sinon 422 `EMPLACEMENT_HORS_ESPACE_ECHANGE` ; `PATCH /documents/{id}/emplacement` entre deux dossiers d'un même espace d'échange : Déposer sur le document remplace Déplacer (Déposer sur la destination, verrou, archivage, audit `DOCUMENT_DEPLACE` inchangés). Espaces métier, sortie d'un espace d'échange et passage d'un espace à un autre : Déplacer toujours exigé. La création de dossiers par un membre (Déposer) existait déjà (`POST /workspaces` avec parent, `POST /noeuds/{id}/dossiers`). | `ModeleDocumentApiTest.rangementDansEspaceEchange` (un membre standard crée deux dossiers et un sous-dossier, dépose dans le sous-dossier, range entre dossiers, audité) et `.rangementLimiteALEspaceEchange` (espace métier : 422 au dépôt, 403 au déplacement ; autre espace d'échange : 422, 403 ; dossier hors périmètre : 404). Sans le correctif : 201 au lieu de 422, document dans le dossier du type (vérifié). |
+| ANO-E10-002, second point | Corrigé (`d7efa55`) ; premier point (appels par clé d'API) : dev2 | Aucune surveillance de l'échéance du secret. `EcheanceSecretAnnuaire` : jauge `ged_annuaire_compte_service_echeance_jours` (jours restants, négatif si échu, `+Inf` s'il n'expire pas, `NaN` si inconnue) ; lue au plus une fois par heure sur **l'entrée du compte de service lui-même** par son DN (`msDS-UserPasswordExpiryTimeComputed`, qui tient compte des stratégies affinées, et `accountExpires` ; la plus proche l'emporte ; mot de passe à 0 = échu), avec bascule entre contrôleurs ; dernière valeur gardée si l'annuaire est injoignable ; échéance déclarée `GED_LDAP_ECHEANCE_SECRET` (AAAA-MM-JJ) prioritaire, pour un secret sans expiration dans AD mais tourné à date fixe. Alerte `GedAnnuaireSecretCompteServiceEcheance` (< 15 jours, 1 h). Aucun attribut d'un utilisateur n'est lu (P2, D1). | `EcheanceSecretAnnuaireTest` (4 : jours restants et cache d'une heure, +Inf / NaN / échu / annuaire injoignable, échéance déclarée, exposition Prometheus) ; `SupervisionIntegrationTest.metriquesPrometheus` (métrique publiée par l'application) et `.alertesSurDesMetriquesPubliees`. |
+| ANO-E7-006 (Mineure, ouverte par qa sur `ct/qa-r2`, ajoutée en cours de tour par pm) | Corrigé (`52f4242`) | Cause : l'archivage d'un dossier ne prend que les documents vivants, et la restauration d'un document ne recontrôlait pas l'état de son dossier : un document mis à la corbeille avant l'archivage revenait ACTIF et modifiable sous le dossier archivé. Correctif : à la restauration (simple ou multiple), si l'emplacement principal est archivé, le document est archivé par le même traitement que l'archivage du dossier (`ArchivageService.preparer` puis `appliquer` : empreinte vérifiée, copie de conservation, archiviste du dossier, événement `DocumentArchive`), dans la transaction de la restauration ; s'il ne peut pas l'être (empreinte divergente, fichier non repris…), rien n'est restauré (409 `DOSSIER_ARCHIVE`). La ligne n'existe pas encore dans `ANOMALIES.md` de ma branche : statut à reporter par pm à la fusion de `ct/qa-r2` (« Corrigée (52f4242) »). | `ArchivageDossierApiTest.restaurationSousDossierArchive` : corbeille, archivage du dossier (document resté ACTIF), restauration 204 → ARCHIVE, archiviste posé, archivage tracé, versement 409 et suppression 409. Sans le correctif : ACTIF (vérifié). |
+| Performance (point de dev3) : `AccessPredicate.predicatSql` | Fait (`2d5c215`) | Réécrit en semi-jointures : chaque ensemble devient une sous-requête **non corrélée** (`IN (SELECT unnest(CAST(:p AS uuid[])))`, `IN (SELECT document_id FROM document_rattachement …)`, `IN (SELECT document_id FROM document_confidentiel_designe …)`), évaluée une fois puis consultée par hachage. Sémantique identique : colonnes comparées toutes non nulles (vérifié dans le schéma), tableaux sans valeur nulle, donc `IN` ≡ `EXISTS` ≡ `= ANY` même sous négation. Cause principale du coût mesurée : la conversion texte → `uuid[]` du paramètre n'est pas pré-calculée par PostgreSQL (`('{…}'::cstring)::uuid[]` dans le filtre), elle était refaite à **chaque ligne**, plus la sonde corrélée des rattachements. L'interface du fragment (colonne de l'appelant) ne change pas ; l'auto-jointure sur `document` est gardée (elle coûte ~10 ms à 50 000 documents ; la supprimer changerait le contrat des trois appelants). | Tests d'autorisation et de recherche existants verts (`CheminsAccesApiTest` 25, `SearchIndexerPostgresTest` 17, `ContratApiTest` 8, `ResolveurDroitsTest`, `ArchitectureDroitsTest`) ; mêmes résultats (empreinte md5 des lignes) pour chaque variante sur le banc. |
+
+**Mesure avant / après** (banc jetable `banc_droits` dans `ged_dev1` : 50 000 documents, 500 nœuds,
+2 365 rattachements, 80 % PUBLIC / 15 % PRIVE / 5 % CONFIDENTIEL, 621 désignations ; utilisateur sans
+VOIR_PRIVE ni VOIR_CONFIDENTIEL ; requêtes préparées, paramètres texte comme JDBC, médiane de 7
+exécutions `EXPLAIN ANALYZE` ; PostgreSQL 16.13 du poste, chargé par les autres membres) :
+
+| Profil | Requête | Avant (`EXISTS` corrélés, `= ANY (CAST …)`) | Après (sous-requêtes non corrélées) |
+|---|---|---|---|
+| 25 nœuds (5 %) | `SELECT count(*) FROM document d WHERE <prédicat>` | 979 ms | 20 ms |
+| 25 nœuds (5 %) | 50 premiers par date du document | 25 ms | 21 ms |
+| 250 nœuds (50 %) | `count(*)` | 11 624 ms | 21 ms |
+| 250 nœuds (50 %) | 50 premiers par date du document | 24 ms | 23 ms |
+
+Variante écartée : garder `= ANY` en évaluant le tableau une fois (`ANY ((SELECT CAST(:p AS uuid[]))::uuid[])`) :
+21 ms / 62 ms, moins bonne sur un grand périmètre (comparaison linéaire au tableau à chaque ligne).
+Non mesuré : la recherche plein texte (même fragment sur `dt.document_id`) ; à confirmer par dev3 sur
+son banc de charge.
+
+**Points pour pm** :
+
+1. ANO-F-016 : l'écran reste à faire (dev5) : champ « dossier » au dépôt dans un espace d'échange
+   (`noeudId`), déplacement entre dossiers de l'espace, bouton « Sous-dossier » vers
+   `POST /noeuds/{id}/dossiers` au lieu du formulaire d'administration. Choix fait (à confirmer) :
+   dans un espace d'échange, tout membre habilité (Déposer) peut ranger **tout** document visible de
+   l'espace, pas seulement les siens (espace de partage, D12) ; le déplacement de **dossiers** entre
+   dossiers d'un espace d'échange exige toujours Déplacer (non demandé).
+2. ANO-E10-002 : la DSI de MMED doit confirmer que le compte de service peut lire
+   `msDS-UserPasswordExpiryTimeComputed` et `accountExpires` **sur sa propre entrée** (lecture par
+   défaut des utilisateurs authentifiés dans AD) ; sinon renseigner `GED_LDAP_ECHEANCE_SECRET`.
+   Vérifié par simulateur seulement (UnboundID ne calcule pas l'attribut construit : posé à la main).
+3. ANO-E2-002 : vérifié par simulateur et faux contrôleur muet (comme la recette qa) ; à rejouer par
+   qa avec `recette/e10/verifier-annuaire-bascule.sh` (8 connexions sur 8 attendues, la première
+   paie un délai de lecture de 5 s, les suivantes aucun pendant 30 s).
+4. Performance : le point 2 des « Points pour pm » de dev3 (tour 1) est traité ; dev3 peut remesurer
+   les listes sans texte sur `ged_charge`.
+5. ANO-E7-006 : statut « Corrigée (52f4242) » à poser dans `ANOMALIES.md` à la fusion de `ct/qa-r2`
+   (la ligne n'existe pas sur ma branche). Choix : le document restauré revient archivé (comme un
+   dossier enfant restauré) ; la restauration exige toujours Supprimer, pas Archiver : l'archivage
+   découle de la décision déjà prise sur le dossier, l'archiviste inscrit est celui du dossier.
+
+Tests : suite back complète finale (`52f4242`) — **643 tests, 0 échec** (référence 630 ; 13 nouveaux :
+`AnnuaireLdapTest` +2, `ControleursAnnuaireTest` 3, `PlanIndexationApiTest` +1,
+`ModeleDocumentApiTest` +2, `EcheanceSecretAnnuaireTest` 4, `ArchivageDossierApiTest` +1), lancée avec
+`GED_MANAGEMENT_PORT` et `SERVER_PORT` retirés de l'environnement. Front non touché.
+
 ### Mise en conformité, tour 1 (branche `ct/dev1-r1`, depuis `claude/inspiring-lovelace-10bg1c` @ `71bdc1d`)
 
 | Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
