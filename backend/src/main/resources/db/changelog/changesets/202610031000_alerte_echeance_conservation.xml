@@ -38,7 +38,27 @@ BEGIN
 END
 $corps$]]></sql>
         <sql>CREATE TRIGGER trg_document_echeance_resignaler BEFORE UPDATE ON ${database.defaultSchemaName}.document FOR EACH ROW EXECUTE FUNCTION ${database.defaultSchemaName}.document_echeance_resignaler()</sql>
+        <!--
+            Retour arrière (ANO-E8-004) : supprimer la colonne efface les marques
+            de signalement, et les Agents d'archive seraient notifiés une seconde
+            fois à la remontée. S'il en existe, le retour arrière est REFUSÉ avec
+            leur décompte, avant toute suppression, sauf décision explicite
+            (ged.retour_arriere_avec_perte = oui, DEPLOIEMENT.md §8). Le bloc
+            rollback n'entre pas dans la somme de contrôle.
+        -->
         <rollback>
+            <sql splitStatements="false"><![CDATA[DO $garde$
+DECLARE
+    signales INTEGER;
+BEGIN
+    SELECT count(*) INTO signales FROM ${database.defaultSchemaName}.document WHERE echeance_signalee_le IS NOT NULL;
+    IF signales > 0
+       AND coalesce(current_setting('ged.retour_arriere_avec_perte', true), '') <> 'oui' THEN
+        RAISE EXCEPTION 'Retour arrière de l''alerte d''échéance refusé : il effacerait % marque(s) de signalement d''échéance (les Agents d''archive seraient notifiés de nouveau). Rien n''a été supprimé. Décision explicite requise : ged.retour_arriere_avec_perte = oui (DEPLOIEMENT.md §8).',
+            signales;
+    END IF;
+END
+$garde$]]></sql>
             <sql>DROP TRIGGER trg_document_echeance_resignaler ON ${database.defaultSchemaName}.document</sql>
             <sql>DROP FUNCTION ${database.defaultSchemaName}.document_echeance_resignaler()</sql>
             <sql>DROP INDEX ${database.defaultSchemaName}.idx_document_echeance_a_signaler</sql>

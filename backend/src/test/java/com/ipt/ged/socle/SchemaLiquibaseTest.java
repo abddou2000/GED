@@ -414,6 +414,90 @@ class SchemaLiquibaseTest {
     }
 
     @Test
+    @DisplayName("ANO-E8-004 : au-delà de workflow-e8, diffusions et signalements d'échéance ne se perdent pas sans décision")
+    void retourArriereApresJalonWorkflowSansPerte() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                liquibase.update(new Contexts(), new LabelExpression());
+                String s = schema + ".";
+                executer(c, "INSERT INTO " + s + "employe (id, first_name, last_name) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000e001', 'Karim', 'El Fassi')");
+                executer(c, "INSERT INTO " + s + "utilisateur (id, object_guid, identifiant, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000c001', '01920000-0000-7000-8000-00000000c0aa', 'kelfassi',"
+                        + " '01920000-0000-7000-8000-00000000e001')");
+                executer(c, "INSERT INTO " + s + "noeud (id, name, code, status, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000a001', 'Compta', 'WS-C', 'ACTIF',"
+                        + " '01920000-0000-7000-8000-00000000e001')");
+                executer(c, "INSERT INTO " + s + "type_document (id, code, type_de_document, description, noeud_id,"
+                        + " type_autorise, taille_max_mo) VALUES ('01920000-0000-7000-8000-00000000d001', 'TD', 'Facture',"
+                        + " 'd', '01920000-0000-7000-8000-00000000a001', 'pdf', 5)");
+                executer(c, "INSERT INTO " + s + "document (id, name, noeud_principal_id, type_document_id)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000b001', 'Facture',"
+                        + " '01920000-0000-7000-8000-00000000a001', '01920000-0000-7000-8000-00000000d001')");
+                String sansRegle = "SELECT count(*) FROM " + s + "noeud WHERE regle_workflow_id IS NULL";
+                // Une diffusion (habilitation du rôle Lecteur sur le document) et un signalement d'échéance.
+                executer(c, "INSERT INTO " + s + "habilitation (id, sujet_type, utilisateur_id, role_id, document_id)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000f101', 'UTILISATEUR',"
+                        + " '01920000-0000-7000-8000-00000000c001', '0192a000-0000-7000-8000-000000000005',"
+                        + " '01920000-0000-7000-8000-00000000b001')");
+                executer(c, "UPDATE " + s + "document SET echeance_signalee_le = now()"
+                        + " WHERE id = '01920000-0000-7000-8000-00000000b001'");
+                if (!c.getAutoCommit()) c.commit();
+                String diffusions = "SELECT count(*) FROM " + s + "habilitation WHERE role_id = '0192a000-0000-7000-8000-000000000005'";
+                String signales = "SELECT count(*) FROM " + s + "document WHERE echeance_signalee_le IS NOT NULL";
+
+                // 1. Refus au premier changeset destructeur défait (202610031000-1), avant toute perte.
+                Exception refus = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
+                        () -> liquibase.rollback("modele-e7", (String) null));
+                assertTrue(causes(refus).contains("1 marque(s) de signalement"), causes(refus));
+                assertEquals(1, compter(c, signales));
+                assertEquals(1, compter(c, diffusions));
+                if (!c.getAutoCommit()) c.rollback();
+
+                // 2. Sans signalement : refus au rôle Lecteur (202610021130), la diffusion reste.
+                executer(c, "UPDATE " + s + "document SET echeance_signalee_le = NULL");
+                if (!c.getAutoCommit()) c.commit();
+                refus = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
+                        () -> liquibase.rollback("modele-e7", (String) null));
+                assertTrue(causes(refus).contains("1 habilitation(s) du rôle"), causes(refus));
+                assertEquals(1, compter(c, diffusions), "la diffusion n'est pas supprimée");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "role WHERE code = 'LECTEUR'"));
+                if (!c.getAutoCommit()) c.rollback();
+
+                // 3. Sans diffusion : refus aux règles (202610021100-2), le nœud sans règle n'en reçoit
+                //    pas une au hasard ; sans aucune règle, impossible même sur décision explicite.
+                executer(c, "DELETE FROM " + s + "habilitation WHERE role_id = '0192a000-0000-7000-8000-000000000005'");
+                if (!c.getAutoCommit()) c.commit();
+                refus = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
+                        () -> liquibase.rollback("modele-e7", (String) null));
+                assertTrue(causes(refus).contains("règle arbitraire à 1 nœud(s)"), causes(refus));
+                assertEquals(1, compter(c, sansRegle));
+                if (!c.getAutoCommit()) c.rollback();
+
+                // 4. Remontée possible depuis cet état intermédiaire (rien de perdu), puis décision explicite.
+                liquibase.update(new Contexts(), new LabelExpression());
+                assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
+                executer(c, "SET ged.retour_arriere_avec_perte = 'oui'");
+                if (!c.getAutoCommit()) c.commit();
+                refus = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
+                        () -> liquibase.rollback("modele-e7", (String) null));
+                assertTrue(causes(refus).contains("aucune règle à leur attribuer"), causes(refus));
+                if (!c.getAutoCommit()) c.rollback();
+                executer(c, "INSERT INTO " + s + "regle_workflow (id, name) VALUES ('01920000-0000-7000-8000-00000000f001', 'WF')");
+                if (!c.getAutoCommit()) c.commit();
+                liquibase.rollback("modele-e7", (String) null);
+                assertEquals(new TreeSet<>(TABLES_E7), tablesMetier(c, schema));
+            } finally {
+                executer(c, "RESET ged.retour_arriere_avec_perte");
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    @Test
     @DisplayName("ANO-F-001 : l'Agent d'archive reçoit Valider, Diffuser, Purger ; le retour arrière épargne un ajout fait à l'écran")
     void compositionAgentArchive() throws Exception {
         String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);

@@ -26,7 +26,33 @@
             <column name="role_id" value="0192a000-0000-7000-8000-000000000005"/>
             <column name="permission_id" value="0192b000-0000-7000-8000-000000000001"/>
         </insert>
+        <!--
+            Retour arrière (ANO-E8-004) : supprimer le rôle supprime ses
+            habilitations, c'est-à-dire toutes les diffusions de documents validés
+            (et toute attribution manuelle du rôle). S'il en existe, le retour
+            arrière est REFUSÉ avec leur décompte, avant toute suppression, sauf
+            décision explicite de l'exploitant (ged.retour_arriere_avec_perte = oui,
+            DEPLOIEMENT.md §8), comme 202610021120 (ANO-E8-003). Le bloc rollback
+            n'entre pas dans la somme de contrôle.
+        -->
         <rollback>
+            <sql splitStatements="false"><![CDATA[DO $garde$
+DECLARE
+    diffusions INTEGER; composition INTEGER;
+BEGIN
+    SELECT count(*) INTO diffusions FROM ${database.defaultSchemaName}.habilitation
+     WHERE role_id = '0192a000-0000-7000-8000-000000000005';
+    -- Permissions ajoutées au rôle depuis l'écran des rôles (livré : Consulter seule).
+    SELECT count(*) INTO composition FROM ${database.defaultSchemaName}.role_permission
+     WHERE role_id = '0192a000-0000-7000-8000-000000000005'
+       AND permission_id <> '0192b000-0000-7000-8000-000000000001';
+    IF (diffusions + composition) > 0
+       AND coalesce(current_setting('ged.retour_arriere_avec_perte', true), '') <> 'oui' THEN
+        RAISE EXCEPTION 'Retour arrière du rôle Lecteur (diffusion) refusé : il perdrait % habilitation(s) du rôle (diffusions de documents validés) et % permission(s) ajoutée(s) au rôle. Rien n''a été supprimé. Décision explicite requise : ged.retour_arriere_avec_perte = oui (DEPLOIEMENT.md §8).',
+            diffusions, composition;
+    END IF;
+END
+$garde$]]></sql>
             <delete tableName="habilitation"><where>role_id = '0192a000-0000-7000-8000-000000000005'</where></delete>
             <delete tableName="role_permission"><where>role_id = '0192a000-0000-7000-8000-000000000005'</where></delete>
             <delete tableName="role"><where>id = '0192a000-0000-7000-8000-000000000005'</where></delete>

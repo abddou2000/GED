@@ -359,7 +359,9 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
     rien. Le poursuivre est une **décision explicite** de l'exploitant, après
     export de ces données (`circuit`, `circuit_validateur`, `decision`) : ajouter
     à l'URL de la CLI `&options=-c%20ged.retour_arriere_avec_perte%3Doui`, puis
-    relancer la même commande ;
+    relancer la même commande ; la même garde protège les autres changesets
+    destructeurs du lot et des lots suivants (voir « Retour arrière sans perte »
+    ci-dessous) ;
   - un rôle ordinaire **Lecteur (diffusion)** (`LECTEUR`, permission Consulter)
     est livré : c'est lui que la diffusion d'un document validé attribue ;
   - une règle sans validateur ne masque plus celle d'un nœud ancêtre ; les
@@ -399,6 +401,37 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
   # puis : rollback --tag=socle-e1   (ou rollback-count --count=N)
   ```
   `validate` et `status` s'utilisent de la même façon avant un déploiement.
+- **Retour arrière sans perte (ANO-E8-003, ANO-E8-004)** : tout changeset dont
+  le retour arrière supprimerait des données produites en service porte une
+  garde. S'il en trouve, il refuse avec leur décompte **avant toute
+  suppression**, et la commande s'arrête (code 1). Changesets gardés :
+
+  | Changeset | Données qui seraient perdues |
+  |---|---|
+  | `202610031000-1` (alerte d'échéance) | marques `document.echeance_signalee_le` (les Agents d'archive seraient notifiés de nouveau) |
+  | `202610021130-1` (rôle Lecteur) | habilitations du rôle `LECTEUR` (diffusions de documents validés), permissions ajoutées au rôle |
+  | `202610021120-1` (reprise des signatures) | circuits annulés, validateurs par rôle, réaffectations, historique des décisions |
+  | `202610021100-2` (règles de workflow) | règles rattachées à un type, validateurs de règle par rôle ; règle arbitraire donnée aux nœuds sans règle (impossible s'il n'existe aucune règle) |
+
+  Les changesets défaits avant le refus (bascule du gel des versions
+  `202609301049` / `202609301051`, verrou des tâches planifiées `verrou_tache`,
+  composition des rôles `202610041000`) ne perdent rien : la base reste
+  cohérente et une nouvelle montée (`update`) la ramène à son état de départ.
+  Poursuivre malgré la perte annoncée est une décision explicite
+  (`ged.retour_arriere_avec_perte = oui`, ci-dessus), après export des données
+  concernées. **Contrôle préalable**, à exécuter avant tout retour arrière
+  au-delà de `workflow-e8` (compte `ged_owner`, schéma `ged`) : tout résultat
+  non nul annonce un refus.
+  ```sql
+  SELECT (SELECT count(*) FROM ged.document WHERE echeance_signalee_le IS NOT NULL) AS signalements_echeance,
+         (SELECT count(*) FROM ged.habilitation WHERE role_id = '0192a000-0000-7000-8000-000000000005') AS diffusions,
+         (SELECT count(*) FROM ged.circuit WHERE statut = 'ANNULE') AS circuits_annules,
+         (SELECT count(*) FROM ged.circuit_validateur WHERE employe_id IS NULL OR reaffecte_le IS NOT NULL) AS validateurs_role_ou_reaffectes,
+         (SELECT count(*) FROM ged.type_document WHERE regle_workflow_id IS NOT NULL) AS regles_de_type,
+         (SELECT count(*) FROM ged.regle_validateur WHERE employe_id IS NULL) AS validateurs_de_regle_par_role,
+         (SELECT count(*) FROM ged.noeud WHERE regle_workflow_id IS NULL) AS noeuds_sans_regle;
+  ```
+  (la première colonne n'existe plus si `202610031000` est déjà défait : la retirer.)
 - Aucune migration n'est déployée en production sans que son retour arrière ait
   été exécuté avec succès en UAT. En continu, le test `SchemaLiquibaseTest`
   déroule **tous** les changesets sur un schéma vierge, vérifie les conventions
