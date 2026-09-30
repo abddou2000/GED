@@ -138,6 +138,8 @@ champs:
   # --- Stockage, OCR et cycle de vie (lots E5 à E7, dev3) -------------------
   deposeDu: {description: "Date de dépôt minimale (incluse, AAAA-MM-JJ).", exemple: "2026-01-01"}
   deposeAu: {description: "Date de dépôt maximale (incluse, AAAA-MM-JJ).", exemple: "2026-12-31"}
+  dateDocumentDu: {description: "Date du document minimale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3.", exemple: "2026-09-01"}
+  dateDocumentAu: {description: "Date du document maximale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3.", exemple: "2026-09-30"}
   taille: {description: "Taille de page : 50 par défaut, plafonnée à 200.", exemple: 50}
   tri: {description: "Tri en liste blanche : PERTINENCE (défaut avec texte), DATE_DOCUMENT (date du document décroissante, défaut sans texte, §12.7), DATE_DEPOT, NOM, TYPE, INDEXATION_RECENTE.", exemple: PERTINENCE}
   pertinence: {description: "Score de pertinence plein texte (0 sans texte).", exemple: 0.42}
@@ -661,7 +663,10 @@ parametres:
   objetType: "Nature de l'objet (DOCUMENT, ESPACE…)."
   objetId: Identifiant de l'objet.
   resultat: "Résultat : SUCCES, REFUS ou ECHEC."
-  confidentialite: "Niveau de confidentialité du document déposé (PUBLIC, PRIVE, CONFIDENTIEL) ; défaut : celui du type."
+  confidentialite: "Niveau de confidentialité (PUBLIC, PRIVE, CONFIDENTIEL) : au dépôt, défaut celui du type ; en recherche, filtre dans le périmètre autorisé (§4.4.3)."
+  dateDocumentDu: "Date du document minimale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3."
+  dateDocumentAu: "Date du document maximale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3."
+  deposantUtilisateurId: "Identité GED du déposant (utilisateur, ou personne déléguée par une application), critère imposé du §4.4.3."
   noeudId: Identifiant du nœud (espace ou dossier).
   sujetId: Identifiant du sujet (identité, groupe ou application).
   sujetType: "Nature du sujet : UTILISATEUR, GROUPE ou APPLICATION."
