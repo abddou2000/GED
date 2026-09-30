@@ -34,7 +34,7 @@ import java.util.function.BooleanSupplier;
  * <ul>
  *   <li>tous répondent : {@code UP} ;</li>
  *   <li>au moins un répond, pas tous : {@link #DEGRADE} — les connexions
- *       fonctionnent (JNDI passe au suivant), la redondance est perdue ;</li>
+ *       fonctionnent (bascule de {@link ControleursAnnuaire}), la redondance est perdue ;</li>
  *   <li>aucun : {@code DOWN}, nouvelles connexions impossibles.</li>
  * </ul>
  * Avec un seul contrôleur, la liaison passe par la source principale

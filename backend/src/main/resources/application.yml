@@ -101,6 +101,9 @@ ged:
       mot-de-passe-service-fichier: ${GED_LDAP_MOT_DE_PASSE_FICHIER:}
       delai-connexion: 3s
       delai-lecture: 5s
+      # Un contrôleur injoignable ou muet passe après les autres pendant cette
+      # durée (bascule D4, ANO-E2-002).
+      mise-a-l-ecart: ${GED_LDAP_MISE_A_L_ECART:30s}
       pool: true
       exiger-ldaps: true
       # Chaîne de certificats de MMED (magasin de confiance propre à l'annuaire).

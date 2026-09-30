@@ -62,7 +62,7 @@ class EtatCompteAnnuaireTest {
         p.getAnnuaire().setDelaiConnexion(Duration.ofSeconds(1));
         p.getAnnuaire().setDelaiLecture(Duration.ofSeconds(2));
         ConfigurationAnnuaire config = new ConfigurationAnnuaire();
-        return config.etatCompteAnnuaire(config.sourceAnnuaire(p), p);
+        return config.etatCompteAnnuaire(config.controleursAnnuaire(p), p);
     }
 
     @Test
