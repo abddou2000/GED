@@ -14,10 +14,11 @@ DAT 11.2 / Article 45 (licence compatible avec la cession de propriété à MMED
 | Dépendances back-end (Maven, portée d'exécution) | 140 |
 | Dépendances front-end livrées (npm, hors outillage de développement) | 18 |
 | Composants hors gestionnaire de paquets | 6 |
-| Licence permissive — compatible | 147 |
-| Copyleft faible — compatible sous condition de non-modification | 16 |
+| Licence permissive — compatible | 148 |
+| Copyleft faible — compatible sous condition de non-modification | 15 |
 | Hors des classes ci-dessus, compatible par arbitrage écrit | 1 |
 | **À examiner** (sans arbitrage) | 0 |
+| **Refusés** (interdits dans le livrable) | 0 |
 
 ## Règle de compatibilité appliquée (DAT 11.2)
 
@@ -49,9 +50,12 @@ redistribuer la GED sans obligation de publier son code ni redevance :
 - **org.verapdf:metadata-fixer-jakarta 1.30.2** (MPL-2.0) — veraPDF (validation PDF/A des copies de conservation) : double licence GPL-3.0-or-later ou MPL-2.0-or-later ; **MPL-2.0 retenue**, copyleft au niveau du fichier, bibliothèque non modifiée, livrée dans son JAR d'origine. Obligation : fournir le source des fichiers MPL s'ils étaient modifiés (ils ne le sont pas). Aucun code GPL n'est retenu.
 - **org.verapdf:parser 1.30.2** (MPL-2.0) — veraPDF (validation PDF/A des copies de conservation) : double licence GPL-3.0-or-later ou MPL-2.0-or-later ; **MPL-2.0 retenue**, copyleft au niveau du fichier, bibliothèque non modifiée, livrée dans son JAR d'origine. Obligation : fournir le source des fichiers MPL s'ils étaient modifiés (ils ne le sont pas). Aucun code GPL n'est retenu.
 - **org.verapdf:pdf-model 1.30.2** (MPL-2.0) — veraPDF (validation PDF/A des copies de conservation) : double licence GPL-3.0-or-later ou MPL-2.0-or-later ; **MPL-2.0 retenue**, copyleft au niveau du fichier, bibliothèque non modifiée, livrée dans son JAR d'origine. Obligation : fournir le source des fichiers MPL s'ils étaient modifiés (ils ne le sont pas). Aucun code GPL n'est retenu.
-- **org.verapdf:verapdf-xmp-core-jakarta 1.30.2** (MPL-2.0) — veraPDF (validation PDF/A des copies de conservation) : double licence GPL-3.0-or-later ou MPL-2.0-or-later ; **MPL-2.0 retenue**, copyleft au niveau du fichier, bibliothèque non modifiée, livrée dans son JAR d'origine. Obligation : fournir le source des fichiers MPL s'ils étaient modifiés (ils ne le sont pas). Aucun code GPL n'est retenu.
 
 ## Composants hors gestionnaire de paquets
+
+Tesseract et ses modèles figurent aussi dans le SBOM CycloneDX du back-end (propriété
+`ged:origine` = `hors-gestionnaire`, empreinte SHA-256 de chaque modèle), ajoutés à chaque
+`mvn package` par `outils/completer-sbom.mjs`.
 
 | Nom | Version | Licence | Usage |
 |---|---|---|---|
@@ -225,7 +229,7 @@ redistribuer la GED sans obligation de publier son code ni redevance :
 | org.verapdf:metadata-fixer-jakarta | 1.30.2 | MPL-2.0 (vérifiée à la main) | Compatible sous condition | transitive de org.verapdf:validation-model-jakarta |
 | org.verapdf:parser | 1.30.2 | MPL-2.0 (vérifiée à la main) | Compatible sous condition | transitive de org.verapdf:validation-model-jakarta |
 | org.verapdf:pdf-model | 1.30.2 | MPL-2.0 (vérifiée à la main) | Compatible sous condition | transitive de org.verapdf:validation-model-jakarta |
-| org.verapdf:verapdf-xmp-core-jakarta | 1.30.2 | MPL-2.0 (vérifiée à la main) | Compatible sous condition | transitive de org.verapdf:validation-model-jakarta |
+| org.verapdf:verapdf-xmp-core-jakarta | 1.30.2 | BSD-3-Clause | Compatible | transitive de org.verapdf:validation-model-jakarta |
 | org.webjars:swagger-ui | 5.18.2 | Apache-2.0 | Compatible | transitive de org.springdoc:springdoc-openapi-starter-webmvc-ui |
 | org.webjars:webjars-locator-lite | 1.0.1 | MIT | Compatible | transitive de org.springdoc:springdoc-openapi-starter-webmvc-ui |
 | org.xmlresolver:xmlresolver | 5.3.3 | Apache-2.0 | Compatible | transitive de org.verapdf:validation-model-jakarta |
