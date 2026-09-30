@@ -32,8 +32,13 @@ export const routes: Routes = [
         path: '',
         canActivateChild: [roleGuard],
         children: [
+      /* Écrans d'administration (ANO-F-003) : chacun est gardé par la
+         permission qui fait paraître son menu. Confort seulement : le serveur
+         refuse les écritures (GardeDroitsRequetes) ; les lectures des
+         référentiels restent ouvertes, le dépôt et l'indexation en ont besoin. */
       {
         path: 'regles-de-workflow',
+        canActivate: [permissionGuard('GERER_REFERENTIELS')],
         loadComponent: () => import('./features/workflow/workflow-list/workflow-list').then(m => m.WorkflowList),
       },
       {
@@ -47,54 +52,63 @@ export const routes: Routes = [
       },
       {
         path: 'groupe-d-acces',
+        canActivate: [permissionGuard('GERER_ROLES_HABILITATIONS')],
         loadComponent: () => import('./features/access-group/access-group-list/access-group-list').then(m => m.AccessGroupList),
       },
       {
         // Fiche d'un groupe : membres et espaces couverts.
         path: 'groupe-d-acces/:id',
+        canActivate: [permissionGuard('GERER_ROLES_HABILITATIONS')],
         loadComponent: () => import('./features/access-group/access-group-detail/access-group-detail').then(m => m.AccessGroupDetail),
       },
       {
         path: 'index',
+        canActivate: [permissionGuard('GERER_REFERENTIELS')],
         loadComponent: () => import('./features/index/index-list/index-list').then(m => m.IndexList),
       },
       {
         path: 'plan-indexation',
+        canActivate: [permissionGuard('GERER_REFERENTIELS')],
         loadComponent: () => import('./features/plan-indexation/plan-indexation-list/plan-indexation-list').then(m => m.PlanIndexationList),
       },
       {
         // Création et édition sur pages dédiées, comme l'application d'origine.
         path: 'plan-indexation/create',
+        canActivate: [permissionGuard('GERER_REFERENTIELS')],
         loadComponent: () => import('./features/plan-indexation/plan-indexation-form/plan-indexation-form').then(m => m.PlanIndexationForm),
       },
       {
         path: 'plan-indexation/:id/edit',
+        canActivate: [permissionGuard('GERER_REFERENTIELS')],
         loadComponent: () => import('./features/plan-indexation/plan-indexation-form/plan-indexation-form').then(m => m.PlanIndexationForm),
       },
       {
         path: 'type-de-document',
+        canActivate: [permissionGuard('GERER_REFERENTIELS')],
         loadComponent: () => import('./features/type-document/type-document-list/type-document-list').then(m => m.TypeDocumentList),
       },
       {
         // Fiche d'un type : code, espace, formats, taille, plan, description.
         path: 'type-de-document/:id',
+        canActivate: [permissionGuard('GERER_REFERENTIELS')],
         loadComponent: () => import('./features/type-document/type-document-detail/type-document-detail').then(m => m.TypeDocumentDetail),
       },
       {
         path: 'etiquette',
+        canActivate: [permissionGuard('GERER_REFERENTIELS')],
         loadComponent: () => import('./features/etiquette/etiquette-list/etiquette-list').then(m => m.EtiquetteList),
       },
       {
-        // Journal d'audit (DAT §7.4.3), lecture seule. Garde par permission
-        // CONSULTER_AUDIT à brancher avec le lot autorisation (E3).
+        // Journal d'audit (DAT §7.4.3), lecture seule : CONSULTER_AUDIT.
         path: 'journal-audit',
+        canActivate: [permissionGuard('CONSULTER_AUDIT')],
         loadComponent: () => import('./features/audit/journal-audit/journal-audit').then(m => m.JournalAudit),
       },
       {
-        // Applications clientes et clés d'API (DAT §5.4). Le serveur refuse
-        // l'accès aux applications elles-mêmes ; garde par permission
-        // d'administration à brancher avec le lot autorisation (E3).
+        // Applications clientes et clés d'API (DAT §5.4) : GERER_CLES_API. Le
+        // serveur refuse l'accès aux applications elles-mêmes.
         path: 'cles-api',
+        canActivate: [permissionGuard('GERER_CLES_API')],
         loadComponent: () => import('./features/cles-api/cles-api-admin/cles-api-admin').then(m => m.ClesApiAdmin),
       },
       {

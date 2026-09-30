@@ -134,7 +134,11 @@
                 @for (g of p.groupesAcces; track g.id) {
                   <li>
                     <span class="fico"><mat-icon svgIcon="nav-groups"></mat-icon></span>
-                    <a [routerLink]="['/groupe-d-acces', g.id]">{{ g.label }}</a>
+                    @if (auth.peut('GERER_ROLES_HABILITATIONS')) {
+                      <a [routerLink]="['/groupe-d-acces', g.id]">{{ g.label }}</a>
+                    } @else {
+                      <span>{{ g.label }}</span>
+                    }
                   </li>
                 }
               </ul>

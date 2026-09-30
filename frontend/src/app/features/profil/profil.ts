@@ -6,6 +6,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ProfilService } from './profil.service';
 import { Profil } from './profil.model';
 import { SessionService } from '../../core/session.service';
+import { AuthService } from '../../core/auth.service';
 import { teinteAvatar, encreAvatar, initialesDe } from '../../core/avatar';
 import { dateCourte } from '../home/dashboard/dates';
 import { CircuitService } from '../workflow/circuit.service';
@@ -43,6 +44,8 @@ export class ProfilPage implements OnInit {
    */
   protected readonly decisions = signal<DecisionRendue[]>([]);
   private session = inject(SessionService);
+  /** Fiche d'un groupe : écran d'administration (GERER_ROLES_HABILITATIONS, ANO-F-003). */
+  protected auth = inject(AuthService);
 
   profil = signal<Profil | null>(null);
   chargement = signal(true);
