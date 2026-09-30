@@ -14,7 +14,7 @@
         }
       </mat-form-field>
       <mat-form-field appearance="outline" class="grow">
-        <mat-label>Nom de group</mat-label>
+        <mat-label>Nom du groupe</mat-label>
         <input matInput formControlName="name" placeholder="Entrez le nom du groupe" />
         @if (form.get('name')?.touched && form.get('name')?.invalid) {
           <mat-error>Le nom est obligatoire</mat-error>
@@ -22,11 +22,11 @@
       </mat-form-field>
     </div>
 
-    <!-- Section 2 — Utilisateurs & Workspaces -->
-    <h3 class="section">Liste des utilisateurs &amp; Workspaces</h3>
+    <!-- Section 2 — Utilisateurs et espaces de travail -->
+    <h3 class="section">Utilisateurs et espaces de travail</h3>
     <div class="row">
       <mat-form-field appearance="outline" class="grow">
-        <mat-label>Liste des WorkSpaces</mat-label>
+        <mat-label>Espaces de travail</mat-label>
         <mat-select formControlName="workspaceIds" multiple>
           @for (w of workspaces(); track w.id) {
             <mat-option [value]="w.id">{{ w.name }}</mat-option>
