@@ -23,21 +23,32 @@ public class EmployeController {
     private final EmployeRepository repository;
     private final ProfilService profils;
     private final com.ipt.ged.autorisation.ControleAcces controle;
+    private final com.ipt.ged.identite.UtilisateurRepository utilisateurs;
 
     public EmployeController(EmployeRepository repository, ProfilService profils,
-                             com.ipt.ged.autorisation.ControleAcces controle) {
+                             com.ipt.ged.autorisation.ControleAcces controle,
+                             com.ipt.ged.identite.UtilisateurRepository utilisateurs) {
         this.repository = repository;
         this.profils = profils;
         this.controle = controle;
+        this.utilisateurs = utilisateurs;
     }
 
-    /** GET /api/v1/employes?has_user=1  → liste (filtrée sur les employés avec compte si has_user=1). */
+    /**
+     * GET /api/v1/employes?has_user=1  → liste (filtrée sur les employés avec compte si has_user=1).
+     * Chaque personne porte son identité GED ({@code utilisateurId}, absente sans
+     * compte) : c'est elle que désignent la désignation d'un document
+     * confidentiel, le critère « déposant » et l'auteur d'une version
+     * (ANO-F-012, ANO-F-013).
+     */
     @GetMapping
     public List<EmployeResponse> list(@RequestParam(name = "has_user", required = false) Integer hasUser) {
         List<Employe> employes = (hasUser != null && hasUser == 1)
                 ? repository.findByHasUserTrue()
                 : repository.findAll();
-        return employes.stream().map(EmployeResponse::from).toList();
+        java.util.Map<UUID, UUID> identites = new java.util.HashMap<>();
+        utilisateurs.findAll().forEach(u -> identites.put(u.getEmploye().getId(), u.getId()));
+        return employes.stream().map(e -> EmployeResponse.from(e, identites.get(e.getId()))).toList();
     }
 
     /**
@@ -68,10 +79,14 @@ public class EmployeController {
         return profils.profilCourant(principal);
     }
 
-    /** DTO de sortie : ce que le frontend affiche dans les sélecteurs. */
-    public record EmployeResponse(UUID id, String firstName, String lastName, String fullName) {
-        static EmployeResponse from(Employe e) {
-            return new EmployeResponse(e.getId(), e.getFirstName(), e.getLastName(), e.getFullName());
+    /**
+     * DTO de sortie : ce que le frontend affiche dans les sélecteurs.
+     *
+     * @param utilisateurId identité GED de la personne ; {@code null} si elle n'a pas de compte
+     */
+    public record EmployeResponse(UUID id, String firstName, String lastName, String fullName, UUID utilisateurId) {
+        static EmployeResponse from(Employe e, UUID utilisateurId) {
+            return new EmployeResponse(e.getId(), e.getFirstName(), e.getLastName(), e.getFullName(), utilisateurId);
         }
     }
 }
