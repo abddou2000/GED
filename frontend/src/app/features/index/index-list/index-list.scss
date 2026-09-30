@@ -14,12 +14,13 @@
 .type-pill mat-icon { width: 15px; height: 15px; font-size: 15px; flex: 0 0 15px; }
 
 /* Marine pour le texte, vert pour les nombres, ambre pour les dates, cramoisi
-   pour les listes : ce sont les memes familles que partout ailleurs dans
+   pour les listes, violet pour les booléens : ce sont les memes familles que partout ailleurs dans
    l'application, pas une palette inventee pour cette colonne. */
 .t-texte  { --teinte: #eaf1fd; --encre: #123a86; --filet: rgba(30, 75, 184, .18); }
 .t-nombre { --teinte: #e4f5ec; --encre: #14663f; --filet: rgba(20, 102, 63, .18); }
 .t-date   { --teinte: #fdf2e0; --encre: #8a6212; --filet: rgba(138, 98, 18, .20); }
 .t-liste  { --teinte: #fbe9ec; --encre: #8e2637; --filet: rgba(142, 38, 55, .18); }
+.t-booleen { --teinte: #efeafb; --encre: #4b2a8a; --filet: rgba(75, 42, 138, .18); }
 
 /* Options d'une liste : vert — se distingue des index (marine) */
 .tag {

@@ -58,7 +58,15 @@
 
     <mat-form-field appearance="outline" class="full">
       <mat-label>Valeur par défaut</mat-label>
-      <input matInput formControlName="valeurParDefaut" />
+      @if (isBooleen) {
+        <mat-select formControlName="valeurParDefaut">
+          <mat-option value="">Aucune</mat-option>
+          <mat-option value="oui">Oui</mat-option>
+          <mat-option value="non">Non</mat-option>
+        </mat-select>
+      } @else {
+        <input matInput formControlName="valeurParDefaut" />
+      }
     </mat-form-field>
 
     <div class="toggles">

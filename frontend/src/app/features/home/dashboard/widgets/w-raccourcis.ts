@@ -2,6 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../../../core/auth.service';
+import { ModulesService } from '../../../../core/modules.service';
 import { Encart } from './encart';
 
 /**
@@ -44,6 +45,7 @@ interface Raccourci {
 })
 export class WRaccourcis {
   private auth = inject(AuthService);
+  private modules = inject(ModulesService);
 
   static readonly TOUS: readonly Raccourci[] = [
     { libelle: 'Déposer un document', precision: 'Téléverser et lancer le circuit', icone: 'nav-upload', route: '/televerser', teinte: 'd-cramoisi', permission: 'DEPOSER' },
@@ -53,7 +55,12 @@ export class WRaccourcis {
     { libelle: 'Rechercher un document', precision: 'Par contenu, type, dossier ou date', icone: 'search', route: '/recherche', teinte: 'd-ambre', permission: null },
   ];
 
-  /** Un compte sans rôle ne quitte pas l'accueil (§3.4.2) : aucun raccourci. */
+  /**
+   * Un compte sans rôle ne quitte pas l'accueil (§3.4.2) : aucun raccourci.
+   * « Mes validations » suit aussi le module workflow : route fermée s'il est
+   * inactif (T-088).
+   */
   protected readonly raccourcis = computed(() => this.auth.sansRole() ? [] :
-    WRaccourcis.TOUS.filter(r => r.permission === null || this.auth.peut(r.permission)));
+    WRaccourcis.TOUS.filter(r => (r.permission === null || this.auth.peut(r.permission))
+      && (r.route !== '/mes-workflow' || this.modules.actif('workflow'))));
 }

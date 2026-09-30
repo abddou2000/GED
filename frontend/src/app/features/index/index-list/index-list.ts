@@ -190,7 +190,7 @@ export class IndexList implements OnInit {
   /** Glyphe du type de champ — un par nature, dans le registre d'icônes. */
   protected iconeType(x: IndexField): string {
     return { TEXTE: 'type-texte', NOMBRE: 'type-nombre',
-             DATE: 'calendar', LISTE: 'type-liste' }[x.fieldType] ?? 'type-texte';
+             DATE: 'calendar', LISTE: 'type-liste', BOOLEEN: 'checkbox-on' }[x.fieldType] ?? 'type-texte';
   }
   ouiNon(v: boolean): string { return v ? 'Oui' : 'Non'; }
 

@@ -14,8 +14,8 @@
       </mat-form-field>
 
       <mat-form-field appearance="outline">
-        <mat-label>Nom du Workspace</mat-label>
-        <input matInput formControlName="name" placeholder="Entrez le nom du Workspace" />
+        <mat-label>Nom de l'espace de travail</mat-label>
+        <input matInput formControlName="name" placeholder="Entrez le nom de l'espace de travail" />
         @if (form.get('name')?.touched && form.get('name')?.invalid) {
           <mat-error>Le nom est obligatoire</mat-error>
         }

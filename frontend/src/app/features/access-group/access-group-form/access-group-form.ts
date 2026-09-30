@@ -17,7 +17,7 @@ interface DialogData {
 
 /**
  * Formulaire créer / éditer un groupe d'accès — 2 sections : Identification,
- * Utilisateurs & Workspaces. Le groupe ne décrit qu'un rattachement : il n'ouvre
+ * Utilisateurs et espaces de travail. Le groupe ne décrit qu'un rattachement : il n'ouvre
  * ni ne ferme aucun droit, l'application n'ayant qu'un seul utilisateur.
  */
 @Component({
