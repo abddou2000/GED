@@ -142,6 +142,13 @@ export class DocumentUpload implements OnInit {
        seulement déposer un fichier. On peut toujours les poser après coup
        depuis la fiche du document. */
     etiquetteIds: [[] as string[]],
+    /* Socle commun (§4.2.3, §12.7 ; ANO-F-006) : l'objet, et la date DU
+       DOCUMENT — celle d'une facture, d'un courrier —, distincte de la date du
+       dépôt. C'est elle que la recherche et les tris retiennent : sans ce champ,
+       tout dépôt fait à l'écran datait le document du jour du dépôt. Vide = le
+       serveur prend la date du dépôt. */
+    objet: ['', Validators.maxLength(1000)],
+    dateDocument: [null as Date | null],
   });
 
   ngOnInit(): void {
@@ -682,7 +689,8 @@ export class DocumentUpload implements OnInit {
       if (valeur) metadonnees[c.indexFieldId] = valeur;
     }
     this.service.upload(file, v.typeDocumentId, (v.name || '').trim(), versIso(v.expirationDate),
-                        v.etiquetteIds ?? [], v.confidentialite ?? null, metadonnees)
+                        v.etiquetteIds ?? [], v.confidentialite ?? null, metadonnees,
+                        { objet: v.objet ?? null, dateDocument: versIso(v.dateDocument) })
       .subscribe({
         next: doc => {
           this.documentDepose.set(doc.id);
@@ -694,7 +702,7 @@ export class DocumentUpload implements OnInit {
                l'enregistrement des index se reprend d'ici (« Réessayer »). */
             this.loading.set(false);
             this.serverError.set("Le document est déposé, mais ses index n'ont pas été enregistrés : "
-              + doc.motifIndexation);
+              + doc.motifIndexation + " Réessayez, ou fermez et reprenez-les depuis la fiche du document.");
             return;
           }
           this.enregistrerIndex(doc.id);
@@ -736,8 +744,9 @@ export class DocumentUpload implements OnInit {
         /* Le fichier est déposé : le supprimer serait pire que le laisser à
            indexer. On le dit franchement, et on laisse deux issues — réessayer,
            ou fermer et reprendre depuis la fiche du document. */
-        this.serverError.set(err?.error?.message
-          ?? "Le document est déposé, mais l'enregistrement des index a été refusé.");
+        this.serverError.set((err?.error?.message
+          ?? "Le document est déposé, mais l'enregistrement des index a été refusé.")
+          + " Réessayez, ou fermez et reprenez-les depuis la fiche du document.");
       },
     });
   }
@@ -756,6 +765,11 @@ export class DocumentUpload implements OnInit {
    */
   private figerContexte(): void {
     this.form.get('typeDocumentId')!.disable({ emitEvent: false });
+    /* Objet et date sont partis avec le dépôt : « Réessayer » ne renvoie que
+       les index. Les laisser modifiables ferait croire à une correction qui
+       n'aurait jamais lieu — elle se fait depuis la fiche. */
+    this.form.get('objet')!.disable({ emitEvent: false });
+    this.form.get('dateDocument')!.disable({ emitEvent: false });
   }
 
   /**

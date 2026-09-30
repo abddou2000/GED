@@ -1,5 +1,5 @@
 /** Type d'un index — détermine le contrôle affiché dans la recherche. */
-export type TypeIndex = 'TEXTE' | 'NOMBRE' | 'DATE' | 'LISTE';
+export type TypeIndex = 'TEXTE' | 'NOMBRE' | 'DATE' | 'LISTE' | 'BOOLEEN';
 
 /**
  * Critère de recherche, généré par le serveur à partir d'un index.
@@ -13,6 +13,8 @@ export interface Critere {
   fieldType: TypeIndex;
   options: string[];      // uniquement pour LISTE
   groupage: boolean;
+  /** Valeur exigée à l'indexation (le serveur le revérifie). */
+  obligatoire?: boolean;
 }
 
 /** Une valeur d'index portée par un document. */

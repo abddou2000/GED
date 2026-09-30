@@ -83,6 +83,9 @@ export class DocumentList implements OnInit {
        la meme information sur trois colonnes. Masque par defaut, il reste
        disponible dans le selecteur de colonnes. */
     { cle: 'chemin', libelle: 'Chemin', masqueeParDefaut: true },
+    /* Date du document (socle commun) : distincte de la date de dépôt, c'est
+       elle que « la recherche et les tris » retiennent (ANO-F-006). */
+    { cle: 'dateDocument', libelle: 'Date du document' },
     { cle: 'createdAt', libelle: 'Date de création' },
     { cle: 'createdBy', libelle: 'Créateur' },
     { cle: 'workspace', libelle: 'Espace de travail' },
@@ -98,7 +101,7 @@ export class DocumentList implements OnInit {
    * le selecteur sans surcharger un tableau deja large.
    */
   colonnesVisibles = signal<string[]>(
-    ['select', 'name', 'chemin', 'createdAt', 'createdBy', 'workspace', 'type',
+    ['select', 'name', 'chemin', 'dateDocument', 'createdAt', 'createdBy', 'workspace', 'type',
      'expiration', 'etiquettes', 'actions']);
 
   /** Taille de page memorisee entre deux visites, comme l'original. */
@@ -252,7 +255,8 @@ export class DocumentList implements OnInit {
       const messages: Record<string, string> = {
         'indexe': 'Document déposé, indexé, et circuit de validation ouvert.',
         'sans-plan': "Document déposé et circuit lancé. Son type n'a pas de plan d'indexation : aucun index à renseigner.",
-        'a-indexer': 'Document déposé et circuit lancé, mais il reste à indexer.',
+        'a-indexer': "Document déposé et circuit lancé, mais il reste à indexer : "
+          + "ouvrez sa fiche (pastille « À indexer ») pour saisir ses index.",
       };
       const message = messages[issue as string];
       if (issue === 'a-indexer') this.notify.info(message);

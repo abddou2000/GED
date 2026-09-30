@@ -138,8 +138,14 @@ export class DocumentService {
    */
   upload(file: File, typeDocumentId: string, name: string, expirationDate: string | null,
          etiquetteIds: string[] = [], confidentialite: string | null = null,
-         metadonnees?: Record<string, string | null>): Observable<DocumentItem> {
+         metadonnees?: Record<string, string | null>,
+         socle: { objet?: string | null; dateDocument?: string | null } = {}): Observable<DocumentItem> {
     const fd = new FormData();
+    /* Socle commun (§12.7, ANO-F-006) : objet, et date du document — celle que
+       la recherche et les tris retiennent. Absente, le serveur prend la date
+       du dépôt. */
+    if (socle.objet?.trim()) fd.append('objet', socle.objet.trim());
+    if (socle.dateDocument) fd.append('dateDocument', socle.dateDocument);
     // Absent : le serveur applique le niveau par défaut du type (§12.3).
     if (confidentialite) fd.append('confidentialite', confidentialite);
     fd.append('file', file);
