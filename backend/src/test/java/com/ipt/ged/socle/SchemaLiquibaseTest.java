@@ -413,6 +413,47 @@ class SchemaLiquibaseTest {
         }
     }
 
+    @Test
+    @DisplayName("ANO-F-001 : l'Agent d'archive reçoit Valider, Diffuser, Purger ; le retour arrière épargne un ajout fait à l'écran")
+    void compositionAgentArchive() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                List<liquibase.changelog.ChangeSet> aJouer = liquibase.listUnrunChangeSets(new Contexts(),
+                        new LabelExpression());
+                int avant = 0;
+                while (!aJouer.get(avant).getId().equals("202610041000-1")) avant++;
+                liquibase.update(avant, new Contexts(), new LabelExpression());
+                String s = schema + ".";
+                String agent = "'0192a000-0000-7000-8000-000000000002'";
+                String composition = "SELECT count(*) FROM " + s + "role_permission rp JOIN " + s
+                        + "permission p ON p.id = rp.permission_id WHERE rp.role_id = " + agent;
+                assertEquals(7, compter(c, composition), "composition livrée avant le correctif");
+                // Un Administrateur a déjà ajouté Valider depuis l'écran des rôles.
+                executer(c, "INSERT INTO " + s + "role_permission (role_id, permission_id) VALUES (" + agent
+                        + ", '0192b000-0000-7000-8000-000000000004')");
+                if (!c.getAutoCommit()) c.commit();
+
+                liquibase.update(new Contexts(), new LabelExpression());
+                assertEquals(10, compter(c, composition), "neuf permissions élémentaires et Voir privé");
+                assertEquals(3, compter(c, composition + " AND p.code IN ('VALIDER', 'DIFFUSER', 'PURGER')"));
+
+                // Retour arrière jusqu'à ce changeset inclus : Diffuser et Purger partent, Valider
+                // (posé à l'écran) reste.
+                int apres = compter(c, "SELECT count(*) FROM " + s + "databasechangelog WHERE orderexecuted >="
+                        + " (SELECT orderexecuted FROM " + s + "databasechangelog WHERE id = '202610041000-1')");
+                liquibase.rollback(apres, (String) null);
+                assertEquals(8, compter(c, composition));
+                assertEquals(1, compter(c, composition + " AND p.code = 'VALIDER'"));
+                assertEquals(0, compter(c, composition + " AND p.code IN ('DIFFUSER', 'PURGER')"));
+            } finally {
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
     private static String causes(Throwable t) {
         StringBuilder b = new StringBuilder();
         for (Throwable x = t; x != null; x = x.getCause()) b.append(x.getMessage()).append(" | ");

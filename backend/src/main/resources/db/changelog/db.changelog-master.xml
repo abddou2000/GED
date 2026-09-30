@@ -151,4 +151,8 @@
     <!-- Alerte d'échéance de conservation (T-112, §12.9) et verrou des tâches planifiées. -->
     <include file="changesets/202610031000_alerte_echeance_conservation.xml" relativeToChangelogFile="true"/>
 
+    <!-- Correctifs de recette fonctionnelle (dev1, tour 1). -->
+    <!-- ANO-F-001 : l'Agent d'archive reçoit Valider, Diffuser et Purger (§3.2 du dossier fonctionnel). -->
+    <include file="changesets/202610041000_composition_agent_archive.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>
