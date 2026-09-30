@@ -30,6 +30,11 @@ ged:
       verification-planifiee: false
     previsualisation:
       repertoire-travail: ./target/test-apercu-travail
+      # Binaire introuvable, que LibreOffice soit installé ou non sur le poste :
+      # les tests d'API prouvent le comportement « LibreOffice absent » (503,
+      # copie de conservation ECHEC) de façon reproductible. La conversion
+      # réelle est prouvée à part (LibreOfficeReelApiTest, soffice du poste).
+      libreoffice-commande: ./target/ged-soffice-introuvable
   ocr:
     chaine:
       # Chaîne inactive par défaut dans les tests d'API (dépôt en 201) ; les

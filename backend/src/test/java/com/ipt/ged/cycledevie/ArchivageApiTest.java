@@ -33,6 +33,7 @@ class ArchivageApiTest extends BaseCycleDeVieApiTest {
 
     @Autowired private ValidateurPdfA validateur;
     @Autowired private ApplicationEvents evenements;
+    @Autowired private com.ipt.ged.fichier.previsualisation.ConvertisseurBureautique libreOffice;
 
     private UUID type;
 
@@ -132,6 +133,10 @@ class ArchivageApiTest extends BaseCycleDeVieApiTest {
     @Test
     @DisplayName("Word sans LibreOffice : archivé avec son original, copie ECHEC signalée (anomalie), original servi")
     void conversionEnEchec() throws Exception {
+        // Profil de test : binaire soffice introuvable, que LibreOffice soit installé
+        // ou non sur le poste (application-test.yml). La conversion réelle est
+        // prouvée par LibreOfficeReelApiTest.
+        assertFalse(libreOffice.disponible(), "le profil de test doit simuler LibreOffice absent");
         byte[] docx = Echantillons.docx();
         UUID doc = deposer(type, "contrat", "contrat.docx",
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document", docx);
