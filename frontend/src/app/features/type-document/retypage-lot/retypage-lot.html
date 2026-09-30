@@ -1,0 +1,146 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Re-typologie en lot</h1>
+      <p class="breadcrumb">
+        <a routerLink="/type-de-document">Types de document</a><span> · </span><span>Re-typologie en lot</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Documents à re-typer</h2>
+    <div class="ligne">
+      <label class="champ">
+        <span class="lib">Type source</span>
+        <select aria-label="Type source" [value]="sourceId()" (change)="choisirSource($any($event.target).value)">
+          <option value="">Choisir…</option>
+          @for (t of types(); track t.id) {
+            <option [value]="t.id">{{ t.typeDeDocument }}{{ t.actif === false ? ' (désactivé)' : '' }}</option>
+          }
+        </select>
+      </label>
+      <label class="champ">
+        <span class="lib">Type cible</span>
+        <select aria-label="Type cible" [value]="cibleId()" (change)="choisirCible($any($event.target).value)"
+                [disabled]="!sourceId()">
+          <option value="">Choisir…</option>
+          @for (t of ciblesPossibles(); track t.id) { <option [value]="t.id">{{ t.typeDeDocument }}</option> }
+        </select>
+      </label>
+    </div>
+
+    @if (sourceId()) {
+      <fieldset class="portee">
+        <legend class="lib">Documents concernés</legend>
+        <label><input type="radio" name="portee" value="tous" [checked]="portee() === 'tous'"
+                      (change)="changerPortee('tous')" /> Tous les documents du type source</label>
+        <label><input type="radio" name="portee" value="selection" [checked]="portee() === 'selection'"
+                      (change)="changerPortee('selection')" /> Une sélection</label>
+      </fieldset>
+      @if (portee() === 'selection') {
+        @if (documents().length) {
+          <ul class="documents">
+            @for (d of documents(); track d.id) {
+              <li>
+                <label>
+                  <input type="checkbox" [attr.data-document]="d.id" [checked]="choisis().has(d.id)"
+                         (change)="basculerDocument(d.id)" />
+                  {{ d.name }}
+                </label>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="etat">Aucun document de ce type dans son dossier.</p>
+        }
+      }
+    }
+  </div>
+
+  @if (sourceId() && cibleId()) {
+    <div class="card">
+      <h2>Correspondance des champs</h2>
+      @if (champsSource().length) {
+        <p class="etat">Un champ va par défaut au champ de même code du plan cible. Un champ sans équivalent est perdu.</p>
+        <table class="table-simple correspondance">
+          <thead><tr><th>Champ du type source</th><th>Devient</th></tr></thead>
+          <tbody>
+            @for (c of champsSource(); track c.code) {
+              <tr>
+                <td>{{ c.libelle }} <span class="mono">{{ c.code }}</span></td>
+                <td>
+                  <select [attr.aria-label]="'Devenir du champ ' + c.libelle" [attr.data-champ]="c.code"
+                          [value]="correspondance()[c.code] ?? ''"
+                          (change)="associer(c.code, $any($event.target).value)">
+                    <option value="">— perdu —</option>
+                    @for (x of champsCible(); track x.code) { <option [value]="x.code">{{ x.libelle }} ({{ x.code }})</option> }
+                  </select>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        @if (perdus().length) {
+          <p class="alerte">Champs perdus : {{ perdus().join(', ') }}.</p>
+        }
+      } @else {
+        <p class="etat">Le type source n'a pas de plan d'indexation : aucune métadonnée à reporter.</p>
+      }
+      <div class="actions">
+        <button mat-flat-button color="primary" class="act-lancer" [disabled]="!peutLancer()" (click)="lancer()">
+          <mat-icon svgIcon="refresh"></mat-icon> Lancer la re-typologie
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (suivi(); as j) {
+    <div class="card suivi">
+      <h2>Travail du {{ date(j.creeLe) }} — {{ libelleStatut(j.statut) }}</h2>
+      <p class="progression">
+        {{ nomType(j.sourceTypeDocumentId) }} → {{ nomType(j.cibleTypeDocumentId) }} :
+        {{ j.traites }} / {{ j.total }} traité(s) ({{ progression(j) }} %), {{ j.reussis }} réussi(s), {{ j.echecs }} échec(s)
+      </p>
+      @if (j.rapport.length) {
+        <table class="table-simple rapport">
+          <thead><tr><th>Document</th><th>Résultat</th><th>Détail</th></tr></thead>
+          <tbody>
+            @for (l of j.rapport; track l.documentId) {
+              <tr [class.echec]="l.resultat !== 'SUCCES'">
+                <td>{{ l.nom || l.documentId }}</td>
+                <td>{{ l.resultat === 'SUCCES' ? 'Réussi' : 'Échec' }}</td>
+                <td>
+                  @if (l.motif) { {{ l.motif }} }
+                  @if (l.champsPerdus?.length) { Champs perdus : {{ l.champsPerdus!.join(', ') }} }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  }
+
+  <div class="card">
+    <h2>Derniers travaux</h2>
+    @if (historique().length) {
+      <table class="table-simple historique">
+        <thead><tr><th>Lancé le</th><th>Source → cible</th><th>Statut</th><th>Réussis / échecs / total</th><th></th></tr></thead>
+        <tbody>
+          @for (h of historique(); track h.id) {
+            <tr>
+              <td>{{ date(h.creeLe) }}</td>
+              <td>{{ nomType(h.sourceTypeDocumentId) }} → {{ nomType(h.cibleTypeDocumentId) }}</td>
+              <td>{{ libelleStatut(h.statut) }}</td>
+              <td>{{ h.reussis }} / {{ h.echecs }} / {{ h.total }}</td>
+              <td><button mat-button (click)="afficher(h)">Rapport</button></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="etat">Aucun travail de re-typologie.</p>
+    }
+  </div>
+</div>

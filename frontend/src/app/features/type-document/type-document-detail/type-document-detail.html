@@ -7,10 +7,22 @@
         @if (type(); as t) { <span> · </span><span>{{ t.typeDeDocument }}</span> }
       </p>
     </div>
-    @if (type()) {
-      <button mat-flat-button color="primary" (click)="modifier()">
-        <mat-icon svgIcon="edit"></mat-icon> Modifier
-      </button>
+    @if (type(); as t) {
+      <div class="actions-tete">
+        @if (retypageDisponible() && t.actif !== false) {
+          <a mat-stroked-button class="act-retyper" [routerLink]="['/type-de-document/retypage']"
+             [queryParams]="{ source: t.id }">
+            <mat-icon svgIcon="refresh"></mat-icon> Re-typer ses documents
+          </a>
+        }
+        <button mat-stroked-button class="act-statut" (click)="basculerActif()">
+          <mat-icon [svgIcon]="t.actif === false ? 'restore' : 'archive'"></mat-icon>
+          {{ t.actif === false ? 'Réactiver' : 'Désactiver' }}
+        </button>
+        <button mat-flat-button color="primary" (click)="modifier()">
+          <mat-icon svgIcon="edit"></mat-icon> Modifier
+        </button>
+      </div>
     }
   </div>
 
@@ -46,6 +58,13 @@
             @else { <span class="muted">—</span> }
           </span>
           <span class="lib">Types autorisés</span>
+        </div>
+        <!-- Statut (§12.7, ANO-F-015) : un type désactivé n'accepte plus de dépôt. -->
+        <div class="cartouche">
+          <span class="val statut" [class.inactif]="t.actif === false">
+            {{ t.actif === false ? 'Désactivé' : 'Actif' }}
+          </span>
+          <span class="lib">Statut</span>
         </div>
         <div class="cartouche">
           <span class="val">{{ t.tailleMaxMo }} Mo</span>

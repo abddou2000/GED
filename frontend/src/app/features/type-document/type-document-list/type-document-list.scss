@@ -13,3 +13,7 @@
 .fmt-pdf { color: #c0392b; }
 .fmt-doc, .fmt-docx { color: #2f62d6; }
 .fmt-xls, .fmt-xlsx { color: #1e7a46; }
+
+.actions-tete { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.statut { font-size: 12px; font-weight: 600; color: var(--ok); }
+.statut.inactif { color: var(--danger); }

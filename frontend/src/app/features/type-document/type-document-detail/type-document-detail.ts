@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { of } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -11,6 +12,8 @@ import { AuthService } from '../../../core/auth.service';
 import { WorkflowService } from '../../workflow/workflow.service';
 import { CircuitService } from '../../workflow/circuit.service';
 import { Workflow } from '../../workflow/workflow.model';
+import { ConfirmService } from '../../../core/confirm.service';
+import { ModulesService } from '../../../core/modules.service';
 
 /**
  * Fiche d'un type de document — reprend l'en-tête de l'application d'origine :
@@ -33,6 +36,11 @@ export class TypeDocumentDetail implements OnInit {
   private auth = inject(AuthService);
   private reglesApi = inject(WorkflowService);
   private circuits = inject(CircuitService);
+  private confirm = inject(ConfirmService);
+  private modules = inject(ModulesService);
+
+  /** La re-typologisation relève du module « cycle de vie » (T-088). */
+  retypageDisponible = () => this.modules.actif('cycledevie');
 
   regles = signal<Workflow[]>([]);
   /** Rattacher une règle relève de la gestion des référentiels. */
@@ -89,6 +97,33 @@ export class TypeDocumentDetail implements OnInit {
       if (!ok) return;
       this.charger();
       this.notify.success('Type de document modifié.');
+    });
+  }
+
+  /**
+   * Désactive ou réactive le type (§12.7, ANO-F-015) : un type utilisé ne se
+   * supprime pas, il se désactive ; il n'accepte alors plus de dépôt, les
+   * documents existants restent consultables.
+   */
+  basculerActif(): void {
+    const t = this.type();
+    if (!t) return;
+    const actif = t.actif === false;
+    const confirmation = actif ? of(true) : this.confirm.ask({
+      title: 'Désactiver ce type',
+      message: `« ${t.typeDeDocument} » n'acceptera plus de dépôt. Les documents existants restent consultables.`,
+      confirmLabel: 'Désactiver',
+      danger: true,
+    });
+    confirmation.subscribe(ok => {
+      if (!ok) return;
+      this.service.activer(t.id, actif).subscribe({
+        next: maj => {
+          this.type.set({ ...t, ...maj });
+          this.notify.success(actif ? 'Type de document réactivé.' : 'Type de document désactivé.');
+        },
+        error: err => this.notify.error(err?.error?.message ?? 'Changement de statut impossible.'),
+      });
     });
   }
 }

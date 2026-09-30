@@ -1,7 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
 import { MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -10,107 +9,101 @@ import { of } from 'rxjs';
 import { API_BASE } from '../../../core/api';
 import { AuthService } from '../../../core/auth.service';
 import { GED_ICONS } from '../../../core/ged-icons';
-import { DocumentUpload } from '../../document/document-upload/document-upload';
-import { DossierSimpleForm } from '../dossier-simple-form/dossier-simple-form';
-import { WorkspaceForm } from '../workspace-form/workspace-form';
-import { TreeNode, WorkSpace } from '../workspace.model';
+import { CodeModule, ModulesService } from '../../../core/modules.service';
+import { WorkSpace } from '../workspace.model';
 import { WorkspaceDetail } from './workspace-detail';
 
 /**
- * ANO-F-016 (écran) : dans un espace d'échange, « Nouveau dossier » ouvre le
- * formulaire simple (pas celui d'administration), et le dépôt lancé depuis un
- * dossier propose les dossiers de l'espace comme emplacement cible.
+ * Fiche d'un dossier : n'affiche que les actions permises par les droits
+ * effectifs de l'appelant sur le nœud (ANO-F-018) et par les modules actifs
+ * (T-088).
  */
-describe('WorkspaceDetail — espace d\'échange', () => {
+describe('WorkspaceDetail', () => {
   let serveur: HttpTestingController;
-  const ouvertures: { composant: unknown; config: { data?: unknown } }[] = [];
-
-  const ARBRE: TreeNode[] = [{
-    id: 'e1', name: 'Partage CPS', status: 'ACTIF', parentId: null, children: [
-      { id: 'd1', name: 'Lot 1', status: 'ACTIF', parentId: 'e1', children: [
-        { id: 'd2', name: 'Offres', status: 'ACTIF', parentId: 'd1', children: [] },
-      ] },
-    ],
-  }, { id: 'm1', name: 'Achats', status: 'ACTIF', parentId: null, children: [] }];
+  const inactifs = new Set<CodeModule>();
 
   function espace(modif: Partial<WorkSpace> = {}): WorkSpace {
     return {
-      id: 'd1', name: 'Lot 1', code: 'LOT1', description: null, status: 'ACTIF', owner: null,
-      parent: { id: 'e1', label: 'Partage CPS' }, workflow: null, childrenCount: 1, usageEspace: 'ECHANGE',
-      ...modif,
+      id: 'w1', name: 'QA2 Partage', code: 'PART', description: null, status: 'ACTIF', owner: null, parent: null,
+      workflow: null, childrenCount: 0, usageEspace: 'METIER', permissions: ['CONSULTER'], ...modif,
     };
   }
 
   beforeEach(() => {
-    ouvertures.length = 0;
+    inactifs.clear();
     TestBed.configureTestingModule({
       imports: [WorkspaceDetail],
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideNoopAnimations(),
-        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ id: 'd1' })) } },
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ id: 'w1' })) } },
+        { provide: ModulesService, useValue: { charger: () => of(undefined), actif: (c: CodeModule) => !inactifs.has(c) } },
       ],
     });
-    // MatDialogModule, importé par l'écran, fournit son propre MatDialog : on le remplace à la source.
-    TestBed.overrideProvider(MatDialog, { useValue: {
-      open: (composant: unknown, config: { data?: unknown }) => {
-        ouvertures.push({ composant, config });
-        return { afterClosed: () => of(false) };
-      },
-    } });
     const registre = TestBed.inject(MatIconRegistry);
     const assainisseur = TestBed.inject(DomSanitizer);
     for (const { name, svg } of GED_ICONS) registre.addSvgIconLiteral(name, assainisseur.bypassSecurityTrustHtml(svg));
     serveur = TestBed.inject(HttpTestingController);
+  });
+
+  function identite(permissions: string[]): void {
     TestBed.inject(AuthService).utilisateur.set({
       id: 'u', identifiant: 'nidrissi', employeId: 'e', fullName: 'N. Idrissi', email: null, direction: null,
-      roles: ['UTILISATEUR_STANDARD'], permissions: ['CONSULTER', 'DEPOSER'],
+      roles: ['UTILISATEUR'], permissions,
     });
-  });
+  }
 
   function ouvrir(w: WorkSpace): ComponentFixture<WorkspaceDetail> {
     const f = TestBed.createComponent(WorkspaceDetail);
     f.detectChanges();
-    serveur.expectOne(`${API_BASE}/workspaces/d1`).flush(w);
-    serveur.expectOne(`${API_BASE}/workspaces/tree`).flush(ARBRE);
-    serveur.expectOne(r => r.url === `${API_BASE}/documents`).flush({ content: [], total: 0, page: 0, size: 200, totalPages: 0 });
-    f.detectChanges();
-    // Le bloc du cycle de vie du dossier interroge le serveur : hors sujet ici.
-    for (const r of serveur.match(() => true)) r.flush(null, { status: 404, statusText: 'Introuvable' });
-    f.detectChanges();
+    for (let tour = 0; tour < 3; tour++) {
+      for (const r of serveur.match(() => true)) {
+        const url = r.request.url;
+        if (url === `${API_BASE}/workspaces/w1`) r.flush(w);
+        else if (url === `${API_BASE}/workspaces/tree`) r.flush([{ id: 'w1', name: w.name, status: 'ACTIF', parentId: null, children: [] }]);
+        else if (url === `${API_BASE}/documents`) {
+          r.flush({ content: [{ id: 'd1', name: 'Note', typeDocument: null, sizeLabel: '1 Ko', fileName: 'note.pdf' }],
+            total: 1, page: 0, size: 200, totalPages: 1 });
+        } else if (url.includes('/archivage/dossiers/')) r.flush({ statutConservation: 'ACTIF' });
+        else if (url.endsWith('/archivage/jobs')) r.flush([]);
+        else r.flush(null, { status: 404, statusText: 'Introuvable' });
+      }
+      f.detectChanges();
+    }
     return f;
   }
 
-  function bouton(f: ComponentFixture<WorkspaceDetail>, texte: string): HTMLButtonElement | undefined {
-    return Array.from(f.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>)
-      .find(b => b.textContent?.includes(texte));
-  }
+  const present = (f: ComponentFixture<unknown>, sel: string) =>
+    (f.nativeElement as HTMLElement).querySelector(sel) !== null;
 
-  it('« Nouveau dossier » ouvre le formulaire simple, pas celui d\'administration', () => {
-    const f = ouvrir(espace());
-    bouton(f, 'Nouveau dossier')!.click();
-    expect(ouvertures.length).toBe(1);
-    expect(ouvertures[0].composant).toBe(DossierSimpleForm);
-    expect(ouvertures[0].config.data).toEqual({ parentId: 'd1', parentNom: 'Lot 1' });
-  });
-
-  it("« Déposer ici » ouvre le dépôt avec les dossiers de l'espace d'échange, celui-ci proposé", () => {
-    const f = ouvrir(espace());
-    (f.nativeElement.querySelector('button.deposer-ici') as HTMLButtonElement).click();
-    expect(ouvertures[0].composant).toBe(DocumentUpload);
-    expect(ouvertures[0].config.data).toEqual({
-      dossiers: [
-        { id: 'e1', name: 'Partage CPS' },
-        { id: 'd1', name: 'Partage CPS / Lot 1' },
-        { id: 'd2', name: 'Partage CPS / Lot 1 / Offres' },
-      ],
-      dossierId: 'd1',
+  describe('actions selon les droits du nœud (ANO-F-018)', () => {
+    it('un simple lecteur ne voit ni Modifier, ni Sous-dossier, ni Archiver le dossier, ni Supprimer', () => {
+      identite(['CONSULTER']);
+      const f = ouvrir(espace({ permissions: ['CONSULTER'] }));
+      expect(present(f, '.act-modifier')).toBe(false);
+      expect(present(f, '.act-sous-dossier')).toBe(false);
+      expect(present(f, '.act-archiver')).toBe(false);
+      expect(present(f, '.act-supprimer')).toBe(false);
+      // Télécharger reste proposé : consulter suffit.
+      expect(present(f, 'button[aria-label="Télécharger"]')).toBe(true);
     });
-  });
 
-  it("espace métier : « Sous-dossier » garde le formulaire des espaces, et pas de « Déposer ici »", () => {
-    const f = ouvrir(espace({ usageEspace: 'METIER' }));
-    expect(f.nativeElement.querySelector('button.deposer-ici')).toBeNull();
-    bouton(f, 'Sous-dossier')!.click();
-    expect(ouvertures[0].composant).toBe(WorkspaceForm);
+    it('chaque permission du nœud fait paraître son action', () => {
+      identite(['CONSULTER']);
+      const f = ouvrir(espace({ permissions: ['CONSULTER', 'MODIFIER', 'ARCHIVER', 'SUPPRIMER'] }));
+      expect(present(f, '.act-modifier')).toBe(true);
+      expect(present(f, '.act-archiver')).toBe(true);
+      expect(present(f, '.act-supprimer')).toBe(true);
+      expect(present(f, '.act-sous-dossier')).toBe(false);
+    });
+
+    it('Sous-dossier : Déposer dans un espace d\'échange, ou la gestion des espaces', () => {
+      identite(['CONSULTER', 'DEPOSER']);
+      expect(present(ouvrir(espace({ usageEspace: 'ECHANGE', permissions: ['CONSULTER', 'DEPOSER'] })), '.act-sous-dossier'))
+        .toBe(true);
+      expect(present(ouvrir(espace({ usageEspace: 'METIER', permissions: ['CONSULTER', 'DEPOSER'] })), '.act-sous-dossier'))
+        .toBe(false);
+      identite(['GERER_ESPACES']);
+      expect(present(ouvrir(espace({ permissions: ['CONSULTER'] })), '.act-sous-dossier')).toBe(true);
+    });
   });
 });

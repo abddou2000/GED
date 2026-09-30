@@ -1,5 +1,6 @@
 import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { SessionService } from '../../../core/session.service';
+import { ModulesService } from '../../../core/modules.service';
 import { CATALOGUE, CleWidget, DISPOSITION_PAR_DEFAUT, DefinitionWidget, definition } from './widgets';
 
 /**
@@ -16,15 +17,21 @@ import { CATALOGUE, CleWidget, DISPOSITION_PAR_DEFAUT, DefinitionWidget, definit
 @Injectable({ providedIn: 'root' })
 export class DashboardPrefs {
   private session = inject(SessionService);
+  private modules = inject(ModulesService);
 
   private readonly etat = signal<CleWidget[]>([...DISPOSITION_PAR_DEFAUT]);
 
   /** Clés visibles, dans l'ordre d'affichage. */
   readonly disposition = this.etat.asReadonly();
 
-  /** Définitions correspondantes — ce que le gabarit d'accueil parcourt. */
+  /**
+   * Définitions correspondantes — ce que le gabarit d'accueil parcourt. Un
+   * encart d'un module désactivé n'est pas rendu (T-088) ; il reste dans la
+   * disposition et revient si le module est réactivé.
+   */
   readonly visibles = computed<DefinitionWidget[]>(
-    () => this.etat().map(definition).filter((d): d is DefinitionWidget => !!d));
+    () => this.etat().map(definition).filter((d): d is DefinitionWidget => !!d)
+      .filter(d => !d.module || this.modules.actif(d.module)));
 
   /** Vrai si la disposition diffère de celle servie par défaut. */
   readonly personnalise = computed(

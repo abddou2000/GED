@@ -19,6 +19,7 @@ import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
 import { SelectionToggle } from '../../../core/selection-toggle/selection-toggle';
+import { ModulesService } from '../../../core/modules.service';
 
 /**
  * Écran « Type de document » — CRUD, corbeille, recherche. Création / édition
@@ -65,6 +66,10 @@ export class TypeDocumentList implements OnInit {
   private notify = inject(NotifyService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private modules = inject(ModulesService);
+
+  /** Re-typologie en lot (§12.7, ANO-F-015) : module « cycle de vie » (T-088). */
+  retypageDisponible = () => this.modules.actif('cycledevie');
 
   dataSource = new MatTableDataSource<TypeDocument>([]);
   selection = new SelectionModel<TypeDocument>(true, []);
@@ -87,10 +92,11 @@ export class TypeDocumentList implements OnInit {
     { cle: 'workspace', libelle: 'Espace de travail' },
     { cle: 'formats', libelle: 'Types autorisés' },
     { cle: 'taille', libelle: 'Taille max' },
+    { cle: 'statut', libelle: 'Statut' },
     { cle: 'actions', libelle: 'Actions', toujours: true },
   ];
   colonnesVisibles = signal<string[]>(
-    ['select', 'id', 'code', 'type', 'plan', 'description', 'workspace', 'formats', 'taille', 'actions']);
+    ['select', 'id', 'code', 'type', 'plan', 'description', 'workspace', 'formats', 'taille', 'statut', 'actions']);
 
   /** Taille de page mémorisée entre deux visites, comme l'original. */
   private static readonly CLE_TAILLE = 'type_de_documents-pagination';

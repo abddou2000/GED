@@ -90,6 +90,13 @@ export const routes: Routes = [
         loadComponent: () => import('./features/type-document/type-document-list/type-document-list').then(m => m.TypeDocumentList),
       },
       {
+        // Re-typologie en lot (§12.7, ANO-F-015) : module « cycle de vie ».
+        // Déclarée avant la fiche, sinon « retypage » serait lu comme un identifiant.
+        path: 'type-de-document/retypage',
+        canActivate: [permissionGuard('GERER_REFERENTIELS'), moduleGuard('cycledevie')],
+        loadComponent: () => import('./features/type-document/retypage-lot/retypage-lot').then(m => m.RetypageLot),
+      },
+      {
         // Fiche d'un type : code, espace, formats, taille, plan, description.
         path: 'type-de-document/:id',
         canActivate: [permissionGuard('GERER_REFERENTIELS')],

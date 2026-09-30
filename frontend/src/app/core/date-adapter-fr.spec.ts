@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { DateAdapter, MAT_NATIVE_DATE_FORMATS } from '@angular/material/core';
-import { MatDatepickerModule } from '@angular/material/datepicker';
+import { CHAMP_DATE } from './calendrier-fr';
 import { MatInputModule } from '@angular/material/input';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { appConfig } from '../app.config';
@@ -10,7 +10,7 @@ import { DateAdapterFr, provideDateAdapterFr } from './date-adapter-fr';
 
 /** Champ date réel (sélecteur Material) pour vérifier la lecture d'une saisie au clavier. */
 @Component({
-  imports: [ReactiveFormsModule, MatInputModule, MatDatepickerModule],
+  imports: [ReactiveFormsModule, MatInputModule, CHAMP_DATE],
   template: `<input [matDatepicker]="dp" [formControl]="date" /><mat-datepicker #dp></mat-datepicker>`,
 })
 class ChampDate {

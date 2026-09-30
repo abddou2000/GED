@@ -15,12 +15,17 @@
     </div>
     @if (espace()) {
       <div class="tete-actions">
-        <button mat-stroked-button (click)="creerSousDossier()">
-          <mat-icon svgIcon="folder-plus"></mat-icon> {{ echange() ? 'Nouveau dossier' : 'Sous-dossier' }}
-        </button>
-        <button mat-flat-button color="primary" (click)="modifier()">
-          <mat-icon svgIcon="edit"></mat-icon> Modifier
-        </button>
+        <!-- Seules les actions permises sur le nœud sont proposées (ANO-F-018). -->
+        @if (peutCreerSousDossier()) {
+          <button mat-stroked-button class="act-sous-dossier" (click)="creerSousDossier()">
+            <mat-icon svgIcon="folder-plus"></mat-icon> {{ echange() ? 'Nouveau dossier' : 'Sous-dossier' }}
+          </button>
+        }
+        @if (peut('MODIFIER')) {
+          <button mat-flat-button color="primary" class="act-modifier" (click)="modifier()">
+            <mat-icon svgIcon="edit"></mat-icon> Modifier
+          </button>
+        }
       </div>
     }
   </div>
@@ -68,7 +73,8 @@
     </div>
 
     <!-- ===== Conservation : archivage du dossier entier (D10) et export ZIP (§12.10) ===== -->
-    <app-cycle-dossier [dossierId]="w.id" [dossierNom]="w.name" (change)="charger()"></app-cycle-dossier>
+    <app-cycle-dossier [dossierId]="w.id" [dossierNom]="w.name" [peutArchiver]="peut('ARCHIVER')"
+                       (change)="charger()"></app-cycle-dossier>
 
     <!-- ===== Sous-dossiers ===== -->
     <div class="card">
@@ -104,7 +110,7 @@
           <span class="tb-sub">{{ docs().length }}</span>
         </div>
         <!-- Espace d'échange (D12, ANO-F-016) : déposer ici, dossier cible au choix. -->
-        @if (echange() && auth.peut('DEPOSER')) {
+        @if (echange() && peut('DEPOSER')) {
           <button mat-stroked-button type="button" class="deposer-ici" (click)="deposerIci()">
             <mat-icon svgIcon="nav-upload"></mat-icon> Déposer ici
           </button>
@@ -144,9 +150,11 @@
               <button mat-icon-button (click)="telecharger(d)" [disabled]="telechargements().has(d.id)" matTooltip="Télécharger" aria-label="Télécharger">
                 <mat-icon svgIcon="download"></mat-icon>
               </button>
-              <button mat-icon-button class="danger" (click)="supprimerDocument(d)" matTooltip="Supprimer" aria-label="Supprimer">
-                <mat-icon svgIcon="delete"></mat-icon>
-              </button>
+              @if (peut('SUPPRIMER')) {
+                <button mat-icon-button class="danger act-supprimer" (click)="supprimerDocument(d)" matTooltip="Supprimer" aria-label="Supprimer">
+                  <mat-icon svgIcon="delete"></mat-icon>
+                </button>
+              }
             </td>
           </ng-container>
 

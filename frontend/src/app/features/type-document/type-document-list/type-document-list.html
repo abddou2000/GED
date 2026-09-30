@@ -4,9 +4,16 @@
       <h1>Type de document</h1>
       <p class="breadcrumb">Accueil - Listes des Types de document</p>
     </div>
-    <button mat-flat-button color="primary" (click)="create()">
-    <mat-icon svgIcon="add"></mat-icon> Créer un type
-    </button>
+    <div class="actions-tete">
+      @if (retypageDisponible()) {
+        <a mat-stroked-button class="act-retypage" routerLink="/type-de-document/retypage">
+          <mat-icon svgIcon="refresh"></mat-icon> Re-typologie en lot
+        </a>
+      }
+      <button mat-flat-button color="primary" (click)="create()">
+      <mat-icon svgIcon="add"></mat-icon> Créer un type
+      </button>
+    </div>
   </div>
 
   <div class="card">
@@ -116,6 +123,14 @@
         <ng-container matColumnDef="taille">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="tailleMaxMo" class="c-num">Taille max</th>
           <td mat-cell *matCellDef="let t" class="c-num">{{ t.tailleMaxMo }} Mo</td>
+        </ng-container>
+
+        <ng-container matColumnDef="statut">
+          <th mat-header-cell *matHeaderCellDef>Statut</th>
+          <td mat-cell *matCellDef="let t">
+            @if (t.actif === false) { <span class="statut inactif">Désactivé</span> }
+            @else { <span class="statut">Actif</span> }
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="actions">

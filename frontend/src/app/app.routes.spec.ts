@@ -70,6 +70,7 @@ describe('Gardes des écrans d\'administration (ANO-F-003)', () => {
     ['plan-indexation/:id/edit', 'GERER_REFERENTIELS'],
     ['type-de-document', 'GERER_REFERENTIELS'],
     ['type-de-document/:id', 'GERER_REFERENTIELS'],
+    ['type-de-document/retypage', 'GERER_REFERENTIELS'],
     ['etiquette', 'GERER_REFERENTIELS'],
     ['regles-de-workflow', 'GERER_REFERENTIELS'],
     ['groupe-d-acces', 'GERER_ROLES_HABILITATIONS'],
@@ -117,6 +118,7 @@ describe('Gardes des modules métier (T-088)', () => {
     ['mes-exports', 'export'],
     ['notifications', 'notifications'],
     ['cles-api', 'integration'],
+    ['type-de-document/retypage', 'cycledevie'],
   ];
   const TOUT = ['GERER_REFERENTIELS', 'GERER_CLES_API', 'SUPERVISER_TRAITEMENTS', 'CONSULTER_AUDIT'];
 
@@ -142,7 +144,8 @@ describe('Gardes des modules métier (T-088)', () => {
     for (const m of ['ocr', 'workflow', 'cycledevie', 'export', 'notifications', 'integration'] as CodeModule[]) {
       inactifs.add(m);
     }
-    for (const chemin of ['espaces-de-travail', 'televerser', 'index', 'journal-audit', 'profil']) {
+    for (const chemin of ['espaces-de-travail', 'televerser', 'index', 'type-de-document', 'type-de-document/:id',
+                          'journal-audit', 'profil']) {
       expect(await franchir(chemin)).toBe(true);
     }
   });

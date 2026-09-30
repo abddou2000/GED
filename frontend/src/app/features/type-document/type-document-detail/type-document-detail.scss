@@ -30,3 +30,8 @@
 /* Les extensions sont stockées en minuscules ; la liste les affiche en
    capitales, la fiche doit lire pareil. */
 .cartouche .formats { text-transform: uppercase; }
+
+.actions-tete { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* Statut du type (ANO-F-015) : un type désactivé se lit d'un coup d'œil. */
+.cartouche .statut { color: var(--ok); }
+.cartouche .statut.inactif { color: var(--danger); }

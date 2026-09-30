@@ -7,7 +7,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatDatepickerModule } from '@angular/material/datepicker';
+// Directives autonomes, pas le module : libellés français du calendrier (ANO-F-024).
+import { CHAMP_DATE } from '../../../core/calendrier-fr';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -19,7 +20,7 @@ import { Etiquette } from '../../etiquette/etiquette.model';
 import { TypeDocumentService } from '../../type-document/type-document.service';
 import { SelectOption } from '../../type-document/type-document.model';
 import { IndexationService } from '../../indexation/indexation.service';
-import { Critere } from '../../indexation/indexation.model';
+import { Critere, afficherValeurIndex, lireBooleen } from '../../indexation/indexation.model';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { formaterDate, versDate, versIso } from '../../../core/dates';
@@ -29,6 +30,7 @@ import { Conservation } from '../../cycle-de-vie/cycle-de-vie.model';
 import { EmployeService } from '../../../core/employe.service';
 import { DocumentDesignes } from '../document-designes/document-designes';
 import { DocumentEmplacements } from '../document-emplacements/document-emplacements';
+import { ModulesService } from '../../../core/modules.service';
 
 /** Une valeur d'index déjà enregistrée pour ce document. */
 interface ValeurIndex {
@@ -48,7 +50,7 @@ interface ValeurIndex {
   selector: 'app-document-detail',
   imports: [
     RouterLink, ReactiveFormsModule, MatButtonModule, MatIconModule, MatTooltipModule,
-    MatFormFieldModule, MatInputModule, MatDatepickerModule, MatSelectModule, MatSlideToggleModule, MatTableModule,
+    MatFormFieldModule, MatInputModule, CHAMP_DATE, MatSelectModule, MatSlideToggleModule, MatTableModule,
     CircuitDocument, DocumentDesignes, DocumentEmplacements,
   ],
   templateUrl: './document-detail.html',
@@ -69,6 +71,11 @@ export class DocumentDetail implements OnInit {
 
   /** Nom de chaque personne par identité GED : auteur d'une version (ANO-F-012). */
   auteurs = signal<Map<string, string>>(new Map());
+  private modules = inject(ModulesService);
+
+  /** Modules métier (T-088) : leurs actions disparaissent quand ils sont désactivés. */
+  readonly cycleDeVieActif = () => this.modules.actif('cycledevie');
+  readonly workflowActif = () => this.modules.actif('workflow');
 
   /** Copie de conservation PDF/A et statut d'archivage (§12.6). */
   conservation = signal<Conservation | null>(null);
@@ -227,7 +234,19 @@ export class DocumentDetail implements OnInit {
   valeurSaisie(c: Critere): string {
     const saisie = this.saisieIndex()[c.id];
     if (saisie !== undefined) return saisie;
-    return this.valeurs().find(v => v.indexFieldId === c.id)?.valeur ?? '';
+    const enregistree = this.valeurs().find(v => v.indexFieldId === c.id)?.valeur ?? '';
+    // Booléen : le serveur renvoie true / false, la liste propose oui / non (ANO-F-020).
+    if (c.fieldType === 'BOOLEEN') {
+      const b = lireBooleen(enregistree);
+      if (b !== null) return b ? 'oui' : 'non';
+    }
+    return enregistree;
+  }
+
+  /** Valeur enregistrée telle qu'on l'affiche : Oui / Non pour un booléen (ANO-F-020). */
+  valeurAffichee(v: ValeurIndex): string {
+    const nature = this.champs().find(c => c.id === v.indexFieldId)?.fieldType;
+    return afficherValeurIndex(nature, v.valeur);
   }
 
   majIndex(c: Critere, valeur: string | null): void {
@@ -275,7 +294,7 @@ export class DocumentDetail implements OnInit {
   get archive(): boolean { return this.doc()?.statutConservation === 'ARCHIVE'; }
 
   private chargerConservation(d: DocumentItem): void {
-    if (d.statutConservation !== 'ARCHIVE') { this.conservation.set(null); return; }
+    if (d.statutConservation !== 'ARCHIVE' || !this.cycleDeVieActif()) { this.conservation.set(null); return; }
     this.cycleDeVie.conservation(d.id).subscribe({
       next: c => this.conservation.set(c),
       error: () => this.conservation.set(null),
