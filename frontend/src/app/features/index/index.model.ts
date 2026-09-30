@@ -1,4 +1,4 @@
-export type IndexFieldType = 'TEXTE' | 'NOMBRE' | 'DATE' | 'LISTE';
+export type IndexFieldType = 'TEXTE' | 'NOMBRE' | 'DATE' | 'LISTE' | 'BOOLEEN';
 
 /** Un index (champ de métadonnée) tel que renvoyé par l'API. */
 export interface IndexField {
@@ -38,12 +38,13 @@ export interface SelectOption {
   name: string;
 }
 
-/** Types de champ (fidèles à CCISTTA : texte / nombre / date / liste). */
+/** Natures d'un index (méta-modèle §12.7 : texte, nombre, date, liste, booléen). */
 export const FIELD_TYPES: { value: IndexFieldType; label: string }[] = [
   { value: 'TEXTE', label: 'Texte' },
   { value: 'NOMBRE', label: 'Nombre' },
   { value: 'DATE', label: 'Date' },
   { value: 'LISTE', label: 'Liste' },
+  { value: 'BOOLEEN', label: 'Booléen' },
 ];
 
 export function fieldTypeLabel(t: IndexFieldType): string {

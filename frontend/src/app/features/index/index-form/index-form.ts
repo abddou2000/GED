@@ -12,6 +12,14 @@ import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { IndexService } from '../index.service';
 import { FIELD_TYPES, IndexField, IndexRequest } from '../index.model';
 
+/** Écritures d'un booléen admises par le serveur (ValeursMetadonnees), ramenées à « oui » / « non ». */
+export function ouiNon(v: string | null): string {
+  const s = (v ?? '').trim().toLowerCase();
+  if (['true', 'vrai', 'oui', '1', 'o', 'yes'].includes(s)) return 'oui';
+  if (['false', 'faux', 'non', '0', 'n', 'no'].includes(s)) return 'non';
+  return '';
+}
+
 interface DialogData {
   index: IndexField | null;
 }
@@ -55,13 +63,15 @@ export class IndexForm implements OnInit {
 
   get isEdit(): boolean { return !!this.data.index; }
   get isListe(): boolean { return this.form.get('fieldType')?.value === 'LISTE'; }
+  /** Booléen : la valeur par défaut se choisit (Oui / Non), elle ne se tape pas. */
+  get isBooleen(): boolean { return this.form.get('fieldType')?.value === 'BOOLEEN'; }
 
   ngOnInit(): void {
     if (this.data.index) {
       const x = this.data.index;
       this.form.patchValue({
         nomIndex: x.nomIndex, code: x.code, fieldType: x.fieldType,
-        valeurParDefaut: x.valeurParDefaut ?? '',
+        valeurParDefaut: x.fieldType === 'BOOLEEN' ? ouiNon(x.valeurParDefaut) : x.valeurParDefaut ?? '',
         obligatoire: x.obligatoire, indexePourRecherche: x.indexePourRecherche,
         indexDeGroupage: x.indexDeGroupage,
       });
@@ -98,7 +108,8 @@ export class IndexForm implements OnInit {
     const body: IndexRequest = {
       code: v.code, nomIndex: v.nomIndex, fieldType: v.fieldType,
       valeurs: v.fieldType === 'LISTE' ? this.valeursListe().join(',') : null,
-      valeurParDefaut: v.valeurParDefaut?.trim() || null,
+      // Booléen : une valeur saisie sous un autre type ne passe pas en douce.
+      valeurParDefaut: (v.fieldType === 'BOOLEEN' ? ouiNon(v.valeurParDefaut) : v.valeurParDefaut?.trim()) || null,
       obligatoire: v.obligatoire, indexePourRecherche: v.indexePourRecherche,
       indexDeGroupage: v.indexDeGroupage,
     };

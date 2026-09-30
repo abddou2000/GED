@@ -1,5 +1,5 @@
 /** Type d'un index — détermine le contrôle affiché dans la recherche. */
-export type TypeIndex = 'TEXTE' | 'NOMBRE' | 'DATE' | 'LISTE';
+export type TypeIndex = 'TEXTE' | 'NOMBRE' | 'DATE' | 'LISTE' | 'BOOLEEN';
 
 /**
  * Critère de recherche, généré par le serveur à partir d'un index.
