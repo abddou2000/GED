@@ -420,3 +420,86 @@ Elles ne bloquent pas un démarrage, mais il faut les connaître :
 4. **Aucun HTTPS n'est configuré ici** : à porter par le reverse-proxy.
 5. **L'étage OCR n'a jamais été validé de bout en bout** sur un poste réel ;
    les modèles de langue ne sont pas versionnés.
+
+---
+
+## 10. UAT : déploiement incrémental par module métier (DAT §9.3)
+
+Le CPS (Article 3, phase 5) demande un déploiement UAT « par processus métier,
+pour détecter les bugs rapidement ». La GED est livrée en un seul JAR et un
+seul paquet front ; chaque processus métier est un **module activable** par
+configuration, sans recompiler.
+
+### 10.1 Modules
+
+| Code | Processus métier | Dossier fonctionnel / technique | Arrêt quand inactif |
+|---|---|---|---|
+| socle (toujours actif) | identité et habilitations, arborescence, dépôt et consultation, typologie et indexation, journal d'audit | DF §4.1, §4.3, §4.8, §4.9, §4.12 | — |
+| `ocr` | OCRisation et recherche plein texte | DF §4.2, §4.4 ; DAT §4.4 | routes `/ocr`, `/recherche`, supervision OCR ; chaîne OCR arrêtée (`ged.ocr.chaine.actif`) |
+| `workflow` | circuits de validation et diffusion | DF §4.5 ; DAT §12.8, D8 | routes `/workflow`, `/workflowgeds` |
+| `cycledevie` | archivage, conservation, purge, re-typologisation | DF §4.6, §4.7 ; DAT §12.6, §12.9 | routes d'archivage, de conservation, de purge et de re-typologisation ; alertes d'échéance arrêtées |
+| `export` | export de dossiers | DF §4.4 ; DAT §12.10 | routes `/exports` |
+| `notifications` | notifications dans l'application et par e-mail | DF §4.5.3, §4.6.6 ; DAT §12.9 | routes `/notifications` ; aucune notification écrite, expédition arrêtée |
+| `integration` | API d'intégration : clés d'API, bureau d'ordre, délégation | DF §4.10 ; DAT §5 | routes `/applications`, `/cles-api` ; **toute** requête portant `X-API-Key` |
+
+Une route d'un module inactif répond **404** `application/problem+json`, code
+`MODULE_INACTIF`, avant toute authentification. Le catalogue (codes, routes,
+propriétés arrêtées) est dans `com.ipt.ged.modules.ModuleMetier` ; l'état est lu
+au démarrage.
+
+### 10.2 Configuration
+
+- Propriété `ged.modules.<code>.actif` (vrai par défaut), ou variable
+  `GED_MODULES_<CODE>_ACTIF`, dans `/etc/ged/modules.env` (lu par le service
+  après `ged.env`, voir `deploiement/systemd/ged-backend.service`).
+- Un code inconnu (faute de frappe) empêche le démarrage.
+- Un module inactif impose l'arrêt de ses traitements de fond, même si un
+  réglage fin est resté actif (source `ged-modules-inactifs` dans
+  `/actuator/env`).
+- État effectif : `GET /api/v1/modules` (tout utilisateur connecté ; le front
+  y masque les menus des modules inactifs) et la métrique
+  `ged_module_actif{module}` (1 ou 0) du port de management.
+
+### 10.3 Procédure UAT
+
+1. Déployer la version avec les seuls modules à recetter actifs, par exemple le
+   socle seul :
+   ```bash
+   cat > /etc/ged/modules.env <<'FIN'
+   GED_MODULES_OCR_ACTIF=false
+   GED_MODULES_WORKFLOW_ACTIF=false
+   GED_MODULES_CYCLEDEVIE_ACTIF=false
+   GED_MODULES_EXPORT_ACTIF=false
+   GED_MODULES_NOTIFICATIONS_ACTIF=false
+   GED_MODULES_INTEGRATION_ACTIF=false
+   FIN
+   chown root:ged /etc/ged/modules.env && chmod 0640 /etc/ged/modules.env
+   deploiement/scripts/deployer.sh uat --jar ged.jar --front front.tar.gz
+   ```
+2. Recette métier du socle, puis ouverture d'un module à la fois, dans un ordre
+   qui respecte les dépendances (OCR avant l'export si la recette de l'export
+   porte sur le texte ; notifications avec ou après le workflow) :
+   ```bash
+   deploiement/scripts/deployer.sh uat --activer-module ocr
+   deploiement/scripts/deployer.sh uat --modules          # état effectif
+   ```
+   Le script écrit `/etc/ged/modules.env` (copie de l'état précédent dans
+   `/var/lib/ged/deploiement/modules-precedent.env`), redémarre le service,
+   attend la sonde, vérifie que l'application publie bien l'état demandé, puis
+   lance le test de fumée ; en cas d'échec, il rétablit l'état précédent.
+3. Anomalie bloquante sur un module : `--desactiver-module <code>` le referme
+   sans toucher aux autres ; la correction suit la procédure ordinaire (§ 8,
+   `GARANTIE.md`).
+4. Production : tous les modules actifs (fichier `modules.env` absent ou vide).
+
+### 10.4 Limites
+
+- Le schéma de base est commun : les migrations d'un module sont appliquées
+  même s'il est inactif (elles sont compatibles « expand / contract »).
+- Module `workflow` inactif : une règle déjà rattachée à un nœud ou à un type
+  s'applique encore au dépôt (le circuit est ouvert) ; pour une recette sans
+  circuit, ne rattacher aucune règle.
+- Un redémarrage du service est nécessaire pour changer un module (quelques
+  secondes d'indisponibilité, sans perte : arrêt progressif).
+- Procédure vérifiée par les tests (`ModulesTest`, `ModulesInactifsApiTest`) et
+  sur le papier pour le script (pas de systemd sur le poste de développement).

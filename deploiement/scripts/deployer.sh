@@ -7,6 +7,8 @@
 #    deployer.sh <dev|uat|prod> --jar ged.jar [--front front.tar.gz] [--module back|front|tout]
 #    deployer.sh <dev|uat|prod> --retour-arriere [--base]
 #    deployer.sh <dev|uat|prod> --verifier
+#    deployer.sh <dev|uat|prod> --modules
+#    deployer.sh <dev|uat|prod> --activer-module <code> | --desactiver-module <code>
 #
 #  Étapes d'un déploiement (DAT 10.1) :
 #    1. contrôles préalables (environnement, artefacts, empreintes) ;
@@ -25,6 +27,14 @@
 #
 #  Déploiement par module (DAT 9.3) : --module back ou --module front ne
 #  touche que la partie concernée.
+#
+#  Modules métier (DAT 9.3, T-088) : ocr, workflow, cycledevie, export,
+#  notifications, integration. --activer-module / --desactiver-module
+#  écrivent GED_MODULES_<CODE>_ACTIF dans /etc/ged/modules.env, redémarrent
+#  le service, puis vérifient la sonde, l'état publié par l'application
+#  (métrique ged_module_actif) et le test de fumée ; en cas d'échec, l'état
+#  précédent est rétabli. --modules affiche l'état effectif.
+#  Procédure : DEPLOIEMENT.md § 10.
 #
 #  Fichiers lus sur le serveur (modèles dans deploiement/) :
 #    /etc/ged/ged.env          configuration du service (voir systemd/)
@@ -48,7 +58,7 @@ CHANGELOG="${GED_LIQUIBASE_CHANGELOG:-db/changelog/db.changelog-master.xml}"
 LIQUIBASE_CMD="${LIQUIBASE_CMD:-liquibase}"
 
 usage() {
-    sed -n '4,10p' "$0" | sed 's/^#  \{0,1\}//'
+    sed -n '4,12p' "$0" | sed 's/^#  \{0,1\}//'
     exit 2
 }
 
@@ -62,6 +72,7 @@ ENVIRONNEMENT="$1"; shift
 case "$ENVIRONNEMENT" in dev|uat|prod) ;; *) usage ;; esac
 
 MODE=deployer; JAR=""; FRONT=""; MODULE=tout; AVEC_BASE=non; RETOUR_AUTO=oui
+MODULE_METIER=""; ETAT_MODULE=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --jar) JAR="$2"; shift 2 ;;
@@ -71,6 +82,9 @@ while [[ $# -gt 0 ]]; do
         --base) AVEC_BASE=oui; shift ;;
         --verifier) MODE=verifier; shift ;;
         --sans-retour-auto) RETOUR_AUTO=non; shift ;;
+        --modules) MODE=modules; shift ;;
+        --activer-module) [[ $# -ge 2 ]] || usage; MODE=module; MODULE_METIER="$2"; ETAT_MODULE=true; shift 2 ;;
+        --desactiver-module) [[ $# -ge 2 ]] || usage; MODE=module; MODULE_METIER="$2"; ETAT_MODULE=false; shift 2 ;;
         *) usage ;;
     esac
 done
@@ -285,6 +299,52 @@ verifications() {
     attendre_sante && "$DIR_SCRIPTS/test-fumee.sh" "$GED_URL_PUBLIQUE"
 }
 
+# ---------------------------------------------------------------------
+# Modules métier (DAT 9.3, T-088)
+# ---------------------------------------------------------------------
+MODULES_CONNUS=(ocr workflow cycledevie export notifications integration)
+MODULES_ENV="$GED_CONF_DIR/modules.env"
+
+# État effectif publié par l'application : une ligne « code 1 » ou « code 0 » par module.
+etat_modules() {
+    curl -fsS --max-time 5 "$GED_URL_MANAGEMENT/actuator/prometheus" 2>/dev/null \
+        | sed -n 's/^ged_module_actif{.*module="\([a-z]*\)".*} \([0-9.]*\)$/\1 \2/p' \
+        | awk '{ printf "%s %d\n", $1, $2 }'
+}
+
+changer_module() {
+    local code="$1" etat="$2" var attendu obtenu
+    [[ " ${MODULES_CONNUS[*]} " == *" $code "* ]] \
+        || echec "module inconnu : « $code » (connus : ${MODULES_CONNUS[*]})"
+    var="GED_MODULES_${code^^}_ACTIF"
+    [[ "$etat" == true ]] && attendu=1 || attendu=0
+    journal "=== Module « $code » : actif=$etat ($ENVIRONNEMENT, $HORO) ==="
+    [[ -f "$MODULES_ENV" ]] || install -o root -g ged -m 0640 /dev/null "$MODULES_ENV"
+    cp -p "$MODULES_ENV" "$GED_ETAT_DIR/modules-precedent.env"
+    if grep -q "^$var=" "$MODULES_ENV"; then
+        sed -i "s/^$var=.*/$var=$etat/" "$MODULES_ENV"
+    else
+        echo "$var=$etat" >> "$MODULES_ENV"
+    fi
+    arreter_service
+    demarrer_service
+    if attendre_sante; then
+        obtenu="$(etat_modules | awk -v m="$code" '$1 == m { print $2 }')"
+        if [[ "$obtenu" == "$attendu" ]] && "$DIR_SCRIPTS/test-fumee.sh" "$GED_URL_PUBLIQUE"; then
+            journal "Module « $code » : actif=$etat, vérifié"
+            etat_modules | tee -a "$GED_JOURNAL"
+            return 0
+        fi
+        journal "Module « $code » : état publié « ${obtenu:-absent} » au lieu de « $attendu », ou test de fumée en échec"
+    fi
+    journal "Rétablissement de l'état précédent des modules"
+    cp -p "$GED_ETAT_DIR/modules-precedent.env" "$MODULES_ENV"
+    arreter_service
+    demarrer_service
+    verifications || echec "état précédent des modules rétabli, vérifications en échec : intervention manuelle"
+    echec "changement du module « $code » annulé, état précédent rétabli"
+}
+
 retour_arriere() {
     local base="$1" service=non
     journal "=== RETOUR ARRIÈRE ($ENVIRONNEMENT, module $MODULE) ==="
@@ -320,6 +380,16 @@ retour_arriere() {
 # Programme principal
 # ---------------------------------------------------------------------
 case "$MODE" in
+    modules)
+        etats="$(etat_modules)"
+        [[ -n "$etats" ]] || echec "état des modules indisponible (service arrêté ou port de management injoignable)"
+        printf '%s\n' "$etats" | tee -a "$GED_JOURNAL"
+        exit 0
+        ;;
+    module)
+        changer_module "$MODULE_METIER" "$ETAT_MODULE"
+        exit 0
+        ;;
     verifier)
         verifications || echec "vérifications en échec"
         journal "Vérifications réussies"
