@@ -735,8 +735,23 @@ public class RecetteFonctionnelle extends ClientGed {
 
     static JsonNode cleActive;
 
-    static String V1s() {
-        return V1;
+    /**
+     * Clé d'API active de l'application « bo » (portée : QA2 Finance, dépôt, consultation,
+     * recherche, versement), générée au besoin quand la partie A n'a pas tourné.
+     */
+    static String cleApplication() throws Exception {
+        if (cleActive != null) return cleActive.path("cle").asText();
+        JsonNode app = null;
+        for (JsonNode a : G(ADM, "/api/v1/applications").json()) if ("bo".equals(a.path("code").asText())) app = a;
+        if (app == null) {
+            app = J(ADM, "POST", "/api/v1/applications", Map.of("code", "bo", "nom", "Bureau d'ordre digital (recette qa2)",
+                    "description", "Application tierce MMED", "adressesAutorisees", List.of("127.0.0.1", "::1", "0:0:0:0:0:0:0:1"),
+                    "quotaMinute", 600, "quotaJour", 100000)).json();
+        }
+        cleActive = J(ADM, "POST", "/api/v1/applications/" + app.path("id").asText() + "/cles", Map.of("delegation", true, "validiteJours", 30)).json();
+        J(ADM, "PUT", "/api/v1/cles-api/" + cleActive.path("details").path("id").asText() + "/portee", Map.of("portee", List.of(
+                Map.of("noeudId", FIN, "operations", List.of("DEPOT", "CONSULTATION", "RECHERCHE", "VERSEMENT")))));
+        return cleActive.path("cle").asText();
     }
 
     static void f15() throws Exception {
