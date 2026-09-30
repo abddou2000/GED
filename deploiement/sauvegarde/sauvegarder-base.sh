@@ -44,6 +44,11 @@ if [[ "$LOGIQUE" == oui ]]; then
     pg_restore --list "$DIR/$PGDATABASE.dump" > "$DIR/$PGDATABASE.contenu" \
         || echec "archive $DIR/$PGDATABASE.dump illisible"
     journal "Export logique : $(du -h "$DIR/$PGDATABASE.dump" | cut -f1), $(grep -c ' TABLE DATA ' "$DIR/$PGDATABASE.contenu") tables"
+    # Droits de niveau base (CONNECT, TEMPORARY… de pg_database.datacl) et
+    # réglages ALTER ROLE … IN DATABASE : pg_dump sans --create ne les porte
+    # pas. restaurer.sh les rejoue sur la base restaurée (ANO-E10-006).
+    exporter_droits_base > "$DIR/droits-base.sql" || echec "export des droits de niveau base en échec"
+    journal "Droits de niveau base : $(grep -c '^\(GRANT\|ALTER ROLE\|ALTER DATABASE\)' "$DIR/droits-base.sql") instruction(s)"
 fi
 
 if [[ "$PHYSIQUE" == oui ]]; then
