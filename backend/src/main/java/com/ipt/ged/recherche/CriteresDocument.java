@@ -20,7 +20,9 @@ import java.util.UUID;
  *       périmètre, qui reste celui du prédicat de droits (un document
  *       confidentiel non désigné n'apparaît pas davantage) ;</li>
  *   <li><b>déposant</b> : identité GED de la personne qui a déposé (utilisateur,
- *       ou personne pour le compte de laquelle une application a déposé, §5.5).</li>
+ *       ou personne pour le compte de laquelle une application a déposé, §5.5) ;
+ *       pour un document sans cette identité (déposé avant qu'elle soit
+ *       enregistrée), l'employé auteur du dépôt rattaché à l'identité.</li>
  * </ul>
  *
  * Traduits en {@link FragmentSql} paramétrés sur l'alias {@code d} (document).
@@ -51,7 +53,11 @@ public record CriteresDocument(LocalDate dateDocumentDu, LocalDate dateDocumentA
                     Map.of("critere_confidentialite", confidentialite.name())));
         }
         if (deposantUtilisateurId != null) {
-            f.add(new FragmentSql("d.deposant_utilisateur_id = :critere_deposant",
+            // Documents antérieurs à la colonne du déposant (202610011000) ou repris :
+            // à défaut, l'auteur du dépôt enregistré (employé rattaché à l'identité).
+            f.add(new FragmentSql("(d.deposant_utilisateur_id = :critere_deposant OR (d.deposant_utilisateur_id IS NULL"
+                    + " AND d.created_by_employe_id = (SELECT critere_u.employe_id FROM utilisateur critere_u"
+                    + " WHERE critere_u.id = :critere_deposant)))",
                     Map.of("critere_deposant", deposantUtilisateurId)));
         }
         return f;

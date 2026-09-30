@@ -139,6 +139,17 @@ class CriteresImposesApiTest {
     }
 
     @Test
+    @DisplayName("Déposant d'un document antérieur à l'identité du déposant : l'employé auteur du dépôt fait foi")
+    void deposantDUnDocumentAncien() throws Exception {
+        jdbc.update("UPDATE document SET deposant_utilisateur_id = NULL, created_by_employe_id = ? WHERE id = ?",
+                jeu.employeId(Comptes.SECOND_ACTEUR), a);
+        assertThat(metadonnees(deposant())).containsExactly(a.toString(), c.toString());
+        assertThat(contrat(deposant(), false)).containsExactly(a.toString(), c.toString());
+        assertThat(pleinTexte("deposantUtilisateurId", second.toString(), "tri", "DATE_DOCUMENT"))
+                .containsExactly(a.toString(), c.toString());
+    }
+
+    @Test
     @DisplayName("POST /recherches : mêmes critères, sans texte (SQL) et avec texte (plein texte)")
     void rechercheDuContrat() throws Exception {
         for (boolean texte : new boolean[]{false, true}) {
