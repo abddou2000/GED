@@ -36,7 +36,7 @@ preparer_et_migrer() {
   "$PSQL" -X -q -U postgres -d postgres -v base="$base" -f "$DEPOT/backend/scripts/db/preparer-base.sql" >/dev/null
   # shellcheck source=../lib/liquibase.sh
   source "$DEPOT/recette/lib/liquibase.sh"
-  BACKEND="$DEPOT/backend" TMPDIR="$V8_TRAVAIL" LB_URL="jdbc:postgresql://localhost:5432/$base" \
+  BACKEND="$DEPOT/backend" TMPDIR="$V8_TRAVAIL" LB_URL="jdbc:postgresql://${PGHOST}:${PGPORT}/$base" \
     liquibase_executer update > "$V8_TRAVAIL/liquibase-$base.log" 2>&1 \
     || fatal "migration Liquibase de $base en échec (voir $V8_TRAVAIL/liquibase-$base.log)"
 }

@@ -4,6 +4,7 @@
 # distributions Linux fait traverser les répertoires à « * ». Pour reproduire le
 # comportement du serveur cible, un motif terminé par « /* » devient « /** ».
 # Recette de deployer.sh (T-092) seulement ; aucun autre changement.
+command -v cygpath >/dev/null 2>&1 || exec /usr/bin/unzip "$@"   # Linux : comportement natif du serveur cible
 args=()
 for a in "$@"; do
   if [[ "$a" == */\* ]]; then args+=("${a%\*}**"); else args+=("$a"); fi

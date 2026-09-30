@@ -3,6 +3,7 @@
 # ne sait pas lire un fichier désigné par un chemin POSIX dans « -F champ=@/chemin »
 # (MSYS ne convertit pas ce chemin, précédé de « champ=@ »). On convertit ce seul
 # chemin avec cygpath ; tout le reste est transmis tel quel. Recette T-092 seulement.
+command -v cygpath >/dev/null 2>&1 || exec /usr/bin/curl "$@"   # Linux : curl natif, rien à adapter
 args=()
 for a in "$@"; do
   if [[ "$a" =~ ^([A-Za-z0-9_]+=@)(/[^\;]*)(.*)$ ]]; then

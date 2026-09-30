@@ -19,7 +19,8 @@
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/commun.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/api.sh"
 trouver_psql
-BASE="${GED_V8_BASE:?GED_V8_BASE (base de l'instance) obligatoire}"
+DONNEES="$RECETTE_RACINE/donnees"
+BASE="${GED_V8_BASE:?GED_V8_BASE (base de l’instance) obligatoire}"
 refuser_production "$BASE"
 pgq() { PGUSER=postgres PGDATABASE="$BASE" "$PSQL" -X -q -At -c "SET search_path = ged" -c "$1" | tr -d '\r'; }
 export GED_CHAMP_IDENTIFIANT=identifiant GED_RECETTE_IDENTIFIANT="${GED_E3_ADMIN:-sbennani}"
@@ -50,7 +51,7 @@ lignes+=("X-API-Key sur /api/v1/documents : $s/$sc"); [[ "$s" == 404 && "$sc" ==
 
 # M03, M04, M05 : dépôt sous la règle de démonstration de Comptabilité (TD-FACT)
 T="$(pgq "SELECT id FROM type_document WHERE code = 'TD-FACT'")"
-REGLE="$(pgq "SELECT coalesce(t.regle_workflow_id, n.regle_workflow_id) FROM type_document t JOIN noeud n ON n.id = t.workspace_id WHERE t.id = '$T'")"
+REGLE="$(pgq "SELECT coalesce(t.regle_workflow_id, n.regle_workflow_id) FROM type_document t JOIN noeud n ON n.id = t.noeud_id WHERE t.id = '$T'")"
 api_depot "$DONNEES/scan_fr_courrier.pdf" "qav8-modules-$RANDOM.pdf" "$T"; D="$DEPOT_ID"; CODE_DEPOT="$HTTP_CODE"
 api_appel GET "/api/v1/documents?size=5"; CODE_LISTE="$HTTP_CODE"
 api_appel GET "/api/v1/documents/$D"; CODE_FICHE="$HTTP_CODE"; ACTIF="$(json_champ active)"; OCR="$(json_champ statutOcr)"
