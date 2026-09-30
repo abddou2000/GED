@@ -3,6 +3,7 @@ import { MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { DashboardPrefs } from '../dashboard-prefs.service';
 import { CATALOGUE, DefinitionWidget } from '../widgets';
+import { ModulesService } from '../../../../core/modules.service';
 
 interface Rang extends DefinitionWidget {
   visible: boolean;
@@ -86,6 +87,7 @@ interface Rang extends DefinitionWidget {
 export class Personnaliser {
   protected prefs = inject(DashboardPrefs);
   private ref = inject(MatDialogRef<Personnaliser>);
+  private modules = inject(ModulesService);
 
   /**
    * Le panneau liste le CATALOGUE au complet, dans son ordre de référence — pas
@@ -93,9 +95,11 @@ export class Personnaliser {
    * perdre de vue l'encart qu'on manipule.
    */
   protected readonly rangs = computed<Rang[]>(() => {
-    const disposition = this.prefs.disposition();
-    const mobiles = disposition.filter(c => !CATALOGUE.find(d => d.cle === c)?.fixe);
-    return CATALOGUE.map(d => {
+    // Les encarts d'un module désactivé ne sont pas proposés (T-088).
+    const catalogue = CATALOGUE.filter(d => !d.module || this.modules.actif(d.module));
+    const disposition = this.prefs.disposition().filter(c => catalogue.some(d => d.cle === c));
+    const mobiles = disposition.filter(c => !catalogue.find(d => d.cle === c)?.fixe);
+    return catalogue.map(d => {
       const place = mobiles.indexOf(d.cle);
       return {
         ...d,

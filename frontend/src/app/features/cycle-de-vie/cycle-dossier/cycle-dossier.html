@@ -1,3 +1,4 @@
+@if (cycleDeVieActif() || exportActif()) {
 <div class="card cycle">
   <div class="cycle-tete">
     <div>
@@ -5,17 +6,23 @@
       <p class="muted">
         @if (archive()) {
           Dossier archivé : aucun dépôt n'y est accepté.
+        } @else if (!cycleDeVieActif()) {
+          Export du contenu du dossier en archive ZIP.
+        } @else if (!exportActif()) {
+          Archivage manuel du dossier entier.
         } @else {
           Archivage manuel du dossier entier, ou export de son contenu en archive ZIP.
         }
       </p>
     </div>
     <div class="cycle-actions">
-      <button mat-stroked-button (click)="exporter()" [disabled]="exportEnCours()"
-              matTooltip="Archive ZIP de l'arborescence, des documents (version courante) et d'un manifeste">
-        <mat-icon svgIcon="download"></mat-icon> {{ exportEnCours() ? 'Export…' : 'Exporter (ZIP)' }}
-      </button>
-      @if (peutArchiver()) {
+      @if (exportActif()) {
+        <button mat-stroked-button class="act-exporter" (click)="exporter()" [disabled]="exportEnCours()"
+                matTooltip="Archive ZIP de l'arborescence, des documents (version courante) et d'un manifeste">
+          <mat-icon svgIcon="download"></mat-icon> {{ exportEnCours() ? 'Export…' : 'Exporter (ZIP)' }}
+        </button>
+      }
+      @if (peutArchiver() && cycleDeVieActif()) {
         @if (archive() && !enCours()) {
           <button mat-stroked-button class="act-drapeau" (click)="retirerDrapeau()">
             <mat-icon svgIcon="restore"></mat-icon> Retirer le drapeau
@@ -56,3 +63,4 @@
     </div>
   }
 </div>
+}

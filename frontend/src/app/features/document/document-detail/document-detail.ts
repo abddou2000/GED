@@ -26,6 +26,7 @@ import { formaterDate, versDate, versIso } from '../../../core/dates';
 import { CircuitDocument } from '../../workflow/circuit-document/circuit-document';
 import { CycleDeVieService } from '../../cycle-de-vie/cycle-de-vie.service';
 import { Conservation } from '../../cycle-de-vie/cycle-de-vie.model';
+import { ModulesService } from '../../../core/modules.service';
 
 /** Une valeur d'index déjà enregistrée pour ce document. */
 interface ValeurIndex {
@@ -62,6 +63,11 @@ export class DocumentDetail implements OnInit {
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
   private cycleDeVie = inject(CycleDeVieService);
+  private modules = inject(ModulesService);
+
+  /** Modules métier (T-088) : leurs actions disparaissent quand ils sont désactivés. */
+  readonly cycleDeVieActif = () => this.modules.actif('cycledevie');
+  readonly workflowActif = () => this.modules.actif('workflow');
 
   /** Copie de conservation PDF/A et statut d'archivage (§12.6). */
   conservation = signal<Conservation | null>(null);
@@ -274,7 +280,7 @@ export class DocumentDetail implements OnInit {
   get archive(): boolean { return this.doc()?.statutConservation === 'ARCHIVE'; }
 
   private chargerConservation(d: DocumentItem): void {
-    if (d.statutConservation !== 'ARCHIVE') { this.conservation.set(null); return; }
+    if (d.statutConservation !== 'ARCHIVE' || !this.cycleDeVieActif()) { this.conservation.set(null); return; }
     this.cycleDeVie.conservation(d.id).subscribe({
       next: c => this.conservation.set(c),
       error: () => this.conservation.set(null),

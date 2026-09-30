@@ -8,6 +8,7 @@ import { CycleDeVieService } from '../cycle-de-vie.service';
 import { ElementJob, JobArchivage } from '../cycle-de-vie.model';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
+import { ModulesService } from '../../../core/modules.service';
 
 /**
  * Actions de cycle de vie d'un dossier : export ZIP (§12.10) et archivage du
@@ -24,6 +25,11 @@ export class CycleDossier implements OnChanges {
   private service = inject(CycleDeVieService);
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
+  private modules = inject(ModulesService);
+
+  /** Archivage du dossier : module « cycle de vie » ; export ZIP : module « export » (T-088). */
+  readonly cycleDeVieActif = () => this.modules.actif('cycledevie');
+  readonly exportActif = () => this.modules.actif('export');
 
   readonly dossierId = input.required<string>();
   readonly dossierNom = input<string>('');
@@ -54,10 +60,14 @@ export class CycleDossier implements OnChanges {
   }
 
   ngOnChanges(): void {
-    this.chargerStatut();
-    this.service.jobs(this.dossierId()).subscribe({
-      next: jobs => this.afficher(jobs[0] ?? null),
-      error: () => this.job.set(null),
+    // Module désactivé : ses routes répondent 404, rien à demander (T-088).
+    this.modules.charger().subscribe(() => {
+      if (!this.cycleDeVieActif()) return;
+      this.chargerStatut();
+      this.service.jobs(this.dossierId()).subscribe({
+        next: jobs => this.afficher(jobs[0] ?? null),
+        error: () => this.job.set(null),
+      });
     });
   }
 

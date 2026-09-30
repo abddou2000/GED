@@ -3,6 +3,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { StatsService, StatsOverview } from '../stats.service';
 import { AuthService } from '../auth.service';
+import { ModulesService } from '../modules.service';
 
 /** Rangée de tuiles d'indicateurs (en-tête « tableau de bord ») — réutilisable. */
 @Component({
@@ -26,6 +27,7 @@ import { AuthService } from '../auth.service';
 export class StatTiles implements OnInit {
   private service = inject(StatsService);
   private auth = inject(AuthService);
+  private modules = inject(ModulesService);
   private data = signal<StatsOverview>({ workspaces: 0, documents: 0, pendingSignatures: 0, accessGroups: 0 });
 
   tiles = () => {
@@ -45,7 +47,11 @@ export class StatTiles implements OnInit {
     /* Les groupes d'accès relèvent de l'administration des droits : la tuile
        suit la même permission que l'entrée du menu (ANO-F-004, §5 « sans
        exposer de fonctionnalités hors de son périmètre »). */
-    return this.auth.peut('GERER_ROLES_HABILITATIONS') ? tuiles : tuiles.filter(t => t.key !== 'grp');
+    /* Signatures en attente : module workflow ; désactivé, la tuile mènerait
+       à un écran fermé (T-088). */
+    return tuiles
+      .filter(t => t.key !== 'grp' || this.auth.peut('GERER_ROLES_HABILITATIONS'))
+      .filter(t => t.key !== 'pend' || this.modules.actif('workflow'));
   };
 
   ngOnInit(): void {

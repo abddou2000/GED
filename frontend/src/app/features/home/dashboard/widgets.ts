@@ -6,6 +6,8 @@
  * encart au produit se fait donc ici et dans le gabarit d'accueil, sans toucher
  * à la persistance.
  */
+import { CodeModule } from '../../../core/modules.service';
+
 export type CleWidget =
   | 'indicateurs'
   | 'a-valider'
@@ -29,6 +31,11 @@ export interface DefinitionWidget {
    * rangée d'indicateurs, qui sert de repère haut de page.
    */
   fixe?: boolean;
+  /**
+   * Module métier dont l'encart dépend (T-088) : masqué, et absent du panneau
+   * de personnalisation, quand ce module est désactivé sur l'environnement.
+   */
+  module?: CodeModule;
 }
 
 export const CATALOGUE: readonly DefinitionWidget[] = [
@@ -37,7 +44,7 @@ export const CATALOGUE: readonly DefinitionWidget[] = [
     resume: 'Dossiers, documents, signatures en attente et groupes d’accès.',
   },
   {
-    cle: 'a-valider', titre: 'À valider', icone: 'nav-mesworkflow', colonnes: 8,
+    cle: 'a-valider', titre: 'À valider', icone: 'nav-mesworkflow', colonnes: 8, module: 'workflow',
     resume: 'Les documents qui attendent votre signature.',
   },
   {
@@ -49,7 +56,7 @@ export const CATALOGUE: readonly DefinitionWidget[] = [
     resume: 'Les derniers documents déposés dans l’application.',
   },
   {
-    cle: 'activite', titre: 'Activité récente', icone: 'sign', colonnes: 4,
+    cle: 'activite', titre: 'Activité récente', icone: 'sign', colonnes: 4, module: 'workflow',
     resume: 'Vos dernières signatures et vos derniers refus.',
   },
   {
