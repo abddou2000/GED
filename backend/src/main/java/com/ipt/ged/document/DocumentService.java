@@ -112,11 +112,14 @@ public class DocumentService {
     /** Colonnes sur lesquelles le tri est accepte ; toute autre valeur est ignoree. */
     private static final Set<String> TRIS = Set.of(
             "id", "name", "extension", "sizeKo", "createdAt", "expirationDate",
-            "workspace.name", "typeDocument.typeDeDocument", "echeanceConservation");
+            "workspace.name", "typeDocument.typeDeDocument", "echeanceConservation",
+            // Date du document (socle commun, §4.2.3) : « les tris portent
+            // prioritairement sur ce champ » (ANO-F-006).
+            "dateDocument");
 
     /** Colonnes numeriques ou temporelles : triees telles quelles. */
     private static final Set<String> TRIS_NUM = Set.of("id", "sizeKo", "createdAt", "expirationDate",
-            "echeanceConservation");
+            "echeanceConservation", "dateDocument");
 
     private final UploadDocumentRepository repo;
     private final TypeDocumentRepository typeRepo;
@@ -202,7 +205,7 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public PageResponse<DocumentResponse> list(int page, int size, String search, UUID workspaceId,
                                                String sortBy, String sortDir, boolean echeanceDepassee) {
-        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
+        Pageable pageable = departage(Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM));
         Specification<UploadDocument> spec = criteres(false, search)
                 .and(droits.documents(appelant(), CodePermission.CONSULTER));
         if (workspaceId != null) spec = spec.and(dansLeNoeud(workspaceId));
@@ -216,10 +219,23 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public PageResponse<DocumentResponse> trashed(int page, int size, String search,
                                                   String sortBy, String sortDir) {
-        Pageable pageable = Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM);
+        Pageable pageable = departage(Tri.pageable(page, size, sortBy, sortDir, TRIS, TRIS_NUM));
         Specification<UploadDocument> spec = criteres(true, search)
                 .and(droits.documents(appelant(), CodePermission.CONSULTER));
         return pageDe(repo.findAll(spec, pageable));
+    }
+
+    /**
+     * Départage par identifiant : plusieurs documents partagent souvent la même
+     * date (du document, d'expiration…). Sans second critère, PostgreSQL rend les
+     * ex-aequo dans un ordre quelconque, et un document pouvait paraître sur deux
+     * pages ou sur aucune.
+     */
+    private static Pageable departage(Pageable p) {
+        if (p.getSort().getOrderFor("id") != null) return p;
+        return org.springframework.data.domain.PageRequest.of(p.getPageNumber(), p.getPageSize(),
+                p.getSort().and(org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "id")));
     }
 
     private static Specification<UploadDocument> criteres(boolean supprimes, String search) {

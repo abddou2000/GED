@@ -104,7 +104,7 @@ public class IndexationService {
                 ? Arrays.stream(f.getValeurs().split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList()
                 : List.of();
         return new CritereResponse(f.getId(), f.getCode(), f.getNomIndex(),
-                f.getFieldType().name(), options, f.isIndexDeGroupage());
+                f.getFieldType().name(), options, f.isIndexDeGroupage(), f.isObligatoire());
     }
 
     /* ===================== Valeurs d'un document ===================== */
