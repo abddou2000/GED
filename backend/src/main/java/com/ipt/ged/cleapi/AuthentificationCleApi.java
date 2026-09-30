@@ -41,7 +41,7 @@ public class AuthentificationCleApi {
 
     /** Refus d'authentification : statut, code stable, message, délai éventuel (429). */
     public record Refus(HttpStatus statut, String code, String detail, Duration reessayerApres,
-                        String identifiant, java.util.UUID applicationId) {}
+                        String identifiant, java.util.UUID applicationId, String applicationCode) {}
 
     /** Issue de la vérification : l'application authentifiée, ou le refus. */
     public record Resultat(ApplicationAuthentifiee application, Refus refus) {
@@ -49,8 +49,9 @@ public class AuthentificationCleApi {
             return new Resultat(a, null);
         }
 
-        static Resultat refus(HttpStatus s, String code, String detail, String identifiant, java.util.UUID app) {
-            return new Resultat(null, new Refus(s, code, detail, Duration.ZERO, identifiant, app));
+        static Resultat refus(HttpStatus s, String code, String detail, String identifiant, Application app) {
+            return new Resultat(null, new Refus(s, code, detail, Duration.ZERO, identifiant,
+                    app == null ? null : app.getId(), app == null ? null : app.getCode()));
         }
     }
 
@@ -72,29 +73,30 @@ public class AuthentificationCleApi {
         if (!proprietes.environnement().equals(lue.get().environnement())
                 || !cle.getEnvironnement().equals(lue.get().environnement())) {
             return Resultat.refus(HttpStatus.UNAUTHORIZED, CodesErreurCleApi.CLE_API_AUTRE_ENVIRONNEMENT,
-                    "Cette clé a été émise pour un autre environnement.", identifiant, app.getId());
+                    "Cette clé a été émise pour un autre environnement.", identifiant, app);
         }
         Instant maintenant = horloge.instant();
         if (cle.revoquee()) {
             return Resultat.refus(HttpStatus.UNAUTHORIZED, CodesErreurCleApi.CLE_API_REVOQUEE,
-                    "Clé d'API révoquée.", identifiant, app.getId());
+                    "Clé d'API révoquée.", identifiant, app);
         }
         if (cle.expiree(maintenant)) {
             return Resultat.refus(HttpStatus.UNAUTHORIZED, CodesErreurCleApi.CLE_API_EXPIREE,
-                    "Clé d'API expirée : demandez une nouvelle clé à l'Administrateur.", identifiant, app.getId());
+                    "Clé d'API expirée : demandez une nouvelle clé à l'Administrateur.", identifiant, app);
         }
         if (!app.isActive()) {
             return Resultat.refus(HttpStatus.FORBIDDEN, CodesErreurCleApi.APPLICATION_DESACTIVEE,
-                    "Application désactivée.", identifiant, app.getId());
+                    "Application désactivée.", identifiant, app);
         }
         if (!adresseAutorisee(app.adresses(), adresseSource)) {
             return Resultat.refus(HttpStatus.FORBIDDEN, CodesErreurCleApi.ADRESSE_NON_AUTORISEE,
-                    "Adresse source non autorisée pour cette application.", identifiant, app.getId());
+                    "Adresse source non autorisée pour cette application.", identifiant, app);
         }
         QuotasCleApi.Decision quota = quotas.consommer(cle, app.getQuotaMinute(), app.getQuotaJour());
         if (!quota.accepte()) {
             return new Resultat(null, new Refus(HttpStatus.TOO_MANY_REQUESTS, quota.code(),
-                    "Quota d'appels dépassé pour cette clé.", quota.reessayerApres(), identifiant, app.getId()));
+                    "Quota d'appels dépassé pour cette clé.", quota.reessayerApres(), identifiant, app.getId(),
+                    app.getCode()));
         }
         return Resultat.ok(new ApplicationAuthentifiee(app.getId(), app.getCode(), cle.getId(), cle.isDelegation()));
     }

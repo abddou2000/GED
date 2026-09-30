@@ -5,6 +5,8 @@ import com.ipt.ged.audit.AuditService;
 import com.ipt.ged.audit.EntreeAudit;
 import com.ipt.ged.common.erreur.ExceptionMetier;
 import com.ipt.ged.common.erreur.ReponsesSecuriteProblem;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,6 +39,12 @@ import java.util.Map;
  * et trace {@code CLE_API_REFUSEE} ou {@code QUOTA_DEPASSE}. Ni le secret ni
  * son empreinte n'apparaissent jamais dans une trace : seulement l'identifiant
  * public de la clé.
+ *
+ * <p>Chaque appel, accepté ou refusé, incrémente le compteur
+ * {@code ged_api_appels_total{application, cle, resultat, statut}} publié à
+ * {@code /actuator/prometheus} (DAT §6.7, « appels par clé d'API »). Une clé
+ * inconnue est comptée sous {@code application="inconnue", cle="inconnue"} :
+ * un identifiant présenté par un tiers ne devient jamais une étiquette.
  */
 public class FiltreCleApi extends OncePerRequestFilter {
 
@@ -51,13 +59,19 @@ public class FiltreCleApi extends OncePerRequestFilter {
     private final ResolveurIdentiteDeleguee delegation;
     private final ReponsesSecuriteProblem reponses;
     private final AuditService audit;
+    private final MeterRegistry metriques;
+
+    /** Compteur des appels par application et par clé d'API (DAT §6.7). */
+    public static final String METRIQUE_APPELS = "ged.api.appels";
+    static final String INCONNUE = "inconnue";
 
     public FiltreCleApi(AuthentificationCleApi authentification, ResolveurIdentiteDeleguee delegation,
-                        ReponsesSecuriteProblem reponses, AuditService audit) {
+                        ReponsesSecuriteProblem reponses, AuditService audit, MeterRegistry metriques) {
         this.authentification = authentification;
         this.delegation = delegation;
         this.reponses = reponses;
         this.audit = audit;
+        this.metriques = metriques;
     }
 
     @Override
@@ -67,6 +81,10 @@ public class FiltreCleApi extends OncePerRequestFilter {
                 requete.getRemoteAddr());
         if (r.refus() != null) {
             refuser(requete, reponse, r.refus());
+            AuthentificationCleApi.Refus refus = r.refus();
+            boolean connue = refus.applicationId() != null;
+            compter(connue ? refus.applicationCode() : INCONNUE, connue ? refus.identifiant() : INCONNUE,
+                    false, refus.statut().value());
             return;
         }
         ApplicationAuthentifiee application = r.application();
@@ -82,6 +100,7 @@ public class FiltreCleApi extends OncePerRequestFilter {
                 tracerRefus(requete, CodesErreurCleApi.DELEGATION_NON_AUTORISEE, application, null);
                 reponses.ecrire(requete, reponse, HttpStatus.FORBIDDEN, CodesErreurCleApi.DELEGATION_NON_AUTORISEE,
                         "Cette clé n'est pas habilitée à agir pour le compte d'un utilisateur.");
+                compter(application.code(), identifiantPublic(requete), false, HttpStatus.FORBIDDEN.value());
                 return;
             }
             try {
@@ -101,6 +120,7 @@ public class FiltreCleApi extends OncePerRequestFilter {
                 Object motif = e.proprietes().get(ResolveurDelegationAnnuaire.MOTIF_AUDIT);
                 tracerRefus(requete, e.code(), application, motif == null ? null : motif.toString());
                 reponses.ecrire(requete, reponse, e.statut(), e.code(), e.getMessage());
+                compter(application.code(), identifiantPublic(requete), false, e.statut().value());
                 return;
             }
         }
@@ -109,6 +129,26 @@ public class FiltreCleApi extends OncePerRequestFilter {
             suite.doFilter(requete, reponse);
         } finally {
             tracerAppel(requete, reponse, application);
+            compter(application.code(), identifiantPublic(requete), true, reponse.getStatus());
+        }
+    }
+
+    /** Identifiant public de la clé présentée (jamais le secret) ; appelé après authentification réussie. */
+    private static String identifiantPublic(HttpServletRequest requete) {
+        return FormatCleApi.lire(requete.getHeader(ENTETE_CLE)).map(FormatCleApi.CleLue::identifiant).orElse(INCONNUE);
+    }
+
+    private void compter(String application, String cle, boolean accepte, int statut) {
+        try {
+            Counter.builder(METRIQUE_APPELS)
+                    .description("Appels d'API par application et par clé (DAT §6.7)")
+                    .tag("application", application == null ? INCONNUE : application)
+                    .tag("cle", cle == null ? INCONNUE : cle)
+                    .tag("resultat", accepte ? "accepte" : "refuse")
+                    .tag("statut", Integer.toString(statut))
+                    .register(metriques).increment();
+        } catch (RuntimeException e) {
+            journal.warn("Appel d'API non compté : {}", e.getMessage());
         }
     }
 

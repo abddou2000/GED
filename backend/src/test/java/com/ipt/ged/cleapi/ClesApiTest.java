@@ -3,6 +3,7 @@ package com.ipt.ged.cleapi;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.support.Comptes;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,7 @@ class ClesApiTest {
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper om;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private PrometheusMeterRegistry prometheus;
 
     private record AppEtCle(UUID applicationId, String code, UUID cleId, String cle) {}
 
@@ -115,6 +117,33 @@ class ClesApiTest {
         assertThat(trace.get("acteur_application_id")).isEqualTo(a.applicationId());
         assertThat(trace.get("acteur_nom")).isEqualTo("application:" + a.code());
         assertThat((String) trace.get("apres")).contains("/api/v1/etiquettes").contains("200");
+    }
+
+    @Test
+    @DisplayName("Métrique : appels par application et par clé à /actuator/prometheus, jamais le secret (ANO-E10-002)")
+    void metriqueAppelsParCle() throws Exception {
+        AppEtCle a = creer(null, 600, false);
+        AppEtCle filtree = creer("\"10.9.9.0/24\"", 600, false);
+        assertThat(appeler(a.cle())).isEqualTo(200);
+        assertThat(appeler(a.cle())).isEqualTo(200);
+        assertThat(appeler(filtree.cle())).isEqualTo(403);
+        String inconnue = FormatCleApi.generer("dev").valeur();
+        assertThat(appeler(inconnue)).isEqualTo(401);
+
+        String id = a.cle().split("_")[2];
+        List<String> lignes = prometheus.scrape().lines().filter(l -> l.startsWith("ged_api_appels_total{")).toList();
+        assertThat(lignes).anySatisfy(l -> assertThat(l).contains("application=\"" + a.code() + "\"")
+                .contains("cle=\"" + id + "\"").contains("resultat=\"accepte\"").contains("statut=\"200\"")
+                .endsWith(" 2.0"));
+        assertThat(lignes).anySatisfy(l -> assertThat(l).contains("application=\"" + filtree.code() + "\"")
+                .contains("cle=\"" + filtree.cle().split("_")[2] + "\"").contains("resultat=\"refuse\"")
+                .contains("statut=\"403\""));
+        // Clé inconnue : comptée sans que l'identifiant présenté devienne une étiquette.
+        assertThat(lignes).anySatisfy(l -> assertThat(l).contains("application=\"inconnue\"")
+                .contains("cle=\"inconnue\"").contains("statut=\"401\""));
+        String tout = String.join("\n", lignes);
+        assertThat(tout).doesNotContain(inconnue.split("_")[2])
+                .doesNotContain(a.cle().substring(a.cle().lastIndexOf('_') + 1));
     }
 
     @Test
