@@ -357,6 +357,18 @@ public class AccessPredicate {
      * préfixés {@code droits_} ; les ensembles de nœuds par un seul paramètre
      * tableau, quelle que soit leur taille.
      *
+     * <p><b>Forme du SQL</b> (performance, sémantique inchangée) : chaque
+     * ensemble est une sous-requête NON corrélée ({@code IN (SELECT unnest(...))},
+     * {@code IN (SELECT document_id ...)}), que PostgreSQL évalue une seule fois
+     * puis consulte par hachage (semi-jointure). La forme précédente
+     * ({@code = ANY (CAST(:p AS uuid[]))} et {@code EXISTS} corrélés) relisait le
+     * tableau texte à CHAQUE ligne (la conversion texte → uuid[] n'est pas
+     * pré-calculée) et sondait les rattachements document par document : 1 s
+     * pour compter les documents d'un utilisateur sur 25 nœuds, 11 s sur 250
+     * nœuds, contre 20 ms (50 000 documents, mesure consignée dans
+     * {@code docs/conformite/suivi/dev1.md}, tour 2). Les colonnes comparées
+     * sont toutes non nulles : IN et EXISTS y ont exactement la même valeur.
+     *
      * @param colonneDocumentId expression SQL de l'identifiant du document dans la requête appelante
      */
     public FragmentSql predicatSql(String colonneDocumentId, Authentication authentification,
@@ -373,11 +385,10 @@ public class AccessPredicate {
             if (noeuds.isEmpty() && isoles.isEmpty()) return FragmentSql.FAUX;
             params.put("droits_noeuds", tableau(noeuds));
             params.put("droits_documents", tableau(isoles));
-            sql.append(" AND (droits_d.noeud_principal_id = ANY (CAST(:droits_noeuds AS uuid[]))")
-               .append(" OR EXISTS (SELECT 1 FROM document_rattachement droits_r")
-               .append(" WHERE droits_r.document_id = droits_d.id")
-               .append(" AND droits_r.noeud_id = ANY (CAST(:droits_noeuds AS uuid[])))")
-               .append(" OR droits_d.id = ANY (CAST(:droits_documents AS uuid[])))");
+            sql.append(" AND (droits_d.noeud_principal_id IN (SELECT unnest(CAST(:droits_noeuds AS uuid[])))")
+               .append(" OR droits_d.id IN (SELECT droits_r.document_id FROM document_rattachement droits_r")
+               .append(" WHERE droits_r.noeud_id IN (SELECT unnest(CAST(:droits_noeuds AS uuid[]))))")
+               .append(" OR droits_d.id IN (SELECT unnest(CAST(:droits_documents AS uuid[]))))");
         }
         if (!(d.voirPrive() && d.voirConfidentiel())) {
             Sujet s = d.sujet();
@@ -393,9 +404,9 @@ public class AccessPredicate {
                 sql.append(" OR droits_d.confidentialite = 'CONFIDENTIEL'");
             } else if (s.type() == TypeSujet.UTILISATEUR) {
                 params.put("droits_utilisateur", s.id().toString());
-                sql.append(" OR (droits_d.confidentialite = 'CONFIDENTIEL' AND EXISTS (SELECT 1")
-                   .append(" FROM document_confidentiel_designe droits_c WHERE droits_c.document_id = droits_d.id")
-                   .append(" AND droits_c.utilisateur_id = CAST(:droits_utilisateur AS uuid)))");
+                sql.append(" OR (droits_d.confidentialite = 'CONFIDENTIEL' AND droits_d.id IN (SELECT")
+                   .append(" droits_c.document_id FROM document_confidentiel_designe droits_c")
+                   .append(" WHERE droits_c.utilisateur_id = CAST(:droits_utilisateur AS uuid)))");
             }
             sql.append(')');
         }
