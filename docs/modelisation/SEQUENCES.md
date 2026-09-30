@@ -3,12 +3,24 @@
 Cinq flux : dépôt en deux temps, OCR asynchrone, recherche filtrée par les
 droits, appel délégué d'une application, archivage. Les noms sont ceux des
 classes du code (voir `CLASSES.md`) ; les tables, ceux du schéma
-(`SCHEMA-BASE.md`). À tenir à jour à chaque changement de flux.
+(`SCHEMA-BASE.md`). À tenir à jour à chaque changement de flux :
+`SequencesDocumenteesTest` fait échouer la suite si une classe citée ici
+disparaît ou change de nom.
 
-Filtres communs à toute requête d'API (ordre d'exécution) :
-`FiltreContexteRequete` (traceId, adresse de confiance) → chaîne de sécurité
-(`FiltreCleApi` pour une clé d'API, jeton sinon) → `FiltreConventionsApi`
-(64 Ko, pagination) → `FiltreIdempotence` (créations) → contrôleur.
+Relu contre le code le 30/09/2026 (intégration `71bdc1d`) : chaîne des filtres
+complétée (modules métier, journalisation) ; dépôt complété (source du dépôt
+T-040, modèle documentaire §12.7, circuit de validation §12.8, dossier archivé) ;
+OCR précisé (bail prolongé par page, reprise et échec définitif) ; recherche
+complétée (canal, archives, échéance dépassée T-112) ; délégation : garde des
+règles de workflow (D8) et décision D15 à venir.
+
+Filtres communs à toute requête d'API (ordre d'exécution, `FilterRegistrationBean`) :
+`FiltreContexteRequete` (traceId, adresse de confiance) → filtre des modules
+métier (`ConfigurationModules` : 404 `MODULE_INACTIF` avant toute authentification
+si le module de la route est désactivé, T-088) → chaîne de sécurité (`FiltreCleApi`
+pour une clé d'API, `FiltreJwt` sinon) → `FiltreUtilisateurJournalisation`
+(identité dans le MDC) → `FiltreConventionsApi` (64 Ko, pagination) →
+`FiltreIdempotence` (créations) → contrôleur.
 
 ## 1. Dépôt en deux temps (§12.11, §5.3.1 `POST /documents`)
 
@@ -19,34 +31,42 @@ sequenceDiagram
   participant F as Filtres (sécurité, idempotence)
   participant D as DepotController / DepotService
   participant S as DocumentService
+  participant M as ServiceModeleDocument
+  participant O as SourceDepot
   participant K as ControleFichiers + clamd
   participant X as StockageChiffre
   participant P as AccessPredicate
-  participant I as IndexationService
+  participant W as ServiceCircuits
+  participant I as IndexationAuDepot
   participant B as PostgreSQL
   participant A as AuditService
   C->>F: POST /api/v1/documents (multipart : file, metadonnees) + Idempotency-Key
   F->>B: réserver idempotence_cle (EN_COURS)
   F->>D: requête
-  D->>D: lire et valider les métadonnées (plan d'indexation, 64 Ko)
+  D->>D: lire les métadonnées (MetadonneesDepot, 64 Ko)
   rect rgb(235, 242, 250)
-  Note over S,B: Temps 1 : transaction courte
-  D->>S: upload(fichier, type, déposant)
+  Note over S,B: Temps 1 : transaction courte, tout ce qui peut échouer est contrôlé avant d'écrire le fichier
+  D->>S: upload(fichier, type, métadonnées, objet, date du document)
   S->>P: exiger DEPOSER sur l'emplacement du type (404 / 403)
-  S->>K: type réel (Tika), liste blanche, taille, antivirus (échec fermé)
-  S->>X: écrire le fichier chiffré (AES-256-GCM, cle_fichier)
-  S->>B: INSERT document, version_document courante, ocr_job (si texte à extraire)
-  S->>A: DOCUMENT_DEPOSE (déposant, application, empreinte) dans la transaction
+  S->>S: type vivant, dossier archivé : 409 DOSSIER_ARCHIVE
+  S->>M: appliquerAuDepot : version du plan, valeurs par défaut, objet, date (§12.7)
+  S->>K: taille, type réel (Tika), liste blanche, antivirus (échec fermé)
+  K->>X: écrire le fichier chiffré (AES-256-GCM, cle_fichier)
+  S->>O: courante() : canal, application, déposant, dépôt délégué (T-040)
+  S->>B: INSERT document (statut_indexation provisoire), version_document n° 1 courante
+  S->>W: ouvrirAuDepot : règle applicable figée dans la transaction (§12.8)
+  S->>B: INSERT ocr_job (si texte à extraire)
+  S->>A: événement DocumentDepose → DOCUMENT_DEPOSE (déposant, application, empreinte), même transaction
   end
   rect rgb(240, 248, 240)
   Note over I,B: Temps 2 : transaction séparée
   D->>I: indexer(document, valeurs)
   I->>B: INSERT document_index_valeur, statut_indexation = INDEXE
-  I-->>D: échec éventuel : A_INDEXER (le temps 1 reste acquis)
+  I-->>D: type sans plan : SANS_PLAN, rien reçu ou échec : A_INDEXER (le temps 1 reste acquis)
   end
   D-->>F: 201 (ou 202 si OCR en attente), document et issue d'indexation
   F->>B: mémoriser la réponse (TERMINEE, 24 h)
-  F-->>C: réponse ; un rejeu identique renvoie la même, sans doublon
+  F-->>C: réponse, un rejeu identique renvoie la même, sans doublon
 ```
 
 ## 2. OCR asynchrone (§4.3.4)
@@ -66,20 +86,26 @@ sequenceDiagram
     W->>Q: reserver(1, bail)
     Q->>B: UPDATE ocr_job … WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED LIMIT 1)
     Q-->>W: job (document, version, cle_fichier, langue)
-    W->>S: ouvrir(cle_fichier)
-    W->>E: extraire(contenu, type, langue)
-    alt couche texte PDF présente
-      E->>E: PDFBox (pages natives)
-    else page image
-      E->>T: rendu 300 dpi, Tesseract LSTM (fra, ara), délai par page
-      E->>Q: prolonger le bail à chaque page
+    W->>S: ouvrir(fichier) : déchiffrement en flux
+    W->>E: extraire(contenu, type, langue ara+fra)
+    loop chaque page
+      alt couche texte PDF présente
+        E->>E: PDFBox (page native)
+      else page image
+        E->>T: rendu 300 dpi, Tesseract LSTM, délai par page
+      end
+      W->>Q: prolonger le bail (bail perdu : résultat abandonné, un autre worker reprend)
     end
     alt succès
-      W->>B: transaction : document_texte (texte, tsvector), ocr_job TERMINE
-      W->>A: CONTENU_INDEXE (délai dépôt → disponibilité, objectif 24 h)
-    else échec
-      W->>Q: echouer : reprise (3 tentatives) ou OCR_ECHEC définitif
-      W->>A: OCR_ECHEC (document « non interrogeable »)
+      W->>R: transaction : indexer (document_texte, tsvector)
+      W->>Q: terminer (même transaction, refus = annulation)
+      W->>A: événement ContenuIndexe → CONTENU_INDEXE (délai dépôt → disponibilité)
+      W->>W: MetriquesOcr : délai mesuré contre l'objectif (24 h, D6)
+    else échec transitoire
+      W->>Q: echouer : reprise programmée (3 tentatives : 1, 5 puis 30 min)
+    else échec définitif (fichier corrompu, tentatives épuisées)
+      W->>Q: echouer : OCR_ECHEC
+      W->>A: événement OcrEnEchec → OCR_ECHEC (document « non interrogeable »)
     end
   end
 ```
@@ -95,7 +121,7 @@ sequenceDiagram
   participant P as AccessPredicate
   participant R as SearchIndexerPostgres
   participant B as PostgreSQL
-  C->>K: POST /api/v1/recherches {texte, criteres, noeudId, page, taille}
+  C->>K: POST /api/v1/recherches {texte, criteres, noeudId, typeDocumentId, canal, deposeDu, deposeAu, archives, echeanceDepassee, page, taille}
   opt critères d'index
     K->>I: rechercher(critères)
     I->>P: spécification « documents consultables » (droits à la source)
@@ -103,7 +129,7 @@ sequenceDiagram
     I-->>K: identifiants retenus
   end
   alt texte présent
-    K->>R: rechercher(texte, filtres, page, taille)
+    K->>R: rechercher(texte, filtres CriteresMetadonnees : nœud, type, canal, dates, archives, échéance, page, taille)
     R->>P: prédicat SQL des droits (emplacements, confidentialité)
     R->>B: websearch_to_tsquery, ts_rank_cd, ts_headline, LIMIT / OFFSET, total sur le périmètre
     R-->>K: page de résultats avec extraits en segments
@@ -138,8 +164,10 @@ sequenceDiagram
     D->>D: provisionner sans rôle (cache_annuaire)
   end
   D-->>F: principal de l'utilisateur délégué (sinon 422 IDENTITE_DELEGUEE_INVALIDE)
+  Note over D,L: Décision D15 (30/09) : lecture de userAccountControl, compte désactivé = 422, à livrer par dev1 (T-055)
   F->>F: contexte de sécurité : sujet = la clé, principal = l'utilisateur
   F->>Svc: requête
+  Note over F,Svc: Avant le contrôleur, GardeDroitsRequetes (intercepteur), règles de workflow (D8) : GardeReglesWorkflowApplications exige délégation, portée WORKFLOW_PILOTAGE et GERER_REFERENTIELS de la personne
   Svc->>P: décision (permission, objet)
   P->>H: attributions du sujet
   alt lecture (GET, HEAD)
