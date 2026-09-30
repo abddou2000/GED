@@ -13,6 +13,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
+import java.time.Clock;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,8 +24,10 @@ import java.util.Map;
  * décisions client D2 à D4 ; exigence P-02).
  *
  * <ul>
- *   <li><b>N contrôleurs, un seul suffit</b> (D4) : les URL sont passées à JNDI
- *       dans l'ordre ; en cas d'échec de connexion il essaie la suivante.</li>
+ *   <li><b>N contrôleurs, un seul suffit</b> (D4) : une source par contrôleur,
+ *       essayés dans l'ordre ; un contrôleur injoignable OU muet (délai de
+ *       lecture expiré) fait basculer sur le suivant ({@link ControleursAnnuaire},
+ *       ANO-E2-002).</li>
  *   <li><b>LDAPS obligatoire</b> hors dev et test : une URL {@code ldap://}
  *       empêche le démarrage (LDAP en clair interdit).</li>
  *   <li><b>Délais</b> : 3 s de connexion, 5 s de lecture, par défaut.</li>
@@ -48,7 +52,7 @@ public class ConfigurationAnnuaire {
     }
 
     @Bean
-    public LdapContextSource sourceAnnuaire(ProprietesIdentite proprietes) {
+    public ControleursAnnuaire controleursAnnuaire(ProprietesIdentite proprietes) {
         ProprietesIdentite.Annuaire a = proprietes.getAnnuaire();
         List<String> urls = a.getUrls().stream().map(String::trim).filter(u -> !u.isEmpty()).toList();
         if (urls.isEmpty()) {
@@ -64,16 +68,20 @@ public class ConfigurationAnnuaire {
             log.warn("Annuaire en LDAP non chiffré ({}) : admis en dev et test uniquement.", urls);
         }
 
-        LdapContextSource source = construire(a, urls, a.isPool());
+        List<ControleursAnnuaire.Controleur> controleurs = new ArrayList<>();
+        for (int i = 0; i < urls.size(); i++) {
+            controleurs.add(new ControleursAnnuaire.Controleur(i, urls.get(i),
+                    construire(a, List.of(urls.get(i)), a.isPool())));
+        }
         log.info("Annuaire : {} contrôleur(s) de domaine déclaré(s), base « {} ».", urls.size(), a.getBase());
-        return source;
+        return new ControleursAnnuaire(controleurs, a.getMiseALEcart(), Clock.systemUTC());
     }
 
     /**
      * Source LDAP du compte de service sur les contrôleurs donnés, avec les
-     * réglages communs (délais, TLS, objectGUID binaire). Sert à la source
-     * principale et à la sonde, qui mesure chaque contrôleur séparément (D4) :
-     * mêmes réglages, donc même liaison authentifiée que les connexions.
+     * réglages communs (délais, TLS, objectGUID binaire). Sert aux sources de
+     * chaque contrôleur et à la sonde, qui mesure chaque contrôleur séparément
+     * (D4) : mêmes réglages, donc même liaison authentifiée que les connexions.
      */
     static LdapContextSource construire(ProprietesIdentite.Annuaire a, List<String> urls, boolean pool) {
         boolean toutLdaps = urls.stream().allMatch(u -> u.toLowerCase().startsWith("ldaps://"));
@@ -99,20 +107,21 @@ public class ConfigurationAnnuaire {
     }
 
     @Bean
-    public Annuaire annuaire(LdapContextSource sourceAnnuaire, ProprietesIdentite proprietes) {
+    public Annuaire annuaire(ControleursAnnuaire controleursAnnuaire, ProprietesIdentite proprietes) {
         ProprietesIdentite.Annuaire a = proprietes.getAnnuaire();
-        return new AnnuaireLdap(sourceAnnuaire, a.getBase(), a.getAttributs(), a.getDelaiLecture());
+        return new AnnuaireLdap(controleursAnnuaire, a.getBase(), a.getAttributs(), a.getDelaiLecture());
     }
 
     /**
      * Lecture de l'état d'un compte, réservée à la délégation d'identité
      * (décision D15, exception bornée à D1) : même compte de service, mêmes
-     * contrôleurs et délais que {@link #annuaire}.
+     * contrôleurs, délais et bascule que {@link #annuaire}.
      */
     @Bean
-    public EtatCompteAnnuaireLdap etatCompteAnnuaire(LdapContextSource sourceAnnuaire, ProprietesIdentite proprietes) {
+    public EtatCompteAnnuaireLdap etatCompteAnnuaire(ControleursAnnuaire controleursAnnuaire,
+                                                     ProprietesIdentite proprietes) {
         ProprietesIdentite.Annuaire a = proprietes.getAnnuaire();
-        return new EtatCompteAnnuaireLdap(sourceAnnuaire, a.getBase(), a.getDelaiLecture());
+        return new EtatCompteAnnuaireLdap(controleursAnnuaire, a.getBase(), a.getDelaiLecture());
     }
 
     /**

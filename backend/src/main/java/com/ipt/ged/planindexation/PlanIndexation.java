@@ -62,7 +62,7 @@ public class PlanIndexation extends Supprimable {
      *
      * <p>Distincte de {@link #indices} : le plan regroupe des champs de
      * métadonnées, la charte décide lesquels composent le nom du fichier, dans
-     * quel ordre, et peut y mêler des jetons système (DATE, YEAR…) qui
+     * quel ordre, et peut y mêler des jetons système (DATE, ANNÉE…) qui
      * n'existent dans aucune table. Réutiliser {@code indices} interdirait ces
      * deux libertés. {@code null} en nommage manuel.
      */

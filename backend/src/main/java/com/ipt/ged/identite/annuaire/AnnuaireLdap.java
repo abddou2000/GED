@@ -50,32 +50,41 @@ public class AnnuaireLdap implements Annuaire {
             "memberof", "tokengroups", "primarygroupid", "useraccountcontrol",
             "msds-user-account-control-computed", "userprincipalname", "userpassword", "unicodepwd");
 
-    private final LdapContextSource source;
+    private final ControleursAnnuaire controleurs;
     private final String base;
     private final String[] attributs;
     private final int delaiLectureMs;
-    private final BindAuthenticator authentificateur;
-    private final LdapTemplate modele;
+    /** Par contrôleur (indice = rang) : liaison utilisateur et recherches du compte de service. */
+    private final BindAuthenticator[] authentificateurs;
+    private final LdapTemplate[] modeles;
 
-    public AnnuaireLdap(LdapContextSource source, String base, List<String> attributsConfigures,
+    public AnnuaireLdap(ControleursAnnuaire controleurs, String base, List<String> attributsConfigures,
                         Duration delaiLecture) {
-        this.source = source;
+        this.controleurs = controleurs;
         this.base = base == null ? "" : base;
         this.attributs = attributsRetenus(attributsConfigures);
         this.delaiLectureMs = (int) Math.min(Integer.MAX_VALUE, delaiLecture.toMillis());
 
-        FilterBasedLdapUserSearch recherche = new FilterBasedLdapUserSearch(this.base, FILTRE_IDENTIFIANT, source);
-        recherche.setSearchSubtree(true);
-        recherche.setReturningAttributes(attributs);
-        recherche.setSearchTimeLimit(delaiLectureMs);
-        recherche.setDerefLinkFlag(false);
+        int n = controleurs.controleurs().size();
+        this.authentificateurs = new BindAuthenticator[n];
+        this.modeles = new LdapTemplate[n];
+        for (ControleursAnnuaire.Controleur c : controleurs.controleurs()) {
+            LdapContextSource source = c.source();
+            FilterBasedLdapUserSearch recherche = new FilterBasedLdapUserSearch(this.base, FILTRE_IDENTIFIANT, source);
+            recherche.setSearchSubtree(true);
+            recherche.setReturningAttributes(attributs);
+            recherche.setSearchTimeLimit(delaiLectureMs);
+            recherche.setDerefLinkFlag(false);
 
-        this.authentificateur = new BindAuthenticator(source);
-        this.authentificateur.setUserSearch(recherche);
-        this.authentificateur.setUserAttributes(attributs);
+            BindAuthenticator authentificateur = new BindAuthenticator(source);
+            authentificateur.setUserSearch(recherche);
+            authentificateur.setUserAttributes(attributs);
+            authentificateurs[c.rang()] = authentificateur;
 
-        this.modele = new LdapTemplate(source);
-        this.modele.setIgnorePartialResultException(true);
+            LdapTemplate modele = new LdapTemplate(source);
+            modele.setIgnorePartialResultException(true);
+            modeles[c.rang()] = modele;
+        }
     }
 
     /** Liste demandée au serveur : configuration moins les interdits, plus l'indispensable. */
@@ -100,17 +109,25 @@ public class AnnuaireLdap implements Annuaire {
 
     @Override
     public FicheAnnuaire authentifier(String identifiant, String motDePasse) {
+        // Recherche et liaison sur le MÊME contrôleur ; un refus n'est jamais rejoué ailleurs.
         try {
-            DirContextOperations entree = authentificateur.authenticate(
-                    new UsernamePasswordAuthenticationToken(identifiant, motDePasse));
-            return fiche(entree);
-        } catch (BadCredentialsException | UsernameNotFoundException e) {
-            // Mot de passe faux, identifiant inconnu, compte désactivé : l'annuaire
-            // refuse la liaison, la GED ne distingue pas (D1).
-            throw new IdentifiantsRefusesException();
-        } catch (InternalAuthenticationServiceException | org.springframework.ldap.NamingException e) {
-            log.warn("Annuaire injoignable pendant une connexion : {}", e.getMessage());
-            throw new AnnuaireIndisponibleException(e);
+            return controleurs.executer(c -> {
+                try {
+                    DirContextOperations entree = authentificateurs[c.rang()].authenticate(
+                            new UsernamePasswordAuthenticationToken(identifiant, motDePasse));
+                    return fiche(entree);
+                } catch (BadCredentialsException | UsernameNotFoundException e) {
+                    // Mot de passe faux, identifiant inconnu, compte désactivé : l'annuaire
+                    // refuse la liaison, la GED ne distingue pas (D1).
+                    throw new IdentifiantsRefusesException();
+                } catch (InternalAuthenticationServiceException | org.springframework.ldap.NamingException e) {
+                    throw new AnnuaireIndisponibleException(e);
+                }
+            });
+        } catch (AnnuaireIndisponibleException e) {
+            log.warn("Annuaire injoignable pendant une connexion : {}", e.getCause() == null ? e.getMessage()
+                    : e.getCause().getMessage());
+            throw e;
         }
     }
 
@@ -127,23 +144,28 @@ public class AnnuaireLdap implements Annuaire {
     private Optional<FicheAnnuaire> rechercher(String filtre) {
         SearchControls controles = new SearchControls(SearchControls.SUBTREE_SCOPE, 2, delaiLectureMs,
                 attributs, false, false);
-        try {
-            List<FicheAnnuaire> trouves = modele.search(base, filtre, controles,
-                    (ContextMapper<FicheAnnuaire>) ctx -> fiche((DirContextOperations) ctx));
-            return trouves.size() == 1 ? Optional.of(trouves.get(0)) : Optional.empty();
-        } catch (org.springframework.ldap.NamingException e) {
-            throw new AnnuaireIndisponibleException(e);
-        }
+        return controleurs.executer(c -> {
+            try {
+                List<FicheAnnuaire> trouves = modeles[c.rang()].search(base, filtre, controles,
+                        (ContextMapper<FicheAnnuaire>) ctx -> fiche((DirContextOperations) ctx));
+                return trouves.size() == 1 ? Optional.of(trouves.get(0)) : Optional.empty();
+            } catch (org.springframework.ldap.NamingException e) {
+                throw new AnnuaireIndisponibleException(e);
+            }
+        });
     }
 
     @Override
     public void sonder() {
-        try {
-            DirContext ctx = source.getReadOnlyContext();
-            ctx.close();
-        } catch (org.springframework.ldap.NamingException | javax.naming.NamingException e) {
-            throw new AnnuaireIndisponibleException(e);
-        }
+        controleurs.executer(c -> {
+            try {
+                DirContext ctx = c.source().getReadOnlyContext();
+                ctx.close();
+                return null;
+            } catch (org.springframework.ldap.NamingException | javax.naming.NamingException e) {
+                throw new AnnuaireIndisponibleException(e);
+            }
+        });
     }
 
     private static FicheAnnuaire fiche(DirContextOperations e) {

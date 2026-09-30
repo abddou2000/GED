@@ -151,6 +151,8 @@ public class DocumentService {
     private final com.ipt.ged.document.version.ServiceVersions versions;
     private final com.ipt.ged.depot.source.ResolutionOrigineDepot origines;
     private final com.ipt.ged.fichier.integrite.LectureControlee lectures;
+    /** Archivage d'un document restauré sous un dossier archivé (ANO-E7-006), résolu à l'usage. */
+    private final org.springframework.beans.factory.ObjectProvider<com.ipt.ged.cycledevie.ArchivageService> archivage;
 
     public DocumentService(UploadDocumentRepository repo, TypeDocumentRepository typeRepo,
                            ServiceCircuits circuits,
@@ -165,7 +167,10 @@ public class DocumentService {
                            com.ipt.ged.document.modele.ServiceModeleDocument modele,
                            com.ipt.ged.document.version.ServiceVersions versions,
                            com.ipt.ged.depot.source.ResolutionOrigineDepot origines,
-                           com.ipt.ged.fichier.integrite.LectureControlee lectures) {
+                           com.ipt.ged.fichier.integrite.LectureControlee lectures,
+                           org.springframework.beans.factory.ObjectProvider<com.ipt.ged.cycledevie.ArchivageService>
+                                   archivage) {
+        this.archivage = archivage;
         this.repo = repo;
         this.typeRepo = typeRepo;
         this.circuits = circuits;
@@ -374,15 +379,32 @@ public class DocumentService {
                                    String expirationDate, UUID createdById, List<UUID> etiquetteIds,
                                    Confidentialite confidentialite, Map<String, ?> metadonnees,
                                    String objet, String dateDocument) {
+        return upload(file, name, typeDocumentId, expirationDate, createdById, etiquetteIds, confidentialite,
+                metadonnees, objet, dateDocument, null);
+    }
+
+    /**
+     * @param emplacementId dossier où ranger le document ; absent = dossier du type. Un autre
+     *                      dossier n'est admis que dans le même espace d'échange que le dossier du
+     *                      type (D12, ANO-F-016) : 422 {@code EMPLACEMENT_HORS_ESPACE_ECHANGE}
+     *                      sinon. Déposer est exigé sur ce dossier.
+     */
+    @Transactional
+    public DocumentResponse upload(MultipartFile file, String name, UUID typeDocumentId,
+                                   String expirationDate, UUID createdById, List<UUID> etiquetteIds,
+                                   Confidentialite confidentialite, Map<String, ?> metadonnees,
+                                   String objet, String dateDocument, UUID emplacementId) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Le fichier est obligatoire");
         }
         TypeDocument type = typeRepo.findById(typeDocumentId)
                 .orElseThrow(() -> new EntityNotFoundException("Type de document introuvable : " + typeDocumentId));
-        // Déposer s'exerce sur l'emplacement principal, fixé par le type.
-        controle.exigerSurNoeud(CodePermission.DEPOSER, type.getWorkspace().getId());
+        // Déposer s'exerce sur l'emplacement principal : le dossier du type, ou
+        // un dossier du même espace d'échange choisi par le déposant (D12).
+        WorkSpace ws = emplacementDuDepot(type, emplacementId);
+        controle.exigerSurNoeud(CodePermission.DEPOSER, ws.getId());
         ContraintesDepot.validerTypeVivant(type);
-        refuserSiDossierArchive(type.getWorkspace());
+        refuserSiDossierArchive(ws);
 
         String original = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document";
         String ext = extractExtension(original);
@@ -402,7 +424,6 @@ public class DocumentService {
 
         ControleFichiers.Depot depot = deposerFichier(type, file);
 
-        WorkSpace ws = type.getWorkspace();
         doc.setWorkspace(ws);
         doc.setTypeDocument(type);
         // Issue provisoire du temps 1 (§12.11) : seul le temps 2, dans sa propre
@@ -536,10 +557,18 @@ public class DocumentService {
      * document, Déposer sur la destination ; refus si verrouillé, archivé, ou
      * destination archivée (Q7) ; audité avec origine et destination. Un
      * document engagé dans un circuit de validation reste déplaçable.
+     *
+     * <p><b>Espace d'échange</b> (D12, ANO-F-016) : entre deux dossiers d'un
+     * même espace d'échange, ranger les documents relève du partage simple ;
+     * Déposer sur le document (membre habilité de l'espace) remplace Déplacer.
+     * Hors de ce cas, espaces métier compris, rien ne change.
      */
     @Transactional
     public DocumentResponse deplacer(UUID id, UUID destinationId) {
-        controle.exigerSurDocument(CodePermission.DEPLACER, id);
+        WorkSpace cible = destinationId == null ? null : noeuds.findById(destinationId).orElse(null);
+        boolean rangementEchange = cible != null && repo.findById(id)
+                .map(doc -> memeEspaceEchange(doc.getWorkspace(), cible)).orElse(false);
+        controle.exigerSurDocument(rangementEchange ? CodePermission.DEPOSER : CodePermission.DEPLACER, id);
         UploadDocument d = loadPourEcriture(id);
         garde.exigerModifiable(id);
         controle.exigerSurNoeud(CodePermission.DEPOSER, destinationId);
@@ -718,6 +747,15 @@ public class DocumentService {
         publierSuppression(d);
     }
 
+    /**
+     * Restauration depuis la corbeille. Un document mis à la corbeille avant
+     * l'archivage de son dossier (l'archivage ne prend que les documents
+     * vivants) revient <b>archivé</b> si son emplacement principal l'est
+     * désormais (ANO-E7-006, comme un dossier enfant restauré) : même
+     * traitement qu'à l'archivage du dossier (empreinte vérifiée, copie de
+     * conservation, archiviste du dossier), dans la transaction de la
+     * restauration. S'il ne peut pas être archivé, rien n'est restauré (409).
+     */
     @Transactional
     public void restore(UUID id) {
         controle.exigerSurDocument(CodePermission.SUPPRIMER, id);
@@ -725,6 +763,46 @@ public class DocumentService {
         if (!d.isSupprime()) return;
         d.restaurer();
         publierRestauration(d);
+        archiverSiDossierArchive(d);
+    }
+
+    /** ANO-E7-006 : un document ne revient jamais actif sous un dossier archivé. */
+    private void archiverSiDossierArchive(UploadDocument d) {
+        WorkSpace ws = d.getWorkspace();
+        repo.flush();
+        if (ws == null || d.estArchive()
+                || archivageNoeuds.statut(ws.getId()) != com.ipt.ged.common.StatutConservation.ARCHIVE) {
+            return;
+        }
+        com.ipt.ged.cycledevie.ArchivageService service = archivage.getObject();
+        com.ipt.ged.cycledevie.ArchivageService.Preparation p = service.preparer(d.getId());
+        if (p.refus() != null) {
+            throw new com.ipt.ged.cycledevie.ErreurCycleDeVie(org.springframework.http.HttpStatus.CONFLICT,
+                    com.ipt.ged.cycledevie.ErreurCycleDeVie.DOSSIER_ARCHIVE,
+                    "Dossier archivé « " + ws.getName() + " » : le document ne peut pas y revenir archivé ("
+                            + p.refus().motif() + ") ; restauration annulée.");
+        }
+        UUID archiviste = archivisteDuDossier(ws.getId());
+        com.ipt.ged.cycledevie.ArchivageService.Resultat r;
+        try {
+            r = service.appliquer(p, Acteur.courant(), archiviste, null);
+        } catch (RuntimeException e) {
+            service.abandonner(p);
+            throw e;
+        }
+        if (r.issue() != com.ipt.ged.cycledevie.ArchivageService.Issue.ARCHIVE
+                && r.issue() != com.ipt.ged.cycledevie.ArchivageService.Issue.ANOMALIE) {
+            service.abandonner(p);
+            throw new com.ipt.ged.cycledevie.ErreurCycleDeVie(org.springframework.http.HttpStatus.CONFLICT,
+                    com.ipt.ged.cycledevie.ErreurCycleDeVie.DOSSIER_ARCHIVE,
+                    "Dossier archivé « " + ws.getName() + " » : archivage du document restauré impossible ("
+                            + r.motif() + ") ; restauration annulée.");
+        }
+    }
+
+    /** Archiviste du dossier (drapeau posé sur toute la sous-arborescence, même auteur). */
+    private UUID archivisteDuDossier(UUID noeudId) {
+        return noeuds.findById(noeudId).map(WorkSpace::getArchivePar).orElse(null);
     }
 
     /** Tout ou rien : un seul document refusé (404 / 403 / 409) et rien n'est supprimé. */
@@ -747,6 +825,7 @@ public class DocumentService {
         cibles.forEach(d -> {
             d.restaurer();
             publierRestauration(d);
+            archiverSiDossierArchive(d);
         });
     }
 
@@ -939,6 +1018,50 @@ public class DocumentService {
     }
 
     /** Dossier archivé (D10) : aucun dépôt ni rangement (revue client, question Q7). */
+    /**
+     * Emplacement principal d'un dépôt : le dossier du type, ou un dossier du
+     * même espace d'échange (D12, ANO-F-016). Dans un espace métier, le
+     * document va toujours dans le dossier de son type.
+     */
+    private WorkSpace emplacementDuDepot(TypeDocument type, UUID emplacementId) {
+        WorkSpace duType = type.getWorkspace();
+        if (emplacementId == null || emplacementId.equals(duType.getId())) return duType;
+        WorkSpace cible = noeuds.findById(emplacementId)
+                .orElseThrow(() -> new EntityNotFoundException("Dossier introuvable : " + emplacementId));
+        // Droits d'abord : un dossier hors périmètre reste introuvable (404).
+        controle.exigerSurNoeud(CodePermission.DEPOSER, cible.getId());
+        if (cible.isSupprime()) {
+            throw new IllegalArgumentException("Dossier en corbeille : dépôt impossible.");
+        }
+        if (!memeEspaceEchange(duType, cible)) {
+            throw new com.ipt.ged.common.erreur.RegleMetierException(EMPLACEMENT_HORS_ESPACE_ECHANGE,
+                    "Le document va dans le dossier de son type ; un autre dossier n'est possible que dans "
+                            + "le même espace d'échange.");
+        }
+        return cible;
+    }
+
+    /** Code du refus d'un emplacement de dépôt hors de l'espace d'échange du type. */
+    public static final String EMPLACEMENT_HORS_ESPACE_ECHANGE = "EMPLACEMENT_HORS_ESPACE_ECHANGE";
+
+    /**
+     * Deux nœuds du même espace d'échange (D12) : même espace racine, d'usage
+     * ECHANGE. L'usage d'un dossier est celui de son espace ; il est lu sur
+     * l'espace, dont la valeur en mémoire est toujours exacte.
+     */
+    static boolean memeEspaceEchange(WorkSpace a, WorkSpace b) {
+        if (a == null || b == null) return false;
+        WorkSpace ea = espace(a);
+        WorkSpace eb = espace(b);
+        return ea.getId().equals(eb.getId()) && ea.getUsageEspace() == com.ipt.ged.workspace.UsageEspace.ECHANGE;
+    }
+
+    private static WorkSpace espace(WorkSpace n) {
+        WorkSpace e = n;
+        while (e.getParent() != null) e = e.getParent();
+        return e;
+    }
+
     private void refuserSiDossierArchive(WorkSpace ws) {
         if (ws == null) return;
         // Le contrat lit la base : ce que la transaction a créé doit y être.

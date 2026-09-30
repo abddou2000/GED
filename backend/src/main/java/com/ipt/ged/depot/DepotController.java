@@ -44,6 +44,11 @@ public class DepotController {
      *
      * <p>Le déposant est l'utilisateur authentifié, jamais un paramètre de la
      * requête ; un {@code createdById} résiduel est ignoré.
+     *
+     * <p>{@code noeudId} (facultatif) : dossier où ranger le document. Absent,
+     * le document va dans le dossier de son type. Un autre dossier n'est admis
+     * que dans le même espace d'échange que celui du type (D12) ; Déposer y est
+     * exigé ; ailleurs, 422 {@code EMPLACEMENT_HORS_ESPACE_ECHANGE}.
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<DocumentResponse> deposer(
@@ -56,10 +61,11 @@ public class DepotController {
             @RequestParam(value = "confidentialite", required = false) Confidentialite confidentialite,
             @RequestParam(value = "objet", required = false) String objet,
             @RequestParam(value = "dateDocument", required = false) String dateDocument,
+            @RequestParam(value = "noeudId", required = false) UUID noeudId,
             @AuthenticationPrincipal UtilisateurConnecte principal) {
         UUID deposant = principal != null ? principal.getEmployeId() : null;
         DepotService.ResultatDepot r = depot.deposer(file, name, typeDocumentId, expirationDate, deposant,
-                etiquetteIds, confidentialite, metadonnees, objet, dateDocument);
+                etiquetteIds, confidentialite, metadonnees, objet, dateDocument, noeudId);
         return ResponseEntity.status(r.ocrEnAttente() ? HttpStatus.ACCEPTED : HttpStatus.CREATED).body(r.document());
     }
 }

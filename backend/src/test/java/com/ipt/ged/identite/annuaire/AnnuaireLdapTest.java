@@ -91,7 +91,7 @@ class AnnuaireLdapTest {
 
     private static AnnuaireLdap annuaire(ProprietesIdentite p) {
         ConfigurationAnnuaire config = new ConfigurationAnnuaire();
-        return (AnnuaireLdap) config.annuaire(config.sourceAnnuaire(p), p);
+        return (AnnuaireLdap) config.annuaire(config.controleursAnnuaire(p), p);
     }
 
     private static AnnuaireLdap annuaire(String... urls) {
@@ -190,6 +190,90 @@ class AnnuaireLdapTest {
         assertEquals(GUID_SARA, annuaire(urlMorte(), principal.url()).authentifier("sbennani", MDP).objectGuid());
     }
 
+    /**
+     * ANO-E2-002 : contrôleur bloqué qui accepte la connexion TCP et ne répond
+     * jamais. Sans bascule propre à la GED, le délai de lecture expire sur une
+     * connexion déjà établie et JNDI n'essaie pas le suivant (avec le pool, la
+     * connexion muette est resservie : 503 à chaque essai ; sans pool, chaque
+     * connexion paie deux délais de lecture).
+     */
+    @Test
+    @DisplayName("D4 / ANO-E2-002 : premier contrôleur muet, bascule à chaque connexion, puis mis à l'écart")
+    void basculeSurControleurMuet() throws Exception {
+        try (ControleurMuet muet = new ControleurMuet()) {
+            for (boolean pool : new boolean[]{true, false}) {
+                ProprietesIdentite p = proprietes(muet.url(), principal.url());
+                p.getAnnuaire().setPool(pool);
+                p.getAnnuaire().setDelaiLecture(Duration.ofSeconds(1));
+                AnnuaireLdap a = annuaire(p);
+
+                long debut = System.nanoTime();
+                assertEquals(GUID_SARA, a.authentifier("sbennani", MDP).objectGuid(), "pool=" + pool);
+                assertTrue(Duration.ofNanos(System.nanoTime() - debut).toMillis() < 3000,
+                        "un seul délai de lecture pour basculer (pool=" + pool + ")");
+                for (int i = 0; i < 4; i++) {
+                    long t = System.nanoTime();
+                    assertEquals(GUID_SARA, a.authentifier("sbennani", MDP).objectGuid(), "essai " + i + ", pool=" + pool);
+                    assertTrue(Duration.ofNanos(System.nanoTime() - t).toMillis() < 900,
+                            "contrôleur muet mis à l'écart : pas de délai de lecture (essai " + i + ", pool=" + pool + ")");
+                }
+                assertEquals("sbennani", a.rechercherParGuid(GUID_SARA).orElseThrow().identifiant());
+                a.sonder();
+                // Un refus reste un refus : il n'est pas transformé en panne.
+                assertThrows(IdentifiantsRefusesException.class, () -> a.authentifier("sbennani", "faux"));
+            }
+            assertTrue(muet.connexionsAcceptees() >= 2, "le contrôleur muet a bien été essayé");
+        }
+    }
+
+    @Test
+    @DisplayName("D4 / ANO-E2-002 : tous les contrôleurs muets, 503 dans la somme des délais de lecture")
+    void tousMuets() throws Exception {
+        try (ControleurMuet m1 = new ControleurMuet(); ControleurMuet m2 = new ControleurMuet()) {
+            ProprietesIdentite p = proprietes(m1.url(), m2.url());
+            p.getAnnuaire().setDelaiLecture(Duration.ofSeconds(1));
+            AnnuaireLdap a = annuaire(p);
+            long debut = System.nanoTime();
+            assertThrows(AnnuaireIndisponibleException.class, () -> a.authentifier("sbennani", MDP));
+            assertTrue(Duration.ofNanos(System.nanoTime() - debut).toMillis() < 4000, "deux délais de lecture au plus");
+            assertTrue(m1.connexionsAcceptees() >= 1 && m2.connexionsAcceptees() >= 1, "les deux essayés");
+        }
+    }
+
+    /** Contrôleur bloqué : accepte les connexions TCP, ne répond jamais, ne ferme jamais. */
+    private static final class ControleurMuet implements AutoCloseable {
+        private final ServerSocket serveur = new ServerSocket(0, 50, java.net.InetAddress.getLoopbackAddress());
+        private final List<java.net.Socket> retenues = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+
+        ControleurMuet() throws Exception {
+            Thread t = new Thread(() -> {
+                try {
+                    while (!serveur.isClosed()) retenues.add(serveur.accept());
+                } catch (Exception fin) {
+                    // serveur fermé
+                }
+            }, "controleur-muet");
+            t.setDaemon(true);
+            t.start();
+        }
+
+        String url() {
+            return "ldap://localhost:" + serveur.getLocalPort();
+        }
+
+        int connexionsAcceptees() {
+            return retenues.size();
+        }
+
+        @Override
+        public void close() throws Exception {
+            serveur.close();
+            synchronized (retenues) {
+                for (java.net.Socket s : retenues) s.close();
+            }
+        }
+    }
+
     @Test
     @DisplayName("Annuaire injoignable : erreur explicite, dans le délai, sans mode dégradé")
     void annuaireIndisponible() throws Exception {
@@ -212,9 +296,9 @@ class AnnuaireLdapTest {
     void ldapEnClairInterdit() {
         ProprietesIdentite p = proprietes(principal.url());
         p.getAnnuaire().setExigerLdaps(true);
-        assertThrows(IllegalStateException.class, () -> new ConfigurationAnnuaire().sourceAnnuaire(p));
+        assertThrows(IllegalStateException.class, () -> new ConfigurationAnnuaire().controleursAnnuaire(p));
         ProprietesIdentite vide = proprietes();
-        assertThrows(IllegalStateException.class, () -> new ConfigurationAnnuaire().sourceAnnuaire(vide));
+        assertThrows(IllegalStateException.class, () -> new ConfigurationAnnuaire().controleursAnnuaire(vide));
     }
 
     @Test

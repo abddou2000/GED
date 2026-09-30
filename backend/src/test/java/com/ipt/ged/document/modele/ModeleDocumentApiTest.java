@@ -518,4 +518,96 @@ class ModeleDocumentApiTest {
         jdbc.update("UPDATE noeud SET usage_espace = 'METIER' WHERE id = ?", echange);
         assertEquals("METIER", jdbc.queryForObject("SELECT usage_espace FROM noeud WHERE id = ?", String.class, lot));
     }
+
+    /** Espace d'échange neuf, avec son type de document et un membre standard (Déposer). */
+    private UUID espaceEchangeAvecMembre(String nom) {
+        UUID echange = jeu.noeud(nom, null);
+        var e = noeuds.findById(echange).orElseThrow();
+        e.setUsageEspace(com.ipt.ged.workspace.UsageEspace.ECHANGE);
+        noeuds.saveAndFlush(e);
+        jeu.habiliter(U, Role.UTILISATEUR_STANDARD, echange, null);
+        return echange;
+    }
+
+    private UUID dossierPar(String identifiant, UUID parent, String nom) throws Exception {
+        UUID wf = jdbc.queryForObject("SELECT regle_workflow_id FROM noeud WHERE id = ?", UUID.class, parent);
+        String corps = "{\"name\":\"" + nom + "\",\"code\":\"D-" + UUID.randomUUID().toString().substring(0, 8)
+                + "\",\"employeId\":\"" + jeu.employeId(identifiant) + "\",\"workflowId\":\"" + wf
+                + "\",\"parentId\":\"" + parent + "\"}";
+        return UUID.fromString(json(mvc.perform(post("/api/v1/workspaces").with(comme(identifiant))
+                .contentType(APPLICATION_JSON).content(corps)).andExpect(status().isCreated())).get("id").asText());
+    }
+
+    private ResultActions deplacerComme(String identifiant, UUID doc, UUID destination) throws Exception {
+        return mvc.perform(patch(DOCS + "/" + doc + "/emplacement").with(comme(identifiant))
+                .contentType(APPLICATION_JSON).content("{\"noeudId\":\"" + destination + "\"}"));
+    }
+
+    @Test
+    @DisplayName("ANO-F-016 (D12) : dans un espace d'échange, un membre crée un dossier, y dépose et y range ses documents")
+    void rangementDansEspaceEchange() throws Exception {
+        UUID echange = espaceEchangeAvecMembre("Partage CPS");
+        UUID typeEchange = jeu.type(echange, Confidentialite.PUBLIC);
+        UUID lotA = dossierPar(U, echange, "Lot A");
+        UUID lotB = dossierPar(U, echange, "Lot B");
+        UUID pieces = dossierPar(U, lotA, "Pièces");
+
+        // Dépôt avec emplacement cible : le document va dans le dossier choisi.
+        MockMultipartHttpServletRequestBuilder req = depot(typeEchange, "offre");
+        req.param("noeudId", pieces.toString()).with(comme(U));
+        UUID doc = UUID.fromString(json(mvc.perform(req).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.workspace.id").value(pieces.toString()))).get("id").asText());
+        assertEquals(pieces, documents.findById(doc).orElseThrow().getWorkspace().getId());
+
+        // Déplacement entre dossiers du même espace d'échange : Déposer suffit (pas Déplacer).
+        deplacerComme(U, doc, lotB).andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspace.id").value(lotB.toString()));
+        deplacerComme(U, doc, echange).andExpect(status().isOk())
+                .andExpect(jsonPath("$.workspace.id").value(echange.toString()));
+        assertTrue(evenements.stream(EvenementModeleDocument.class)
+                .anyMatch(x -> x.action().equals(EvenementModeleDocument.DOCUMENT_DEPLACE)), "déplacement audité");
+
+        // Sans dépôt explicite, le document va toujours dans le dossier du type.
+        MockMultipartHttpServletRequestBuilder sansCible = depot(typeEchange, "annexe");
+        sansCible.with(comme(U));
+        mvc.perform(sansCible).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.workspace.id").value(echange.toString()));
+    }
+
+    @Test
+    @DisplayName("ANO-F-016 (D12) : espaces métier inchangés ; pas de sortie de l'espace d'échange sans Déplacer")
+    void rangementLimiteALEspaceEchange() throws Exception {
+        UUID echange = espaceEchangeAvecMembre("Partage Lots");
+        UUID typeEchange = jeu.type(echange, Confidentialite.PUBLIC);
+        UUID autreEchange = espaceEchangeAvecMembre("Autre partage");
+        jeu.habiliter(U, Role.UTILISATEUR_STANDARD, espace, null);
+        UUID sousMetier = jeu.noeud("Sous-dossier métier", espace);
+
+        // Espace métier : le dépôt ne choisit pas son dossier, le déplacement exige Déplacer.
+        MockMultipartHttpServletRequestBuilder metier = depot(type, "métier");
+        metier.param("noeudId", sousMetier.toString()).with(comme(U));
+        mvc.perform(metier).andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("EMPLACEMENT_HORS_ESPACE_ECHANGE"));
+        UUID docMetier = deposer("Métier", null, null);
+        deplacerComme(U, docMetier, sousMetier).andExpect(status().isForbidden());
+
+        // Espace d'échange : pas de dépôt dans un autre espace, ni de sortie par déplacement.
+        MockMultipartHttpServletRequestBuilder ailleurs = depot(typeEchange, "ailleurs");
+        ailleurs.param("noeudId", autreEchange.toString()).with(comme(U));
+        mvc.perform(ailleurs).andExpect(status().isUnprocessableEntity());
+        MockMultipartHttpServletRequestBuilder ok = depot(typeEchange, "partagé");
+        ok.with(comme(U));
+        UUID doc = UUID.fromString(json(mvc.perform(ok).andExpect(status().isCreated())).get("id").asText());
+        deplacerComme(U, doc, autreEchange).andExpect(status().isForbidden());
+        deplacerComme(U, doc, espace).andExpect(status().isForbidden());
+
+        // Hors périmètre : un dossier d'échange sans habilitation reste introuvable.
+        UUID horsPerimetre = jeu.noeud("Partage fermé", null);
+        var f = noeuds.findById(horsPerimetre).orElseThrow();
+        f.setUsageEspace(com.ipt.ged.workspace.UsageEspace.ECHANGE);
+        noeuds.saveAndFlush(f);
+        MockMultipartHttpServletRequestBuilder ferme = depot(typeEchange, "fermé");
+        ferme.param("noeudId", horsPerimetre.toString()).with(comme(U));
+        mvc.perform(ferme).andExpect(status().isNotFound());
+    }
 }

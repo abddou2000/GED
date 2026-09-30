@@ -45,9 +45,23 @@ public class ProprietesIdentite {
     public static class Annuaire {
         /**
          * Contrôleurs de domaine, dans l'ordre de préférence. La bascule se fait
-         * sur le suivant en cas d'échec de connexion ; UN seul suffit (D4).
+         * sur le suivant quand un contrôleur est injoignable ou muet (délai de
+         * lecture expiré) ; UN seul suffit (D4).
          */
         private List<String> urls = new ArrayList<>();
+        /**
+         * Durée pendant laquelle un contrôleur qui vient d'échouer passe après
+         * les autres (ANO-E2-002) : les connexions suivantes ne paient pas son
+         * délai de lecture.
+         */
+        private Duration miseALEcart = Duration.ofSeconds(30);
+        /**
+         * Échéance du secret du compte de service (AAAA-MM-JJ), quand l'annuaire
+         * ne la porte pas (mot de passe sans expiration, rotation imposée par
+         * MMED). Vide :
+         * lue sur le compte de service ({@link com.ipt.ged.identite.annuaire.EcheanceSecretAnnuaire}).
+         */
+        private String echeanceSecret = "";
         /** Base de recherche, par exemple {@code DC=marchicamed,DC=ma}. */
         private String base = "";
         /** DN du compte de service en lecture seule. */
@@ -80,6 +94,10 @@ public class ProprietesIdentite {
 
         public List<String> getUrls() { return urls; }
         public void setUrls(List<String> urls) { this.urls = urls; }
+        public Duration getMiseALEcart() { return miseALEcart; }
+        public void setMiseALEcart(Duration miseALEcart) { this.miseALEcart = miseALEcart; }
+        public String getEcheanceSecret() { return echeanceSecret; }
+        public void setEcheanceSecret(String echeanceSecret) { this.echeanceSecret = echeanceSecret; }
         public String getBase() { return base; }
         public void setBase(String base) { this.base = base; }
         public String getCompteService() { return compteService; }

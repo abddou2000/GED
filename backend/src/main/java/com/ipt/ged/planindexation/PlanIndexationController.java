@@ -45,7 +45,7 @@ public class PlanIndexationController {
         return service.trashed(page, size, search, sortBy, sortDir);
     }
 
-    /** Jetons système utilisables dans la charte (DATE, YEAR…). */
+    /** Jetons système utilisables dans la charte (DATE, ANNÉE…). */
     @GetMapping("/jetons-systeme")
     public List<Map<String, String>> jetonsSysteme() {
         return JetonsSysteme.libelles().entrySet().stream()

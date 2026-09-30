@@ -3,7 +3,6 @@ package com.ipt.ged.identite.annuaire;
 import com.ipt.ged.identite.erreur.AnnuaireIndisponibleException;
 import org.springframework.ldap.core.AttributesMapper;
 import org.springframework.ldap.core.LdapTemplate;
-import org.springframework.ldap.core.support.LdapContextSource;
 
 import javax.naming.directory.Attribute;
 import javax.naming.directory.SearchControls;
@@ -29,13 +28,20 @@ public class EtatCompteAnnuaireLdap implements EtatCompteAnnuaire {
     /** Bit ACCOUNTDISABLE de userAccountControl. */
     static final int COMPTE_DESACTIVE = 0x2;
 
-    private final LdapTemplate modele;
+    private final ControleursAnnuaire controleurs;
+    /** Par contrôleur (indice = rang). */
+    private final LdapTemplate[] modeles;
     private final String base;
     private final int delaiLectureMs;
 
-    public EtatCompteAnnuaireLdap(LdapContextSource source, String base, Duration delaiLecture) {
-        this.modele = new LdapTemplate(source);
-        this.modele.setIgnorePartialResultException(true);
+    public EtatCompteAnnuaireLdap(ControleursAnnuaire controleurs, String base, Duration delaiLecture) {
+        this.controleurs = controleurs;
+        this.modeles = new LdapTemplate[controleurs.controleurs().size()];
+        for (ControleursAnnuaire.Controleur c : controleurs.controleurs()) {
+            LdapTemplate modele = new LdapTemplate(c.source());
+            modele.setIgnorePartialResultException(true);
+            modeles[c.rang()] = modele;
+        }
         this.base = base == null ? "" : base;
         this.delaiLectureMs = (int) Math.min(Integer.MAX_VALUE, delaiLecture.toMillis());
     }
@@ -50,22 +56,24 @@ public class EtatCompteAnnuaireLdap implements EtatCompteAnnuaire {
         SearchControls controles = new SearchControls(SearchControls.SUBTREE_SCOPE, 2, delaiLectureMs,
                 attributsDemandes(), false, false);
         String filtre = "(&(objectClass=user)(objectGUID=" + GuidAnnuaire.pourFiltre(objectGuid) + "))";
-        try {
-            List<Integer> valeurs = modele.search(base, filtre, controles, (AttributesMapper<Integer>) attributs -> {
-                Attribute a = attributs.get(ATTRIBUT);
-                if (a == null || a.get() == null) return null;
-                try {
-                    return Integer.valueOf(a.get().toString().trim());
-                } catch (NumberFormatException e) {
-                    return null;
-                }
-            });
-            if (valeurs.size() != 1) return Etat.INTROUVABLE;
-            Integer uac = valeurs.get(0);
-            if (uac == null) return Etat.INDETERMINE;
-            return (uac & COMPTE_DESACTIVE) != 0 ? Etat.DESACTIVE : Etat.ACTIF;
-        } catch (org.springframework.ldap.NamingException e) {
-            throw new AnnuaireIndisponibleException(e);
-        }
+        List<Integer> valeurs = controleurs.executer(c -> {
+            try {
+                return modeles[c.rang()].search(base, filtre, controles, (AttributesMapper<Integer>) attributs -> {
+                    Attribute a = attributs.get(ATTRIBUT);
+                    if (a == null || a.get() == null) return null;
+                    try {
+                        return Integer.valueOf(a.get().toString().trim());
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                });
+            } catch (org.springframework.ldap.NamingException e) {
+                throw new AnnuaireIndisponibleException(e);
+            }
+        });
+        if (valeurs.size() != 1) return Etat.INTROUVABLE;
+        Integer uac = valeurs.get(0);
+        if (uac == null) return Etat.INDETERMINE;
+        return (uac & COMPTE_DESACTIVE) != 0 ? Etat.DESACTIVE : Etat.ACTIF;
     }
 }

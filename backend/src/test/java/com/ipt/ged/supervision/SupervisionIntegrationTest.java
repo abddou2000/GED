@@ -92,6 +92,7 @@ class SupervisionIntegrationTest {
                 .contains("composant=\"db\"")
                 .contains("ged_stockage_libre_bytes")
                 .contains("ged_stockage_total_bytes")
+                .contains("ged_annuaire_compte_service_echeance_jours")
                 .contains("http_server_requests_seconds_bucket")
                 .contains("application=\"ged\"");
         // Objectif de disponibilité en recherche : 24 h (décision D6), seuil de l'alerte OCR.

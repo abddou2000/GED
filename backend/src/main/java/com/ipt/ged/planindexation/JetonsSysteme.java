@@ -8,8 +8,11 @@ import java.util.Map;
  * Jetons de nommage qui ne correspondent à aucun index en base : ils sont
  * remplacés à la volée au moment du dépôt (date du jour, année…).
  *
- * <p>Repris tels quels de l'application d'origine, clés comprises — un plan
- * exporté d'une GED doit rester lisible par l'autre.
+ * <p>Les <b>clés</b> ({@code date}, {@code houres}…) sont reprises telles quelles
+ * de l'application d'origine : elles sont enregistrées dans la charte, et un
+ * plan exporté d'une GED doit rester lisible par l'autre. Les <b>libellés</b>,
+ * seuls affichés (liste des jetons, aperçu du nommage), sont en français
+ * (§5, ANO-F-019).
  */
 public final class JetonsSysteme {
 
@@ -19,10 +22,10 @@ public final class JetonsSysteme {
 
     static {
         LIBELLES.put("date", "DATE");
-        LIBELLES.put("houres", "HOUR");
-        LIBELLES.put("months", "MONTH");
-        LIBELLES.put("days", "DAY");
-        LIBELLES.put("year", "YEAR");
+        LIBELLES.put("houres", "HEURE");
+        LIBELLES.put("months", "MOIS");
+        LIBELLES.put("days", "JOUR");
+        LIBELLES.put("year", "ANNÉE");
     }
 
     public static Map<String, String> libelles() {
