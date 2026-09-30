@@ -1,0 +1,140 @@
+# Comptes supplémentaires de l'annuaire SIMULÉ (UnboundID, profil dev uniquement) pour la
+# recette FONCTIONNELLE (qa2) : un compte par persona du dossier fonctionnel V3 (§3.2).
+# À concaténer au LDIF de démonstration du backend (voir recette/fonctionnel/README.md).
+# Mot de passe : celui des comptes de démonstration du profil dev (valeur de poste, non secrète).
+
+dn: CN=Agent Archive,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Agent Archive
+sAMAccountName: qa2agent
+userPrincipalName: qa2agent@marchicamed.ma
+objectGUID:: cWEyLWd1aWQtMDAwMDAwMQ==
+givenName: Agent
+sn: Archive
+displayName: Agent Archive
+mail: qa2agent@marchica.ma
+department: Direction Administrative
+userAccountControl: 512
+userPassword: dev-local-only
+
+dn: CN=Directeur General,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Directeur General
+sAMAccountName: qa2dg
+userPrincipalName: qa2dg@marchicamed.ma
+objectGUID:: cWEyLWd1aWQtMDAwMDAwMg==
+givenName: Directeur
+sn: General
+displayName: Directeur General
+mail: qa2dg@marchica.ma
+department: Direction Generale
+userAccountControl: 512
+userPassword: dev-local-only
+
+dn: CN=Valideur Un,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Valideur Un
+sAMAccountName: qa2val1
+userPrincipalName: qa2val1@marchicamed.ma
+objectGUID:: cWEyLWd1aWQtMDAwMDAwMw==
+givenName: Valideur
+sn: Un
+displayName: Valideur Un
+mail: qa2val1@marchica.ma
+department: Direction Financiere
+userAccountControl: 512
+userPassword: dev-local-only
+
+dn: CN=Valideuse Deux,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Valideuse Deux
+sAMAccountName: qa2val2
+userPrincipalName: qa2val2@marchicamed.ma
+objectGUID:: cWEyLWd1aWQtMDAwMDAwNA==
+givenName: Valideuse
+sn: Deux
+displayName: Valideuse Deux
+mail: qa2val2@marchica.ma
+department: Direction Financiere
+userAccountControl: 512
+userPassword: dev-local-only
+
+dn: CN=Responsable Rh,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Responsable Rh
+sAMAccountName: qa2rh
+userPrincipalName: qa2rh@marchicamed.ma
+objectGUID:: cWEyLWd1aWQtMDAwMDAwNQ==
+givenName: Responsable
+sn: Rh
+displayName: Responsable Rh
+mail: qa2rh@marchica.ma
+department: Direction RH
+userAccountControl: 512
+userPassword: dev-local-only
+
+dn: CN=Nouveau Un,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Nouveau Un
+sAMAccountName: qa2neuf1
+userPrincipalName: qa2neuf1@marchicamed.ma
+objectGUID:: cWEyLWd1aWQtMDAwMDAwNg==
+givenName: Nouveau
+sn: Un
+displayName: Nouveau Un
+mail: qa2neuf1@marchica.ma
+department: Direction Technique
+userAccountControl: 512
+userPassword: dev-local-only
+
+dn: CN=Nouveau Deux,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Nouveau Deux
+sAMAccountName: qa2neuf2
+userPrincipalName: qa2neuf2@marchicamed.ma
+objectGUID:: cWEyLWd1aWQtMDAwMDAwNw==
+givenName: Nouveau
+sn: Deux
+displayName: Nouveau Deux
+mail: qa2neuf2@marchica.ma
+department: Direction Technique
+userAccountControl: 512
+userPassword: dev-local-only
+
+dn: CN=Agent Partant,OU=Utilisateurs,DC=marchicamed,DC=ma
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: user
+cn: Agent Partant
+sAMAccountName: qa2parti
+userPrincipalName: qa2parti@marchicamed.ma
+objectGUID:: cWEyLWd1aWQtMDAwMDAwOA==
+givenName: Agent
+sn: Partant
+displayName: Agent Partant
+mail: qa2parti@marchica.ma
+department: Direction Financiere
+userAccountControl: 512
+userPassword: dev-local-only
