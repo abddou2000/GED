@@ -66,6 +66,17 @@ public class DepotService {
     public ResultatDepot deposer(MultipartFile fichier, String nom, UUID typeDocumentId, String dateExpiration,
                                  UUID deposantId, List<UUID> etiquetteIds, Confidentialite confidentialite,
                                  String metadonneesJson, String objet, String dateDocument) {
+        return deposer(fichier, nom, typeDocumentId, dateExpiration, deposantId, etiquetteIds, confidentialite,
+                metadonneesJson, objet, dateDocument, null);
+    }
+
+    /**
+     * @param emplacementId dossier où ranger le document dans un espace d'échange (D12) ;
+     *                      absent = dossier du type
+     */
+    public ResultatDepot deposer(MultipartFile fichier, String nom, UUID typeDocumentId, String dateExpiration,
+                                 UUID deposantId, List<UUID> etiquetteIds, Confidentialite confidentialite,
+                                 String metadonneesJson, String objet, String dateDocument, UUID emplacementId) {
         // Appelé dans une transaction englobante (tests transactionnels), les
         // deux temps la rejoignent : un temps 2 dans une transaction nouvelle
         // attendrait le document non validé du temps 1. En service (contrôleur),
@@ -76,7 +87,7 @@ public class DepotService {
         // Les métadonnées sont validées une seule fois, ici (MetadonneesDepot),
         // et écrites au temps 2 : le temps 1 ne les reçoit pas.
         DocumentResponse recu = documents.upload(fichier, nom, typeDocumentId, dateExpiration, deposantId, etiquetteIds,
-                confidentialite, null, objet, dateDocument);
+                confidentialite, null, objet, dateDocument, emplacementId);
         boolean ocrEnAttente = "EN_ATTENTE_OCR".equals(recu.statutOcr());
 
         if (IssueIndexation.SANS_PLAN.name().equals(recu.statutIndexation()) || valeurs.isEmpty()) {

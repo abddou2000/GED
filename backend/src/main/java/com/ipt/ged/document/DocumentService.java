@@ -374,15 +374,32 @@ public class DocumentService {
                                    String expirationDate, UUID createdById, List<UUID> etiquetteIds,
                                    Confidentialite confidentialite, Map<String, ?> metadonnees,
                                    String objet, String dateDocument) {
+        return upload(file, name, typeDocumentId, expirationDate, createdById, etiquetteIds, confidentialite,
+                metadonnees, objet, dateDocument, null);
+    }
+
+    /**
+     * @param emplacementId dossier où ranger le document ; absent = dossier du type. Un autre
+     *                      dossier n'est admis que dans le même espace d'échange que le dossier du
+     *                      type (D12, ANO-F-016) : 422 {@code EMPLACEMENT_HORS_ESPACE_ECHANGE}
+     *                      sinon. Déposer est exigé sur ce dossier.
+     */
+    @Transactional
+    public DocumentResponse upload(MultipartFile file, String name, UUID typeDocumentId,
+                                   String expirationDate, UUID createdById, List<UUID> etiquetteIds,
+                                   Confidentialite confidentialite, Map<String, ?> metadonnees,
+                                   String objet, String dateDocument, UUID emplacementId) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Le fichier est obligatoire");
         }
         TypeDocument type = typeRepo.findById(typeDocumentId)
                 .orElseThrow(() -> new EntityNotFoundException("Type de document introuvable : " + typeDocumentId));
-        // Déposer s'exerce sur l'emplacement principal, fixé par le type.
-        controle.exigerSurNoeud(CodePermission.DEPOSER, type.getWorkspace().getId());
+        // Déposer s'exerce sur l'emplacement principal : le dossier du type, ou
+        // un dossier du même espace d'échange choisi par le déposant (D12).
+        WorkSpace ws = emplacementDuDepot(type, emplacementId);
+        controle.exigerSurNoeud(CodePermission.DEPOSER, ws.getId());
         ContraintesDepot.validerTypeVivant(type);
-        refuserSiDossierArchive(type.getWorkspace());
+        refuserSiDossierArchive(ws);
 
         String original = file.getOriginalFilename() != null ? file.getOriginalFilename() : "document";
         String ext = extractExtension(original);
@@ -402,7 +419,6 @@ public class DocumentService {
 
         ControleFichiers.Depot depot = deposerFichier(type, file);
 
-        WorkSpace ws = type.getWorkspace();
         doc.setWorkspace(ws);
         doc.setTypeDocument(type);
         // Issue provisoire du temps 1 (§12.11) : seul le temps 2, dans sa propre
@@ -536,10 +552,18 @@ public class DocumentService {
      * document, Déposer sur la destination ; refus si verrouillé, archivé, ou
      * destination archivée (Q7) ; audité avec origine et destination. Un
      * document engagé dans un circuit de validation reste déplaçable.
+     *
+     * <p><b>Espace d'échange</b> (D12, ANO-F-016) : entre deux dossiers d'un
+     * même espace d'échange, ranger les documents relève du partage simple ;
+     * Déposer sur le document (membre habilité de l'espace) remplace Déplacer.
+     * Hors de ce cas, espaces métier compris, rien ne change.
      */
     @Transactional
     public DocumentResponse deplacer(UUID id, UUID destinationId) {
-        controle.exigerSurDocument(CodePermission.DEPLACER, id);
+        WorkSpace cible = destinationId == null ? null : noeuds.findById(destinationId).orElse(null);
+        boolean rangementEchange = cible != null && repo.findById(id)
+                .map(doc -> memeEspaceEchange(doc.getWorkspace(), cible)).orElse(false);
+        controle.exigerSurDocument(rangementEchange ? CodePermission.DEPOSER : CodePermission.DEPLACER, id);
         UploadDocument d = loadPourEcriture(id);
         garde.exigerModifiable(id);
         controle.exigerSurNoeud(CodePermission.DEPOSER, destinationId);
@@ -939,6 +963,50 @@ public class DocumentService {
     }
 
     /** Dossier archivé (D10) : aucun dépôt ni rangement (revue client, question Q7). */
+    /**
+     * Emplacement principal d'un dépôt : le dossier du type, ou un dossier du
+     * même espace d'échange (D12, ANO-F-016). Dans un espace métier, le
+     * document va toujours dans le dossier de son type.
+     */
+    private WorkSpace emplacementDuDepot(TypeDocument type, UUID emplacementId) {
+        WorkSpace duType = type.getWorkspace();
+        if (emplacementId == null || emplacementId.equals(duType.getId())) return duType;
+        WorkSpace cible = noeuds.findById(emplacementId)
+                .orElseThrow(() -> new EntityNotFoundException("Dossier introuvable : " + emplacementId));
+        // Droits d'abord : un dossier hors périmètre reste introuvable (404).
+        controle.exigerSurNoeud(CodePermission.DEPOSER, cible.getId());
+        if (cible.isSupprime()) {
+            throw new IllegalArgumentException("Dossier en corbeille : dépôt impossible.");
+        }
+        if (!memeEspaceEchange(duType, cible)) {
+            throw new com.ipt.ged.common.erreur.RegleMetierException(EMPLACEMENT_HORS_ESPACE_ECHANGE,
+                    "Le document va dans le dossier de son type ; un autre dossier n'est possible que dans "
+                            + "le même espace d'échange.");
+        }
+        return cible;
+    }
+
+    /** Code du refus d'un emplacement de dépôt hors de l'espace d'échange du type. */
+    public static final String EMPLACEMENT_HORS_ESPACE_ECHANGE = "EMPLACEMENT_HORS_ESPACE_ECHANGE";
+
+    /**
+     * Deux nœuds du même espace d'échange (D12) : même espace racine, d'usage
+     * ECHANGE. L'usage d'un dossier est celui de son espace ; il est lu sur
+     * l'espace, dont la valeur en mémoire est toujours exacte.
+     */
+    static boolean memeEspaceEchange(WorkSpace a, WorkSpace b) {
+        if (a == null || b == null) return false;
+        WorkSpace ea = espace(a);
+        WorkSpace eb = espace(b);
+        return ea.getId().equals(eb.getId()) && ea.getUsageEspace() == com.ipt.ged.workspace.UsageEspace.ECHANGE;
+    }
+
+    private static WorkSpace espace(WorkSpace n) {
+        WorkSpace e = n;
+        while (e.getParent() != null) e = e.getParent();
+        return e;
+    }
+
     private void refuserSiDossierArchive(WorkSpace ws) {
         if (ws == null) return;
         // Le contrat lit la base : ce que la transaction a créé doit y être.
