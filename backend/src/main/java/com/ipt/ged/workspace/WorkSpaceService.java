@@ -139,7 +139,10 @@ public class WorkSpaceService {
     public WorkSpaceResponse get(UUID id) {
         WorkSpace w = load(id);
         exigerCouvert(id);
-        return reponses(List.of(w)).get(w);
+        // Permissions effectives de l'appelant sur le nœud (ANO-F-018) : la
+        // fiche n'affiche que les actions qu'il peut exercer.
+        List<String> permissions = controle.droits().surNoeud(id).stream().map(Enum::name).sorted().toList();
+        return reponses(List.of(w)).get(w).avecPermissions(permissions);
     }
 
     @Transactional

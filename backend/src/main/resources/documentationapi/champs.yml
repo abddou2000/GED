@@ -543,6 +543,7 @@ surcharges:
   CircuitResponse.statut: {description: "Statut du circuit : EN_COURS, VALIDE, REFUSE ou ANNULE.", exemple: EN_COURS}
   JobRetypage.statut: {description: "État du traitement (EN_ATTENTE, EN_COURS, TERMINE…).", exemple: TERMINE}
   WorkSpaceRequest.status: {description: "État de l'espace : ACTIF, INACTIF ou ARCHIVE.", exemple: "ACTIF"}
+  WorkSpaceResponse.permissions: {description: "Permissions effectives de l'appelant sur ce nœud (fiche seulement, nulles dans les listes) ; l'interface masque les actions qu'il ne peut pas exercer.", exemple: [CONSULTER, DEPOSER, MODIFIER]}
   TreeNode.status: {description: "État de l'espace : ACTIF, INACTIF ou ARCHIVE.", exemple: "ACTIF"}
   SignatureResponse.status: {description: "État de l'étape : PENDING (en attente), SIGNED (validée), REJECTED (refusée).", exemple: "PENDING"}
   SignatureResponse.type: {description: "Type du document à valider.", exemple: "Marché public"}

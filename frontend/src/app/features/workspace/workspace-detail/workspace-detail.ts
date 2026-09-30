@@ -15,6 +15,7 @@ import { DocumentItem } from '../../document/document.model';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { CycleDossier } from '../../cycle-de-vie/cycle-dossier/cycle-dossier';
+import { AuthService } from '../../../core/auth.service';
 
 /**
  * Fiche d'un espace de travail — reprend la page « Overview » de l'application
@@ -40,6 +41,7 @@ export class WorkspaceDetail implements OnInit {
   private dialog = inject(MatDialog);
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
+  private auth = inject(AuthService);
 
   id = signal<string | null>(null);
   espace = signal<WorkSpace | null>(null);
@@ -52,6 +54,26 @@ export class WorkspaceDetail implements OnInit {
   chemin = signal<{ id: string; name: string }[]>([]);
 
   readonly colonnesDocs = ['name', 'type', 'size', 'actions'];
+
+  /**
+   * L'appelant détient-il cette permission sur le nœud ? (ANO-F-018) Les
+   * actions hors de son périmètre ne sont pas proposées ; le serveur refuse
+   * de toute façon. Permissions inconnues (serveur antérieur) : on affiche.
+   */
+  peut(permission: string): boolean {
+    const p = this.espace()?.permissions;
+    return p == null || p.includes(permission);
+  }
+
+  /**
+   * Créer un sous-dossier : la gestion des espaces, ou Déposer sur un espace
+   * d'échange (règle du serveur, WorkSpaceService.create).
+   */
+  peutCreerSousDossier(): boolean {
+    const w = this.espace();
+    if (!w) return false;
+    return this.auth.peut('GERER_ESPACES') || (w.usageEspace === 'ECHANGE' && this.peut('DEPOSER'));
+  }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(p => {

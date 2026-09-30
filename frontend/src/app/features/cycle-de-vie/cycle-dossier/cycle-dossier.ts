@@ -27,6 +27,8 @@ export class CycleDossier implements OnChanges {
 
   readonly dossierId = input.required<string>();
   readonly dossierNom = input<string>('');
+  /** ARCHIVER sur le nœud (ANO-F-018) : sinon, ni archivage, ni drapeau, ni annulation. */
+  readonly peutArchiver = input<boolean>(true);
   /** Le dossier a changé (drapeau posé ou retiré) : l'écran parent recharge. */
   readonly change = output<void>();
 
