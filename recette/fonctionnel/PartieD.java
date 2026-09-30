@@ -207,11 +207,11 @@ public class PartieD extends PartieC {
             Rep lire = G(ADM, "/api/v1/documents/" + d);
             attendre(500);
             boolean trace = auditContient("objetId=" + d, l -> l.path("action").asText().equals("DOCUMENT_PURGE"));
-            verif("F-61", vivant.code() == 409 && sup.code() / 100 == 2 && purgeStd.code() == 403 && purgeAdm.code() / 100 == 2 && !corbeille
+            verif("F-61", vivant.code() == 409 && sup.code() / 100 == 2 && purgeStd.code() == 403 && purgeAgent.code() / 100 == 2 && purgeAdm.code() / 100 == 2 && !corbeille
                             && restaurer.code() / 100 == 4 && lire.code() == 404 && trace,
                     "Deux niveaux : corbeille réversible, puis purge définitive réservée aux habilités, tracée",
                     "purge d'un document vivant " + court(vivant) + " ; mise en corbeille " + court(sup) + " ; purge par un standard " + court(purgeStd)
-                            + ", par l'Agent d'archive " + court(purgeAgent) + " (ANO-F-001), par l'Administrateur " + court(purgeAdm) + " → en corbeille "
+                            + ", par l'Agent d'archive " + court(purgeAgent) + " (Purger, ANO-F-001)" + (purgeAgent == purgeAdm ? "" : ", par l'Administrateur " + court(purgeAdm)) + " → en corbeille "
                             + corbeille + ", restauration " + court(restaurer) + ", fiche " + court(lire) + ", audit DOCUMENT_PURGE " + trace);
         });
 

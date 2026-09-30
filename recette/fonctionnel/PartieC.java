@@ -251,9 +251,16 @@ public class PartieC extends RecetteFonctionnelle {
             StringBuilder pt = new StringBuilder();
             boolean ptOk = true;
             for (String c : List.of(ADM, V2, SOUS, AUTRE)) {
+                // Toutes les pages : le jeu cumulé des exécutions dépasse 100 résultats.
                 JsonNode p = pleinTexteJ(c, "q=zarkolinet&taille=100");
-                int n2 = p.path("resultats").size(), lisibles = 0;
-                for (JsonNode r : p.path("resultats")) if (G(c, "/api/v1/documents/" + r.path("documentId").asText()).code() == 200) lisibles++;
+                List<JsonNode> tous = new ArrayList<>();
+                for (int page = 0; page < 20; page++) {
+                    JsonNode pg = page == 0 ? p : pleinTexteJ(c, "q=zarkolinet&taille=100&page=" + page);
+                    pg.path("resultats").forEach(tous::add);
+                    if (pg.path("resultats").size() < 100) break;
+                }
+                int n2 = tous.size(), lisibles = 0;
+                for (JsonNode r : tous) if (G(c, "/api/v1/documents/" + r.path("documentId").asText()).code() == 200) lisibles++;
                 ptOk &= p.path("total").asLong() == n2 && lisibles == n2;
                 pt.append(c).append(" ").append(p.path("total")).append(" (consultables ").append(lisibles).append(") ; ");
             }
@@ -425,11 +432,11 @@ public class PartieC extends RecetteFonctionnelle {
             boolean apres = G(AUTRE, "/api/v1/documents/" + dVal).code() == 200;
             Rep ecriture = J(AUTRE, "PUT", "/api/v1/documents/" + dVal, Map.of("objet", "tentative " + M));
             Rep refuse = J(V1, "POST", "/api/v1/workflow/documents/" + dRef + "/diffusion", Map.of("utilisateurIds", List.of(uid(AUTRE))));
-            verif("F-52", "VALIDE".equals(statut) && !avant && diff.code() == 200 && apres && ecriture.code() / 100 == 4 && refuse.code() == 409,
+            verif("F-52", "VALIDE".equals(statut) && !avant && parAgent.code() == 200 && diff.code() == 200 && apres && ecriture.code() / 100 == 4 && refuse.code() == 409,
                     "Diffusion d'un document validé à un périmètre (personnes, groupes) : lecture accordée sans copie ; document non validé non diffusable",
                     "circuit " + statut + ", nidrissi avant " + avant + ", diffusion par un standard " + court(diff) + " (" + diff.json().path("habilitationsPosees")
                             + " habilitations) → lecture " + apres + ", écriture " + court(ecriture) + " ; document refusé " + court(refuse)
-                            + " ; diffusion par l'Agent d'archive " + court(parAgent) + " (ANO-F-001)");
+                            + " ; diffusion par l'Agent d'archive " + court(parAgent) + " (Diffuser, ANO-F-001)");
         });
 
         etape("F-53", () -> {

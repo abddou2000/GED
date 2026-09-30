@@ -37,9 +37,13 @@ public class PartieB extends RecetteFonctionnelle {
     }
 
     static Set<String> pleinTexte(String compte, String q) throws Exception {
+        // Toutes les pages : le jeu n'est jamais supprimé, les exécutions successives
+        // dépassent une page de 100 résultats (tour 2 : 141 documents « zarkolinet »).
         Set<String> ids = new LinkedHashSet<>();
-        for (JsonNode r : G(compte, "/api/v1/recherche/plein-texte?taille=100&q=" + enc(q)).json().path("resultats")) {
-            ids.add(r.path("documentId").asText());
+        for (int page = 0; page < 20; page++) {
+            JsonNode rep = G(compte, "/api/v1/recherche/plein-texte?taille=100&page=" + page + "&q=" + enc(q)).json();
+            for (JsonNode r : rep.path("resultats")) ids.add(r.path("documentId").asText());
+            if (rep.path("resultats").size() < 100) break;
         }
         return ids;
     }
@@ -367,7 +371,7 @@ public class PartieB extends RecetteFonctionnelle {
         Rep texteUi = G(V1, "/api/v1/ocr/documents/" + dScanFr + "/texte");
         Map<String, String> hk = new LinkedHashMap<>(Map.of("X-API-Key", cle));
         Rep texteApi = g.appel("GET", "/api/v1/ocr/documents/" + dScanFr + "/texte", hk, null, null);
-        Rep rechApi = g.appel("GET", "/api/v1/recherche/plein-texte?q=zarkolinet&taille=100", hk, null, null);
+        Rep rechApi = g.appel("GET", "/api/v1/recherche/plein-texte?q=zarkolinet&taille=100&typeDocumentId=" + T_FACT + "&du=" + java.time.LocalDate.now(), hk, null, null);
         verif("F-22", texteUi.code() == 200 && texteUi.json().path("texte").asText().toLowerCase().contains("zarkolinet")
                         && texteApi.code() == 200 && rechApi.code() == 200 && rechApi.corps().contains(dScanFr),
                 "Texte OCR et recherche disponibles pour l'interface (jeton) et pour une application consommatrice (clé d'API)",
