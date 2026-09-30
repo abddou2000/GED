@@ -104,6 +104,10 @@ ged:
       # Un contrôleur injoignable ou muet passe après les autres pendant cette
       # durée (bascule D4, ANO-E2-002).
       mise-a-l-ecart: ${GED_LDAP_MISE_A_L_ECART:30s}
+      # Échéance du secret du compte de service (AAAA-MM-JJ), si l'annuaire ne la
+      # porte pas ; vide : lue sur le compte de service (jauge
+      # ged_annuaire_compte_service_echeance_jours, P-02).
+      echeance-secret: ${GED_LDAP_ECHEANCE_SECRET:}
       pool: true
       exiger-ldaps: true
       # Chaîne de certificats de MMED (magasin de confiance propre à l'annuaire).

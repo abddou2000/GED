@@ -69,6 +69,8 @@ class AppelsSortantsTest {
             Map.entry("com/ipt/ged/identite/annuaire/ConfigurationAnnuaire.java", "contrôleurs de domaine (LDAPS) : GED_LDAP_URLS"),
             Map.entry("com/ipt/ged/identite/annuaire/ControleursAnnuaire.java",
                     "contrôleurs de domaine (LDAPS, une source par contrôleur, bascule D4) : GED_LDAP_URLS"),
+            Map.entry("com/ipt/ged/identite/annuaire/EcheanceSecretAnnuaire.java",
+                    "contrôleurs de domaine (LDAPS, entrée du compte de service lui-même, échéance du secret, P-02) : GED_LDAP_URLS"),
             Map.entry("com/ipt/ged/identite/annuaire/EtatCompteAnnuaireLdap.java",
                     "contrôleurs de domaine (LDAPS, userAccountControl à la délégation, D15) : GED_LDAP_URLS"),
             Map.entry("com/ipt/ged/identite/annuaire/FabriqueSocketsLdaps.java",

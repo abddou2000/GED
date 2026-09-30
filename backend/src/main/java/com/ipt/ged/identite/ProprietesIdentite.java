@@ -55,6 +55,13 @@ public class ProprietesIdentite {
          * délai de lecture.
          */
         private Duration miseALEcart = Duration.ofSeconds(30);
+        /**
+         * Échéance du secret du compte de service (AAAA-MM-JJ), quand l'annuaire
+         * ne la porte pas (mot de passe sans expiration, rotation imposée par
+         * MMED). Vide :
+         * lue sur le compte de service ({@link com.ipt.ged.identite.annuaire.EcheanceSecretAnnuaire}).
+         */
+        private String echeanceSecret = "";
         /** Base de recherche, par exemple {@code DC=marchicamed,DC=ma}. */
         private String base = "";
         /** DN du compte de service en lecture seule. */
@@ -89,6 +96,8 @@ public class ProprietesIdentite {
         public void setUrls(List<String> urls) { this.urls = urls; }
         public Duration getMiseALEcart() { return miseALEcart; }
         public void setMiseALEcart(Duration miseALEcart) { this.miseALEcart = miseALEcart; }
+        public String getEcheanceSecret() { return echeanceSecret; }
+        public void setEcheanceSecret(String echeanceSecret) { this.echeanceSecret = echeanceSecret; }
         public String getBase() { return base; }
         public void setBase(String base) { this.base = base; }
         public String getCompteService() { return compteService; }

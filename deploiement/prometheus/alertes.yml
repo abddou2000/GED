@@ -66,6 +66,19 @@ groups:
           resume: "Contrôleur de domaine {{ $labels.controleur }} injoignable ({{ $labels.environnement }})"
           description: "Le compte de service ne se lie plus à {{ $labels.controleur }} depuis 5 minutes. Les connexions utilisent les autres contrôleurs."
 
+      - alert: GedAnnuaireSecretCompteServiceEcheance
+        # P-02 : expiration du secret du compte de service surveillée. Échu, le
+        # compte de service ne se lie plus : aucune nouvelle connexion possible.
+        # +Inf (n'expire pas) ne déclenche pas ; NaN (inconnue) non plus : voir
+        # GED_LDAP_ECHEANCE_SECRET.
+        expr: ged_annuaire_compte_service_echeance_jours < 15
+        for: 1h
+        labels:
+          severite: avertissement
+        annotations:
+          resume: "Secret du compte de service de l'annuaire échu dans {{ $value | humanize }} jour(s) ({{ $labels.environnement }})"
+          description: "Faire tourner le secret du compte de service (coffre de MMED) avant l'échéance : au-delà, plus aucune nouvelle connexion."
+
   - name: ged-erreurs
     rules:
       - alert: GedTauxErreurs5xx
