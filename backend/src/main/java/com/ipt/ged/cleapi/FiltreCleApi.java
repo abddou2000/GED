@@ -96,7 +96,10 @@ public class FiltreCleApi extends OncePerRequestFilter {
                 delegue.setAuthentication(application);
                 SecurityContextHolder.setContext(delegue);
             } catch (ExceptionMetier e) {
-                tracerRefus(requete, e.code(), application, null);
+                // Cause précise (compte désactivé, D15…) au journal seulement : le client
+                // reçoit le même libellé quelle que soit la cause.
+                Object motif = e.proprietes().get(ResolveurDelegationAnnuaire.MOTIF_AUDIT);
+                tracerRefus(requete, e.code(), application, motif == null ? null : motif.toString());
                 reponses.ecrire(requete, reponse, e.statut(), e.code(), e.getMessage());
                 return;
             }

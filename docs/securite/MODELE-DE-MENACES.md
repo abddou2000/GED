@@ -111,7 +111,7 @@ flowchart LR
 |---|---|---|---|
 | S | Vol d'une clé d'API | Secret de 256 bits montré une fois, empreinte SHA-256 seule en base, comparaison à temps constant, adresses autorisées, expiration 12 mois, révocation immédiate, clé refusée hors de son environnement | Clé volée utilisée depuis une adresse autorisée : révocation, quotas, `APPEL_API` au journal |
 | E | Application au-delà de son périmètre | La clé est un sujet des droits : portée par nœud et par opération, décidée par `AccessPredicate` ; routes d'administration refusées à toute clé | — |
-| S / E | Délégation abusive (`X-On-Behalf-Of`) | Attribut « délégation » par clé, adresses sources obligatoires, identité vérifiée (annuaire), lecture en intersection des droits, écriture avec les droits de la clé | Compte désactivé encore accepté (QR9, D1) : option `verifier-compte-annuaire` |
+| S / E | Délégation abusive (`X-On-Behalf-Of`) | Attribut « délégation » par clé, adresses sources obligatoires, identité vérifiée (annuaire), lecture en intersection des droits, écriture avec les droits de la clé | Compte désactivé : levé par D15 — `userAccountControl` lu à chaque délégation (lecture seule, cet attribut seul, cache ≤ 5 min), compte désactivé = 422 tracé ; reste la fenêtre du cache (2 min par défaut) |
 | R | Nier un appel | Double identité au journal (`acteur_utilisateur_id`, `acteur_application_id`) | — |
 | T | Rejeu d'une création | `Idempotency-Key` obligatoire, empreinte de requête, 422 sur contenu différent | — |
 | D | Épuisement par une application | Quotas par clé (600 / min, 100 000 / jour, 429 + `Retry-After`), limitation de débit NGINX, 64 Ko de métadonnées | Quotas comptés par instance (plusieurs instances : quota multiplié) |
