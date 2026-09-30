@@ -18,7 +18,12 @@ l'équipe (`dev5-node/`), placé en tête du `PATH`.
 | T-088 (2) | Le front ignorait `GET /api/v1/modules` | `ModulesService` (chargé une fois ; inconnu, en panne ou mode démonstration = actif) ; `moduleGuard` sur `mes-workflow`, `regles-de-workflow` (workflow), `recherche`, `traitements-ocr` (ocr), `mes-exports` (export), `notifications` (notifications), `cles-api` (integration) ; menus et cloche masqués ; plus de compteur « à traiter » ni de relevé des notifications vers un module inactif ; raccourcis de l'accueil filtrés | `core/modules.service.spec.ts`, `app.routes.spec.ts` (7 routes × actif/inactif + socle), `layout/shell/shell.spec.ts` (menus rendus) ; 9 échecs avant correctif | Livré (`feb4e6e`), à recetter |
 
 Résultat : `ng test` 70 tests verts (18 au départ) ; `ng build` vert (avertissements de budget
-préexistants) ; suite back : voir fin de tour.
+préexistants). Suite back (`mvn -B -q test`, base `ged_dev4_test`, aucun fichier du back
+modifié) : 597 tests, 5 échecs — les 4 de la référence (`ArchivageApiTest.conversionEnEchec`,
+`ApercuTelechargementApiTest.apercuBureautiqueSansLibreOffice`,
+`WorkflowApiTest.employesWithAccount`, `WorkSpaceApiTest.moveIntoDescendant`) et
+`SupervisionIntegrationTest.portDeManagement`, qui attend 8081 alors que `equipe-env.sh dev4`
+exporte `GED_MANAGEMENT_PORT=18096` : échec dû à l'environnement du poste, pas au code.
 
 ## Points pour pm
 
