@@ -577,8 +577,11 @@ class SchemaLiquibaseTest {
                         + " AND connamespace = '" + schema + "'::regnamespace"));
                 verifierConventionsDeNommage(c, schema);
 
-                // Retour arrière des deux changesets : colonnes et valeurs d'origine, rapport retiré.
-                liquibase.rollback(2, (String) null);
+                // Retour arrière des deux changesets (et de ceux qui les suivent dans le changelog
+                // maître) : colonnes et valeurs d'origine, rapport retiré.
+                int apres = compter(c, "SELECT count(*) FROM " + s + "databasechangelog WHERE orderexecuted >="
+                        + " (SELECT orderexecuted FROM " + s + "databasechangelog WHERE id = '202610041010-1')");
+                liquibase.rollback(apres, (String) null);
                 assertEquals("groupe_ged.droit_access,groupe_ged.droit_ajouter_version,groupe_ged.droit_deplacer,"
                         + "groupe_ged.droit_lecture,groupe_ged.droit_modifier,groupe_ged.droit_supprimer,"
                         + "groupe_ged.droit_uploader,groupe_ged.droit_verrouiller_deverrouiller,groupe_ged.name,"
