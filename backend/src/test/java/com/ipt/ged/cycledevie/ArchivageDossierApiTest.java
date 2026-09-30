@@ -96,6 +96,34 @@ class ArchivageDossierApiTest extends BaseCycleDeVieApiTest {
     }
 
     @Test
+    @DisplayName("ANO-E7-006 : document mis à la corbeille avant l'archivage du dossier puis restauré : revient archivé, lecture seule")
+    void restaurationSousDossierArchive() throws Exception {
+        deposer(typeSous, "actif", "actif.pdf", "application/pdf", Echantillons.pdf());
+        UUID x = deposer(typeSous, "corbeille", "corbeille.pdf", "application/pdf", Echantillons.pdf());
+        mvc.perform(delete("/api/v1/documents/" + x)).andExpect(status().isNoContent());
+        UUID jobId = demander(racine.getId());
+        vider();
+        assertEquals("TERMINE", job(jobId).etat());
+        assertEquals("ACTIF", jdbc.queryForObject("SELECT statut_conservation FROM document WHERE id = ?",
+                String.class, x), "l'archivage du dossier ne prend que les documents vivants");
+
+        mvc.perform(patch("/api/v1/documents/" + x + "/restore")).andExpect(status().isNoContent());
+        assertEquals("ARCHIVE", jdbc.queryForObject("SELECT statut_conservation FROM document WHERE id = ?",
+                String.class, x), "restauré sous un dossier archivé : archivé comme lui");
+        assertEquals(Boolean.FALSE, jdbc.queryForObject("SELECT supprime FROM document WHERE id = ?", Boolean.class, x));
+        assertNotNull(jdbc.queryForObject("SELECT archive_par FROM document WHERE id = ?", UUID.class, x),
+                "archiviste du dossier");
+        assertTrue(evenements.stream(DocumentArchive.class).anyMatch(e -> x.equals(e.documentId())),
+                "archivage tracé");
+        // Lecture seule : ni nouvelle version, ni suppression.
+        mvc.perform(multipart("/api/v1/documents/" + x + "/versions")
+                        .file(new org.springframework.mock.web.MockMultipartFile("file", "v2.pdf", "application/pdf",
+                                Echantillons.pdf())))
+                .andExpect(status().isConflict());
+        mvc.perform(delete("/api/v1/documents/" + x)).andExpect(status().isConflict());
+    }
+
+    @Test
     @DisplayName("Dossier et sous-dossier : 5 documents actifs archivés en 3 tranches, corbeille exclue, puis dépôt refusé")
     void dossierEntier() throws Exception {
         UUID a = deposer(typeRacine, "a", "a.pdf", "application/pdf", Echantillons.pdf());

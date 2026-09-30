@@ -151,6 +151,8 @@ public class DocumentService {
     private final com.ipt.ged.document.version.ServiceVersions versions;
     private final com.ipt.ged.depot.source.ResolutionOrigineDepot origines;
     private final com.ipt.ged.fichier.integrite.LectureControlee lectures;
+    /** Archivage d'un document restauré sous un dossier archivé (ANO-E7-006), résolu à l'usage. */
+    private final org.springframework.beans.factory.ObjectProvider<com.ipt.ged.cycledevie.ArchivageService> archivage;
 
     public DocumentService(UploadDocumentRepository repo, TypeDocumentRepository typeRepo,
                            ServiceCircuits circuits,
@@ -165,7 +167,10 @@ public class DocumentService {
                            com.ipt.ged.document.modele.ServiceModeleDocument modele,
                            com.ipt.ged.document.version.ServiceVersions versions,
                            com.ipt.ged.depot.source.ResolutionOrigineDepot origines,
-                           com.ipt.ged.fichier.integrite.LectureControlee lectures) {
+                           com.ipt.ged.fichier.integrite.LectureControlee lectures,
+                           org.springframework.beans.factory.ObjectProvider<com.ipt.ged.cycledevie.ArchivageService>
+                                   archivage) {
+        this.archivage = archivage;
         this.repo = repo;
         this.typeRepo = typeRepo;
         this.circuits = circuits;
@@ -742,6 +747,15 @@ public class DocumentService {
         publierSuppression(d);
     }
 
+    /**
+     * Restauration depuis la corbeille. Un document mis à la corbeille avant
+     * l'archivage de son dossier (l'archivage ne prend que les documents
+     * vivants) revient <b>archivé</b> si son emplacement principal l'est
+     * désormais (ANO-E7-006, comme un dossier enfant restauré) : même
+     * traitement qu'à l'archivage du dossier (empreinte vérifiée, copie de
+     * conservation, archiviste du dossier), dans la transaction de la
+     * restauration. S'il ne peut pas être archivé, rien n'est restauré (409).
+     */
     @Transactional
     public void restore(UUID id) {
         controle.exigerSurDocument(CodePermission.SUPPRIMER, id);
@@ -749,6 +763,46 @@ public class DocumentService {
         if (!d.isSupprime()) return;
         d.restaurer();
         publierRestauration(d);
+        archiverSiDossierArchive(d);
+    }
+
+    /** ANO-E7-006 : un document ne revient jamais actif sous un dossier archivé. */
+    private void archiverSiDossierArchive(UploadDocument d) {
+        WorkSpace ws = d.getWorkspace();
+        repo.flush();
+        if (ws == null || d.estArchive()
+                || archivageNoeuds.statut(ws.getId()) != com.ipt.ged.common.StatutConservation.ARCHIVE) {
+            return;
+        }
+        com.ipt.ged.cycledevie.ArchivageService service = archivage.getObject();
+        com.ipt.ged.cycledevie.ArchivageService.Preparation p = service.preparer(d.getId());
+        if (p.refus() != null) {
+            throw new com.ipt.ged.cycledevie.ErreurCycleDeVie(org.springframework.http.HttpStatus.CONFLICT,
+                    com.ipt.ged.cycledevie.ErreurCycleDeVie.DOSSIER_ARCHIVE,
+                    "Dossier archivé « " + ws.getName() + " » : le document ne peut pas y revenir archivé ("
+                            + p.refus().motif() + ") ; restauration annulée.");
+        }
+        UUID archiviste = archivisteDuDossier(ws.getId());
+        com.ipt.ged.cycledevie.ArchivageService.Resultat r;
+        try {
+            r = service.appliquer(p, Acteur.courant(), archiviste, null);
+        } catch (RuntimeException e) {
+            service.abandonner(p);
+            throw e;
+        }
+        if (r.issue() != com.ipt.ged.cycledevie.ArchivageService.Issue.ARCHIVE
+                && r.issue() != com.ipt.ged.cycledevie.ArchivageService.Issue.ANOMALIE) {
+            service.abandonner(p);
+            throw new com.ipt.ged.cycledevie.ErreurCycleDeVie(org.springframework.http.HttpStatus.CONFLICT,
+                    com.ipt.ged.cycledevie.ErreurCycleDeVie.DOSSIER_ARCHIVE,
+                    "Dossier archivé « " + ws.getName() + " » : archivage du document restauré impossible ("
+                            + r.motif() + ") ; restauration annulée.");
+        }
+    }
+
+    /** Archiviste du dossier (drapeau posé sur toute la sous-arborescence, même auteur). */
+    private UUID archivisteDuDossier(UUID noeudId) {
+        return noeuds.findById(noeudId).map(WorkSpace::getArchivePar).orElse(null);
     }
 
     /** Tout ou rien : un seul document refusé (404 / 403 / 409) et rien n'est supprimé. */
@@ -771,6 +825,7 @@ public class DocumentService {
         cibles.forEach(d -> {
             d.restaurer();
             publierRestauration(d);
+            archiverSiDossierArchive(d);
         });
     }
 
