@@ -143,4 +143,36 @@ class VerificationIntegriteTest {
         assertNotNull(etat.fin());
         assertEquals(Map.of(VerificationIntegrite.Statut.CONFORME, 1), etat.bilan());
     }
+
+    @Test
+    @DisplayName("ANO-E5-005 : divergence comptée par statut ; dernière passe du fonds en jauge, gardée pendant la suivante")
+    void metriques() throws Exception {
+        io.micrometer.core.instrument.simple.SimpleMeterRegistry registre =
+                new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        MetriquesIntegrite[] m = new MetriquesIntegrite[1];
+        VerificationIntegrite v = new VerificationIntegrite(stockage, e -> {
+            if (e instanceof VerificationIntegrite.AnomalieIntegrite a) m[0].anomalie(a);
+        });
+        StockageChiffre.ResultatStockage a = ecrire(100), b = ecrire(200);
+        store.supprimer(b.id());
+        SourceEmpreintes source = visiteur -> List.of(
+                new SourceEmpreintes.EmpreinteAttendue(a.id(), a.empreinte(), "a"),
+                new SourceEmpreintes.EmpreinteAttendue(b.id(), b.empreinte(), "b")).forEach(visiteur);
+        VerificationPeriodique fonds = new VerificationPeriodique(v, source);
+        m[0] = new MetriquesIntegrite(registre, fonds);
+
+        java.util.function.Supplier<Double> jauge = () -> registre.get(MetriquesIntegrite.DERNIERE_PASSE).gauge().value();
+        assertTrue(jauge.get().isNaN(), "aucune passe terminée depuis le démarrage");
+        assertEquals(0.0, registre.get(MetriquesIntegrite.ANOMALIES).tag("statut", "ABSENT").counter().count());
+
+        fonds.executer();
+        assertEquals(1.0, registre.get(MetriquesIntegrite.ANOMALIES).tag("statut", "ABSENT").counter().count());
+        assertEquals(0.0, registre.get(MetriquesIntegrite.ANOMALIES).tag("statut", "ALTERE").counter().count());
+        assertEquals(1.0, jauge.get());
+
+        // Vérification à la demande d'un seul fichier : compteur, la jauge reste celle de la passe.
+        v.verifier(b.id(), b.empreinte(), "b");
+        assertEquals(2.0, registre.get(MetriquesIntegrite.ANOMALIES).tag("statut", "ABSENT").counter().count());
+        assertEquals(1.0, jauge.get());
+    }
 }

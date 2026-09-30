@@ -157,6 +157,25 @@ groups:
           resume: "Journal d'audit non scellé depuis {{ $value | humanizeDuration }} ({{ $labels.environnement }})"
           description: "Vérifier le journal technique (ScellementAudit) et l'accès en écriture au fichier d'export des scellements."
 
+  - name: ged-integrite
+    rules:
+      - alert: GedIntegriteFichiersAnomalie
+        # §6.1.4 (T-059) : une vérification d'intégrité a relevé un fichier
+        # altéré (authentification GCM), différent de celui déposé (empreinte),
+        # absent ou illisible — passe mensuelle, passe ou vérification à la
+        # demande. L'audit porte l'événement INTEGRITE_ANOMALIE avec le fichier.
+        # Première ligne : toute détection de l'heure ; seconde : la dernière
+        # passe du fonds reste en anomalie jusqu'à une passe conforme.
+        expr: |
+          sum by (environnement) (increase(ged_integrite_anomalies_total[1h])) > 0
+            or
+          max by (environnement) (ged_integrite_derniere_passe_anomalies) > 0
+        labels:
+          severite: critique
+        annotations:
+          resume: "Intégrité des fichiers : anomalie détectée ({{ $labels.environnement }})"
+          description: "Fichier(s) non conforme(s) : {{ $value }}. Détail : journal d'audit (action INTEGRITE_ANOMALIE) ou GET /api/v1/admin/integrite/verification. Restaurer depuis la sauvegarde (base, fichiers, clés) après expertise."
+
   - name: ged-certificats
     rules:
       - alert: GedCertificatExpireBientot

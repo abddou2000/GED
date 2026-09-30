@@ -10,6 +10,7 @@ import com.ipt.ged.fichier.controle.AntivirusDesactive;
 import com.ipt.ged.fichier.controle.ClientClamd;
 import com.ipt.ged.fichier.controle.ControleFichiers;
 import com.ipt.ged.fichier.controle.DetecteurTypeReel;
+import com.ipt.ged.fichier.integrite.MetriquesIntegrite;
 import com.ipt.ged.fichier.integrite.SourceEmpreintes;
 import com.ipt.ged.fichier.integrite.SourceEmpreintesVersions;
 import com.ipt.ged.fichier.integrite.VerificationALaDemande;
@@ -107,6 +108,13 @@ public class ConfigurationFichiers {
     @Bean
     public VerificationPeriodique verificationPeriodique(VerificationIntegrite verification, SourceEmpreintes source) {
         return new VerificationPeriodique(verification, source);
+    }
+
+    /** Métriques d'intégrité, support de l'alerte de supervision (T-059, ANO-E5-005). */
+    @Bean
+    public MetriquesIntegrite metriquesIntegrite(io.micrometer.core.instrument.MeterRegistry registre,
+                                                 VerificationPeriodique fonds) {
+        return new MetriquesIntegrite(registre, fonds);
     }
 
     /** Vérification à la demande d'un document ou du fonds, tracée (T-059). */

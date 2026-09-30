@@ -95,8 +95,9 @@ public class VerificationIntegrite {
     }
 
     /**
-     * Événement d'anomalie d'intégrité : à journaliser dans l'audit (lot
-     * traçabilité) et à remonter en alerte de supervision.
+     * Événement d'anomalie d'intégrité : journalisé dans l'audit (lot
+     * traçabilité) et compté par {@link MetriquesIntegrite} pour l'alerte de
+     * supervision.
      */
     public record AnomalieIntegrite(UUID fichierId, String reference, Statut statut, Instant detecteeLe)
             implements com.ipt.ged.audit.EvenementAudit {
