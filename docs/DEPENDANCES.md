@@ -13,10 +13,11 @@ DAT 11.2 / Article 45 (licence compatible avec la cession de propriété à MMED
 |---|---|
 | Dépendances back-end (Maven, portée d'exécution) | 140 |
 | Dépendances front-end livrées (npm, hors outillage de développement) | 18 |
-| Composants hors gestionnaire de paquets | 3 |
-| Licence permissive — compatible | 144 |
+| Composants hors gestionnaire de paquets | 6 |
+| Licence permissive — compatible | 147 |
 | Copyleft faible — compatible sous condition de non-modification | 16 |
-| **À examiner** | 1 |
+| Hors des classes ci-dessus, compatible par arbitrage écrit | 1 |
+| **À examiner** (sans arbitrage) | 0 |
 
 ## Règle de compatibilité appliquée (DAT 11.2)
 
@@ -54,8 +55,11 @@ redistribuer la GED sans obligation de publier son code ni redevance :
 
 | Nom | Version | Licence | Usage |
 |---|---|---|---|
-| Tesseract OCR | 5.x (binaire du serveur) | Apache-2.0 | Moteur OCR, appelé en processus externe (DAT 4.3.1) |
-| Modèles Tesseract (fra, eng, osd) | non tracée (dépôt tesseract-ocr/tessdata) | Apache-2.0 | Modèles LSTM livrés dans backend/tessdata ; version à consigner (E6, ajout de ara) |
+| Tesseract OCR | 5.x (paquet du serveur ; 5.3.4 sur le poste de développement) | Apache-2.0 | Moteur OCR, appelé en processus externe (DAT 4.3.1) |
+| Modèle Tesseract ara | tessdata_best 4.1.0 | Apache-2.0 | OCR en arabe (DAT 4.3.1) ; backend/tessdata/ara.traineddata, SHA-256 `ab9d157d8e38ca00…` |
+| Modèle Tesseract eng | tessdata_best 4.1.0 | Apache-2.0 | OCR en anglais ; backend/tessdata/eng.traineddata, SHA-256 `8280aed0782fe272…` |
+| Modèle Tesseract fra | tessdata_best 4.1.0 | Apache-2.0 | OCR en français (DAT 4.3.1) ; backend/tessdata/fra.traineddata, SHA-256 `907743d98915c91a…` |
+| Modèle Tesseract osd | tessdata 4.1.0 | Apache-2.0 | Orientation et écriture de la page (OSD) ; backend/tessdata/osd.traineddata, SHA-256 `e19f2ae860792fdf…` |
 | Icônes lucide-static | 1.26.0 | ISC | Tracés SVG recopiés dans frontend/src/app/core/ged-icons.ts |
 
 ## Back-end — dépendances directes
@@ -150,7 +154,7 @@ redistribuer la GED sans obligation de publier son code ni redevance :
 | jakarta.xml.bind:jakarta.xml.bind-api | 4.0.2 | BSD-3-Clause | Compatible | transitive de org.verapdf:validation-model-jakarta |
 | javax.xml.bind:jaxb-api | 2.3.1 | CDDL-1.1 ou GPL-2.0-with-classpath-exception | Compatible sous condition | transitive de org.liquibase:liquibase-core |
 | net.bytebuddy:byte-buddy | 1.15.11 | Apache-2.0 | Compatible | transitive de org.springframework.boot:spring-boot-starter-data-jpa |
-| net.java.dev.stax-utils:stax-utils | 20070216 | BSD-4-Clause | **À examiner** | transitive de org.verapdf:validation-model-jakarta |
+| net.java.dev.stax-utils:stax-utils | 20070216 | BSD-4-Clause | Compatible (arbitrage ci-dessus) | transitive de org.verapdf:validation-model-jakarta |
 | net.sf.saxon:Saxon-HE | 12.8 | MPL-2.0 | Compatible sous condition | transitive de org.verapdf:validation-model-jakarta |
 | org.antlr:antlr4-runtime | 4.13.0 | BSD-3-Clause | Compatible | transitive de org.springframework.boot:spring-boot-starter-data-jpa |
 | org.apache.commons:commons-collections4 | 4.4 | Apache-2.0 | Compatible | transitive de org.apache.poi:poi-ooxml |

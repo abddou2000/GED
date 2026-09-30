@@ -13,7 +13,8 @@
  *   --verifier : n'écrit rien ; avertit si le registre versionné n'est plus à
  *                jour, échoue si une licence non permissive n'a pas été arbitrée.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +22,7 @@ const racine = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SBOM_BACK = join(racine, 'backend/target/bom.json');
 const SBOM_FRONT = join(racine, 'frontend/dist/bom.json');
 const SORTIE = join(racine, 'docs/DEPENDANCES.md');
+const TESSDATA = join(racine, 'backend/tessdata');
 
 /* Usage des dépendances DIRECTES. Une dépendance directe absente de cette
    table apparaît « usage à documenter » : c'est voulu, l'ajout d'une
@@ -75,11 +77,43 @@ const USAGES = {
 /* Composants tiers qui ne passent par aucun gestionnaire de paquets et
    n'apparaissent donc dans aucun SBOM : le DAT 8.3 exige pourtant de les
    tracer (« moteur OCR notamment »). */
+/* Modèles Tesseract livrés dans backend/tessdata, identifiés par leur
+   empreinte SHA-256 contre les publications officielles (dépôts
+   tesseract-ocr/tessdata_best et tesseract-ocr/tessdata, étiquette 4.1.0,
+   fichiers identiques sur la branche main ; vérifié le 30/09/2026). Un modèle
+   ajouté ou remplacé sans être inscrit ici bloque la vérification : son
+   origine et sa version doivent être consignées (DAT 8.3). */
+const MODELES_TESSERACT = {
+  '8280aed0782fe27257a68ea10fe7ef324ca0f8d85bd2fd145d1c2b560bcb66ba': 'tessdata_best 4.1.0',
+  '907743d98915c91a3906dfbf6e48b97598346698fe53aaa797e1a064ffcac913': 'tessdata_best 4.1.0',
+  'ab9d157d8e38ca00e7e39c7d5363a5239e053f5b0dbdb3167dde9d8124335896': 'tessdata_best 4.1.0',
+  'e19f2ae860792fdf372cf48d8ce70ae5da3c4052962fe22e9de1f680c374bb0e': 'tessdata 4.1.0',
+};
+const USAGE_MODELES = {
+  ara: 'OCR en arabe (DAT 4.3.1)', fra: 'OCR en français (DAT 4.3.1)', eng: 'OCR en anglais',
+  osd: 'Orientation et écriture de la page (OSD)',
+};
+
+function modelesTesseract() {
+  if (!existsSync(TESSDATA)) return { lignes: [], inconnus: [] };
+  const lignes = [], inconnus = [];
+  for (const f of readdirSync(TESSDATA).filter(n => n.endsWith('.traineddata')).sort()) {
+    const langue = f.replace('.traineddata', '');
+    const sha = createHash('sha256').update(readFileSync(join(TESSDATA, f))).digest('hex');
+    const version = MODELES_TESSERACT[sha];
+    if (!version) inconnus.push(`${f} (SHA-256 ${sha})`);
+    lignes.push({ nom: `Modèle Tesseract ${langue}`, version: version || '**origine inconnue**',
+      licence: 'Apache-2.0',
+      usage: `${USAGE_MODELES[langue] || 'OCR'} ; backend/tessdata/${f}, SHA-256 \`${sha.slice(0, 16)}…\`` });
+  }
+  return { lignes, inconnus };
+}
+const MODELES = modelesTesseract();
+
 const HORS_GESTIONNAIRE = [
-  { nom: 'Tesseract OCR', version: '5.x (binaire du serveur)', licence: 'Apache-2.0',
-    usage: 'Moteur OCR, appelé en processus externe (DAT 4.3.1)' },
-  { nom: 'Modèles Tesseract (fra, eng, osd)', version: 'non tracée (dépôt tesseract-ocr/tessdata)',
-    licence: 'Apache-2.0', usage: 'Modèles LSTM livrés dans backend/tessdata ; version à consigner (E6, ajout de ara)' },
+  { nom: 'Tesseract OCR', version: '5.x (paquet du serveur ; 5.3.4 sur le poste de développement)',
+    licence: 'Apache-2.0', usage: 'Moteur OCR, appelé en processus externe (DAT 4.3.1)' },
+  ...MODELES.lignes,
   { nom: 'Icônes lucide-static', version: '1.26.0', licence: 'ISC',
     usage: 'Tracés SVG recopiés dans frontend/src/app/core/ged-icons.ts' },
 ];
@@ -197,7 +231,8 @@ function tableau(lignes) {
   const t = ['| Nom | Version | Licence | Compatibilité | Usage |', '|---|---|---|---|---|'];
   for (const l of lignes) {
     const lic = (l.licences.join(' ou ') || 'non déclarée') + (l.verifiee ? ' (vérifiée à la main)' : '');
-    t.push(`| ${echapper(l.nom)} | ${echapper(l.version)} | ${echapper(lic)} | ${LIBELLE_CLASSE[l.classe]} | ${echapper(l.usage)} |`);
+    const classe = l.classe === 'a-examiner' && arbitrage(l.cle) ? 'Compatible (arbitrage ci-dessus)' : LIBELLE_CLASSE[l.classe];
+    t.push(`| ${echapper(l.nom)} | ${echapper(l.version)} | ${echapper(lic)} | ${classe} | ${echapper(l.usage)} |`);
   }
   return t.join('\n');
 }
@@ -248,7 +283,9 @@ function generer() {
   md.push(`| Composants hors gestionnaire de paquets | ${HORS_GESTIONNAIRE.length} |`);
   md.push(`| Licence permissive — compatible | ${compte('permissive') + HORS_GESTIONNAIRE.length} |`);
   md.push(`| Copyleft faible — compatible sous condition de non-modification | ${compte('copyleft-faible')} |`);
-  md.push(`| **À examiner** | ${compte('a-examiner')} |`, '');
+  const arbitres = tous.filter(l => l.classe === 'a-examiner' && arbitrage(l.cle)).length;
+  md.push(`| Hors des classes ci-dessus, compatible par arbitrage écrit | ${arbitres} |`);
+  md.push(`| **À examiner** (sans arbitrage) | ${compte('a-examiner') - arbitres} |`, '');
   md.push('## Règle de compatibilité appliquée (DAT 11.2)', '');
   md.push('La cession à MMED porte sur le code développé pour le marché ; les bibliothèques tierces restent');
   md.push('sous leur licence. Une licence est compatible si elle permet à MMED d\'utiliser, modifier et');
@@ -285,13 +322,20 @@ if (process.argv.includes('--verifier')) {
     console.warn("::warning::docs/DEPENDANCES.md n'est plus à jour : lancer "
       + '`node outils/registre-dependances.mjs` et committer.');
   }
+  let echec = false;
   if (nonArbitres.length) {
     console.error('::error::Licences sans arbitrage : '
       + nonArbitres.map(l => `${l.nom} (${l.licences.join(', ') || 'aucune'})`).join(' ; '));
-    process.exit(1);
+    echec = true;
   }
-  process.exit(0);
+  if (MODELES.inconnus.length) {
+    console.error('::error::Modèles Tesseract d\'origine non consignée (MODELES_TESSERACT) : '
+      + MODELES.inconnus.join(' ; '));
+    echec = true;
+  }
+  process.exit(echec ? 1 : 0);
 }
 writeFileSync(SORTIE, texte, 'utf-8');
 console.log(`Registre écrit : ${SORTIE}`);
 if (nonArbitres.length) console.warn('Licences sans arbitrage : ' + nonArbitres.map(l => l.nom).join(', '));
+if (MODELES.inconnus.length) console.warn('Modèles Tesseract d\'origine non consignée : ' + MODELES.inconnus.join(', '));
