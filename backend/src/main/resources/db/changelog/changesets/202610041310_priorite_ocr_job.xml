@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610041310_priorite_ocr_job.xml">
+
+    <!--
+        Risque R31 (T-035, revue client D6) : la reprise du fonds existant
+        (~150 000 documents, plusieurs semaines de calcul) partage la file
+        ocr_job avec le flux courant. Servie dans l'ordre de dépôt, la file
+        ferait attendre chaque dépôt courant jusqu'à la fin de la reprise, et
+        le délai dépôt → recherche de 24 h ne serait plus tenu.
+
+        Priorité du job : 0 = flux courant (défaut, tous les jobs existants),
+        1 = reprise. Réservation : ORDER BY priorite, depose_le, id ; l'index
+        partiel de réservation est refait avec la priorité en tête.
+
+        Retour arrière sans perte de donnée métier : les jobs restent, seule la
+        priorité disparaît et la file redevient servie dans l'ordre de dépôt
+        (comportement du code précédent, qui ne lit pas la colonne).
+    -->
+    <changeSet id="202610041310-1" author="ged">
+        <comment>Priorité des jobs OCR : flux courant avant reprise (R31, D6).</comment>
+        <addColumn tableName="ocr_job">
+            <column name="priorite" type="SMALLINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.ocr_job ADD CONSTRAINT ck_ocr_job_priorite CHECK (priorite IN (0, 1))</sql>
+        <sql>DROP INDEX ${database.defaultSchemaName}.idx_ocr_job_depose_le_attente</sql>
+        <sql>CREATE INDEX idx_ocr_job_priorite_depose_le_attente ON ${database.defaultSchemaName}.ocr_job (priorite, depose_le, prochaine_tentative_le) WHERE statut = 'EN_ATTENTE_OCR'</sql>
+        <rollback>
+            <sql>DROP INDEX ${database.defaultSchemaName}.idx_ocr_job_priorite_depose_le_attente</sql>
+            <sql>CREATE INDEX idx_ocr_job_depose_le_attente ON ${database.defaultSchemaName}.ocr_job (depose_le, prochaine_tentative_le) WHERE statut = 'EN_ATTENTE_OCR'</sql>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.ocr_job DROP CONSTRAINT ck_ocr_job_priorite</sql>
+            <dropColumn tableName="ocr_job" columnName="priorite"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

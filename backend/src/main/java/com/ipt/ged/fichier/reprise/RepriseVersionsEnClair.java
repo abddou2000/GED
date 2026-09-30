@@ -152,7 +152,8 @@ public class RepriseVersionsEnClair {
                         + "taille_octets = ? WHERE id = ? AND cle_fichier_id IS NULL",
                         fait.id(), fait.empreinte(), type, fait.tailleOctets(), v.id());
                 if (n == 1 && v.courante()) {
-                    ocr.enfiler(v.documentId(), v.id(), fait.id(), type, v.codeType());
+                    // Après le flux courant (R31) : la reprise ne retarde aucun dépôt (D6).
+                    ocr.enfilerReprise(v.documentId(), v.id(), fait.id(), type, v.codeType());
                 }
                 return n == 1;
             });

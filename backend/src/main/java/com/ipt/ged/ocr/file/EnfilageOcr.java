@@ -36,9 +36,23 @@ public class EnfilageOcr {
      */
     public Optional<StatutOcr> enfiler(UUID documentId, UUID versionId, UUID cleFichierId, String typeMime,
                                        String codeTypeDocument) {
+        return enfiler(documentId, versionId, cleFichierId, typeMime, codeTypeDocument, PrioriteOcr.FLUX_COURANT);
+    }
+
+    /**
+     * Enfilage d'une version reprise du fonds existant : servie après le flux
+     * courant (R31, D6), quel que soit l'arriéré de la reprise.
+     */
+    public Optional<StatutOcr> enfilerReprise(UUID documentId, UUID versionId, UUID cleFichierId, String typeMime,
+                                              String codeTypeDocument) {
+        return enfiler(documentId, versionId, cleFichierId, typeMime, codeTypeDocument, PrioriteOcr.REPRISE);
+    }
+
+    private Optional<StatutOcr> enfiler(UUID documentId, UUID versionId, UUID cleFichierId, String typeMime,
+                                        String codeTypeDocument, PrioriteOcr priorite) {
         if (!actif || cleFichierId == null || !ExtracteurDocumentOcr.gere(typeMime)) return Optional.empty();
         file.enfiler(new OcrJobQueue.NouveauJob(documentId, versionId, cleFichierId, typeMime,
-                langues.pour(codeTypeDocument), Instant.now()));
+                langues.pour(codeTypeDocument), Instant.now(), priorite));
         return Optional.of(StatutOcr.EN_ATTENTE_OCR);
     }
 

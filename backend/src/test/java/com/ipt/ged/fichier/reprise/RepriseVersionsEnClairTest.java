@@ -118,6 +118,9 @@ class RepriseVersionsEnClairTest {
         // Seule la version courante est indexée : l'index porte sur elle (§4.4).
         assertEquals(StatutOcr.EN_ATTENTE_OCR, file.statutsParVersion(List.of(courante)).get(courante));
         assertNull(file.statutsParVersion(List.of(ancienneV)).get(ancienneV));
+        // Job de reprise : servi après le flux courant (R31, D6).
+        assertEquals(com.ipt.ged.ocr.file.PrioriteOcr.REPRISE.code(), jdbc.queryForObject(
+                "SELECT priorite FROM ocr_job WHERE version_id = ?", Integer.class, courante));
         // Originaux intacts, rapport complet.
         assertArrayEquals(v1, Files.readAllBytes(ancien.resolve(jdbc.queryForObject(
                 "SELECT file_path FROM version_document WHERE id = ?", String.class, ancienneV))));

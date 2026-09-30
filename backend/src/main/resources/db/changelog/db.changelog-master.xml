@@ -150,5 +150,7 @@
     <include file="changesets/202610021200_jalon_workflow.xml" relativeToChangelogFile="true"/>
     <!-- Alerte d'échéance de conservation (T-112, §12.9) et verrou des tâches planifiées. -->
     <include file="changesets/202610031000_alerte_echeance_conservation.xml" relativeToChangelogFile="true"/>
+    <!-- R31 (T-035, D6) : priorité du flux courant sur la reprise dans la file OCR. -->
+    <include file="changesets/202610041310_priorite_ocr_job.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
