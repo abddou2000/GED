@@ -1,7 +1,6 @@
 import { ApplicationConfig, LOCALE_ID, provideBrowserGlobalErrorListeners, provideAppInitializer, inject } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
 import localeFr from '@angular/common/locales/fr';
-import { MAT_DATE_LOCALE, provideNativeDateAdapter } from '@angular/material/core';
 import { provideRouter, withHashLocation } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptors, HttpClient } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -14,6 +13,7 @@ import { MatPaginatorIntl } from '@angular/material/paginator';
 
 import { routes } from './app.routes';
 import { PaginateurFr } from './core/paginateur-fr';
+import { provideDateAdapterFr } from './core/date-adapter-fr';
 import { GED_ICONS } from './core/ged-icons';
 import { MODE_DEMO } from './core/api';
 import { demoInterceptor } from './core/demo.interceptor';
@@ -51,10 +51,11 @@ export const appConfig: ApplicationConfig = {
      * Sélecteur de date Material plutôt que le champ natif du navigateur :
      * ce dernier impose son propre rendu (« jj/mm/aaaa » grisé, icône système),
      * qui jure avec le reste des formulaires et change d'un navigateur à l'autre.
+     * Adaptateur français (ANO-F-022) : une saisie au clavier se lit jj/mm/aaaa,
+     * comme elle s'affiche — l'adaptateur natif la lisait à l'américaine.
      */
-    provideNativeDateAdapter(),
+    provideDateAdapterFr(),
     { provide: LOCALE_ID, useValue: 'fr-FR' },
-    { provide: MAT_DATE_LOCALE, useValue: 'fr-FR' },
     { provide: MatPaginatorIntl, useClass: PaginateurFr },
 
     /**
