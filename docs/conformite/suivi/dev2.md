@@ -2,6 +2,46 @@
 
 Branche `ct/dev2`. Mise à jour : 30/09/2026.
 
+## Tour 2 de mise en conformité (30/09/2026) — branche `ct/dev2-r2`
+
+Base : `claude/inspiring-lovelace-10bg1c` (`08c710c`). Référence : 630 tests back, 0 échec.
+
+| Anomalie / ligne | Commit | Cause | Correctif | Preuve (échoue sans le correctif) |
+|---|---|---|---|---|
+| ANO-E5-004 (T-066, P-07) | `fb4cf60` | `FiltreConventionsApi` lit les parties multipart (contrôle des 64 Ko) : la `FileSizeLimitExceededException` / `SizeLimitExceededException` de Tomcat, enveloppée dans une `IllegalStateException`, sortait du filtre hors du gestionnaire commun → 500 | le filtre reconnaît un dépassement de plafond (critère de Spring, indépendant du conteneur) et répond 413 `FICHIER_TROP_VOLUMINEUX` en problem+json ; autre échec d'analyse : inchangé | `FiltreConventionsApiPlafondTest` : **vrai Tomcat embarqué**, plafonds réduits (1 Kio / 4 Kio) : fichier et requête trop gros → 413 problem+json, fichier admis → 201 (500 sans le correctif) |
+| ANO-E10-007 (P-13) | `a0c7da1` | purge des lots de quarantaine sans recontrôle en base ; aucune garde « application arrêtée » ; manquants calculés sur toute la table `cle_fichier` (clés du cache d'aperçus comprises) ; `mv` recalculé vers `aa/bb/<id>.enc` | refus de `--appliquer` et de la purge si `ged-backend` est actif ou si `ged_app` a une session sur la base ; fichiers modifiés depuis moins de 60 min laissés en place (`RECENT`, `--age-minimal-minutes`) ; purge : recontrôle de `cle_fichier` juste avant, fichier redevenu référencé **remis en place** ; manquants = colonnes qui référencent `cle_fichier` par clé étrangère (découvertes dans le catalogue) ; `MAL_RANGE` signalé, déplacé par son vrai chemin | `deploiement/sauvegarde/tests/test-rapprocher-orphelins.sh` (instance PostgreSQL jetable) : 19 contrôles verts, **11 en échec sur l'ancien script** ; `test-restauration-a-blanc.sh` toujours réussi |
+| ANO-E10-006 (T-073) | `bbbdf4f` | `pg_dump` sans `--create` ne porte ni `pg_database.datacl` ni les `ALTER ROLE … IN DATABASE` | `sauvegarder-base.sh` exporte `droits-base.sql` (propriétaire, ACL dans leur ordre, réglages ; listes reprises comme pg_dump) ; `restaurer.sh base-logique` le rejoue sur la cible (sauf `--sans-proprietaires`) ; ancienne sauvegarde : message qui renvoie à `preparer-base.sql` | `deploiement/sauvegarde/tests/test-restaurer-droits.sh` (restauration à blanc, instance jetable, vrais scripts, base préparée par `preparer-base.sql`) : datacl, propriétaire, réglages identiques, `search_path` actif, CONNECT refusé à un rôle tiers — **5 contrôles en échec avec l'ancien `restaurer.sh`** |
+| Réserve T-006 (O1 vague 8) | `4caa7a0` | `listen [::]` : NGINX refuse de démarrer sans IPv6 (errno 97) | écoutes IPv6 déplacées dans `ecoute-ipv6-http.conf` / `ecoute-ipv6-https.conf`, inclus par motif (`[.]conf`) depuis `/etc/nginx/ged/` : absents, rien n'est lu ; `EXPLOITATION.md` §3 | `deploiement/nginx/tests/test-nginx-ipv6.sh` (NGINX 1.24 réel) : sans les fichiers, `nginx -t`, démarrage, 301, 200 ; avec, syntaxe acceptée et refus errno 97 constaté (poste sans IPv6) ; l'ancien `ged.conf` échoue |
+| ANO-E10-008 (T-088) | `b133653` | `ServiceCircuits.ouvrirAuDepot` ignorait l'état du module | **décision** : module `workflow` inactif → dépôt traité comme sans règle (document utilisable, trace WARN au journal technique) ; le dépôt (socle) n'est pas refusé ; après réactivation, circuit à ouvrir à la main si besoin ; `DEPLOIEMENT.md` §10.4 (limites : circuits ouverts avant la désactivation inchangés) | `ModulesInactifsApiTest.depotSousRegleSansCircuit` : 0 circuit, `active=true` (1 circuit sans le correctif) |
+| ANO-E0-002 (T-085) | `f2fba2f` | `690d3d2` ne traçait les modèles que dans `docs/DEPENDANCES.md`, pas dans le SBOM | `outils/completer-sbom.mjs`, lancé par `mvn package` après CycloneDX (exec-maven-plugin), ajoute à `bom.json` et `bom.xml` Tesseract (5, Apache-2.0) et `tessdata-ara/eng/fra/osd` (4.1.0, SHA-256, `ged:origine`) ; liste partagée avec le registre (`outils/composants-hors-gestionnaire.mjs`) | `mvn package` : 5 composants `tesseract-ocr` ; `bom.json` et `bom.xml` **valides au schéma CycloneDX 1.6** (cyclonedx-core-java) ; `node --test outils/tests/*.test.mjs` ; contrôle ajouté en CI |
+| ANO-E0-003 (P-19) | `f2fba2f` | un arbitrage valait acceptation ; l'option MPL-2.0 du groupe `org.verapdf:` écrasait toute déclaration | table `REFUSES` (mysql-connector-j) : présence = échec de `--verifier` ; option de groupe retenue seulement si le composant la déclare, arbitrage de groupe inapplicable sinon (`verapdf-xmp-core-jakarta` redevient BSD-3-Clause) ; registre régénéré | `outils/tests/sbom-et-licences.test.mjs` : 6 tests, **2 en échec sur l'ancien outil** (mysql accepté, GPL-3.0-only seul accepté) |
+| ANO-E10-002 (1er point, T-075) | `bc2a920` | aucune métrique par application ou clé | `FiltreCleApi` : `ged_api_appels_total{application,cle,resultat,statut}` (identifiant public ; clé inconnue sous `inconnue`) ; `EXPLOITATION.md` | `ClesApiTest.metriqueAppelsParCle` sur la sortie Prometheus (en échec sans le correctif) |
+
+**Tests** : suite back complète sur PostgreSQL (`ged_dev2_test`) : **636 tests, 0 échec** (référence 630 : +4 `FiltreConventionsApiPlafondTest`, +1 `ModulesInactifsApiTest`, +1 `ClesApiTest`). Scripts : `test-rapprocher-orphelins.sh`, `test-restaurer-droits.sh`, `test-restauration-a-blanc.sh` (instance jetable, 50 documents), `test-nginx-ipv6.sh` réussis ; `node --test outils/tests/*.test.mjs` : 6/6. Front non touché.
+
+**Reste** :
+- ANO-E10-002, second point : échéance du secret du compte de service de l'annuaire (P-02, avec dev1) —
+  lecture de `pwdLastSet`/`accountExpires` non faite ce tour.
+- NGINX avec IPv6 : variante « avec » vérifiée seulement jusqu'à la syntaxe (poste sans IPv6) ; démarrage
+  et 301 en `[::1]` à constater sur un hôte IPv6 (le test le fait tout seul).
+- Versement sur un document dont le circuit a été ouvert avant la désactivation du workflow : le statut
+  est encore recalculé (document inactif jusqu'à la réactivation). Documenté, non corrigé.
+
+**Points pour pm** :
+- `backend/pom.xml` : propriété `ged.sbom.completer.skip` et plugin `exec-maven-plugin` 3.5.0 (phase
+  `package`, après CycloneDX) : `mvn package` exige désormais `node` (déjà requis pour le front) ;
+  `-Dged.sbom.completer.skip=true` pour s'en passer (SBOM alors incomplet). `mvn test` n'est pas touché.
+- `.github/workflows/ci.yml` (job `registre`) : deux étapes ajoutées (tests `node --test`, présence de
+  Tesseract dans le SBOM).
+- **qa** : la recette `recette/e10-sauvegarde/recette-t073-p13.sh` crée ses « orphelins » quelques secondes
+  avant le rapprochement : ils sont désormais `RECENT` et laissés en place ; ajouter
+  `--age-minimal-minutes 0` (ou vieillir les fichiers par `touch -d`) pour P13-02, P13-08 et P13-10. P13-11
+  (fichier en cours de dépôt) est couvert par l'âge minimal et par la garde `ged_app` (la recette ouvre sa
+  transaction avec `postgres`, pas `ged_app`). `recette/e10/verifier-nginx-reel.sh` : ses `sed` sur
+  `listen [::]` deviennent sans objet (le `ged.conf` livré démarre sans IPv6).
+- `restaurer.sh base-logique` rejoue `droits-base.sql` : rôles d'origine requis sur le serveur cible (sinon
+  `--sans-proprietaires`, droits non rétablis, message au journal).
+
 ## Tour 1 de mise en conformité (30/09/2026) — branche `ct/dev2-r1`
 
 Base : `claude/inspiring-lovelace-10bg1c` (`71bdc1d`). Référence des tests du poste avant le tour :
