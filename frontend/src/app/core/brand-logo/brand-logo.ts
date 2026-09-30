@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 
 /**
  * Marque de l'application : mot-symbole neutre « GED ».
@@ -18,7 +18,7 @@ import { Component, input } from '@angular/core';
       <span class="bl-pastille" [style.height.px]="size()" [style.width.px]="size()"
             [style.font-size.px]="size() * 0.34">GED</span>
       @if (showWord()) {
-        <span class="bl-libelle" [style.font-size.px]="size() * 0.44">Gestion documentaire</span>
+        <span class="bl-libelle" [style.font-size.px]="libelle()">Gestion documentaire</span>
       }
     </span>`,
   styleUrl: './brand-logo.scss',
@@ -27,4 +27,8 @@ export class BrandLogo {
   readonly variant = input<'onLight' | 'onDark' | 'brass'>('onLight');
   readonly showWord = input(true);
   readonly size = input(32);
+
+  // Plafonné : sur la page de connexion (pastille de 72 px), un libellé
+  // proportionnel déborderait de la carte.
+  protected readonly libelle = computed(() => Math.min(this.size() * 0.44, 20));
 }
