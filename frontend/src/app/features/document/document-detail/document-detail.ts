@@ -7,7 +7,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatDatepickerModule } from '@angular/material/datepicker';
+// Directives autonomes, pas le module : libellés français du calendrier (ANO-F-024).
+import { CHAMP_DATE } from '../../../core/calendrier-fr';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -46,7 +47,7 @@ interface ValeurIndex {
   selector: 'app-document-detail',
   imports: [
     RouterLink, ReactiveFormsModule, MatButtonModule, MatIconModule, MatTooltipModule,
-    MatFormFieldModule, MatInputModule, MatDatepickerModule, MatSelectModule, MatSlideToggleModule, MatTableModule,
+    MatFormFieldModule, MatInputModule, CHAMP_DATE, MatSelectModule, MatSlideToggleModule, MatTableModule,
     CircuitDocument,
   ],
   templateUrl: './document-detail.html',

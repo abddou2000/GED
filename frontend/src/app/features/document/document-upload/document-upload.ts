@@ -5,7 +5,8 @@ import { catchError, switchMap } from 'rxjs/operators';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatDatepickerModule } from '@angular/material/datepicker';
+// Directives autonomes, pas le module : libellés français du calendrier (ANO-F-024).
+import { CHAMP_DATE } from '../../../core/calendrier-fr';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
@@ -63,7 +64,7 @@ type DemandeApercu = { typeId: string; fichier: File } | null;
 @Component({
   selector: 'app-document-upload',
   imports: [
-    ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatDatepickerModule, MatInputModule,
+    ReactiveFormsModule, MatDialogModule, MatFormFieldModule, CHAMP_DATE, MatInputModule,
     MatSelectModule, MatButtonModule, MatIconModule, MatTooltipModule, MatSlideToggleModule, MatCheckboxModule,
   ],
   templateUrl: './document-upload.html',

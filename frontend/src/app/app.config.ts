@@ -11,9 +11,11 @@ import { firstValueFrom, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
 import { MatPaginatorIntl } from '@angular/material/paginator';
+import { MatDatepickerIntl } from '@angular/material/datepicker';
 
 import { routes } from './app.routes';
 import { PaginateurFr } from './core/paginateur-fr';
+import { CalendrierFr } from './core/calendrier-fr';
 import { GED_ICONS } from './core/ged-icons';
 import { MODE_DEMO } from './core/api';
 import { demoInterceptor } from './core/demo.interceptor';
@@ -56,6 +58,8 @@ export const appConfig: ApplicationConfig = {
     { provide: LOCALE_ID, useValue: 'fr-FR' },
     { provide: MAT_DATE_LOCALE, useValue: 'fr-FR' },
     { provide: MatPaginatorIntl, useClass: PaginateurFr },
+    // Libellés du sélecteur de date (« Ouvrir le calendrier »…), ANO-F-024.
+    { provide: MatDatepickerIntl, useClass: CalendrierFr },
 
     /**
      * Mode de fonctionnement, lu avant le premier écran.
