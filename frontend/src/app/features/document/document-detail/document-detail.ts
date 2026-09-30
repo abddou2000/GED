@@ -26,6 +26,9 @@ import { formaterDate, versDate, versIso } from '../../../core/dates';
 import { CircuitDocument } from '../../workflow/circuit-document/circuit-document';
 import { CycleDeVieService } from '../../cycle-de-vie/cycle-de-vie.service';
 import { Conservation } from '../../cycle-de-vie/cycle-de-vie.model';
+import { EmployeService } from '../../../core/employe.service';
+import { DocumentDesignes } from '../document-designes/document-designes';
+import { DocumentEmplacements } from '../document-emplacements/document-emplacements';
 
 /** Une valeur d'index déjà enregistrée pour ce document. */
 interface ValeurIndex {
@@ -46,7 +49,7 @@ interface ValeurIndex {
   imports: [
     RouterLink, ReactiveFormsModule, MatButtonModule, MatIconModule, MatTooltipModule,
     MatFormFieldModule, MatInputModule, MatDatepickerModule, MatSelectModule, MatSlideToggleModule, MatTableModule,
-    CircuitDocument,
+    CircuitDocument, DocumentDesignes, DocumentEmplacements,
   ],
   templateUrl: './document-detail.html',
   styleUrl: './document-detail.scss',
@@ -62,6 +65,10 @@ export class DocumentDetail implements OnInit {
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
   private cycleDeVie = inject(CycleDeVieService);
+  private employes = inject(EmployeService);
+
+  /** Nom de chaque personne par identité GED : auteur d'une version (ANO-F-012). */
+  auteurs = signal<Map<string, string>>(new Map());
 
   /** Copie de conservation PDF/A et statut d'archivage (§12.6). */
   conservation = signal<Conservation | null>(null);
@@ -105,7 +112,12 @@ export class DocumentDetail implements OnInit {
   /** Fichier choisi pour une nouvelle version, avant envoi. */
   nouveauFichier = signal<File | null>(null);
 
-  readonly colonnesVersions = ['fichier', 'observation', 'taille', 'date', 'actions'];
+  readonly colonnesVersions = ['fichier', 'observation', 'taille', 'date', 'auteur', 'actions'];
+
+  /** Auteur du versement (ANO-F-012) : l'API donne son identité GED, l'écran son nom. */
+  nomAuteur(v: Version): string {
+    return v.auteurId ? this.auteurs().get(v.auteurId) ?? '—' : '—';
+  }
 
   form: FormGroup = this.fb.group({
     name: [''],
@@ -136,6 +148,7 @@ export class DocumentDetail implements OnInit {
     // large évite un second appel pour les rares dépassements.
     this.etiquetteService.list(0, 200, '').subscribe(r => this.etiquettes.set(r.content));
     this.typeService.forSelect().subscribe(l => this.types.set(l));
+    this.employes.personnes().subscribe(p => this.auteurs.set(new Map(p.map(x => [x.utilisateurId, x.nom]))));
 
     this.route.paramMap.subscribe(p => {
       const id = p.get('id');
