@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # « CLI Liquibase » de recette : LiquibaseCli.java avec le liquibase-core embarqué par
-# le backend ($V8_LB_CP, classpath Maven hors ligne). Chemins convertis pour la JVM Windows.
+# le backend ($V8_LB_CP, classpath Maven hors ligne). Chemins convertis pour la JVM Windows
+# (Git Bash) ; inchangés sous Linux.
 : "${V8_LB_CP:?V8_LB_CP absent}"
-[[ -n "${LIQUIBASE_SEARCH_PATH:-}" ]] && export LIQUIBASE_SEARCH_PATH="$(cygpath -w "$LIQUIBASE_SEARCH_PATH")"
-exec java -Dfile.encoding=UTF-8 -cp "$V8_LB_CP" "$(cygpath -w "$(dirname "$0")/../LiquibaseCli.java")" "$@"
+natif() { if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
+[[ -n "${LIQUIBASE_SEARCH_PATH:-}" ]] && export LIQUIBASE_SEARCH_PATH="$(natif "$LIQUIBASE_SEARCH_PATH")"
+exec java -Dfile.encoding=UTF-8 -cp "$V8_LB_CP" "$(natif "$(dirname "$0")/../LiquibaseCli.java")" "$@"

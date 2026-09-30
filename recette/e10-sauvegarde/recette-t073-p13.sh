@@ -142,8 +142,8 @@ GNUPGHOME="$GPG_SRV" gpg --batch --quiet --import "$W/rssi.pub" 2>/dev/null
   || resultat T073-02 ECHEC "le trousseau du serveur contient une clé privée"
 
 cat > "$W/sauvegarde.env" <<ENV
-PGHOST=localhost
-PGPORT=5432
+PGHOST=$PGHOST
+PGPORT=$PGPORT
 PGUSER=postgres
 PGDATABASE=$BASE
 GED_SAUVEGARDE_DESTINATION=$W/sauvegardes

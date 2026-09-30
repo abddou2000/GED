@@ -33,6 +33,9 @@ PORT="${V8_PORT:-18556}"
 case "$PORT" in 18084|18094|33394) fatal "port $PORT réservé à une autre recette" ;; esac
 rm -rf "$W"; mkdir -p "$W"/{conf/front,racine,etat,journal,sauvegardes,jars,simule,bouchon-etat}
 export MSYS=winsymlinks:nativestrict      # vrais liens symboliques (bascule atomique)
+# Chemins et séparateur de classpath natifs : Git Bash (cygpath) ou Linux.
+natif() { if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
+SEP=":"; command -v cygpath >/dev/null 2>&1 && SEP=";"
 export BOUCHON_ETAT="$W/bouchon-etat"
 export PATH="$V8_DIR/bouchons:$PATH"
 export TMPDIR="${TMPDIR:-$W}"
@@ -52,7 +55,7 @@ for f in "$DEPOT"/deploiement/scripts/*.sh "$DEPOT"/deploiement/sauvegarde/*.sh;
 # ---------------------------------------------------------------------
 supprimer_base "$BASE"
 "$PSQL" -X -q -U postgres -d postgres -v base="$BASE" -f "$DEPOT/backend/scripts/db/preparer-base.sql" >/dev/null
-( cd "$DEPOT/backend" && mvn -o -B -q dependency:build-classpath -Dmdep.outputFile="$(cygpath -w "$W/cp.txt")" -Dmdep.includeScope=runtime ) >&2 \
+( cd "$DEPOT/backend" && mvn -o -B -q dependency:build-classpath -Dmdep.outputFile="$(natif "$W/cp.txt")" -Dmdep.includeScope=runtime ) >&2 \
   || fatal "classpath du backend introuvable hors ligne"
 export V8_LB_CP="$(cat "$W/cp.txt")"
 VERSION_LB="$(ls "$HOME/.m2/repository/org/liquibase/liquibase-core/" | sort -V | tail -1)"
@@ -72,7 +75,7 @@ fabriquer_jar() {  # nom [fichier de changeset supplémentaire…] ; ALTERER=oui
   if [[ "${ALTERER:-non}" == oui ]]; then
     sed -i 's/defaultValue="AES-256-GCM"/defaultValue="AES-256-GCM-ALTERE"/' "$d/BOOT-INF/classes/db/changelog/changesets/202609271200_creation_table_cle_fichier.xml"
   fi
-  (cd "$d" && jar cf "$(cygpath -w "$W/jars/ged-$nom.jar")" BOOT-INF)
+  (cd "$d" && jar cf "$(natif "$W/jars/ged-$nom.jar")" BOOT-INF)
   (cd "$W/jars" && sha256sum "ged-$nom.jar" > "ged-$nom.jar.sha256")
 }
 changeset_essai() {  # horodatage nom_table → fichier de changeset réversible
@@ -114,8 +117,8 @@ GED_FUMEE_TYPE_DOCUMENT=00000000-0000-4000-8000-000000000001
 LIQUIBASE_CMD=$V8_DIR/bouchons/liquibase
 ENV
 cat > "$W/conf/liquibase.env" <<ENV
-DB_HOST=localhost
-DB_PORT=5432
+DB_HOST=$PGHOST
+DB_PORT=$PGPORT
 DB_NAME=$BASE
 DB_SCHEMA=ged
 DB_SCHEMA_LIQUIBASE=ged_liquibase
@@ -124,8 +127,8 @@ DB_OWNER_PASSWORD=inutilise-authentification-trust
 DB_SSLMODE=disable
 ENV
 cat > "$W/conf/sauvegarde.env" <<ENV
-PGHOST=localhost
-PGPORT=5432
+PGHOST=$PGHOST
+PGPORT=$PGPORT
 PGUSER=postgres
 PGDATABASE=$BASE
 GED_SAUVEGARDE_DESTINATION=$W/sauvegardes
@@ -137,7 +140,7 @@ export GED_CONF_DIR="$W/conf" GED_RACINE="$W/racine" GED_ETAT_DIR="$W/etat" GED_
 mkdir -p "$W/racine/backend/versions" "$W/racine/front/versions"
 
 echo UP > "$W/simule/sante"; echo tolerant > "$W/simule/contrat"
-java -Dfile.encoding=UTF-8 "$(cygpath -w "$V8_DIR/ServeurGedSimule.java")" "$PORT" "$(cygpath -w "$W/simule")" > "$W/simule/serveur.log" 2>&1 &
+java -Dfile.encoding=UTF-8 "$(natif "$V8_DIR/ServeurGedSimule.java")" "$PORT" "$(natif "$W/simule")" > "$W/simule/serveur.log" 2>&1 &
 PID_SRV=$!
 trap 'kill $PID_SRV 2>/dev/null || true' EXIT
 for _ in $(seq 1 30); do curl -fsS "http://127.0.0.1:$PORT/actuator/health/readiness" >/dev/null 2>&1 && break; sleep 1; done
@@ -172,8 +175,8 @@ c="$(deployer B3 dev --jar "$W/jars/absent.jar" --module back)"
 # ---------------------------------------------------------------------
 # C. Preuve du contrat de connexion avec les classes LIVRÉES
 # ---------------------------------------------------------------------
-java -Dfile.encoding=UTF-8 -cp "$V8_LB_CP;$(cygpath -w "$DEPOT/backend/target/classes")" \
-  "$(cygpath -w "$V8_DIR/PreuveContratConnexion.java")" > "$W/contrat.txt" 2>&1 || true
+java -Dfile.encoding=UTF-8 -cp "$V8_LB_CP$SEP$(natif "$DEPOT/backend/target/classes")" \
+  "$(natif "$V8_DIR/PreuveContratConnexion.java")" > "$W/contrat.txt" 2>&1 || true
 if grep -q '^CONTRAT|test-fumee.sh.*REFUSÉ 400' "$W/contrat.txt" && grep -q '^CONTRAT|client de recette.*ACCEPTÉ' "$W/contrat.txt"; then
   resultat T092-05 ECHEC "test-fumee.sh envoie {email, motDePasse} : le back-end livré répond 400 (identifiant obligatoire)" "$(grep '^CONTRAT|test-fumee' "$W/contrat.txt" | cut -d'|' -f3-)"
 else
@@ -237,7 +240,7 @@ fi
 # Remise en état pour le témoin : rollback avec le JAR v2 (celui qui porte le changeset).
 if [[ "$(table_existe qa_v8_essai)" == t ]]; then
   ex="$(mktemp -d)"; (cd "$ex" && unzip -q "$W/jars/ged-v2.jar" 'BOOT-INF/classes/*')
-  LIQUIBASE_COMMAND_URL="jdbc:postgresql://localhost:5432/$BASE?sslmode=disable" LIQUIBASE_COMMAND_USERNAME=ged_owner \
+  LIQUIBASE_COMMAND_URL="jdbc:postgresql://${PGHOST}:${PGPORT}/$BASE?sslmode=disable" LIQUIBASE_COMMAND_USERNAME=ged_owner \
   LIQUIBASE_COMMAND_PASSWORD=x LIQUIBASE_COMMAND_CHANGELOG_FILE=db/changelog/db.changelog-master.xml \
   LIQUIBASE_COMMAND_DEFAULT_SCHEMA_NAME=ged LIQUIBASE_LIQUIBASE_SCHEMA_NAME=ged_liquibase LIQUIBASE_SEARCH_PATH="$ex/BOOT-INF/classes" \
     "$V8_DIR/bouchons/liquibase" rollback --tag="$tag" > "$W/D4-remise.log" 2>&1 || true
