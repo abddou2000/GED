@@ -5,9 +5,22 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import {
   ActivatedRouteSnapshot, CanActivateFn, Route, RouterStateSnapshot, UrlTree, provideRouter,
 } from '@angular/router';
-import { Observable, firstValueFrom, isObservable } from 'rxjs';
+import { Observable, firstValueFrom, isObservable, of } from 'rxjs';
 import { routes } from './app.routes';
 import { AuthService, Identite } from './core/auth.service';
+import { CodeModule, ModulesService } from './core/modules.service';
+
+/** Modules désactivés du test en cours (état figé : pas d'appel au serveur). */
+const inactifs = new Set<CodeModule>();
+const modulesFige = { charger: () => of(undefined), actif: (c: CodeModule) => !inactifs.has(c) };
+
+function configurer(): void {
+  inactifs.clear();
+  TestBed.configureTestingModule({
+    providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+      { provide: ModulesService, useValue: modulesFige }],
+  });
+}
 
 /** Route de la configuration par son chemin complet (segments des parents compris). */
 function routePour(chemin: string, liste: Route[] = routes, prefixe = ''): Route | undefined {
@@ -68,9 +81,7 @@ describe('Gardes des écrans d\'administration (ANO-F-003)', () => {
   let auth: AuthService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
-    });
+    configurer();
     auth = TestBed.inject(AuthService);
   });
 
@@ -91,6 +102,47 @@ describe('Gardes des écrans d\'administration (ANO-F-003)', () => {
   it('les écrans de l\'utilisateur restent ouverts sans permission d\'administration', async () => {
     auth.utilisateur.set(identite(['CONSULTER']));
     for (const chemin of ['espaces-de-travail', 'televerser', 'profil']) {
+      expect(await franchir(chemin)).toBe(true);
+    }
+  });
+});
+
+/** T-088 : l'écran d'un module métier désactivé par configuration ne s'ouvre pas. */
+describe('Gardes des modules métier (T-088)', () => {
+  const ECRANS: [string, CodeModule][] = [
+    ['mes-workflow', 'workflow'],
+    ['regles-de-workflow', 'workflow'],
+    ['recherche', 'ocr'],
+    ['traitements-ocr', 'ocr'],
+    ['mes-exports', 'export'],
+    ['notifications', 'notifications'],
+    ['cles-api', 'integration'],
+  ];
+  const TOUT = ['GERER_REFERENTIELS', 'GERER_CLES_API', 'SUPERVISER_TRAITEMENTS', 'CONSULTER_AUDIT'];
+
+  beforeEach(() => {
+    configurer();
+    TestBed.inject(AuthService).utilisateur.set(identite(TOUT));
+  });
+
+  for (const [chemin, module] of ECRANS) {
+    it(`#/${chemin} renvoie à l'accueil si le module ${module} est inactif`, async () => {
+      inactifs.add(module);
+      const r = await franchir(chemin);
+      expect(r).toBeInstanceOf(UrlTree);
+      expect((r as UrlTree).toString()).toBe('/accueil');
+    });
+
+    it(`#/${chemin} s'ouvre si le module ${module} est actif`, async () => {
+      expect(await franchir(chemin)).toBe(true);
+    });
+  }
+
+  it('le socle reste ouvert quand tous les modules sont inactifs', async () => {
+    for (const m of ['ocr', 'workflow', 'cycledevie', 'export', 'notifications', 'integration'] as CodeModule[]) {
+      inactifs.add(m);
+    }
+    for (const chemin of ['espaces-de-travail', 'televerser', 'index', 'journal-audit', 'profil']) {
       expect(await franchir(chemin)).toBe(true);
     }
   });

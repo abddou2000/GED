@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { administrateurGuard, authGuard, permissionGuard, roleGuard } from './core/auth.guard';
+import { moduleGuard } from './core/module.guard';
 
 /**
  * Routing GED.
@@ -28,7 +29,8 @@ export const routes: Routes = [
       },
       {
         // Tout le reste exige au moins un rôle GED (une identité sans rôle
-        // reste sur l'accueil vide, §3.4.2).
+        // reste sur l'accueil vide, §3.4.2). Les écrans d'un module métier
+        // désactivé par configuration sont fermés (moduleGuard, T-088).
         path: '',
         canActivateChild: [roleGuard],
         children: [
@@ -38,7 +40,7 @@ export const routes: Routes = [
          référentiels restent ouvertes, le dépôt et l'indexation en ont besoin. */
       {
         path: 'regles-de-workflow',
-        canActivate: [permissionGuard('GERER_REFERENTIELS')],
+        canActivate: [permissionGuard('GERER_REFERENTIELS'), moduleGuard('workflow')],
         loadComponent: () => import('./features/workflow/workflow-list/workflow-list').then(m => m.WorkflowList),
       },
       {
@@ -108,12 +110,13 @@ export const routes: Routes = [
         // Applications clientes et clés d'API (DAT §5.4) : GERER_CLES_API. Le
         // serveur refuse l'accès aux applications elles-mêmes.
         path: 'cles-api',
-        canActivate: [permissionGuard('GERER_CLES_API')],
+        canActivate: [permissionGuard('GERER_CLES_API'), moduleGuard('integration')],
         loadComponent: () => import('./features/cles-api/cles-api-admin/cles-api-admin').then(m => m.ClesApiAdmin),
       },
       {
         // Centre de notifications de l'utilisateur (DAT §12.9).
         path: 'notifications',
+        canActivate: [moduleGuard('notifications')],
         loadComponent: () => import('./features/notifications/notifications-list/notifications-list').then(m => m.NotificationsList),
       },
       {
@@ -128,17 +131,19 @@ export const routes: Routes = [
       {
         // Recherche dans le contenu des documents (§4.4).
         path: 'recherche',
+        canActivate: [moduleGuard('ocr')],
         loadComponent: () => import('./features/recherche/recherche-plein-texte/recherche-plein-texte').then(m => m.RecherchePleinTexte),
       },
       {
         // Exports de dossier préparés en arrière-plan (§12.10).
         path: 'mes-exports',
+        canActivate: [moduleGuard('export')],
         loadComponent: () => import('./features/cycle-de-vie/mes-exports/mes-exports').then(m => m.MesExports),
       },
       {
         // Supervision des traitements OCR et réindexation (§4.3.4, §4.4.1).
         path: 'traitements-ocr',
-        canActivate: [permissionGuard('SUPERVISER_TRAITEMENTS')],
+        canActivate: [permissionGuard('SUPERVISER_TRAITEMENTS'), moduleGuard('ocr')],
         loadComponent: () => import('./features/recherche/supervision-ocr/supervision-ocr').then(m => m.SupervisionOcr),
       },
       {
@@ -148,6 +153,7 @@ export const routes: Routes = [
       },
       {
         path: 'mes-workflow',
+        canActivate: [moduleGuard('workflow')],
         loadComponent: () => import('./features/signature/mes-workflow/mes-workflow').then(m => m.MesWorkflow),
       },
       {

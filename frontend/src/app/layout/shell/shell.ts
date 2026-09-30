@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { SessionService } from '../../core/session.service';
 import { AuthService } from '../../core/auth.service';
+import { ModulesService } from '../../core/modules.service';
 import { BrandLogo } from '../../core/brand-logo/brand-logo';
 import { CircuitService } from '../../features/workflow/circuit.service';
 import { NotificationsService } from '../../features/notifications/notifications.service';
@@ -28,6 +29,8 @@ export class Shell implements AfterViewInit {
 
   protected session = inject(SessionService);
   protected auth = inject(AuthService);
+  /** Modules métier désactivés (T-088) : leurs menus sont masqués. */
+  protected modules = inject(ModulesService);
   private router = inject(Router);
   private signatures = inject(CircuitService);
   protected notifications = inject(NotificationsService);
@@ -119,7 +122,7 @@ export class Shell implements AfterViewInit {
            chaque écran ait à y penser. */
         if (this.session.user()?.id != null) {
           this.recompterAtraiter();
-          this.notifications.rafraichirCompteur();
+          this.rafraichirNotifications();
         }
         // `routerLinkActive` pose sa classe pendant le même cycle : mesurer
         // tout de suite renverrait la position de l'onglet qu'on vient de
@@ -132,9 +135,12 @@ export class Shell implements AfterViewInit {
        autre utilisateur (circuit ouvert, accès attribué), donc sans navigation
        de celui-ci. Relevé toutes les minutes, tant qu'une session est ouverte. */
     const releve = setInterval(() => {
-      if (this.session.user()?.id != null) this.notifications.rafraichirCompteur();
+      if (this.session.user()?.id != null) this.rafraichirNotifications();
     }, 60_000);
     destroyRef.onDestroy(() => clearInterval(releve));
+
+    // État des modules métier (une fois) : les menus d'un module inactif se masquent.
+    this.modules.charger().subscribe();
 
     // Identité + compteur « à traiter » (badge du menu)
     this.session.ensureUser();
@@ -149,7 +155,7 @@ export class Shell implements AfterViewInit {
       this.signatures.revision();
       if (u?.id == null) return;
       this.recompterAtraiter();
-      this.notifications.rafraichirCompteur();
+      this.rafraichirNotifications();
     });
   }
 
@@ -157,10 +163,16 @@ export class Shell implements AfterViewInit {
    *  un badge périmé vaut mieux qu'une erreur en travers de la navigation. */
   private recompterAtraiter(): void {
     if (this.auth.sansRole()) return;   // aucun circuit accessible sans rôle
+    if (!this.modules.actif('workflow')) return;   // module inactif : le serveur répondrait 404
     this.signatures.nombreATraiter().subscribe({
       next: n => this.pendingCount.set(n),
       error: () => { /* silencieux */ },
     });
+  }
+
+  /** Pastille des notifications, sauf module désactivé (T-088). */
+  private rafraichirNotifications(): void {
+    if (this.modules.actif('notifications')) this.notifications.rafraichirCompteur();
   }
 
   toggleDrawer(): void { this.drawerOpen.update(o => !o); }
