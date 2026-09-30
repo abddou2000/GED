@@ -576,3 +576,11 @@ Aucune ne demande de code ou de documentation supplémentaire de ma part ce tour
    dev5 dans le bloc-notes (vert, avertissements de budget préexistants).
 5. Banc de charge : schéma jetable `ged_charge` dans `ged_dev3` (le compte propriétaire ne peut
    pas créer de base) ; à supprimer en fin d'essais (`DROP SCHEMA ged_charge CASCADE`).
+
+### Tests du tour 1
+
+Suite back complète (`29d0480`) : **609 tests, 3 échecs**, aucun nouveau : les deux de la
+référence dépendant de l'ordre ou des données (`WorkflowApiTest.employesWithAccount`,
+`WorkSpaceApiTest.moveIntoDescendant`) et `SupervisionIntegrationTest.portDeManagement`, dû à
+`GED_MANAGEMENT_PORT` exporté par l'environnement d'équipe (même constat chez dev5). Les deux
+échecs LibreOffice de la référence sont corrigés. Front : `ng build` vert.
