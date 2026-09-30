@@ -286,7 +286,7 @@ class EssaiVolumetrieChargeIT extends BaseCharge {
                 }
                 Mesures.noter(mc + ".un_type.p50_ms", Mesures.centile(multi, 50));
                 long m0 = System.nanoTime();
-                int groupes = indexation.rechercher(new RechercheRequest(null, null, List.of(), null, null, null)).size();
+                int groupes = indexation.rechercher(new RechercheRequest(null, null, List.of(), null, null, null)).content().size();
                 Mesures.noter(mc + ".tout_le_fonds_ms", (System.nanoTime() - m0) / 1_000_000);
                 Mesures.noter(mc + ".tout_le_fonds_groupes", groupes);
                 Mesures.noter(mc + ".pic_tas_mo", pic.picMo());

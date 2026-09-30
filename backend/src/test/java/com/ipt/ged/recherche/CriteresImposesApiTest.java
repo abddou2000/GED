@@ -39,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * déposant filtrent les trois recherches ({@code POST /documents/recherche},
  * {@code POST /recherches} avec et sans texte, {@code GET /recherche/plein-texte}) ;
  * un paramètre inconnu est refusé en 400 {@code PARAMETRE_INCONNU} au lieu d'être
- * ignoré.
+ * ignoré. Et {@code POST /indexation/recherche} est paginé (plafond 200).
  *
  * <p>Mêmes propriétés que {@code OcrApiTest} (chaîne OCR active, sans worker) :
  * le contrôleur plein texte n'existe qu'avec la chaîne, et le contexte est partagé.
@@ -193,5 +193,44 @@ class CriteresImposesApiTest {
         mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot)
                         .param("dateDocumentDu", "2026-10-01").param("dateDocumentAu", "2026-09-01"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /indexation/recherche : paginé (taille, plafond 200), total des documents et des groupes")
+    void rechercheParIndexPaginee() throws Exception {
+        String parType = "\"typeDocumentId\":\"" + type + "\"";
+        JsonNode p0 = json(mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON)
+                .content("{" + parType + ",\"taille\":2}")).andExpect(status().isOk()));
+        assertThat(p0.get("total").asLong()).isEqualTo(3);
+        assertThat(p0.get("totalPages").asInt()).isEqualTo(2);
+        assertThat(p0.get("size").asInt()).isEqualTo(2);
+        assertThat(p0.get("content").get(0).get("documents")).hasSize(2);
+        assertThat(p0.get("content").get(0).get("total").asInt()).isEqualTo(3);
+        JsonNode p1 = json(mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON)
+                .content("{" + parType + ",\"taille\":2,\"page\":1}")).andExpect(status().isOk()));
+        assertThat(p1.get("content").get(0).get("documents")).hasSize(1);
+        JsonNode plafond = json(mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON)
+                .content("{" + parType + ",\"taille\":100000}")).andExpect(status().isOk()));
+        assertThat(plafond.get("size").asInt()).isEqualTo(200);
+        JsonNode defaut = json(mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON)
+                .content("{" + parType + "}")).andExpect(status().isOk()));
+        assertThat(defaut.get("size").asInt()).isEqualTo(50);
+
+        // Groupage : groupes triés, effectif de chaque groupe sur tout l'ensemble.
+        UUID index = jeu.index("GRP", com.ipt.ged.index.IndexFieldType.TEXTE, false, null).getId();
+        jdbc.update("INSERT INTO document_index_valeur (id, document_id, index_def_id, valeur) VALUES (?, ?, ?, ?)",
+                UUID.randomUUID(), a, index, "Fournisseur B");
+        jdbc.update("INSERT INTO document_index_valeur (id, document_id, index_def_id, valeur) VALUES (?, ?, ?, ?)",
+                UUID.randomUUID(), b, index, "Fournisseur B");
+        String groupe = "{" + parType + ",\"grouperPar\":\"" + index + "\",\"taille\":1";
+        JsonNode g0 = json(mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON)
+                .content(groupe + "}")).andExpect(status().isOk()));
+        assertThat(g0.get("content").get(0).get("libelle").asText()).isEqualTo("(non renseigné)");
+        assertThat(g0.get("content").get(0).get("documents").get(0).get("id").asText()).isEqualTo(c.toString());
+        JsonNode g1 = json(mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON)
+                .content(groupe + ",\"page\":1}")).andExpect(status().isOk()));
+        assertThat(g1.get("content").get(0).get("libelle").asText()).isEqualTo("Fournisseur B");
+        assertThat(g1.get("content").get(0).get("total").asInt()).isEqualTo(2);
+        assertThat(g1.get("content").get(0).get("documents")).hasSize(1);
     }
 }
