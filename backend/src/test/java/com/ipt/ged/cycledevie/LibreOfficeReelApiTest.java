@@ -35,7 +35,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code ArchivageApiTest} et {@code ApercuTelechargementApiTest}.
  */
 @RecordApplicationEvents
-@TestPropertySource(properties = "ged.fichiers.previsualisation.libreoffice-commande=${GED_LIBREOFFICE:soffice}")
+// Second contexte Spring : il ne vide pas le schéma (drop-first) sous les contextes déjà en
+// cache, dont les caches de droits deviendraient faux (404 dans la classe suivante).
+@TestPropertySource(properties = {
+        "ged.fichiers.previsualisation.libreoffice-commande=${GED_LIBREOFFICE:soffice}",
+        "spring.liquibase.drop-first=false"})
 class LibreOfficeReelApiTest extends BaseCycleDeVieApiTest {
 
     private static final String DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";

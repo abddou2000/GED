@@ -299,7 +299,9 @@ class OcrJobQueuePostgresTest {
 
         // Flux vide : la reprise avance, dans son ordre de dépôt.
         List<UUID> servis = new ArrayList<>();
-        file.reserver("w", 2, BAIL).forEach(j -> servis.add(j.id()));
+        // Un par un : l'ordre des lignes rendues par une même réservation n'est pas garanti.
+        servis.add(file.reserver("w", 1, BAIL).get(0).id());
+        servis.add(file.reserver("w", 1, BAIL).get(0).id());
         assertEquals(reprise.subList(0, 2), servis);
         // Un nouveau dépôt courant arrivé entre-temps repasse devant le reste de la reprise.
         UUID suivant = enfiler(Instant.now());
