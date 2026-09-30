@@ -42,6 +42,8 @@ class WorkSpaceApiTest {
     @Autowired private ObjectMapper om;
     @Autowired private WorkflowRepository workflowRepository;
     @Autowired private EmployeRepository employeRepository;
+    @Autowired private com.ipt.ged.workspace.archivage.ArchivageNoeuds archivage;
+    @Autowired private com.ipt.ged.identite.UtilisateurRepository utilisateurs;
 
     private static final String BASE = "/api/v1/workspaces";
     private UUID workflowId;
@@ -148,6 +150,37 @@ class WorkSpaceApiTest {
         mvc.perform(get(BASE + "/trashed")).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
         mvc.perform(patch(BASE + "/" + id + "/restore")).andExpect(status().isNoContent());
         mvc.perform(get(BASE)).andExpect(jsonPath("$.content[*].id", hasItem(id.toString())));
+    }
+
+    @Test
+    @DisplayName("ANO-E7-005 : aucun sous-dossier créé ni déplacé sous un dossier archivé (409 DOSSIER_ARCHIVE)")
+    void dossierArchiveEnLectureSeule() throws Exception {
+        String s = UUID.randomUUID().toString().substring(0, 6);
+        UUID archive = create("Archivé " + s, "WS-ARC-" + s, null);
+        UUID sousArchive = create("Sous-archivé " + s, "WS-ARS-" + s, archive);
+        UUID libre = create("Libre " + s, "WS-LIB-" + s, null);
+        archivage.marquerArchive(archive, utilisateurs.findByIdentifiant(Comptes.ADMIN).orElseThrow().getId());
+
+        // Création sous le dossier archivé, et sous un descendant (drapeau de la sous-arborescence).
+        for (UUID parent : new UUID[]{archive, sousArchive}) {
+            mvc.perform(post(BASE).contentType(APPLICATION_JSON)
+                            .content(ws("Nouveau " + s, "WS-NV-" + s, parent)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("DOSSIER_ARCHIVE"));
+        }
+        // Déplacement dessous : par l'action de déplacement et par la fiche.
+        mvc.perform(patch(BASE + "/" + libre + "/parent").contentType(APPLICATION_JSON)
+                        .content("{\"parentId\":\"" + archive + "\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DOSSIER_ARCHIVE"));
+        mvc.perform(put(BASE + "/" + libre).contentType(APPLICATION_JSON)
+                        .content(ws("Libre " + s, "WS-LIB-" + s, sousArchive)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DOSSIER_ARCHIVE"));
+        mvc.perform(get(BASE + "/" + libre)).andExpect(jsonPath("$.parent").doesNotExist());
+        // Rien n'a été créé sous le dossier archivé ; un dossier actif reste utilisable.
+        mvc.perform(get(BASE).param("search", "Nouveau " + s)).andExpect(jsonPath("$.content.length()").value(0));
+        create("Enfant libre " + s, "WS-ENL-" + s, libre);
     }
 
     @Test

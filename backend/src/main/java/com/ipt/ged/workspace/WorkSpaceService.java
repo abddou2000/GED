@@ -19,6 +19,7 @@ import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.workflow.WorkflowGed;
 import com.ipt.ged.workflow.WorkflowRepository;
+import com.ipt.ged.workspace.archivage.ArchivageNoeuds;
 import com.ipt.ged.workspace.dto.TreeNode;
 import com.ipt.ged.workspace.dto.WorkSpaceRequest;
 import com.ipt.ged.workspace.dto.WorkSpaceResponse;
@@ -83,6 +84,8 @@ public class WorkSpaceService {
     private final VersionHabilitations version;
     private final HabilitationRepository habilitations;
     private final AccessGroupRepository groupes;
+    /** Statut de conservation des nœuds (D10) : aucun nœud ne naît ni n'arrive sous un dossier archivé. */
+    private final ArchivageNoeuds archivage;
     /** Portée des clés d'API (lot intégration), résolue à l'usage. */
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.beans.factory.ObjectProvider<com.ipt.ged.cleapi.ControlePorteeApplication>
@@ -92,8 +95,9 @@ public class WorkSpaceService {
                             WorkflowRepository workflowRepository, AccessPredicate droits, ControleAcces controle,
                             VersionHabilitations version, HabilitationRepository habilitations,
                             AccessGroupRepository groupes,
-                            JournalAdministration journal) {
+                            JournalAdministration journal, ArchivageNoeuds archivage) {
         this.journal = journal;
+        this.archivage = archivage;
         this.repo = repo;
         this.employeRepository = employeRepository;
         this.workflowRepository = workflowRepository;
@@ -151,6 +155,7 @@ public class WorkSpaceService {
                 controle.exigerAdministration(CodePermission.GERER_ESPACES);
             }
         }
+        refuserSiDossierArchive(req.parentId());
         exigerNomLibre(req.name(), req.parentId(), null);
         if (repo.existsByCodeIgnoreCase(req.code())) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
@@ -174,8 +179,9 @@ public class WorkSpaceService {
         }
         UUID ancienParent = w.getParent() != null ? w.getParent().getId() : null;
         if (!Objects.equals(ancienParent, req.parentId())) {
-            // Changer de parent par la fiche est un déplacement : mêmes droits.
+            // Changer de parent par la fiche est un déplacement : mêmes droits, même garde.
             verifierDeplacement(id, req.parentId());
+            refuserSiDossierArchive(req.parentId());
         }
         if (!req.name().trim().equalsIgnoreCase(w.getName()) || !Objects.equals(ancienParent, req.parentId())) {
             exigerNomLibre(req.name(), req.parentId(), id);
@@ -255,6 +261,7 @@ public class WorkSpaceService {
     public WorkSpaceResponse move(UUID id, UUID newParentId) {
         WorkSpace w = loadPourEcriture(id);
         verifierDeplacement(id, newParentId);
+        refuserSiDossierArchive(newParentId);
         UUID ancienParent = w.getParent() != null ? w.getParent().getId() : null;
         if (newParentId != null) {
             if (newParentId.equals(id)) {
@@ -288,6 +295,24 @@ public class WorkSpaceService {
             controle.exigerAdministration(CodePermission.GERER_ESPACES);
         } else {
             controle.exigerSurNoeud(CodePermission.DEPOSER, destination);
+        }
+    }
+
+    /**
+     * ANO-E7-005 (D10, §12.6) : un dossier archivé est en lecture seule, sa
+     * sous-arborescence comprise (le drapeau la couvre, {@link ArchivageNoeuds#marquerArchive}).
+     * Un sous-dossier créé ou déplacé dessous naîtrait ACTIF et accepterait des
+     * dépôts, ce qui contournait le refus du dépôt : même refus, même code
+     * (409 {@code DOSSIER_ARCHIVE}, {@code DocumentService}). Les droits sont
+     * vérifiés avant : un appelant hors périmètre n'apprend pas le statut.
+     */
+    private void refuserSiDossierArchive(UUID parentId) {
+        if (parentId == null) return;
+        if (archivage.statut(parentId) == com.ipt.ged.common.StatutConservation.ARCHIVE) {
+            String nom = repo.findById(parentId).map(WorkSpace::getName).orElse("");
+            throw new com.ipt.ged.cycledevie.ErreurCycleDeVie(org.springframework.http.HttpStatus.CONFLICT,
+                    com.ipt.ged.cycledevie.ErreurCycleDeVie.DOSSIER_ARCHIVE,
+                    "Dossier archivé « " + nom + " » : aucun dossier ne peut y être créé ni déplacé.");
         }
     }
 
