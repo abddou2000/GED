@@ -84,6 +84,66 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
+### Mise en conformité, tour 1 (branche `ct/dev1-r1`, depuis `claude/inspiring-lovelace-10bg1c` @ `71bdc1d`)
+
+| Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
+|---|---|---|---|
+| Tests en échec de la référence | Corrigé (`a7f5666`) | Dépendance à l'ordre des classes sous Linux, pas une régression. `WorkSpaceApiTest.moveIntoDescendant` (409) : `IdempotenceApiTest`, non transactionnel, laissait un espace racine « Parent » (nom unique à la racine, §12.5) → nom unique. `WorkflowApiTest.employesWithAccount` (4 au lieu de 3) : la connexion de `nidrissi` validée hors transaction par une classe précédente crée sa fiche avec compte → comparaison aux fiches avec compte en base. | Suite complète : les deux passent. |
+| ANO-F-009 | Corrigé (`8b0d0ba`) | `POST`/`PUT /api/v1/access-groups` ignorait un identifiant inconnu. Refus 422 problem+json `MEMBRES_INCONNUS` / `ESPACES_INCONNUS`, liste `identifiantsInconnus`, contrôle avant toute écriture. | `AccessGroupApiTest` (membres et espaces inconnus, rien d'écrit). |
+| ANO-E7-005 | Corrigé (`1a71d2e`) | Sous-dossier créé (ou déplacé) sous un dossier archivé : naissait ACTIF et acceptait des dépôts (contournement de D10). Création, déplacement et changement de parent refusés en 409 `DOSSIER_ARCHIVE`, comme le dépôt, après le contrôle des droits. | `WorkSpaceApiTest` (création et déplacement sous un dossier archivé). |
+| ANO-F-001 | Corrigé (`d355b2d`) | Agent d'archive livré sans Valider, Diffuser, Purger (`202609281015-2`). Changeset `202610041000` : ajout idempotent (`ON CONFLICT`), identifiants fixes, retour arrière qui ne retire que ses lignes. Direction Générale inchangée (ANO-F-002, arbitrage MMED). | `SchemaLiquibaseTest.compositionAgentArchive`, `PermissionsLivreesTest`. |
+| ANO-E8-004 | Corrigé (`229401d`) | La garde d'ANO-E8-003 ne couvrait que `202610021120`. Même garde (refus avec décompte, sauf `ged.retour_arriere_avec_perte = oui`) sur `202610031000-1`, `202610021130-1` et `202610021100-2` ; blocs `rollback` seuls (hors somme de contrôle) ; `DEPLOIEMENT.md` §8. | `SchemaLiquibaseTest.retourArriereApresJalonWorkflowSansPerte`. |
+| D15 / T-055 (R28) | Corrigé (`69625e7`, `cdd250f`) | À chaque `X-On-Behalf-Of`, `EtatCompteAnnuaireLdap` lit **le seul** `userAccountControl` par `objectGUID` avec le compte de service (mêmes contrôleurs, LDAPS, délais) ; `EtatCompteEnCache` : cache court `ged.api.delegation.cache-etat-compte` (`GED_DELEGATION_CACHE_ETAT_COMPTE`, 2 min, démarrage refusé au-delà de 5 min, état indéterminé et panne jamais gardés). Bit 0x2, compte absent ou attribut illisible : 422 `IDENTITE_DELEGUEE_INVALIDE`, même libellé pour l'application, motif précis au journal (`CLE_API_REFUSEE`, colonne `motif`), aucun provisionnement ; annuaire injoignable : 503. Connexion interactive, renouvellement, sessions : inchangés (D1, aucune relecture périodique). `verifier-compte-annuaire` devenu sans effet. Inventaire des appels sortants et `REVUE-SSRF.md` complétés. | `EtatCompteAnnuaireTest` (6 : bit, attribut seul demandé, indéterminé, annuaire injoignable, cache, borne 5 min) ; `PorteeEtDelegationApiTest.delegationCompteDesactive` et `…ApresConnexion` (les deux échouent sans le contrôle : vérifié). |
+| T-025 (§12.1, P2) | **Partiel** (`a10d5af`) | Écart 1 : colonnes `droit_*` de `groupe_ged` retirées (`202610041010`), valeurs vraies consignées au rapport `reprise_droits_groupe` (même principe que `reprise_lien_groupe_espace`), retour arrière qui les remet ; entité `GedRights` supprimée ; reprise : rapport rempli, contrôle 42. Écart 3 : `name` → `nom` sur `groupe_ged`, `noeud`, `regle_workflow` (`202610041020`, contrainte `uk_groupe_ged_nom`), SQL natif et scripts adaptés, API inchangée. Écart 2 (`groupe_membre.employe_id`) : **conservé, justifié ci-dessous, soumis à validation**. `SCHEMA-BASE.md` et `CLASSES.md` régénérés. | `SchemaLiquibaseTest.modeleDeReferenceGroupesEtNoms` (montée, rapport, retour arrière fidèle, remontée) ; `RepriseDonneesTest` (rapport des droits, `nom`). |
+| T-050, T-018, T-022, T-097, T-104, T-110, P-02, P-04, P-21, P-22, R-03 | Rien à coder | Statuts « Livré » / « Vérifié » en attente de recette qa ou de l'UAT (T-050 : taille 50 et plafond 200 déjà dans `common.Tri`). ANO-E7-004 (P-21) est à dev3. | — |
+
+**Justification de l'écart conservé (T-025, écart 2 : `groupe_membre.employe_id`)**, soumise à
+pm et à MMED :
+
+1. *Reprise* : les appartenances de l'ancienne application (`pivot_employe_groups`) désignent des
+   employés ; à la reprise, **aucune identité GED n'existe** (`utilisateur` est vide tant que
+   personne ne s'est connecté, vérifié par `RepriseDonneesTest`). Passer à `utilisateur_id`
+   perdrait toutes les appartenances reprises, ou exigerait une table d'attente et un rattachement
+   à la première connexion.
+2. *Préparation avant la mise en service* : les habilitations directes exigent déjà une identité
+   (`ServiceHabilitations.verifierSujet`) ; le groupe est aujourd'hui le seul moyen de préparer les
+   droits d'une personne **avant sa première connexion** (cas de l'ouverture : ~150 agents).
+   À la première connexion, `ServiceIdentites.employeRattache` relie l'identité à la fiche
+   existante, et les appartenances s'appliquent sans action de l'Administrateur.
+3. *Pas d'ambiguïté* : `utilisateur.employe_id` est unique et non nul (une identité = une fiche) ;
+   la résolution employé → identité est déterministe (`HabilitationRepository`,
+   `AnnuaireDestinatairesIdentite`, `AgentsArchiveCompetents`, `ServiceCircuits`).
+4. *Coût* : contrat d'API des groupes (`userIds` = identifiants d'employé) et écran Angular de
+   dev4 à changer ; toutes les requêtes d'appartenance à reprendre.
+
+Si pm ou MMED maintient la correction, plan prêt : *expand* (`groupe_membre.utilisateur_id`
+nullable, rempli depuis `utilisateur.employe_id`, appartenances sans identité consignées dans un
+rapport d'attente et converties à la première connexion), bascule du code et de l'API, puis
+*contract* (suppression d'`employe_id`) au tour suivant.
+
+**Autres colonnes en anglais conservées** (hors des trois tables citées par P2, non relevées par
+dev2) : `created_at` / `updated_at` sur la plupart des tables, `employe.first_name`, `last_name`,
+`has_user`, `document.name`, `file_name`, `file_path`, `size_ko`, `is_locked`, `expiration_date`,
+`active`, `reference`, `noeud.code`, `description`, `status`, `regle_validateur.label`,
+`step_order`. Héritées de l'application d'origine, lues par de nombreuses requêtes et par la
+reprise : les renommer relève d'un lot à part, à arbitrer par pm (conventions §4.2.2, mineur).
+
+**Points pour pm** : T-055 peut passer « Livré » en attente de recette (cas 22 de la vague 4 à
+rejouer : 422 et motif au journal) ; `DECISIONS-REVUE-TECHNIQUE.md` (D15 livrée) et `RISQUES.md`
+(R28 levé après recette ; fenêtre résiduelle = durée du cache, 2 min par défaut) sont à mettre à
+jour par pm. Le compte de service doit pouvoir lire `userAccountControl` (droit par défaut dans
+AD) : à confirmer par la DSI de MMED. Le commit `cdd250f` a emporté par erreur la suppression de
+`GedRights.java` (index Git) : il ne compile pas seul, `a10d5af` le complète (historique non
+réécrit, consigne).
+
+Tests : suite back complète finale (`a10d5af`) — **610 tests, 3 échecs, aucun nouveau** : les
+deux échecs LibreOffice connus de la référence (`ArchivageApiTest.conversionEnEchec`,
+`ApercuTelechargementApiTest.apercuBureautiqueSansLibreOffice`) et
+`SupervisionIntegrationTest.portDeManagement` (dû à `GED_MANAGEMENT_PORT` exporté par
+l'environnement de l'équipe : 18091 au lieu de 8081 ; échoue aussi sur la référence). Les deux
+échecs d'ordre de la référence (`WorkflowApiTest`, `WorkSpaceApiTest`) passent. Front non touché.
+
+
 **Correctifs de recette vague 6** (qa, `ANOMALIES.md`), sur `ct/dev1` après
 fusion de `conformite-technique` (68262bc) :
 
