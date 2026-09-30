@@ -12,7 +12,9 @@
 #  Les artefacts produits ici sont ceux que deployer.sh installe : même
 #  artefact promu de DEV à UAT puis PROD, vérifié par son empreinte SHA-256.
 #
-#  Secret requis : NVD_API_KEY (clé gratuite, https://nvd.nist.gov/developers/request-an-api-key).
+#  Secret requis : NVD_API_KEY (clé gratuite, https://nvd.nist.gov/developers/request-an-api-key),
+#  ou variable NVD_DATAFEED_URL (miroir interne des flux NVD 2.0) :
+#  docs/securite/VULNERABILITES-DEPENDANCES.md.
 # =====================================================================
 name: CI
 
@@ -146,7 +148,18 @@ jobs:
 
       - name: Audit des dépendances livrées
         # Échec sur vulnérabilité haute ou critique, soit CVSS >= 7, comme le back-end.
-        run: npm audit --omit=dev --audit-level=high
+        # Le rapport complet (toutes sévérités) est archivé, même en cas d'échec.
+        run: |
+          npm audit --omit=dev --json > dist/npm-audit.json || true
+          npm audit --omit=dev --audit-level=high
+
+      - name: Rapport d'audit npm
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-npm-audit
+          path: frontend/dist/npm-audit.json
+          retention-days: 365
 
       - uses: actions/upload-artifact@v4
         with:
@@ -175,23 +188,44 @@ jobs:
           java-version: "17"
           cache: maven
 
+      # Chaîne d'analyse éprouvée sans la NVD : seuil, rapports et suppressions
+      # contrôlés sur un miroir synthétique (outils/essai-dependency-check.sh).
+      - name: Contrôler la chaîne d'analyse (miroir synthétique)
+        run: bash outils/essai-dependency-check.sh
+
+      # Restauration et sauvegarde séparées : la base NVD téléchargée (longue à
+      # constituer) est gardée même quand l'analyse échoue sur une vulnérabilité.
       - name: Base de vulnérabilités en cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: nvd-${{ github.run_id }}
           restore-keys: nvd-
 
+      # Source des données : miroir interne (variable NVD_DATAFEED_URL, flux
+      # NVD 2.0 produits par vulnz) ou, à défaut, API NVD avec le secret
+      # NVD_API_KEY. Sans l'un ni l'autre, échec volontaire (DAT 6.2.3).
       - name: Analyser les dépendances
         working-directory: backend
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          NVD_DATAFEED_URL: ${{ vars.NVD_DATAFEED_URL }}
         run: |
-          if [ -z "$NVD_API_KEY" ]; then
-            echo "::error::Secret NVD_API_KEY absent : l'analyse OWASP Dependency-Check ne peut pas tourner (DAT 6.2.3)."
+          if [ -n "$NVD_DATAFEED_URL" ]; then
+            mvn -B -ntp -DskipTests verify "-DnvdDatafeedUrl=$NVD_DATAFEED_URL"
+          elif [ -n "$NVD_API_KEY" ]; then
+            mvn -B -ntp -DskipTests verify
+          else
+            echo "::error::Ni variable NVD_DATAFEED_URL ni secret NVD_API_KEY : l'analyse OWASP Dependency-Check ne peut pas tourner (DAT 6.2.3)."
             exit 1
           fi
-          mvn -B -ntp -DskipTests verify
+
+      - name: Sauvegarder la base de vulnérabilités
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ github.run_id }}
 
       - name: Rapport de vulnérabilités
         if: always()
