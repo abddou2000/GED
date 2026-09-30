@@ -31,7 +31,13 @@ de démonstration et à désigner par `GED_IDENTITE_ANNUAIRE_EMBARQUE_LDIF=file:
 | qa2parti | Agent désactivé dans l'AD en cours de circuit | F-12 (désactivation par `LdapSimule`) |
 
 Instance de recette : profil dev, API 18088, management 18098, annuaire simulé 33399, SMTP simulé
-3039 (`recette/lib/SmtpSimule.java`), LibreOffice simulé (`FauxSoffice`), bureau d'ordre reconnu
-par `GED_DEPOT_APPLICATIONS_BUREAU_ORDRE=bo`. Le script est rejouable : le jeu est retrouvé par
+3039 (`recette/lib/SmtpSimule.java`), LibreOffice réel (ou simulé : `FauxSoffice`), bureau d'ordre
+reconnu par `GED_DEPOT_APPLICATIONS_BUREAU_ORDRE=bo`. Pour F-58, l'alerte d'échéance est planifiée
+chaque minute (`GED_ALERTE_ECHEANCE_CRON="0 * * * * *"`) au lieu de 6 h.
+
+Variables facultatives des parties C et D : `GED_RECETTE_MAILS` (dossier des messages du SMTP
+simulé, F-51), `GED_RECETTE_COFFRE` (racine du stockage chiffré, F-77), `GED_RECETTE_JOURNAL`
+(journal technique de l'instance, F-71) ; sans elles, la ligne concernée est NA ou partielle.
+F-70 (droits SQL du journal) et F-74 (contrat du bureau d'ordre) se constatent hors script. Le script est rejouable : le jeu est retrouvé par
 ses codes (`QA2-…`), les documents portent un marqueur d'exécution et ne sont jamais supprimés.
 Aucun Python (décision D5).
