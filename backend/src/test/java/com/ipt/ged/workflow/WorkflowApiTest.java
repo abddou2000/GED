@@ -76,9 +76,14 @@ class WorkflowApiTest {
     @Test
     @DisplayName("1. Seuls les employes avec compte sont proposes comme approbateurs")
     void employesWithAccount() throws Exception {
+        // Le nombre dépend des identités provisionnées par les classes déjà passées (une
+        // connexion de nidrissi, validée hors transaction, crée sa fiche avec compte) :
+        // la liste doit valoir exactement les fiches avec compte, jamais une fiche sans.
+        long avecCompte = employeRepository.findAll().stream().filter(e -> e.isHasUser()).count();
         mvc.perform(get("/api/v1/employes").param("has_user", "1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$.length()").value((int) avecCompte))
+                .andExpect(jsonPath("$[*].fullName", hasItems("Sara Bennani", "Karim El Fassi", "Yasmine Alaoui")))
                 .andExpect(jsonPath("$[*].fullName", not(hasItem("Omar Tazi"))));
     }
 

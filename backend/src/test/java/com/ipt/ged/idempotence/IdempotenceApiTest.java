@@ -214,7 +214,10 @@ class IdempotenceApiTest {
         String cleApi = generee.get("cle").asText();
         // Portée de la clé (vague 4) : créer des dossiers sous un espace de l'utilisateur.
         String parent = om.readTree(mvc.perform(post("/api/v1/workspaces").contentType(APPLICATION_JSON)
-                        .content(espace("WS-IDP-" + UUID.randomUUID().toString().substring(0, 8), "Parent")))
+                        // Nom unique : la classe n'est pas transactionnelle, l'espace racine reste en
+                        // base, et le nom d'un espace est unique à la racine (§12.5, NOM_DEJA_UTILISE).
+                        .content(espace("WS-IDP-" + UUID.randomUUID().toString().substring(0, 8),
+                                "Parent idempotence " + UUID.randomUUID().toString().substring(0, 8))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8))
                 .get("id").asText();
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
