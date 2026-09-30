@@ -66,13 +66,17 @@ public class VerificationALaDemande {
         return Optional.of(b);
     }
 
-    /** Lance la vérification du fonds entier ; {@code false} si une passe est déjà en cours. */
-    public boolean verifierFonds() {
-        boolean demarree = fonds.demarrerEnFond();
-        if (demarree) {
+    /**
+     * Lance la vérification du fonds entier.
+     *
+     * @return l'état au lancement ; vide si une passe est déjà en cours.
+     */
+    public Optional<VerificationPeriodique.Etat> verifierFonds() {
+        Optional<VerificationPeriodique.Etat> lancee = fonds.demarrerEnFond();
+        if (lancee.isPresent()) {
             evenements.publishEvent(new VerificationDemandee("FONDS", null, true, Map.of()));
         }
-        return demarree;
+        return lancee;
     }
 
     public VerificationPeriodique.Etat etatFonds() {

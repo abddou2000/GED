@@ -52,9 +52,11 @@ public class IntegriteController {
     @PostMapping("/verification")
     public ResponseEntity<VerificationPeriodique.Etat> verifierFonds() {
         controle.exigerAdministration(CodePermission.SUPERVISER_TRAITEMENTS);
-        boolean demarree = verification.verifierFonds();
-        return ResponseEntity.status(demarree ? HttpStatus.ACCEPTED : HttpStatus.CONFLICT)
-                .body(verification.etatFonds());
+        // 202 avec l'état au lancement (un petit fonds peut être vérifié avant la
+        // réponse) ; 409 avec l'état de la passe déjà en cours.
+        return verification.verifierFonds()
+                .map(lancee -> ResponseEntity.status(HttpStatus.ACCEPTED).body(lancee))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.CONFLICT).body(verification.etatFonds()));
     }
 
     @GetMapping("/verification")

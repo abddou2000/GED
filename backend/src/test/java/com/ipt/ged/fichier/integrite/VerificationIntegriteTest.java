@@ -130,10 +130,10 @@ class VerificationIntegriteTest {
         };
         VerificationPeriodique fonds = new VerificationPeriodique(verification, source);
         assertFalse(fonds.etat().enCours());
-        assertTrue(fonds.demarrerEnFond());
+        assertTrue(fonds.demarrerEnFond().orElseThrow().enCours(), "état au lancement : en cours");
         assertTrue(entree.await(10, java.util.concurrent.TimeUnit.SECONDS));
         assertTrue(fonds.etat().enCours());
-        assertFalse(fonds.demarrerEnFond(), "une passe à la fois");
+        assertTrue(fonds.demarrerEnFond().isEmpty(), "une passe à la fois");
         assertTrue(fonds.executer().isEmpty(), "la passe planifiée est ignorée pendant la passe demandée");
         sortie.countDown();
         long limite = System.currentTimeMillis() + 10_000;
