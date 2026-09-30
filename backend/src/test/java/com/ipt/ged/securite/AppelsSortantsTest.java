@@ -67,6 +67,8 @@ class AppelsSortantsTest {
             Map.entry("com/ipt/ged/supervision/SondeAntivirus.java", "clamd (TCP, sonde) : ged.fichiers.antivirus.hote/port"),
             Map.entry("com/ipt/ged/identite/annuaire/AnnuaireLdap.java", "contrôleurs de domaine (LDAPS) : GED_LDAP_URLS"),
             Map.entry("com/ipt/ged/identite/annuaire/ConfigurationAnnuaire.java", "contrôleurs de domaine (LDAPS) : GED_LDAP_URLS"),
+            Map.entry("com/ipt/ged/identite/annuaire/EtatCompteAnnuaireLdap.java",
+                    "contrôleurs de domaine (LDAPS, userAccountControl à la délégation, D15) : GED_LDAP_URLS"),
             Map.entry("com/ipt/ged/identite/annuaire/FabriqueSocketsLdaps.java",
                     "sockets TLS vers les contrôleurs de domaine, hôte et port fournis par JNDI depuis GED_LDAP_URLS"),
             Map.entry("com/ipt/ged/identite/annuaire/SondeAnnuaire.java", "contrôleurs de domaine (LDAPS, sonde) : GED_LDAP_URLS"),
