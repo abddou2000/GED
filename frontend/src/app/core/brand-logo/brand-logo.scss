@@ -1,15 +1,23 @@
 :host { display: inline-flex; min-width: 0; }
 
-.bl { display: inline-flex; align-items: center; min-width: 0; }
-.bl-mark { flex: 0 0 auto; display: block; }
-.bl-full { width: auto; }        /* ratio naturel du logotype complet */
-.bl-emblem { object-fit: contain; }
+.bl { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
 
-/* ---------- Fond sombre : le logo (marine + sable) devient illisible,
-   donc on le pose sur une plaque claire plutôt que de recolorer la marque ---------- */
-.bl.plated {
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: #f8f3ea;
-  box-shadow: 0 10px 24px rgba(6, 36, 104, .28);
+.bl-pastille {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 22%;
+  background: #062468;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: .04em;
 }
+
+.bl-libelle {
+  font-weight: 700;
+  color: var(--ink, #14213d);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bl.dark .bl-libelle { color: #fff; }

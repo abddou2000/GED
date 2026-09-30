@@ -1,30 +1,25 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 
 /**
- * Logotype Marchica Med — image du logo officiel client (aucun tracé maison).
+ * Marque de l'application : mot-symbole neutre « GED ».
  *
- * Deux fichiers, découpés depuis le logo fourni :
- *  - `marchica-med-full.png`  : logotype complet (emblème + « marchica med »)
- *  - `marchica-med-mark.png`  : emblème seul, pour les usages compacts
+ * Le logo officiel Marchica Med est retiré pour le moment, à la demande du chef
+ * de projet. Les fichiers `public/brand/marchica-med-*.png` restent dans le dépôt
+ * pour pouvoir le rétablir sans les redemander au client.
  *
- * Le logo est peint en marine + sable : illisible tel quel sur un fond sombre.
- * Sur variant `onDark` / `brass`, il est donc posé sur une plaque claire
- * plutôt que recoloré — on ne modifie jamais les couleurs de la marque.
- *
- *  - variant : 'onLight' (fond clair : logo posé directement)
- *              'onDark' / 'brass' (fond sombre : logo sur plaque claire)
- *  - showWord : true = logotype complet, false = emblème seul.
- *  - size : hauteur cible (px). L'emblème est carré ; le logotype complet
- *           garde son ratio naturel (largeur ≈ 1,83 × la hauteur).
+ *  - variant : 'onLight' (fond clair) ; 'onDark' / 'brass' (fond sombre, libellé clair)
+ *  - showWord : true = pastille + libellé, false = pastille seule.
+ *  - size : hauteur de la pastille (px).
  */
 @Component({
   selector: 'app-brand-logo',
   template: `
-    <span class="bl" [class.plated]="variant() !== 'onLight'">
-      <img class="bl-mark" [class.bl-full]="showWord()" [class.bl-emblem]="!showWord()"
-           [src]="src()" [style.height.px]="size()"
-           [style.width.px]="showWord() ? null : size()"
-           alt="Marchica Med" />
+    <span class="bl" [class.dark]="variant() !== 'onLight'" role="img" aria-label="GED">
+      <span class="bl-pastille" [style.height.px]="size()" [style.width.px]="size()"
+            [style.font-size.px]="size() * 0.34">GED</span>
+      @if (showWord()) {
+        <span class="bl-libelle" [style.font-size.px]="size() * 0.44">Gestion documentaire</span>
+      }
     </span>`,
   styleUrl: './brand-logo.scss',
 })
@@ -32,7 +27,4 @@ export class BrandLogo {
   readonly variant = input<'onLight' | 'onDark' | 'brass'>('onLight');
   readonly showWord = input(true);
   readonly size = input(32);
-
-  protected readonly src = computed(() =>
-    this.showWord() ? '/brand/marchica-med-full.png' : '/brand/marchica-med-mark.png');
 }
