@@ -56,7 +56,7 @@ public final class CharteNommage {
 
     /**
      * Nom composé à partir des jetons : un identifiant renvoie le nom de l'index
-     * correspondant, une clé système son libellé (DATE, YEAR…).
+     * correspondant, une clé système son libellé (DATE, ANNÉE…).
      */
     public static String apercu(List<String> jetons, List<IndexField> indices,
                                 String separateur, boolean majuscule) {

@@ -94,6 +94,28 @@ class PlanIndexationApiTest {
     }
 
     @Test
+    @DisplayName("ANO-F-019 : jetons système libellés en français, dans la liste et dans l'aperçu")
+    void jetonsSystemeEnFrancais() throws Exception {
+        mvc.perform(get(BASE + "/jetons-systeme"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].id", contains("date", "houres", "months", "days", "year")))
+                .andExpect(jsonPath("$[*].name", contains("DATE", "HEURE", "MOIS", "JOUR", "ANNÉE")));
+
+        String corps = "{\"code\":\"PL-FR\",\"nomDuPlan\":\"Charte\",\"modeIndexation\":true,"
+                + "\"manuel\":false,\"majuscule\":true,\"separateur\":\"_\","
+                + "\"indexIds\":[\"" + idxAlpha + "\"],"
+                + "\"charteIds\":[\"" + idxAlpha + "\",\"year\",\"months\",\"days\",\"houres\"]}";
+        String res = mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(corps))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.preview").value("ALPHA_ANNÉE_MOIS_JOUR_HEURE"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        UUID id = UUID.fromString(om.readTree(res).get("id").asText());
+        mvc.perform(get(BASE + "/" + id))
+                .andExpect(jsonPath("$.preview", not(containsString("YEAR"))))
+                .andExpect(jsonPath("$.preview").value("ALPHA_ANNÉE_MOIS_JOUR_HEURE"));
+    }
+
+    @Test
     @DisplayName("3. Code en double refusé (400)")
     void duplicateCode() throws Exception {
         create("PL-DUP", "Un", false, "-", "[]");
