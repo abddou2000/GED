@@ -1,6 +1,60 @@
 # Suivi — dev2 (qualité, exploitation, traçabilité, API)
 
-Branche `ct/dev2`. Mise à jour : 28/09/2026.
+Branche `ct/dev2`. Mise à jour : 30/09/2026.
+
+## Tour 1 de mise en conformité (30/09/2026) — branche `ct/dev2-r1`
+
+Base : `claude/inspiring-lovelace-10bg1c` (`71bdc1d`). Référence des tests du poste avant le tour :
+597 tests, 5 échecs (les 4 connus + `SupervisionIntegrationTest.portDeManagement`, qui dépendait de
+`GED_MANAGEMENT_PORT` : corrigé dans `47edd6a`).
+
+| Ligne | Commit | Fait | Preuve | Reste |
+|---|---|---|---|---|
+| T-074 | `47edd6a` | test : toute métrique GED citée par `alertes.yml` est publiée (dont `ged_annuaire_controleur`, D4) ; test du port de management indépendant du poste | `SupervisionIntegrationTest.alertesSurDesMetriquesPubliees` | Prometheus réel en UAT |
+| P-11 | `c92e4d8` | `MODELE-DE-MENACES.md` : compromission de la KEK (§3 bis), port de management (§10 bis), clamd local partout (§0), chaque parade d'échec fermé renvoyée à son test (§12) ; rotation immédiate de la KEK outillée (`LanceurRotationKek`) | `RotationImmediateKekTest` | candidate « Identique » après relecture qa |
+| P-10 | `eb757d5` | `crypttab` en deux variantes (TPM `tpm2-device=auto`, Tang `_netdev`), PostgreSQL lié au montage, sauvegarde de l'en-tête LUKS | `deploiement/luks/essai-crypttab.sh` (générateurs systemd 255 réels), `essai-entete-luks.sh` (image LUKS2 : sauvegarde, destruction, restauration) | ouverture TPM ou Tang : UAT |
+| P-16 | `9a1e400` | `shared_preload_libraries` complété sans écraser (`activer-pgaudit.sh`), tout compte tracé sauf `ged_app`, DBA nominatifs (`ged_dba`), `ged_sauvegarde` et `SET ROLE` tracés | `deploiement/postgresql/essai-pgaudit.sh` : instance PostgreSQL 16 jetable avec pgaudit réel, 17 contrôles verts | limite déclarée : un superutilisateur peut couper pgaudit (visible par `log_statement`) |
+| P-17 | `5191bac` | `GARANTIE.md` : point de départ des 24 h, RPO base 15 min / fichiers 24 h, §4 bis fournisseurs tiers | relecture | ANO-E8-003 (dev1) reste à corriger côté changeset |
+| P-05 | `1fcd132` | `SEQUENCES.md` relu contre le code (filtres, dépôt, OCR, recherche, délégation D8/D15) | `SequencesDocumenteesTest` (toute classe citée existe) | — |
+| T-070 | `80c333a` | Dependency-Check éprouvé sans la NVD : miroir local au format NVD 2.0 ; CI : miroir (`NVD_DATAFEED_URL`) ou clé, cache NVD gardé même en échec, rapport `npm audit` archivé ; `docs/securite/VULNERABILITES-DEPENDANCES.md` (règle, modes API / miroir / hors ligne) | `outils/essai-dependency-check.sh` : 11 contrôles verts (base alimentée, 148 dépendances, échec à CVSS ≥ 7, CVSS 5,3 rapporté, suppression datée) ; `npm audit` réel : 0 haute ni critique, 2 avis moyens Angular sans exposition (`docs/securite/rapports/npm-audit-2026-09-30.json`) | **bloqué ici** : NVD et miroirs publics refusés par le mandataire ; sur GitHub, créer le secret `NVD_API_KEY` (le job échoue volontairement, exécution n° 4) |
+| T-085 | `690d3d2` | SBOM régénérés (140 back, 18 front, licences toutes renseignées) ; modèles Tesseract identifiés par SHA-256 (eng, fra, ara : `tessdata_best` 4.1.0 ; osd : `tessdata` 4.1.0), modèle d'origine inconnue bloquant | `registre-dependances.mjs --verifier` : échoue avec un modèle inconnu, vert sinon | SBOM front sans empreintes (outil CycloneDX npm) |
+| T-089 | `ad5d8ce` | `FORGE.md` adapté à `abddou2000/GED` : état relevé en lecture seule (dépôt **public** d'un compte **personnel**, `main` au socle d'origine sans CI, aucune protection), commandes `gh` réelles, lecture seule de MMED | relevé API GitHub du 30/09 | **décision pm/MMED** : dépôt public et personnel (pas de rôle « Read » possible) → organisation + dépôt privé (offre Team) recommandés ; réglages à appliquer par le propriétaire |
+| T-088 (1), T-092 | `b778186`, `0f2509a` | démonstration outillée de `deployer.sh` et de ses retours arrière ; **4 défauts corrigés** (ci-dessous) | `deploiement/uat/demontrer-deploiement.sh` : **43 contrôles verts** (E1 à E8) ; `ScriptsExploitationTest` | rejouer sous systemd en UAT (`DEPLOIEMENT.md` §10.5) ; critère (2) : dev4 |
+
+**Défauts de `deployer.sh` trouvés par la démonstration** (`b778186`) :
+
+1. scripts d'exploitation livrés sans droit d'exécution (mode git 100644) : `deployer.sh` échouait dès la
+   sauvegarde préalable (`Permission denied`), `ged-sauvegarde.service` aussi ;
+2. `test-fumee.sh` envoyait `{email, motDePasse}` : 400, le contrat est `{identifiant, motDePasse}` (D2) —
+   déjà constaté par qa (recette T092-05 sur `ct/qa`, pas encore au registre) ;
+3. `test-fumee.sh` déposait sans `Idempotency-Key` : 400 `IDEMPOTENCE_CLE_ABSENTE` (T-049) ;
+4. `--retour-arriere --base` après un retour arrière automatique : rollback lancé avec le JAR redevenu actif,
+   qui ignore les changesets de la version défaite. Rejoué avec l'ancien script : « 0 changesets rolled back »,
+   succès affiché, colonne de la v3 restée en base. Corrigé : rollback avec le JAR qui a migré.
+
+Les défauts 1 à 3 rendaient tout déploiement réel impossible (retour arrière systématique) : T-092 était
+« Livré » sur le papier seulement.
+
+**Autres preuves obtenues ce tour, pour pm** :
+
+- **T-087** : la CI tourne sur GitHub (exécution n° 4 du 30/09, `71bdc1d`) : back-end (tests sur PostgreSQL 16,
+  JAR, SBOM), front-end (tests, paquet, SBOM, audit) et registre **verts** ; seul OWASP échoue (secret absent).
+  La réserve « CI jamais exécutée » peut être levée.
+- **T-006, T-066** : NGINX est présent sur le poste ; `nginx -t` passe sur `deploiement/nginx/ged.conf` (ports,
+  certificat et chemins réécrits) et le paquet Angular est servi en HTTPS avec CSP, `nosniff`, HSTS, sans
+  version du serveur, `config.json` hors paquet et proxy de l'API (test de fumée de la démonstration).
+- **T-093** : l'unité `ged-backend.service` a été exécutée (par le systemctl simulé) : `EnvironmentFile` dans
+  l'ordre, `User=ged`, `ExecStartPre`, arrêt progressif ; le durcissement systemd reste à vérifier en UAT.
+
+**Tests** (fin du tour, `ct/dev2-r1`) : suite back complète **605 tests, 4 échecs**, exactement les 4
+connus de la référence (`ArchivageApiTest.conversionEnEchec`, `ApercuTelechargementApiTest.apercuBureautiqueSansLibreOffice`,
+`WorkflowApiTest.employesWithAccount`, `WorkSpaceApiTest.moveIntoDescendant`) ; aucun nouvel échec, le
+5e échec du poste (`portDeManagement`) corrigé. Front non modifié (paquet construit pour la démonstration :
+`ng build` vert sous Node 24 ; le Node 22.22.2 du poste est refusé par Angular CLI, qui exige 22.22.3).
+
+**Points pour pm** : décision sur la visibilité et le propriétaire du dépôt GitHub (T-089) ; secret
+`NVD_API_KEY` ; montée d'Angular en 22.1.1 ou plus (dev4) ; le registre qa ne porte pas encore l'anomalie
+T092-05 (corrigée ici par `b778186`).
 
 ## T-088 (§9.3) : UAT et déploiement incrémental par module — **livré sur ct/dev2**
 
