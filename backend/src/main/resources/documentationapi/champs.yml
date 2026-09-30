@@ -126,6 +126,10 @@ objets:
   ATraiter: Validation attendue de l'acteur.
   DecisionRendue: Décision rendue par l'acteur (historique).
   VuesWorkflowAnomalie: Validateur qui ne peut pas décider (tableau de bord de l'Administrateur).
+  # --- Intégrité à la demande (T-059, §6.1.4), dev3 ---------------------------
+  BilanDocument: Vérification d'intégrité à la demande d'un document (versions et copies de conservation), tracée.
+  VerificationALaDemandeLigne: Résultat de la vérification d'intégrité d'un fichier du document.
+  VerificationPeriodiqueEtat: État de la vérification d'intégrité du fonds entier (passe en cours ou dernière passe).
 
 champs:
   # --- Envoi multipart -------------------------------------------------------
@@ -524,6 +528,13 @@ champs:
   depuis: {description: "Depuis quand l'anomalie est constatée.", exemple: "2026-09-01T00:00:00Z"}
 
 surcharges:
+  BilanDocument.conforme: {description: "Vrai si tous les fichiers du document sont conformes à leur empreinte.", exemple: true}
+  BilanDocument.fichiers: {description: "Résultat par fichier : versions chiffrées, puis copies de conservation.", exemple: null}
+  VerificationALaDemandeLigne.statut: {description: "CONFORME, EMPREINTE_DIVERGENTE, ALTERE, ABSENT ou ILLISIBLE ; toute divergence est tracée (INTEGRITE_ANOMALIE).", exemple: CONFORME}
+  VerificationPeriodiqueEtat.enCours: {description: "Vrai pendant une passe (planifiée ou demandée).", exemple: false}
+  VerificationPeriodiqueEtat.debut: {description: "Début de la passe en cours ou de la dernière ; nul si aucune.", exemple: "2026-10-01T03:00:00Z"}
+  VerificationPeriodiqueEtat.fin: {description: "Fin de la dernière passe ; nulle pendant une passe.", exemple: "2026-10-01T05:12:00Z"}
+  VerificationPeriodiqueEtat.bilan: {description: "Décompte par statut de la dernière passe terminée.", exemple: null}
   DocumentResponse.applicationId: {description: "Application appelante (clé d'API) ; nulle pour un dépôt par l'interface (T-040).", exemple: null}
   CircuitResponse.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}
   DecisionRendue.document: {description: "Nom du document concerné.", exemple: "MAR_2026_014"}

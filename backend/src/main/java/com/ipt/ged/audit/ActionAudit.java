@@ -56,6 +56,8 @@ public enum ActionAudit {
     OCR_ECHEC,
     FICHIER_INFECTE,
     INTEGRITE_ANOMALIE,
+    /** Vérification d'intégrité demandée par l'Administrateur, d'un document ou du fonds (T-059, §6.1.4). */
+    INTEGRITE_VERIFIEE,
 
     // --- Droits (§3, §12.2) ----------------------------------------------------
     HABILITATION_MODIFIEE,
