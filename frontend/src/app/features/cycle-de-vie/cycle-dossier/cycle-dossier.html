@@ -1,3 +1,4 @@
+@if (cycleDeVieActif() || exportActif()) {
 <div class="card cycle">
   <div class="cycle-tete">
     <div>
@@ -5,24 +6,32 @@
       <p class="muted">
         @if (archive()) {
           Dossier archivé : aucun dépôt n'y est accepté.
+        } @else if (!cycleDeVieActif()) {
+          Export du contenu du dossier en archive ZIP.
+        } @else if (!exportActif()) {
+          Archivage manuel du dossier entier.
         } @else {
           Archivage manuel du dossier entier, ou export de son contenu en archive ZIP.
         }
       </p>
     </div>
     <div class="cycle-actions">
-      <button mat-stroked-button (click)="exporter()" [disabled]="exportEnCours()"
-              matTooltip="Archive ZIP de l'arborescence, des documents (version courante) et d'un manifeste">
-        <mat-icon svgIcon="download"></mat-icon> {{ exportEnCours() ? 'Export…' : 'Exporter (ZIP)' }}
-      </button>
-      @if (archive() && !enCours()) {
-        <button mat-stroked-button (click)="retirerDrapeau()">
-          <mat-icon svgIcon="restore"></mat-icon> Retirer le drapeau
+      @if (exportActif()) {
+        <button mat-stroked-button class="act-exporter" (click)="exporter()" [disabled]="exportEnCours()"
+                matTooltip="Archive ZIP de l'arborescence, des documents (version courante) et d'un manifeste">
+          <mat-icon svgIcon="download"></mat-icon> {{ exportEnCours() ? 'Export…' : 'Exporter (ZIP)' }}
         </button>
-      } @else if (!archive()) {
-        <button mat-stroked-button class="danger" (click)="archiverDossier()" [disabled]="enCours()">
-          <mat-icon svgIcon="archive"></mat-icon> Archiver le dossier
-        </button>
+      }
+      @if (peutArchiver() && cycleDeVieActif()) {
+        @if (archive() && !enCours()) {
+          <button mat-stroked-button class="act-drapeau" (click)="retirerDrapeau()">
+            <mat-icon svgIcon="restore"></mat-icon> Retirer le drapeau
+          </button>
+        } @else if (!archive()) {
+          <button mat-stroked-button class="danger act-archiver" (click)="archiverDossier()" [disabled]="enCours()">
+            <mat-icon svgIcon="archive"></mat-icon> Archiver le dossier
+          </button>
+        }
       }
     </div>
   </div>
@@ -36,7 +45,7 @@
         <span>· {{ j.archives }} archivé(s)</span>
         @if (j.anomalies) { <span>· {{ j.anomalies }} sans copie PDF/A</span> }
         @if (j.echecs) { <span class="alerte">· {{ j.echecs }} en échec</span> }
-        @if (enCours() && !j.annulationDemandee) {
+        @if (peutArchiver() && enCours() && !j.annulationDemandee) {
           <button mat-button (click)="annuler()">Annuler</button>
         }
         @if (j.annulationDemandee && enCours()) { <span class="muted">annulation demandée…</span> }
@@ -54,3 +63,4 @@
     </div>
   }
 </div>
+}

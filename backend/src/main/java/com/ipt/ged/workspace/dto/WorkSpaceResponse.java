@@ -31,7 +31,13 @@ public record WorkSpaceResponse(
         /** Usage (METIER / ECHANGE), celui de l'espace pour un dossier. */
         String usageEspace,
         /** Drapeau d'archivage du nœud (D10). */
-        String statutConservation
+        String statutConservation,
+        /**
+         * Permissions effectives de l'appelant sur ce nœud (fiche seulement,
+         * {@code null} dans les listes) : l'interface masque les actions qu'il
+         * ne peut pas exercer (ANO-F-018). Confort : le serveur décide.
+         */
+        List<String> permissions
 ) {
     /** Référence légère (id + libellé) vers une entité liée. */
     public record Ref(UUID id, String label) {}
@@ -56,7 +62,14 @@ public record WorkSpaceResponse(
                 groupes,
                 w.getNature(),
                 w.getUsageEspace() != null ? w.getUsageEspace().name() : null,
-                w.getStatutConservation() != null ? w.getStatutConservation().name() : null
+                w.getStatutConservation() != null ? w.getStatutConservation().name() : null,
+                null
         );
+    }
+
+    /** La même réponse, portant les permissions effectives de l'appelant (fiche). */
+    public WorkSpaceResponse avecPermissions(List<String> permissions) {
+        return new WorkSpaceResponse(id, name, code, description, status, supprime, owner, parent, workflow,
+                childrenCount, accessGroups, nature, usageEspace, statutConservation, permissions);
     }
 }

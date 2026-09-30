@@ -17,7 +17,7 @@
                   matTooltip="Le téléchargement sert la copie de conservation PDF/A ; ceci sert le fichier déposé">
             <mat-icon svgIcon="download"></mat-icon> Original
           </button>
-          @if (peut('ARCHIVER')) {
+          @if (peut('ARCHIVER') && cycleDeVieActif()) {
             <button mat-stroked-button (click)="desarchiver()" matTooltip="Réservé à l'Agent d'archive et à l'Administrateur">
               <mat-icon svgIcon="archive"></mat-icon> Désarchiver
             </button>
@@ -30,7 +30,7 @@
             {{ d.verrouille ? 'Déverrouiller' : 'Verrouiller' }}
           </button>
         }
-        @if (!archive && !d.verrouille && !d.supprime && peut('ARCHIVER')) {
+        @if (!archive && !d.verrouille && !d.supprime && peut('ARCHIVER') && cycleDeVieActif()) {
           <button mat-stroked-button (click)="archiver()" [disabled]="archivageEnCours()"
                   matTooltip="Lecture seule définitive (désarchivage réservé) et copie de conservation PDF/A">
             <mat-icon svgIcon="archive"></mat-icon> {{ archivageEnCours() ? 'Archivage…' : 'Archiver' }}
@@ -321,7 +321,7 @@
           } @else if (valeurs().length) {
             <dl class="index-liste">
               @for (v of valeurs(); track v.label) {
-                <div><dt>{{ v.label }}</dt><dd>{{ v.valeur || '—' }}</dd></div>
+                <div><dt>{{ v.label }}</dt><dd>{{ valeurAffichee(v) || '—' }}</dd></div>
               }
             </dl>
           } @else {
@@ -332,7 +332,9 @@
     </div>
 
     <!-- Circuit de validation (§12.8) : statut, validateurs, décisions, actions. -->
-    <app-circuit-document [documentId]="d.id" [permissions]="d.permissions ?? []"></app-circuit-document>
+    @if (workflowActif()) {
+      <app-circuit-document [documentId]="d.id" [permissions]="d.permissions ?? []"></app-circuit-document>
+    }
 
     <!-- Versions -->
     <div class="card card-versions">

@@ -243,6 +243,25 @@ class CheminsAccesApiTest {
                 .andExpect(jsonPath("$.permissions[?(@ == 'SUPPRIMER')]").doesNotExist());
     }
 
+    @Test
+    @DisplayName("ANO-F-018 : la fiche d'un nœud porte les permissions effectives de l'appelant, pas les listes")
+    void permissionsSurLaFicheDuNoeud() throws Exception {
+        standardSur(a);
+        // Hérité sur A1 : l'Utilisateur standard consulte, dépose et modifie, sans supprimer ni archiver.
+        mvc.perform(get("/api/v1/workspaces/" + a1).with(comme(U)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.permissions[?(@ == 'CONSULTER')]").exists())
+                .andExpect(jsonPath("$.permissions[?(@ == 'MODIFIER')]").exists())
+                .andExpect(jsonPath("$.permissions[?(@ == 'SUPPRIMER')]").doesNotExist())
+                .andExpect(jsonPath("$.permissions[?(@ == 'ARCHIVER')]").doesNotExist());
+        mvc.perform(get("/api/v1/workspaces/" + a).with(comme(Comptes.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.permissions[?(@ == 'SUPPRIMER')]").exists())
+                .andExpect(jsonPath("$.permissions[?(@ == 'ARCHIVER')]").exists());
+        mvc.perform(get("/api/v1/workspaces?size=200").with(comme(U)))
+                .andExpect(jsonPath("$.content[0].permissions").doesNotExist());
+    }
+
     /* ---------------------------------------------------------------- arborescence */
 
     @Test

@@ -79,3 +79,32 @@ export interface Apercu {
       certitude, sans que personne sache qu'il fallait relire. */
   provenanceTexte: 'COUCHE_TEXTE' | 'OCR' | 'AUCUNE';
 }
+
+/* ---------- Index booléen (ANO-F-020) ---------- */
+
+/** Écritures d'un booléen admises par le serveur (ValeursMetadonnees.booleen). */
+const VRAI = new Set(['true', 'vrai', 'oui', '1', 'o', 'yes']);
+const FAUX = new Set(['false', 'faux', 'non', '0', 'n', 'no']);
+
+/** Booléen lu d'une valeur d'index ; `null` si elle est vide ou illisible. */
+export function lireBooleen(valeur: unknown): boolean | null {
+  if (typeof valeur === 'boolean') return valeur;
+  if (valeur == null) return null;
+  const s = String(valeur).trim().toLowerCase();
+  if (VRAI.has(s)) return true;
+  if (FAUX.has(s)) return false;
+  return null;
+}
+
+/**
+ * Valeur d'index telle qu'on l'affiche : « Oui » / « Non » pour un booléen
+ * (le serveur renvoie `true` / `false`), la valeur telle quelle sinon.
+ */
+export function afficherValeurIndex(fieldType: TypeIndex | null | undefined, valeur: unknown): string {
+  if (valeur == null) return '';
+  if (fieldType === 'BOOLEEN') {
+    const b = lireBooleen(valeur);
+    if (b !== null) return b ? 'Oui' : 'Non';
+  }
+  return String(valeur);
+}

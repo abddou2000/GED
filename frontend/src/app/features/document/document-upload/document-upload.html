@@ -132,6 +132,14 @@
                       </mat-select>
                     </mat-form-field>
                   }
+                  @case ('BOOLEEN') {
+                    <!-- Booléen (ANO-F-020) : une case à cocher, indéterminée tant que rien n'est choisi. -->
+                    <mat-checkbox class="idx-booleen" [attr.data-index]="c.code"
+                                  [checked]="booleenDe(c) === true" [indeterminate]="booleenDe(c) === null"
+                                  (change)="majValeur(c, $event.checked ? 'oui' : 'non')">
+                      {{ booleenDe(c) === null ? 'Non renseigné' : (booleenDe(c) ? 'Oui' : 'Non') }}
+                    </mat-checkbox>
+                  }
                   @case ('DATE') {
                     <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
                       <input matInput [matDatepicker]="dpIndex" [value]="versDate(valeurDe(c))"

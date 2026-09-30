@@ -24,6 +24,12 @@ export interface WorkSpace {
   usageEspace?: 'METIER' | 'ECHANGE';
   /** Drapeau d'archivage du nœud (D10). */
   statutConservation?: 'ACTIF' | 'ARCHIVE';
+  /**
+   * Permissions effectives de l'appelant sur ce nœud (fiche seulement) :
+   * l'interface masque les actions qu'il ne peut pas exercer (ANO-F-018).
+   * Confort : le serveur décide.
+   */
+  permissions?: string[] | null;
 }
 
 /** Corps envoyé pour créer / modifier un dossier. */
