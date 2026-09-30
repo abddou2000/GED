@@ -137,3 +137,17 @@
   font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
   border: 1px solid var(--danger); color: var(--danger);
 }
+
+/* Issue « à indexer » (§4.1.7, ANO-F-005) : ambre, sémantique « en attente ». */
+.bandeau-verrou.a-indexer { border-color: var(--ambre); background: var(--ambre-050); }
+.bandeau-verrou.a-indexer mat-icon { color: var(--ink); }
+.badge-a-indexer {
+  display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid var(--ambre); background: var(--surface-0); color: var(--ink);
+}
+.bloc-action { margin-left: auto; }
+.index-saisie { display: flex; flex-direction: column; gap: 8px; }
+.index-saisie .actions-form { align-items: center; gap: 8px; }
+.erreur-index { margin: 0; font-size: 13px; color: var(--danger); }
+.reste-index { margin-right: auto; font-size: 12.5px; color: var(--danger); }

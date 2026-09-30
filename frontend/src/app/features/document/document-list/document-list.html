@@ -87,6 +87,11 @@
               @if (d.statutConservation === 'ARCHIVE') {
                 <span class="badge-archive" matTooltip="Archivé : lecture seule">Archivé</span>
               }
+              @if (d.statutIndexation === 'A_INDEXER') {
+                <!-- ANO-F-005 : la reprise se fait sur la fiche. -->
+                <a class="badge-a-indexer" [routerLink]="['/televerser', d.id]"
+                   matTooltip="Index non enregistrés : ouvrez la fiche pour les saisir">À indexer</a>
+              }
               @if (d.echeanceDepassee) {
                 <span class="badge-echeance"
                       [matTooltip]="infoEcheance(d)">Échéance dépassée</span>
@@ -145,6 +150,13 @@
         <ng-container matColumnDef="chemin">
           <th mat-header-cell *matHeaderCellDef>Chemin</th>
           <td mat-cell *matCellDef="let d">{{ d.chemin || '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="dateDocument">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="dateDocument">Date du document</th>
+          <td mat-cell *matCellDef="let d">
+            @if (d.dateDocument) { {{ dateCourte(d.dateDocument) }} } @else { <span class="muted">—</span> }
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="createdAt">

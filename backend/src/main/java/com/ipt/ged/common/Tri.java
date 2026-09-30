@@ -63,12 +63,11 @@ public final class Tri {
     }
 
     /**
-     * @param triParDefaut tri appliqué quand aucun champ autorisé n'est demandé
-     *                     ({@code null} : identifiant décroissant). Il est
-     *                     départagé par l'identifiant décroissant, et un champ
-     *                     demandé l'est par l'identifiant dans le même sens :
-     *                     deux documents de même date gardent un ordre stable
-     *                     d'une page à l'autre.
+     * @param triParDefaut champ trié en décroissant quand aucun champ autorisé
+     *                     n'est demandé ({@code null} : identifiant décroissant),
+     *                     départagé par l'identifiant décroissant : deux lignes
+     *                     de même valeur gardent un ordre stable d'une page à
+     *                     l'autre.
      */
     public static Pageable pageable(int page, int size, String sortBy, String sortDir,
                                     Set<String> champsAutorises, Set<String> champsNumeriques,
@@ -91,9 +90,6 @@ public final class Tri {
         // lower(uuid), là où MySQL et H2 convertissaient en silence.
         if (!champsNumeriques.contains(champ) && !DEFAUT.equals(champ)) {
             ordre = ordre.ignoreCase();
-        }
-        if (triParDefaut != null && !DEFAUT.equals(champ)) {
-            return PageRequest.of(numero, taille, Sort.by(ordre, new Sort.Order(sens, DEFAUT)));
         }
         return PageRequest.of(numero, taille, Sort.by(ordre));
     }

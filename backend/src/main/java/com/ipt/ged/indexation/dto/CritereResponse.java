@@ -12,6 +12,9 @@ import java.util.UUID;
  * @param fieldType TEXTE · NOMBRE · DATE · LISTE
  * @param options   valeurs autorisées, uniquement pour le type LISTE
  * @param groupage  vrai si l'index sert aussi à regrouper les résultats
+ * @param obligatoire vrai si la valeur est exigée à l'indexation : la fiche du
+ *                    document le signale avant l'envoi (reprise d'un document
+ *                    « à indexer », ANO-F-005), le serveur le revérifie
  */
 public record CritereResponse(
     UUID id,
@@ -19,5 +22,6 @@ public record CritereResponse(
     String libelle,
     String fieldType,
     List<String> options,
-    boolean groupage
+    boolean groupage,
+    boolean obligatoire
 ) {}
