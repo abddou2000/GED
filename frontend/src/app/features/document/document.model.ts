@@ -109,6 +109,8 @@ export interface Version {
   typeMime?: string | null;
   /** SHA-256 du contenu, vérifié chaque mois. */
   empreinte?: string | null;
+  /** Identité GED de l'auteur du versement (ANO-F-012). */
+  auteurId?: string | null;
 }
 
 /** Corps envoye pour modifier la fiche d'un document. */
@@ -134,4 +136,62 @@ export interface PageResult<T> {
 export interface SelectOption {
   id: string;
   name: string;
+}
+
+/* ---------- Recherche sur métadonnées (POST /documents/recherche, ANO-F-010) ---------- */
+
+/** Un critère d'index : `valeur` (texte, liste, booléen) ou bornes `de` / `a` (date, nombre). */
+export interface CritereIndexRecherche {
+  code: string;
+  valeur?: string | null;
+  de?: string | null;
+  a?: string | null;
+}
+
+/**
+ * Corps de la recherche multicritère ; les critères absents ne filtrent pas,
+ * les présents se combinent en ET. `dateDocumentDu` / `dateDocumentAu`,
+ * `confidentialite` et `deposantUtilisateurId` sont les critères imposés
+ * ajoutés à l'API au tour 2 (ANO-F-011).
+ */
+export interface RequeteRecherche {
+  texte?: string | null;
+  typeDocumentId?: string | null;
+  noeudId?: string | null;
+  criteres?: CritereIndexRecherche[];
+  /** ACTIF ou ARCHIVE ; absent = les deux. */
+  statutConservation?: 'ACTIF' | 'ARCHIVE' | null;
+  echeanceDepassee?: boolean | null;
+  dateDocumentDu?: string | null;
+  dateDocumentAu?: string | null;
+  confidentialite?: Confidentialite | null;
+  deposantUtilisateurId?: string | null;
+  page?: number;
+  size?: number;
+}
+
+/** État OCR lisible dans une liste (ANO-F-017) ; `null` : rien à signaler. */
+export interface EtatOcrAffiche {
+  libelle: string;
+  info: string;
+  echec: boolean;
+}
+
+/**
+ * Un document dont le contenu n'est pas (encore) interrogeable doit se voir
+ * dans les listes, pas seulement sur sa fiche : sinon celui qui ne le trouve
+ * pas en recherche plein texte ignore pourquoi (ANO-F-017).
+ */
+export function etatOcr(statut: DocumentItem['statutOcr']): EtatOcrAffiche | null {
+  switch (statut) {
+    case 'EN_ATTENTE_OCR':
+    case 'EN_COURS_OCR':
+      return { libelle: 'OCR en attente', echec: false,
+        info: 'Contenu pas encore interrogeable en recherche plein texte : traitement OCR en attente.' };
+    case 'OCR_ECHEC':
+      return { libelle: 'OCR en échec', echec: true,
+        info: 'Contenu non interrogeable en recherche plein texte : le traitement OCR a échoué.' };
+    default:
+      return null;
+  }
 }

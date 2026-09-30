@@ -1,0 +1,45 @@
+.criteres { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.bloc {
+  margin: 0; padding: 8px 12px 12px; border: 1px solid var(--line, #d9dee7); border-radius: 10px;
+  legend { padding: 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); }
+}
+
+.champs {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;
+
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-soft); }
+  label.large { flex: 1 1 260px; }
+  label.case { flex-direction: row; align-items: center; gap: 6px; height: 36px; }
+
+  select, input:not([type="checkbox"]) {
+    height: 36px; padding: 0 8px; min-width: 0;
+    border: 1px solid var(--line, #d9dee7); border-radius: 8px;
+    background: var(--surface-0, #fff); color: var(--ink); font-size: 14px;
+  }
+  input[type="number"] { width: 120px; }
+}
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.aide-et { margin-right: auto; font-size: 12px; color: var(--ink-soft); }
+
+.total { margin: 4px 16px; font-size: 13px; color: var(--ink-soft); }
+.aide { margin: 12px 16px; color: var(--ink-soft); }
+.erreur { margin: 4px 16px; color: var(--danger); font-size: 13px; }
+
+.table-wrap { overflow-x: auto; }
+.res-table { width: 100%; }
+.nom { font-weight: 600; color: var(--navy); text-decoration: none; }
+.nom:hover { text-decoration: underline; }
+.objet { display: block; font-size: 12px; color: var(--ink-soft); }
+.vide { padding: 16px; color: var(--ink-soft); }
+
+%pastille {
+  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
+}
+.badge-archive { @extend %pastille; border: 1px solid var(--line); color: var(--ink); }
+.badge-echeance { @extend %pastille; border: 1px solid var(--danger); color: var(--danger); }
+/* État OCR (ANO-F-017) : contenu pas encore, ou pas, interrogeable en plein texte. */
+.badge-ocr { @extend %pastille; border: 1px solid var(--ambre); background: var(--ambre-050); color: var(--ink); }
+.badge-ocr.echec { border-color: var(--danger); background: transparent; color: var(--danger); }

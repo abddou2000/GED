@@ -35,7 +35,7 @@ describe('WRaccourcis', () => {
   it("n'offre à un utilisateur standard ni la création d'espace ni le référentiel des index", () => {
     const liens = liensPour(['UTILISATEUR_STANDARD'], ['CONSULTER', 'DEPOSER']);
     const hrefs = liens.map(l => l.href);
-    expect(hrefs).toEqual(['/televerser', '/mes-workflow', '/recherche']);
+    expect(hrefs).toEqual(['/televerser', '/mes-workflow', '/recherche-par-index']);
     expect(liens.some(l => l.texte.includes('Créer un espace'))).toBe(false);
     expect(hrefs).not.toContain('/index');
   });
@@ -45,8 +45,13 @@ describe('WRaccourcis', () => {
     expect(hrefs).toContain('/espaces-de-travail');
   });
 
+  it('ANO-F-010 : « Rechercher par index » mène à la recherche multicritère sur les index', () => {
+    const lien = liensPour(['UTILISATEUR_STANDARD'], ['CONSULTER']).find(l => l.texte.includes('Rechercher par index'));
+    expect(lien?.href).toBe('/recherche-par-index');
+  });
+
   it('masque le dépôt à qui ne peut pas déposer', () => {
     const hrefs = liensPour(['LECTEUR'], ['CONSULTER']).map(l => l.href);
-    expect(hrefs).toEqual(['/mes-workflow', '/recherche']);
+    expect(hrefs).toEqual(['/mes-workflow', '/recherche-par-index']);
   });
 });

@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { API_BASE } from '../../core/api';
-import { DocumentItem, DocumentRequest, PageResult } from './document.model';
+import { DocumentItem, DocumentRequest, PageResult, Ref, RequeteRecherche } from './document.model';
 import { CircuitService } from '../workflow/circuit.service';
 
 /**
@@ -263,5 +263,54 @@ export class DocumentService {
   multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids })
       .pipe(tap(() => this.signatures.signalerChangement()));
+  }
+
+  /* ---------- Recherche multicritère sur les index (ANO-F-010, ANO-F-011) ---------- */
+
+  /**
+   * POST /documents/recherche : critères d'index et socle commun en ET,
+   * périmètre autorisé seulement ; tri par `sortBy` (dateDocument, name,
+   * createdAt) et `sortDir`. Seuls les critères renseignés sont envoyés.
+   */
+  rechercher(requete: RequeteRecherche, sortBy = 'dateDocument', sortDir = 'desc'): Observable<PageResult<DocumentItem>> {
+    const corps: Record<string, unknown> = {};
+    for (const [cle, valeur] of Object.entries(requete)) {
+      if (valeur === null || valeur === undefined || valeur === '' || valeur === false) continue;
+      if (Array.isArray(valeur) && !valeur.length) continue;
+      corps[cle] = valeur;
+    }
+    return this.http.post<PageResult<DocumentItem>>(`${this.url}/recherche`, corps,
+      { params: { sortBy, sortDir } });
+  }
+
+  /* ---------- Emplacements (ANO-F-014) ---------- */
+
+  /** Déplace le document vers un dossier choisi (Déplacer sur le document, Déposer sur la destination). */
+  deplacer(id: string, noeudId: string): Observable<DocumentItem> {
+    return this.http.patch<DocumentItem>(`${this.url}/${id}/emplacement`, { noeudId });
+  }
+
+  /** Rattache le document à un dossier supplémentaire, sans copie du fichier. */
+  rattacher(id: string, noeudId: string): Observable<DocumentItem> {
+    return this.http.post<DocumentItem>(`${this.url}/${id}/rattachements`, { noeudId });
+  }
+
+  /** Retire un rattachement : le document et ses autres emplacements sont intacts. */
+  detacher(id: string, noeudId: string): Observable<void> {
+    return this.http.delete<void>(`${this.url}/${id}/rattachements/${noeudId}`);
+  }
+
+  /* ---------- Personnes désignées d'un document confidentiel (ANO-F-013) ---------- */
+
+  designes(id: string): Observable<Ref[]> {
+    return this.http.get<Ref[]>(`${this.url}/${id}/designes`);
+  }
+
+  designer(id: string, utilisateurId: string): Observable<Ref[]> {
+    return this.http.post<Ref[]>(`${this.url}/${id}/designes`, { utilisateurId });
+  }
+
+  retirerDesignation(id: string, utilisateurId: string): Observable<void> {
+    return this.http.delete<void>(`${this.url}/${id}/designes/${utilisateurId}`);
   }
 }

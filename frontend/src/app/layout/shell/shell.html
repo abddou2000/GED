@@ -87,6 +87,9 @@
     <a routerLink="/televerser" routerLinkActive="active" (click)="closeDrawer()" aria-label="Documents déposés">
       <mat-icon svgIcon="nav-upload"></mat-icon><span>Documents</span>
     </a>
+    <a routerLink="/recherche-par-index" routerLinkActive="active" (click)="closeDrawer()" aria-label="Recherche par index">
+      <mat-icon svgIcon="nav-index"></mat-icon><span>Recherche par index</span>
+    </a>
     @if (modules.actif('ocr')) {
     <a routerLink="/recherche" routerLinkActive="active" (click)="closeDrawer()" aria-label="Recherche plein texte">
       <mat-icon svgIcon="search"></mat-icon><span>Recherche</span>
