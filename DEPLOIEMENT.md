@@ -547,9 +547,15 @@ au démarrage.
 
 - Le schéma de base est commun : les migrations d'un module sont appliquées
   même s'il est inactif (elles sont compatibles « expand / contract »).
-- Module `workflow` inactif : une règle déjà rattachée à un nœud ou à un type
-  s'applique encore au dépôt (le circuit est ouvert) ; pour une recette sans
-  circuit, ne rattacher aucune règle.
+- Module `workflow` inactif : un dépôt sous une règle déjà rattachée à un nœud
+  ou à un type n'ouvre **aucun circuit** ; le document est utilisable d'emblée,
+  comme sans règle (journal technique : « Dépôt … sans circuit : … module
+  workflow inactif »). Le dépôt, qui relève du socle, n'est pas refusé. Après
+  réactivation, ces documents ne sont pas soumis rétroactivement : un circuit
+  s'ouvre à la main (`POST /api/v1/workflow/documents/{id}/circuits`) si la
+  validation est requise. Les circuits ouverts **avant** la désactivation restent
+  en l'état (document inactif jusqu'à la réactivation, sans perte), et un
+  versement sur un tel document recalcule encore son statut.
 - Un redémarrage du service est nécessaire pour changer un module (quelques
   secondes d'indisponibilité, sans perte : arrêt progressif).
 - Procédure vérifiée par les tests (`ModulesTest`, `ModulesInactifsApiTest`) et
