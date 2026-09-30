@@ -2,6 +2,12 @@
 
 ## Lot en cours
 
+Vague 8 (tour 1 de la recette technique, `ct/qa-r1`) : recette des 25 lignes « Livré » et des parties
+non exercées des lignes « Vérifié », avec les **composants réels installés sur le poste Linux**
+(NGINX, clamd, LibreOffice, Prometheus, Alertmanager, PostgreSQL jetable, systemd-analyze).
+13 nouvelles anomalies (1 bloquante, 7 majeures, 5 mineures) : `RESULTATS-VAGUE-8.md`.
+Revérification des corrections : tour suivant.
+
 Vague 7 : revérification des correctifs (ab6b392 : ANO-E8-001, ANO-E1-006, ANO-E8-002, ANO-E7-003,
 ANO-E8-003, ANO-E5-003, toutes vérifiées) et compléments T-105, P-21, R-03, T-101. Vague 6 : tout le code
 intégré, critères de sortie E4, E7 et E8 atteints. Vagues précédentes : E1 à E7, E9, notifications,
@@ -13,8 +19,10 @@ contrat §5.3.1, E10/E11 sur papier.
 |---|---|---|
 | Ligne de base | `docs/conformite/recette/LIGNE-DE-BASE.md` | 143 tests (H2, avant les vagues) |
 | Plan de recette E0–E11 | `docs/conformite/recette/PLAN-DE-RECETTE.md` | D1–D14 intégrées |
-| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-7.md` | 257 → 360 → 443 → 534 → 552 → 586 → 594 tests verts |
-| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 25 vérifiées, 3 ouvertes (mineures) : ANO-E7-004, ANO-E7-005, ANO-E8-004 |
+| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-8.md` | 257 → 360 → 443 → 534 → 552 → 586 → 594 tests verts ; vague 8 : 597 tests, 4 échecs de référence + 1 d'environnement |
+| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 25 vérifiées ; ouvertes : ANO-E7-004, ANO-E7-005, ANO-E8-004 et, vague 8, ANO-E10-004 (bloquante), ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-003, ANO-E10-005, ANO-E10-007, ANO-E10-008 (majeures), ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006 (mineures) |
+| E10 exploitation (vague 8) | `recette/e10/` : `verifier-nginx-reel.sh` (NGINX réel, 10/11), `verifier-front-nginx.sh` (23/23), `verifier-annuaire-bascule.sh` + `AnnuaireAutonome.java` (P-02, P-04), `verifier-modules.sh` (T-088, 5/6), `RecetteExploitation.java` (10/11), `RecetteComplementsV8.java` (7 OK, 1 AVERT), `RecetteRotationJournaux.java` (11/11), `sbom-et-licences-hors-ligne.sh`, `banc-ocr-reduit.sh` | voir `RESULTATS-VAGUE-8.md` |
+| E10 sauvegarde et déploiement | `recette/e10-sauvegarde/` : `recette-t073-p13.sh` (33 OK / 3 ÉCHEC), `recette-t092.sh` (8 OK / 3 ÉCHEC), sur PostgreSQL jetable | portables Linux et Git Bash |
 | E4 | `recette/e4/` : `verifier-journal.sh` (12/12), `verifier-scellement.sh` (6/6), `RecetteAudit.java` (29/29) | critère de sortie atteint |
 | E7 modèle | `recette/e7/RecetteModele.java` | 17/17 |
 | E7 compléments | `recette/e7/RecetteComplements.java` (T-105, P-21, R-03, T-101 annulation et reprise) | 8/10 (P21-02 = ANO-E7-004, R03-03 = ANO-E7-005) |
@@ -58,15 +66,19 @@ Non conforme : 4.2.2 montée sur base peuplée (ANO-E1-006), D8 création de rè
 
 ## Ce qui reste
 
-- Vérifier les corrections des anomalies ouvertes.
-- Rejouer P-10, P-16 et ANO-E11-002 en UAT.
-- 12.11 : issues `SANS_PLAN` / `A_INDEXER` ; réindexation complète ; vérification mensuelle d'intégrité.
-- UAT : AD réel, ClamAV réel, LibreOffice, NGINX (413 de plateforme, IP client), rollback sur copie UAT.
+- Tour suivant : revérifier les corrections des anomalies (ouvertes et vague 8) avec les scripts cités.
+- Rejouer P-10, P-16 et ANO-E11-002 en UAT ; T-070 avec la clé NVD en CI ; P-05 (`SEQUENCES.md`).
+- T-079 : cas « ligne scellée modifiée » détecté par la tâche planifiée (non rejoué en vague 8).
+- UAT : AD réel (LDAPS, délai de connexion), signatures ClamAV officielles, certificat MMED, systemd
+  réel, archivage WAL et PITR, rollback sur copie UAT.
 
 ## Vérifié uniquement par simulateur ou non vérifiable sur ce poste
 
-Annuaire (UnboundID), ClamAV (`FauxClamd`), LibreOffice (`FauxSoffice`), relais SMTP (GreenMail). Non vérifiable : NGINX,
-TLS, AD, ClamAV et LibreOffice réels, Prometheus, reprise depuis MySQL, exécution en UAT.
+Depuis la vague 8, **réels sur ce poste** : NGINX 1.24, clamd 1.5.4 (base de signatures réduite à
+EICAR), LibreOffice, Prometheus 2.45 et Alertmanager 0.26, `systemd-analyze verify`, PostgreSQL 16
+jetable pour les sauvegardes. Toujours simulés : annuaire (UnboundID), relais SMTP (GreenMail).
+Non vérifiable : AD et certificat de MMED, signatures ClamAV officielles, forge et CI, reprise
+depuis MySQL, exécution en UAT.
 
 ## Notes d'outillage
 
