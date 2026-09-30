@@ -26,6 +26,55 @@ export interface TypeDocument {
   regleWorkflow?: Ref | null;
 }
 
+/**
+ * Re-typologisation d'un lot (§12.7, `POST /type-documents/retypages`) : les
+ * documents du type source (tous, ou la sélection) passent au type cible ; la
+ * correspondance renomme un champ (code source → code cible), un champ de même
+ * code est conservé, un champ sans équivalent est perdu (signalé au rapport).
+ */
+export interface DemandeRetypage {
+  sourceTypeDocumentId: string;
+  cibleTypeDocumentId: string;
+  correspondance: Record<string, string>;
+  /** Vide ou absent : tous les documents vivants du type source. */
+  documentIds?: string[];
+}
+
+export type StatutRetypage = 'EN_ATTENTE' | 'EN_COURS' | 'TERMINE' | 'ECHEC';
+
+/** Une ligne du rapport : un document traité. */
+export interface LigneRetypage {
+  documentId: string;
+  nom?: string;
+  resultat: 'SUCCES' | 'ECHEC' | string;
+  motif?: string;
+  champsPerdus?: string[];
+}
+
+/** Travail de re-typologisation (traitement de fond), suivi par `GET /retypages/{id}`. */
+export interface JobRetypage {
+  id: string;
+  sourceTypeDocumentId: string;
+  cibleTypeDocumentId: string;
+  correspondance: Record<string, string>;
+  statut: StatutRetypage;
+  total: number;
+  traites: number;
+  reussis: number;
+  echecs: number;
+  rapport: LigneRetypage[];
+  creeLe: string;
+  debutLe?: string | null;
+  finLe?: string | null;
+}
+
+export const LIBELLES_STATUT_RETYPAGE: Record<StatutRetypage, string> = {
+  EN_ATTENTE: 'En attente',
+  EN_COURS: 'En cours',
+  TERMINE: 'Terminé',
+  ECHEC: 'En échec',
+};
+
 export type PointDepart = 'DATE_DOCUMENT' | 'DATE_DEPOT' | 'METADONNEE';
 
 export const POINTS_DEPART: { valeur: PointDepart; libelle: string }[] = [

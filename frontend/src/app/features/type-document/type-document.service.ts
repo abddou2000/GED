@@ -2,7 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_BASE } from '../../core/api';
-import { PageResult, SelectOption, TypeDocument, TypeDocumentRequest } from './type-document.model';
+import {
+  DemandeRetypage, JobRetypage, PageResult, SelectOption, TypeDocument, TypeDocumentRequest,
+} from './type-document.model';
 
 @Injectable({ providedIn: 'root' })
 export class TypeDocumentService {
@@ -55,5 +57,24 @@ export class TypeDocumentService {
 
   multipleRestore(ids: string[]): Observable<void> {
     return this.http.patch<void>(`${this.url}/multiple-restore`, { ids });
+  }
+
+  /** Active ou désactive un type (§12.7) : un type désactivé n'accepte plus de dépôt. */
+  activer(id: string, actif: boolean): Observable<TypeDocument> {
+    return this.http.patch<TypeDocument>(`${this.url}/${id}/actif`, {}, { params: { actif } });
+  }
+
+  /** Lance la re-typologisation d'un lot (202, traitement de fond). */
+  lancerRetypage(demande: DemandeRetypage): Observable<JobRetypage> {
+    return this.http.post<JobRetypage>(`${this.url}/retypages`, demande);
+  }
+
+  /** Les derniers travaux de re-typologisation, du plus récent au plus ancien. */
+  retypages(): Observable<JobRetypage[]> {
+    return this.http.get<JobRetypage[]>(`${this.url}/retypages`);
+  }
+
+  retypage(id: string): Observable<JobRetypage> {
+    return this.http.get<JobRetypage>(`${this.url}/retypages/${id}`);
   }
 }
