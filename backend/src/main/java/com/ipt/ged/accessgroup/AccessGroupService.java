@@ -10,6 +10,7 @@ import com.ipt.ged.accessgroup.dto.AccessGroupRequest;
 import com.ipt.ged.accessgroup.dto.AccessGroupResponse;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
+import com.ipt.ged.common.erreur.RegleMetierException;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.workspace.WorkSpace;
@@ -25,7 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.function.Function;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -103,6 +106,7 @@ public class AccessGroupService {
 
     @Transactional
     public AccessGroupResponse create(AccessGroupRequest req) {
+        exigerReferencesConnues(req);
         if (repo.existsByCodeIgnoreCase(req.code())) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
         }
@@ -119,6 +123,7 @@ public class AccessGroupService {
     @Transactional
     public AccessGroupResponse update(UUID id, AccessGroupRequest req) {
         AccessGroup g = load(id);
+        exigerReferencesConnues(req);
         AccessGroupResponse avant = reponse(g);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
@@ -188,6 +193,40 @@ public class AccessGroupService {
     private AccessGroup load(UUID id) {
         return repo.findWithRefsById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Groupe d'accès introuvable : " + id));
+    }
+
+    /**
+     * ANO-F-009 : un membre ou un espace inconnu était ignoré en silence — groupe
+     * créé en 2xx avec moins de membres que demandé, et un Administrateur (ou une
+     * intégration) croyait avoir accordé des droits qui n'existent pas. Refus 422
+     * avec la liste des identifiants inconnus, AVANT toute écriture.
+     */
+    private void exigerReferencesConnues(AccessGroupRequest req) {
+        List<UUID> membres = inconnus(req.userIds(), ids -> employeRepo.findAllById(ids).stream()
+                .map(Employe::getId).collect(Collectors.toSet()));
+        if (!membres.isEmpty()) {
+            throw new RegleMetierException(CodesErreurGroupe.MEMBRES_INCONNUS,
+                    "Membre(s) inconnu(s) : " + membres.size() + " identifiant(s) ne désignent aucune fiche employé"
+                            + " (userIds attend des identifiants d'employé). Aucune modification enregistrée.")
+                    .avec("identifiantsInconnus", membres);
+        }
+        List<UUID> espaces = inconnus(req.workspaceIds(), ids -> workspaceRepo.findAllById(ids).stream()
+                .map(WorkSpace::getId).collect(Collectors.toSet()));
+        if (!espaces.isEmpty()) {
+            throw new RegleMetierException(CodesErreurGroupe.ESPACES_INCONNUS,
+                    "Espace(s) inconnu(s) : " + espaces.size() + " identifiant(s) ne désignent aucun espace."
+                            + " Aucune modification enregistrée.")
+                    .avec("identifiantsInconnus", espaces);
+        }
+    }
+
+    /** Identifiants demandés absents de la base, dans l'ordre de la requête, sans doublon. */
+    private static List<UUID> inconnus(List<UUID> demandes, Function<Set<UUID>, Set<UUID>> existants) {
+        if (demandes == null || demandes.isEmpty()) return List.of();
+        Set<UUID> uniques = new LinkedHashSet<>(demandes);
+        uniques.remove(null);
+        Set<UUID> trouves = existants.apply(uniques);
+        return uniques.stream().filter(id -> !trouves.contains(id)).toList();
     }
 
     private void apply(AccessGroup g, AccessGroupRequest req) {
