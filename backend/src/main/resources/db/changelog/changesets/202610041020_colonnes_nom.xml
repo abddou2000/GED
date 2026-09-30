@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610041020_colonnes_nom.xml">
+
+    <!--
+        T-025, écart 3 (décision P2 ; conventions §4.2.2) : les colonnes « name »
+        héritées de l'application d'origine sur groupe_ged, noeud et
+        regle_workflow deviennent « nom », comme le reste du modèle en français.
+
+        Renommage en place, sans copie : PostgreSQL ne réécrit pas la table,
+        garde les contraintes et les index (seul le nom de la contrainte unique
+        du groupe suit), et le retour arrière est le renommage inverse, sans
+        perte. Pas de phase « expand » à deux colonnes : la GED se déploie
+        arrêt puis démarrage d'une seule instance (DEPLOIEMENT.md §8), aucune
+        version de l'application ne lit la base pendant la migration. Les
+        contrats d'API (propriété JSON « name ») ne changent pas.
+    -->
+    <changeSet id="202610041020-1" author="ged">
+        <comment>groupe_ged.name, noeud.name et regle_workflow.name renommées en nom.</comment>
+        <renameColumn tableName="groupe_ged" oldColumnName="name" newColumnName="nom"/>
+        <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT uk_groupe_ged_name TO uk_groupe_ged_nom</sql>
+        <renameColumn tableName="noeud" oldColumnName="name" newColumnName="nom"/>
+        <renameColumn tableName="regle_workflow" oldColumnName="name" newColumnName="nom"/>
+        <rollback>
+            <renameColumn tableName="regle_workflow" oldColumnName="nom" newColumnName="name"/>
+            <renameColumn tableName="noeud" oldColumnName="nom" newColumnName="name"/>
+            <sql>ALTER TABLE ${database.defaultSchemaName}.groupe_ged RENAME CONSTRAINT uk_groupe_ged_nom TO uk_groupe_ged_name</sql>
+            <renameColumn tableName="groupe_ged" oldColumnName="nom" newColumnName="name"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

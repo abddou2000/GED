@@ -509,7 +509,6 @@ classDiagram
     UUID id
     String code
     String name
-    GedRights rights
     Set~Employe~ users
   }
   class AccessGroupController {
@@ -540,17 +539,6 @@ classDiagram
   }
   class CodesErreurGroupe {
   }
-  class GedRights {
-    boolean access
-    boolean lecture
-    boolean modifier
-    boolean uploader
-    boolean supprimer
-    boolean deplacer
-    boolean ajouterVersion
-    boolean verrouillerDeverrouiller
-  }
-  AccessGroup --> GedRights
   AccessGroupController --> AccessGroupService
   AccessGroupSeeder --> AccessGroupRepository
   AccessGroupService --> AccessGroupRepository

@@ -39,7 +39,8 @@ public class WorkSpace extends Supprimable {
     @IdentifiantUuid
     private UUID id;
 
-    @Column(nullable = false)
+    /** Colonne {@code nom} (T-025, §4.2.2) ; propriété {@code name} de l'API inchangée. */
+    @Column(name = "nom", nullable = false)
     private String name;
 
     @Column(nullable = false, unique = true)

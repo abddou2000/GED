@@ -1,6 +1,6 @@
 # Schéma de la base de données (P-05, DAT §4.5, §12.1)
 
-> Généré par `node outils/schema-base.mjs` depuis la base `ged_dev2_test`, schéma `ged`, migrée par Liquibase (99 changesets ; jalons : `socle-e1`, `identite-e2`, `autorisation-e3`, `audit-e4`, `api-e9-v3`, `notification-e8`, `api-e9-v4`, `fichiers-ocr-e5-e6`, `modele-e7`, `workflow-e8`). Ne pas modifier à la main : régénérer après chaque changeset.
+> Généré par `node outils/schema-base.mjs` depuis la base `ged_dev1_test`, schéma `ged`, migrée par Liquibase (106 changesets ; jalons : `socle-e1`, `identite-e2`, `autorisation-e3`, `audit-e4`, `api-e9-v3`, `notification-e8`, `api-e9-v4`, `fichiers-ocr-e5-e6`, `modele-e7`, `workflow-e8`). Ne pas modifier à la main : régénérer après chaque changeset.
 
 Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'audit : `bigint` séquentiel, ordre du scellement chaîné), clés étrangères `<table>_id`, préfixes `pk_`, `uk_`, `fk_`, `ck_`, `idx_`. Les partitions mensuelles `journal_audit_AAAAMM` ne sont pas listées.
 
@@ -13,7 +13,7 @@ Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'a
 | Circuits de validation | `decision` | 8 | référentiel (< 10 000) | < 10 Mo | — |
 | Circuits de validation | `regle_validateur` | 9 | référentiel (< 10 000) | < 10 Mo | — |
 | Circuits de validation | `regle_workflow` | 7 | référentiel (< 10 000) | < 10 Mo | — |
-| Habilitations | `groupe_ged` | 16 | référentiel (< 10 000) | < 10 Mo | — |
+| Habilitations | `groupe_ged` | 8 | référentiel (< 10 000) | < 10 Mo | — |
 | Habilitations | `groupe_membre` | 3 | référentiel (< 10 000) | < 10 Mo | — |
 | Habilitations | `habilitation` | 11 | 20 000 | 3.3 Mo | attributions |
 | Habilitations | `permission` | 4 | référentiel (< 10 000) | < 10 Mo | — |
@@ -27,7 +27,7 @@ Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'a
 | Identités et accès | `employe` | 6 | référentiel (< 10 000) | < 10 Mo | — |
 | Identités et accès | `session` | 12 | 5 000 | 1.2 Mo | sessions de 5 ans purgées ; ordre de grandeur |
 | Identités et accès | `utilisateur` | 7 | référentiel (< 10 000) | < 10 Mo | — |
-| Organisation documentaire | `document` | 35 | 450 000 | 461.7 Mo | reprise 150 000 + 60 000 / an |
+| Organisation documentaire | `document` | 36 | 450 000 | 465.3 Mo | reprise 150 000 + 60 000 / an |
 | Organisation documentaire | `document_confidentiel_designe` | 5 | référentiel (< 10 000) | < 10 Mo | — |
 | Organisation documentaire | `document_etiquette` | 3 | 225 000 | 16.2 Mo | une étiquette pour un document sur deux |
 | Organisation documentaire | `document_rattachement` | 5 | 45 000 | 4.3 Mo | un rattachement pour 10 % des documents |
@@ -54,7 +54,9 @@ Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'a
 | Versions et contenu | `version_document` | 16 | 585 000 | 368.0 Mo | facteur 1,3 de versions |
 | Autres (historique) | `job_retypage` | 15 | référentiel (< 10 000) | < 10 Mo | — |
 | Autres (historique) | `plan_indexation_version` | 6 | référentiel (< 10 000) | < 10 Mo | — |
+| Autres (historique) | `reprise_droits_groupe` | 4 | référentiel (< 10 000) | < 10 Mo | — |
 | Autres (historique) | `reprise_lien_groupe_espace` | 4 | référentiel (< 10 000) | < 10 Mo | — |
+| Autres (historique) | `verrou_tache` | 6 | référentiel (< 10 000) | < 10 Mo | — |
 
 Total estimé des tables volumineuses : **37.4 Go** y compris le vecteur plein texte, hors index et WAL ; le §6.6 retient ≈ 40 Go de base à 5 ans (texte ≈ 11 Go, index plein texte ≈ 11 Go, audit ≈ 12 Go) et 200 Go à provisionner.
 
@@ -159,15 +161,7 @@ erDiagram
   groupe_ged {
     uuid id PK
     character_varying_255_ code
-    character_varying_255_ name
-    boolean droit_access
-    boolean droit_lecture
-    boolean droit_modifier
-    boolean droit_uploader
-    boolean droit_supprimer
-    boolean droit_deplacer
-    boolean droit_ajouter_version
-    boolean droit_verrouiller_deverrouiller
+    character_varying_255_ nom
     boolean supprime
     timestamp_with_time_zone created_at
     timestamp_with_time_zone updated_at
@@ -272,6 +266,7 @@ erDiagram
     uuid deposant_utilisateur_id FK
     boolean depot_delegue
     uuid plan_indexation_version_id FK
+    timestamp_with_time_zone echeance_signalee_le
   }
   document_confidentiel_designe {
     uuid id PK
@@ -305,7 +300,7 @@ erDiagram
   }
   noeud {
     uuid id PK
-    character_varying_255_ name
+    character_varying_255_ nom
     character_varying_255_ code
     character_varying_255_ description
     character_varying_20_ status
@@ -575,7 +570,7 @@ erDiagram
   }
   regle_workflow {
     uuid id PK
-    character_varying_255_ name
+    character_varying_255_ nom
     boolean supprime
     timestamp_with_time_zone created_at
     timestamp_with_time_zone updated_at
@@ -1023,6 +1018,7 @@ Index :
 | `deposant_utilisateur_id` | uuid | oui |  |
 | `depot_delegue` | boolean | non | `false` |
 | `plan_indexation_version_id` | uuid | oui |  |
+| `echeance_signalee_le` | timestamp with time zone | oui |  |
 
 Contraintes :
 
@@ -1055,6 +1051,7 @@ Index :
 - `idx_document_created_by_employe_id` : `USING btree (created_by_employe_id)`
 - `idx_document_date_document` : `USING btree (date_document)`
 - `idx_document_deposant_utilisateur_id` : `USING btree (deposant_utilisateur_id)`
+- `idx_document_echeance_a_signaler` : `USING btree (echeance_conservation) WHERE ((echeance_signalee_le IS NULL) AND (echeance_conservation IS NOT NULL) AND (NOT supprime))`
 - `idx_document_echeance_conservation` : `USING btree (echeance_conservation)`
 - `idx_document_expiration_date` : `USING btree (expiration_date)`
 - `idx_document_metadonnees` : `USING gin (metadonnees)`
@@ -1225,15 +1222,7 @@ Index :
 |---|---|---|---|
 | `id` | uuid | non |  |
 | `code` | character varying(255) | non |  |
-| `name` | character varying(255) | non |  |
-| `droit_access` | boolean | non | `false` |
-| `droit_lecture` | boolean | non | `false` |
-| `droit_modifier` | boolean | non | `false` |
-| `droit_uploader` | boolean | non | `false` |
-| `droit_supprimer` | boolean | non | `false` |
-| `droit_deplacer` | boolean | non | `false` |
-| `droit_ajouter_version` | boolean | non | `false` |
-| `droit_verrouiller_deverrouiller` | boolean | non | `false` |
+| `nom` | character varying(255) | non |  |
 | `supprime` | boolean | non | `false` |
 | `created_at` | timestamp with time zone | oui |  |
 | `updated_at` | timestamp with time zone | oui |  |
@@ -1246,7 +1235,7 @@ Contraintes :
 - `fk_groupe_ged_supprime_par` (clé étrangère) : `FOREIGN KEY (supprime_par) REFERENCES ged.employe(id)`
 - `pk_groupe_ged` (clé primaire) : `PRIMARY KEY (id)`
 - `uk_groupe_ged_code` (unicité) : `UNIQUE (code)`
-- `uk_groupe_ged_name` (unicité) : `UNIQUE (name)`
+- `uk_groupe_ged_nom` (unicité) : `UNIQUE (nom)`
 
 Index :
 
@@ -1582,7 +1571,7 @@ Contraintes :
 | Colonne | Type | Nul | Défaut |
 |---|---|---|---|
 | `id` | uuid | non |  |
-| `name` | character varying(255) | non |  |
+| `nom` | character varying(255) | non |  |
 | `code` | character varying(255) | non |  |
 | `description` | character varying(255) | oui |  |
 | `status` | character varying(20) | non |  |
@@ -1839,7 +1828,7 @@ Index :
 | Colonne | Type | Nul | Défaut |
 |---|---|---|---|
 | `id` | uuid | non |  |
-| `name` | character varying(255) | non |  |
+| `nom` | character varying(255) | non |  |
 | `supprime` | boolean | non | `false` |
 | `created_at` | timestamp with time zone | oui |  |
 | `updated_at` | timestamp with time zone | oui |  |
@@ -1855,6 +1844,21 @@ Contraintes :
 Index :
 
 - `idx_regle_workflow_supprime` : `USING btree (supprime)`
+
+### `reprise_droits_groupe`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non | `ged.uuid_v7()` |
+| `groupe_ged_id` | uuid | non |  |
+| `droits` | text[] | non |  |
+| `repris_le` | timestamp with time zone | non | `now()` |
+
+Contraintes :
+
+- `fk_reprise_droits_groupe_groupe_ged` (clé étrangère) : `FOREIGN KEY (groupe_ged_id) REFERENCES ged.groupe_ged(id) ON DELETE CASCADE`
+- `pk_reprise_droits_groupe` (clé primaire) : `PRIMARY KEY (id)`
+- `uk_reprise_droits_groupe_groupe_ged_id` (unicité) : `UNIQUE (groupe_ged_id)`
 
 ### `reprise_lien_groupe_espace`
 
@@ -2011,6 +2015,22 @@ Contraintes :
 Index :
 
 - `idx_utilisateur_identifiant` : `USING btree (lower((identifiant)::text))`
+
+### `verrou_tache`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non | `ged.uuid_v7()` |
+| `nom` | character varying(64) | non |  |
+| `detenteur` | character varying(255) | oui |  |
+| `verrouille_jusqu_a` | timestamp with time zone | non |  |
+| `pris_le` | timestamp with time zone | oui |  |
+| `derniere_fin` | timestamp with time zone | oui |  |
+
+Contraintes :
+
+- `pk_verrou_tache` (clé primaire) : `PRIMARY KEY (id)`
+- `uk_verrou_tache_nom` (unicité) : `UNIQUE (nom)`
 
 ### `version_document`
 

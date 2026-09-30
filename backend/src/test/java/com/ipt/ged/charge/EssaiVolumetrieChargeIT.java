@@ -149,7 +149,7 @@ class EssaiVolumetrieChargeIT extends BaseCharge {
         List<UUID> noeuds = new ArrayList<>(), types = new ArrayList<>();
         for (int i = 0; i < ESPACES; i++) {
             String nom = String.format("Recherche-%02d", i);
-            List<UUID> existant = jdbc.queryForList("SELECT id FROM noeud WHERE name = ?", UUID.class, nom);
+            List<UUID> existant = jdbc.queryForList("SELECT id FROM noeud WHERE nom = ?", UUID.class, nom);
             if (existant.isEmpty()) {
                 UUID n = jeu.noeud(nom, null);
                 noeuds.add(n);

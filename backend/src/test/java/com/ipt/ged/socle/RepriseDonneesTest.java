@@ -154,6 +154,14 @@ class RepriseDonneesTest {
         assertEquals(3, compter(c, "SELECT count(*) FROM reprise_lien_groupe_espace r JOIN groupe_ged g"
                 + " ON g.id = r.groupe_ged_id WHERE g.code = 'AG-ADMIN'"));
         assertEquals(0, compter(c, "SELECT count(*) FROM habilitation WHERE sujet_type = 'GROUPE'"));
+        // Droits booléens de l'ancien groupe : au rapport de reprise, plus dans groupe_ged (T-025).
+        assertEquals("{droit_access,droit_lecture,droit_modifier,droit_uploader,droit_supprimer,droit_deplacer,"
+                        + "droit_ajouter_version,droit_verrouiller_deverrouiller}",
+                texte(c, "SELECT r.droits::text FROM reprise_droits_groupe r JOIN groupe_ged g"
+                        + " ON g.id = r.groupe_ged_id WHERE g.code = 'AG-ADMIN'"));
+        assertEquals("{droit_lecture}", texte(c, "SELECT r.droits::text FROM reprise_droits_groupe r JOIN groupe_ged g"
+                + " ON g.id = r.groupe_ged_id WHERE g.code = 'AG-LECT'"));
+        assertEquals("Lecteurs", texte(c, "SELECT nom FROM groupe_ged WHERE code = 'AG-LECT'"));
         // Chemin matérialisé calculé pour la hiérarchie reprise, parent d'id supérieur compris.
         assertEquals(texte(c, "SELECT chemin FROM noeud WHERE code = 'WS-COMPTA'")
                         + texte(c, "SELECT id::text FROM noeud WHERE code = 'WS-FACT'") + "/",

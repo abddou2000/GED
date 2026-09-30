@@ -96,6 +96,15 @@ appliquent les mêmes contrôles (le profil `uat` importe `application-prod.yml`
   `displayName`, `mail` (notifications), `department` (s'il existe). Jamais
   `memberOf`, groupes, unité, ni `userAccountControl` (P2, D1) : un compte
   désactivé est refusé par l'annuaire lui-même au moment de la liaison.
+- **Seule exception (décision D15)** : à chaque appel délégué (`X-On-Behalf-Of`
+  d'une application), le compte de service lit le seul attribut
+  `userAccountControl` du compte désigné (recherche par `objectGUID`) ; bit
+  ACCOUNTDISABLE (0x2) = refus 422 `IDENTITE_DELEGUEE_INVALIDE`, motif au journal
+  d'audit. Le compte de service doit donc pouvoir lire cet attribut (c'est le
+  cas par défaut dans AD pour les utilisateurs authentifiés). État gardé en
+  cache `GED_DELEGATION_CACHE_ETAT_COMPTE` (2 min par défaut, 5 min au plus :
+  le démarrage est refusé au-delà). La connexion interactive ne lit toujours
+  pas cet attribut.
 - Annuaire indisponible : connexion impossible avec un message explicite (503),
   sessions ouvertes conservées. Sonde de santé `annuaire` : à placer dans un
   groupe de supervision, **pas** dans la sonde `readiness`.
@@ -381,6 +390,14 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
 - **Alerte d'échéance de conservation (T-112)** : table `verrou_tache` et colonne
   `document.echeance_signalee_le` (`202610031000`) ; à la première exécution, tous
   les documents déjà échus sont signalés d'un coup aux Agents d'archive.
+- **Modèle de référence §12.1 (T-025)** : `202610041010` retire les huit colonnes
+  `droit_*` de `groupe_ged` (inertes depuis E3) après avoir consigné leurs
+  valeurs vraies dans le rapport `reprise_droits_groupe` ; `202610041020`
+  renomme `name` en `nom` dans `groupe_ged`, `noeud` et `regle_workflow`
+  (contrainte `uk_groupe_ged_nom`). L'API ne change pas (propriété JSON
+  `name`). **Toute requête SQL externe** (rapport, export, supervision) qui lit
+  ces colonnes est à adapter avant la montée. Retour arrière sans perte :
+  colonnes et valeurs d'origine recréées depuis le rapport.
 - **Index d'expression d'une métadonnée fréquente** (§12.7) : un changeset par
   champ, sur les fonctions immuables de la base, par exemple :
   ```sql
@@ -415,7 +432,8 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
 
   Les changesets défaits avant le refus (bascule du gel des versions
   `202609301049` / `202609301051`, verrou des tâches planifiées `verrou_tache`,
-  composition des rôles `202610041000`) ne perdent rien : la base reste
+  composition des rôles `202610041000`, droits hérités des groupes
+  `202610041010`, colonnes `nom` `202610041020`) ne perdent rien : la base reste
   cohérente et une nouvelle montée (`update`) la ramène à son état de départ.
   Poursuivre malgré la perte annoncée est une décision explicite
   (`ged.retour_arriere_avec_perte = oui`, ci-dessus), après export des données

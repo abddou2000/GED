@@ -156,7 +156,7 @@ public class AccessPredicate {
         ArbreVersionne a = arbre.get();
         if (a != null && a.version() == v) return a.arbre();
         List<ArbreNoeuds.Noeud> noeuds = jdbc.query(
-                "SELECT id, parent_id, chemin, name, supprime, status FROM noeud ORDER BY chemin",
+                "SELECT id, parent_id, chemin, nom, supprime, status FROM noeud ORDER BY chemin",
                 (rs, i) -> new ArbreNoeuds.Noeud(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
                         rs.getString(3), rs.getString(4), rs.getBoolean(5), rs.getString(6)));
         ArbreNoeuds charge = new ArbreNoeuds(noeuds);

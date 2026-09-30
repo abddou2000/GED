@@ -35,7 +35,7 @@ DECLARE
     n bigint;
 BEGIN
     FOREACH t IN ARRAY ARRAY['employe', 'utilisateur', 'regle_workflow', 'regle_validateur',
-        'noeud', 'groupe_ged', 'habilitation', 'reprise_lien_groupe_espace', 'groupe_membre', 'etiquette',
+        'noeud', 'groupe_ged', 'habilitation', 'reprise_lien_groupe_espace', 'reprise_droits_groupe', 'groupe_membre', 'etiquette',
         'index_def', 'plan_indexation', 'plan_index', 'type_document', 'document', 'version_document',
         'document_etiquette', 'document_index_valeur', 'circuit', 'circuit_validateur', 'decision']
     LOOP
@@ -131,7 +131,7 @@ SELECT reprise_source.nouvel_id('employes', s.id), s.first_name, s.last_name, co
 -- Règles de workflow (lot E8, §12.8) : les anciens circuits deviennent des
 -- règles, leurs étapes des validateurs NOMMÉS ; le rang d'origine n'est plus
 -- qu'un ordre d'affichage (D7 : validateurs parallèles).
-INSERT INTO regle_workflow (id, name, supprime, created_at, updated_at)
+INSERT INTO regle_workflow (id, nom, supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('workflow_ged', s.id), s.name, coalesce(s.deleted, false),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.workflow_ged s;
@@ -149,7 +149,7 @@ SELECT reprise_source.nouvel_id('workflow_ged_steps', s.id),
 -- niveau par niveau, quel que soit l'ordre des identifiants de la source.
 -- Un nœud dont le parent est introuvable n'est pas repris : le contrôle 5
 -- (lignes noeud) et le contrôle 21 le signalent.
-INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, regle_workflow_id,
+INSERT INTO noeud (id, nom, code, description, status, employe_id, parent_id, regle_workflow_id,
                    supprime, created_at, updated_at)
 SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.description, s.status,
        reprise_source.nouvel_id('employes', s.employe_id),
@@ -164,7 +164,7 @@ DECLARE
     n bigint;
 BEGIN
     LOOP
-        INSERT INTO noeud (id, name, code, description, status, employe_id, parent_id, regle_workflow_id,
+        INSERT INTO noeud (id, nom, code, description, status, employe_id, parent_id, regle_workflow_id,
                            supprime, created_at, updated_at)
         SELECT reprise_source.nouvel_id('work_spaces', s.id), s.name, s.code, s.description, s.status,
                reprise_source.nouvel_id('employes', s.employe_id),
@@ -182,16 +182,28 @@ BEGIN
 END
 $$;
 
-INSERT INTO groupe_ged (id, code, name, droit_access, droit_lecture, droit_modifier, droit_uploader,
-                          droit_supprimer, droit_deplacer, droit_ajouter_version,
-                          droit_verrouiller_deverrouiller, supprime, created_at, updated_at)
-SELECT reprise_source.nouvel_id('access_groups', s.id), s.code, s.name,
-       coalesce(s.droit_access, false), coalesce(s.droit_lecture, false), coalesce(s.droit_modifier, false),
-       coalesce(s.droit_uploader, false), coalesce(s.droit_supprimer, false),
-       coalesce(s.droit_deplacer, false), coalesce(s.droit_ajouter_version, false),
-       coalesce(s.droit_verrouiller_deverrouiller, false), coalesce(s.deleted, false),
+INSERT INTO groupe_ged (id, code, nom, supprime, created_at, updated_at)
+SELECT reprise_source.nouvel_id('access_groups', s.id), s.code, s.name, coalesce(s.deleted, false),
        reprise_source.utc(s.created_at), reprise_source.utc(s.updated_at)
   FROM reprise_source.access_groups s;
+
+-- Les huit droits booléens de l'ancien groupe n'autorisaient rien (T-025 :
+-- au §12.2.1 un groupe n'est qu'un sujet d'habilitation). Ceux qui valaient
+-- vrai sont consignés au rapport de reprise, rien n'est perdu.
+INSERT INTO reprise_droits_groupe (groupe_ged_id, droits)
+SELECT reprise_source.nouvel_id('access_groups', s.id),
+       array_remove(ARRAY[
+           CASE WHEN s.droit_access THEN 'droit_access' END,
+           CASE WHEN s.droit_lecture THEN 'droit_lecture' END,
+           CASE WHEN s.droit_modifier THEN 'droit_modifier' END,
+           CASE WHEN s.droit_uploader THEN 'droit_uploader' END,
+           CASE WHEN s.droit_supprimer THEN 'droit_supprimer' END,
+           CASE WHEN s.droit_deplacer THEN 'droit_deplacer' END,
+           CASE WHEN s.droit_ajouter_version THEN 'droit_ajouter_version' END,
+           CASE WHEN s.droit_verrouiller_deverrouiller THEN 'droit_verrouiller_deverrouiller' END]::text[], NULL)
+  FROM reprise_source.access_groups s
+ WHERE s.droit_access OR s.droit_lecture OR s.droit_modifier OR s.droit_uploader OR s.droit_supprimer
+    OR s.droit_deplacer OR s.droit_ajouter_version OR s.droit_verrouiller_deverrouiller;
 
 -- Un groupe « couvrait » des espaces, sans rien autoriser dans l'ancienne
 -- application. Ces liens ne deviennent PAS des habilitations (décision du

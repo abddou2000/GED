@@ -199,11 +199,11 @@ public class ServiceHabilitations {
      */
     @Transactional(readOnly = true)
     public List<LienRepris> liensRepris() {
-        return jdbc.query("SELECT r.groupe_ged_id, g.name, r.noeud_id, n.name, r.repris_le,"
+        return jdbc.query("SELECT r.groupe_ged_id, g.nom, r.noeud_id, n.nom, r.repris_le,"
                         + " EXISTS (SELECT 1 FROM habilitation h WHERE h.sujet_type = 'GROUPE'"
                         + " AND h.groupe_ged_id = r.groupe_ged_id AND h.noeud_id = r.noeud_id)"
                         + " FROM reprise_lien_groupe_espace r JOIN groupe_ged g ON g.id = r.groupe_ged_id"
-                        + " JOIN noeud n ON n.id = r.noeud_id ORDER BY g.name, n.chemin",
+                        + " JOIN noeud n ON n.id = r.noeud_id ORDER BY g.nom, n.chemin",
                 (rs, i) -> new LienRepris(rs.getObject(1, UUID.class), rs.getString(2), rs.getObject(3, UUID.class),
                         rs.getString(4), rs.getTimestamp(5).toInstant(), rs.getBoolean(6)));
     }

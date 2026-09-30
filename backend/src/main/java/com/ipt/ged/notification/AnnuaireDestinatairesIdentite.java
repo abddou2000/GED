@@ -62,10 +62,10 @@ public class AnnuaireDestinatairesIdentite implements AnnuaireDestinataires {
     public Map<UUID, String> espacesDuGroupe(UUID groupeId) {
         Map<UUID, String> espaces = new LinkedHashMap<>();
         jdbc.query("""
-                SELECT DISTINCT n.id, n.name FROM habilitation h
+                SELECT DISTINCT n.id, n.nom FROM habilitation h
                 JOIN noeud n ON n.id = h.noeud_id AND NOT n.supprime
                 WHERE h.groupe_ged_id = ? AND h.role_id IS NOT NULL
-                ORDER BY n.name""",
+                ORDER BY n.nom""",
                 rs -> { espaces.put(rs.getObject(1, UUID.class), rs.getString(2)); }, groupeId);
         return espaces;
     }

@@ -133,7 +133,7 @@ public final class BasePostgres implements AutoCloseable {
             j.update("INSERT INTO employe (id, first_name, last_name) VALUES (?, 'Test', 'E6')", employe);
             // Nœud racine (lot E3) ; le chemin matérialisé est posé par la base.
             // Sans règle de workflow (facultative depuis le lot E8).
-            j.update("INSERT INTO noeud (id, name, code, status, nature, employe_id) "
+            j.update("INSERT INTO noeud (id, nom, code, status, nature, employe_id) "
                     + "VALUES (?, 'espace de test', ?, 'ACTIF', 'ESPACE', ?)", workspace, "ESP-" + workspace, employe);
             j.update("INSERT INTO type_document (id, code, type_de_document, description, noeud_id) "
                     + "VALUES (?, ?, 'Type de test', 'test', ?)", typeDocument, "TD-" + typeDocument, workspace);
