@@ -48,6 +48,20 @@ describe('DocumentList', () => {
     expect(badge.getAttribute('href')).toBe('/televerser/d1');
   });
 
+  it("ANO-F-017 : signale l'état OCR (en attente, en échec) dans la liste", () => {
+    const f = TestBed.createComponent(DocumentList);
+    f.detectChanges();
+    serveur.expectOne(r => r.url === `${API_BASE}/documents`).flush({ content: [
+      { ...DOC, id: 'a', statutIndexation: 'INDEXE', statutOcr: 'EN_ATTENTE_OCR' },
+      { ...DOC, id: 'b', statutIndexation: 'INDEXE', statutOcr: 'OCR_ECHEC' },
+      { ...DOC, id: 'c', statutIndexation: 'INDEXE', statutOcr: 'OCR_TERMINE' },
+    ], total: 3, page: 0, size: 10, totalPages: 1 });
+    f.detectChanges();
+    const badges = Array.from(f.nativeElement.querySelectorAll('.badge-ocr') as NodeListOf<HTMLElement>);
+    expect(badges.map(b => b.textContent?.trim())).toEqual(['OCR en attente', 'OCR en échec']);
+    expect(badges[1].classList).toContain('echec');
+  });
+
   it('ANO-F-006 : affiche la date du document et trie la liste sur elle (sortBy=dateDocument)', () => {
     const f = ouvrir();
     const el: HTMLElement = f.nativeElement;

@@ -92,6 +92,10 @@
                 <a class="badge-a-indexer" [routerLink]="['/televerser', d.id]"
                    matTooltip="Index non enregistrés : ouvrez la fiche pour les saisir">À indexer</a>
               }
+              @if (etatOcr(d.statutOcr); as o) {
+                <!-- ANO-F-017 : contenu pas encore, ou pas, interrogeable en plein texte. -->
+                <span class="badge-ocr" [class.echec]="o.echec" [matTooltip]="o.info">{{ o.libelle }}</span>
+              }
               @if (d.echeanceDepassee) {
                 <span class="badge-echeance"
                       [matTooltip]="infoEcheance(d)">Échéance dépassée</span>

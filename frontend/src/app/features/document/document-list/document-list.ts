@@ -16,7 +16,7 @@ import { ColumnPicker } from '../../../core/column-picker/column-picker';
 import { ColonneDef } from '../../../core/column-prefs.service';
 import { formaterDate } from '../../../core/dates';
 import { DocumentService, messageErreurTelechargement } from '../document.service';
-import { DocumentItem } from '../document.model';
+import { DocumentItem, etatOcr } from '../document.model';
 import { DocumentUpload } from '../document-upload/document-upload';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
@@ -173,6 +173,8 @@ export class DocumentList implements OnInit {
 
   /** Date lisible ; mutualisée pour que tous les écrans lisent pareil. */
   readonly dateCourte = formaterDate;
+  /** État OCR signalé dans la liste (ANO-F-017). */
+  readonly etatOcr = etatOcr;
 
   /* Pastille du createur. On n'a que son nom, pas son identifiant : la graine
      est derivee du texte pour que la teinte reste la meme d'un ecran a
