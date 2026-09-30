@@ -159,7 +159,8 @@ class IndexationApiTest {
      */
     private java.util.List<UUID> idsTrouves(String reponseJson) throws Exception {
         java.util.List<UUID> ids = new java.util.ArrayList<>();
-        for (com.fasterxml.jackson.databind.JsonNode groupe : om.readTree(reponseJson)) {
+        // Réponse paginée : page de groupes dans « content ».
+        for (com.fasterxml.jackson.databind.JsonNode groupe : om.readTree(reponseJson).get("content")) {
             for (com.fasterxml.jackson.databind.JsonNode doc : groupe.get("documents")) {
                 ids.add(UUID.fromString(doc.get("id").asText()));
             }
@@ -237,9 +238,9 @@ class IndexationApiTest {
         mvc.perform(post(BASE + "/recherche").contentType(APPLICATION_JSON)
                         .content("{\"grouperPar\":\"" + idFournisseur + "\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[*].libelle", hasItems("ACME Distribution", "Atlas Fournitures")))
-                .andExpect(jsonPath("$[0].total", is(1)));
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.content[*].libelle", hasItems("ACME Distribution", "Atlas Fournitures")))
+                .andExpect(jsonPath("$.content[0].total", is(1)));
     }
 
     @Test
