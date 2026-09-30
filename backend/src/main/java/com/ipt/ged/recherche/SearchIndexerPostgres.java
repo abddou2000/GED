@@ -118,7 +118,7 @@ public class SearchIndexerPostgres implements SearchIndexer {
         }
         // Colonnes de tri en liste blanche : jamais de texte de l'appelant dans l'ORDER BY.
         // « cles » : ordre de sélection des correspondances retenues sous le plafond
-        // (aucun pour la pertinence : le rang n'est connu qu'après lecture du vecteur) ;
+        // (pour la pertinence, un ordre stable : le rang n'est connu qu'après lecture du vecteur) ;
         // « ordre » : ordre de la page, sur les colonnes nommées de l'ensemble retenu.
         String cles = switch (r.tri()) {
             case INDEXATION_RECENTE -> "dt.indexe_le DESC, dt.version_id";
@@ -126,7 +126,10 @@ public class SearchIndexerPostgres implements SearchIndexer {
             case DATE_DEPOT -> "d.created_at DESC NULLS LAST, dt.version_id";
             case NOM -> "lower(d.name) ASC, dt.version_id";
             case TYPE -> "lower(t.type_de_document) ASC, dt.version_id";
-            case PERTINENCE -> "";
+            // Pas de rang connu avant lecture du vecteur : ordre stable quelconque. Sans
+            // ORDER BY, la LIMIT pousse le planificateur vers un balayage de la table,
+            // désastreux pour un terme rare (mesuré : 0,17 s → 1 s à 50 000 documents).
+            case PERTINENCE -> "dt.version_id";
         };
         String ordre = switch (r.tri()) {
             case INDEXATION_RECENTE -> "indexe_le DESC";
@@ -141,11 +144,11 @@ public class SearchIndexerPostgres implements SearchIndexer {
         // Rang de sélection « rn » : le candidat en sus du plafond ne sert qu'à savoir
         // qu'il y en a plus ; il n'est ni classé ni affiché.
         String correspondances = "SELECT dt.document_id, dt.version_id, row_number() OVER ("
-                + (cles.isEmpty() ? "" : "ORDER BY " + cles) + ") AS rn FROM document_texte dt "
+                + "ORDER BY " + cles + ") AS rn FROM document_texte dt "
                 + "JOIN document d ON d.id = dt.document_id "
                 + "LEFT JOIN type_document t ON t.id = d.type_document_id "
                 + "LEFT JOIN noeud w ON w.id = d.noeud_principal_id "
-                + "CROSS JOIN q WHERE " + where + (cles.isEmpty() ? "" : " ORDER BY rn") + " LIMIT :plafond";
+                + "CROSS JOIN q WHERE " + where + " ORDER BY rn" + " LIMIT :plafond";
         String sql = "WITH q AS MATERIALIZED (SELECT ged_requete_texte(:q) AS requete), "
                 + "c AS MATERIALIZED (" + correspondances + "), "
                 + "n AS (SELECT count(*) AS total FROM c), "
