@@ -502,4 +502,36 @@ au démarrage.
 - Un redémarrage du service est nécessaire pour changer un module (quelques
   secondes d'indisponibilité, sans perte : arrêt progressif).
 - Procédure vérifiée par les tests (`ModulesTest`, `ModulesInactifsApiTest`) et
-  sur le papier pour le script (pas de systemd sur le poste de développement).
+  par la démonstration du § 10.5 (systemd simulé) ; reste à la rejouer sur le
+  serveur UAT, sous systemd.
+
+### 10.5 Démonstration de `deployer.sh` et de ses retours arrière
+
+`deploiement/uat/demontrer-deploiement.sh` (root, 10 à 15 minutes) joue sur un
+poste Linux le scénario complet avec les scripts livrés, sans modification : JAR
+et paquet Angular construits depuis le dépôt, PostgreSQL (base jetable
+`<nom>_deploiement`, recréée par `preparer-base.sql`), Liquibase CLI de même
+version que le JAR, NGINX avec `deploiement/nginx/ged.conf` (ports, certificat
+autosigné et chemins réécrits), unité `ged-backend.service` réelle. Seul systemd
+est simulé (`deploiement/uat/systemctl-simule` : fichiers d'environnement,
+`User=ged`, `ExecStartPre`, `ExecStart`, arrêt par `SIGTERM` puis `SIGKILL` ; ni
+durcissement, ni redémarrage automatique).
+
+| Étape | Commande | Ce qui est contrôlé |
+|---|---|---|
+| E1 | `deployer.sh dev --jar v1 --front f1 --sans-retour-auto`, puis `--verifier` | validate, tag, update sur base vierge ; service sous le compte `ged` ; sonde ; test de fumée complet une fois le type documentaire du compte de fumée renseigné |
+| E2 | `--jar v2 --front f2` | sauvegarde préalable, point de retour Liquibase, changeset de v2 appliqué, front servi par NGINX, fumée |
+| E3 | `--retour-arriere --base` | base ramenée au point de retour, v1 et f1 rétablis, fumée |
+| E4 | `--jar v2 --module back` | redéploiement du back seul |
+| E5 | `--front f2 --module front`, puis `--retour-arriere --module front` | front basculé puis rétabli, back-end jamais redémarré (même PID) |
+| E6 | `--jar v3 --module back` (v3 défectueuse) | fumée en échec, **retour arrière automatique** vers v2, base laissée migrée (expand) |
+| E7 | `--retour-arriere --base` | changeset de v3 défait avec le JAR qui l'a appliqué, v2 conservée |
+| E8 | `--desactiver-module workflow`, puis `--activer-module workflow` | route en 404 `MODULE_INACTIF` à travers NGINX, puis rouverte |
+
+**En UAT, sous systemd** (critère 1 de la validation T-088) : mêmes étapes avec
+les vrais `/etc/ged/*.env`, sans le systemctl simulé ; les artefacts v2 et v3
+sont soit les livrables réels successifs, soit ceux que produit le script
+(section « Préparation »). À vérifier en plus sur le serveur : directives de
+durcissement de l'unité (`systemd-analyze security ged-backend`),
+`Restart=on-failure` (tuer la JVM : redémarrage sous 10 s), `RequiresMountsFor`
+du tmpfs, contrôles `verifier_prerequis_stockage` (sautés en `dev`).

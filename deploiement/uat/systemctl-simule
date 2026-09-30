@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# =====================================================================
+#  systemctl SIMULÉ — pour démontrer deployer.sh sur un poste sans systemd
+#  (conteneur de développement). Utilisé par demontrer-deploiement.sh
+#  (T-088 critère 1, T-092) ; JAMAIS installé sur un serveur.
+#
+#  Ce qu'il fait comme systemd, à partir du VRAI fichier d'unité
+#  (deploiement/systemd/ged-backend.service) :
+#    EnvironmentFile= (y compris « - » facultatif, lus dans l'ordre, le
+#    dernier l'emporte), Environment=, WorkingDirectory=, User=/Group=
+#    (processus lancé sous ce compte par setpriv, sans fork : le PID suivi
+#    est celui de la JVM), ExecStartPre=, ExecStart= ($VAR découpé en mots,
+#    ${VAR} en un seul), arrêt par KillSignal= puis SIGKILL après
+#    TimeoutStopSec=, is-active.
+#  Ce qu'il ne fait PAS : durcissement (ProtectSystem, PrivateTmp,
+#  CapabilityBoundingSet…), Restart=on-failure, StartLimit*, journald
+#  (sortie dans <état>/<unité>.journal). Ces directives restent à éprouver
+#  sur un serveur systemd (UAT).
+#
+#  Variables :
+#    SYSTEMCTL_SIMULE_UNITES   répertoire des fichiers <nom>.service
+#    SYSTEMCTL_SIMULE_ETAT     répertoire d'état (PID, journal, trace des appels)
+#    SYSTEMCTL_SIMULE_CHEMINS  réécriture des chemins absolus de l'unité,
+#                              « /etc/ged=/tmp/x/etc-ged:/opt/ged=/tmp/x/opt-ged »
+# =====================================================================
+set -u
+UNITES="${SYSTEMCTL_SIMULE_UNITES:?SYSTEMCTL_SIMULE_UNITES absente}"
+ETAT="${SYSTEMCTL_SIMULE_ETAT:?SYSTEMCTL_SIMULE_ETAT absente}"
+mkdir -p "$ETAT"
+echo "$(date '+%F %T') systemctl $*" >> "$ETAT/systemctl.log"
+
+args=(); silencieux=non
+saut=non
+for a in "$@"; do
+    [[ "$saut" == oui ]] && { saut=non; continue; }
+    case "$a" in
+        -q|--quiet) silencieux=oui ;;
+        -p|--property) saut=oui ;;
+        -*) ;;
+        *) args+=("$a") ;;
+    esac
+done
+action="${args[0]:-}"; nom="${args[${#args[@]}-1]:-}"; nom="${nom%.service}"
+UNITE="$UNITES/$nom.service"
+PIDF="$ETAT/$nom.pid"
+
+reecrire() {
+    local ligne="$1" couple
+    local -a couples
+    IFS=':' read -ra couples <<< "${SYSTEMCTL_SIMULE_CHEMINS:-}"
+    for couple in "${couples[@]}"; do
+        [[ -n "$couple" ]] && ligne="${ligne//${couple%%=*}/${couple#*=}}"
+    done
+    printf '%s' "$ligne"
+}
+# Valeurs d'une directive de la section [Service], dans l'ordre du fichier.
+directive() {
+    awk -v cle="$1" '
+        /^\[/ { section = $0; next }
+        section == "[Service]" && index($0, cle "=") == 1 { print substr($0, length(cle) + 2) }
+    ' "$UNITE"
+}
+actif() { [[ -f "$PIDF" ]] && kill -0 "$(cat "$PIDF")" 2> /dev/null; }
+
+demarrer() {
+    actif && return 0
+    [[ -f "$UNITE" ]] || { echo "Unit $nom.service not found." >&2; return 5; }
+    (
+        # Descripteurs : un service lancé par systemd n'hérite d'aucun
+        # descripteur de l'appelant (dont le verrou de deployer.sh, fd 9).
+        for fd in $(ls /proc/$BASHPID/fd); do
+            (( fd > 2 )) && eval "exec $fd>&-" 2> /dev/null
+        done
+        # Environnement : celui d'un service, pas celui de l'appelant.
+        for v in $(compgen -e); do
+            case "$v" in PATH|LANG|SYSTEMCTL_SIMULE_*) ;; *) unset "$v" ;; esac
+        done
+        export PATH=/usr/local/bin:/usr/bin:/bin LANG=C.UTF-8
+        while IFS= read -r f; do
+            f="$(reecrire "$f")"
+            if [[ "$f" == -* ]]; then f="${f#-}"; [[ -f "$f" ]] || continue; fi
+            [[ -r "$f" ]] || { echo "EnvironmentFile illisible : $f" >&2; exit 1; }
+            set -a; source "$f"; set +a
+        done < <(directive EnvironmentFile)
+        while IFS= read -r e; do
+            e="$(reecrire "$e")"; export "${e%%=*}=${e#*=}"
+        done < <(directive Environment)
+        utilisateur="$(directive User | tail -1)"; groupe="$(directive Group | tail -1)"
+        lancer=()
+        if [[ -n "$utilisateur" && "$(id -u)" == 0 ]] && id "$utilisateur" > /dev/null 2>&1; then
+            lancer=(setpriv "--reuid=$utilisateur" "--regid=${groupe:-$utilisateur}" --init-groups --)
+        fi
+        rep="$(reecrire "$(directive WorkingDirectory | tail -1)")"
+        cd "${rep:-/}" || exit 1
+        while IFS= read -r pre; do
+            pre="$(reecrire "$pre")"
+            eval "set -- $pre"
+            "${lancer[@]}" "$@" || { echo "ExecStartPre en échec : $pre" >&2; exit 1; }
+        done < <(directive ExecStartPre)
+        cmd="$(reecrire "$(directive ExecStart | tail -1)")"
+        # systemd : $VAR est découpé en mots, ${VAR} reste un seul argument.
+        cmd="$(sed -E 's/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/"${\1}"/g' <<< "$cmd")"
+        eval "set -- $cmd"
+        echo "$(date '+%F %T') ExecStart : $*" >> "$ETAT/$nom.journal"
+        setsid "${lancer[@]}" "$@" >> "$ETAT/$nom.journal" 2>&1 < /dev/null &
+        echo $! > "$PIDF"
+    ) || return 1
+    sleep 1
+    actif || { echo "Job for $nom.service failed (voir $ETAT/$nom.journal)." >&2; return 1; }
+}
+
+arreter() {
+    actif || { rm -f "$PIDF"; return 0; }
+    local pid delai signal
+    pid="$(cat "$PIDF")"
+    signal="$(directive KillSignal | tail -1)"; delai="$(directive TimeoutStopSec | tail -1)"
+    kill -s "${signal:-SIGTERM}" "$pid"
+    for _ in $(seq $(( ${delai:-90} * 2 ))); do
+        kill -0 "$pid" 2> /dev/null || break
+        sleep 0.5
+    done
+    kill -0 "$pid" 2> /dev/null && kill -KILL "$pid"
+    echo "$(date '+%F %T') arrêt du PID $pid" >> "$ETAT/$nom.journal"
+    rm -f "$PIDF"
+}
+
+case "$action" in
+    start) demarrer ;;
+    stop) arreter ;;
+    restart) arreter; demarrer ;;
+    is-active)
+        if actif; then [[ "$silencieux" == oui ]] || echo active; exit 0
+        else [[ "$silencieux" == oui ]] || echo inactive; exit 3; fi ;;
+    show)  # « systemctl show -p MainPID ged-backend »
+        if actif; then echo "MainPID=$(cat "$PIDF")"; else echo "MainPID=0"; fi ;;
+    daemon-reload|enable) ;;
+    *) echo "systemctl simulé : action non prise en charge : $action" >&2; exit 1 ;;
+esac
