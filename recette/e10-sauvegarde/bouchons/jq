@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Bouchon de jq (absent du poste) couvrant EXACTEMENT les filtres de deployer.sh et
+# test-fumee.sh ; tout autre filtre est refusé (code 3) pour ne rien masquer.
+#   .status | .demo == false | {k: $v, ...} | .token // empty | .id // empty
+#   [.content[]? | select((.id|tostring) == $id)] | length
+set -u
+brut=non; statut=non; nul=non; filtre=""; fichier=""; declare -A arg
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -r) brut=oui; shift ;;
+    -e) statut=oui; shift ;;
+    -n) nul=oui; shift ;;
+    --arg) arg[$2]="$3"; shift 3 ;;
+    *) if [[ -z "$filtre" ]]; then filtre="$1"; else fichier="$1"; fi; shift ;;
+  esac
+done
+if [[ "$nul" == oui ]]; then entree=""; elif [[ -n "$fichier" ]]; then entree="$(cat "$fichier")"; else entree="$(cat)"; fi
+champ() { sed -n "s/.*\"$1\" *: *\"\([^\"]*\)\".*/\1/p" <<<"$entree" | head -1; }
+case "$filtre" in
+  .status) v="$(champ status)"; [[ -n "$v" ]] && echo "$v" || echo null ;;
+  ".demo == false")
+    if grep -Eq '"demo" *: *false' <<<"$entree"; then echo true; exit 0; else echo false; [[ "$statut" == oui ]] && exit 1; exit 0; fi ;;
+  ".token // empty") champ token ;;
+  ".id // empty") champ id ;;
+  "[.content[]? | select((.id|tostring) == \$id)] | length") grep -o "\"id\":\"${arg[id]}\"" <<<"$entree" | wc -l | tr -d ' ' ;;
+  "{"*"}")
+    corps="${filtre#\{}"; corps="${corps%\}}"; sortie=""; IFS=',' read -ra paires <<<"$corps"
+    for p in "${paires[@]}"; do
+      k="$(sed 's/^ *\([A-Za-z_]*\) *:.*/\1/' <<<"$p")"; var="$(sed 's/.*\$\([A-Za-z_]*\).*/\1/' <<<"$p")"
+      sortie="$sortie${sortie:+,}\"$k\":\"${arg[$var]}\""
+    done
+    echo "{$sortie}" ;;
+  *) echo "bouchon jq : filtre non pris en charge : $filtre" >&2; exit 3 ;;
+esac
