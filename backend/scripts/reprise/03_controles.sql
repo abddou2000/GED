@@ -16,6 +16,11 @@ WITH controles(ordre, controle, attendu, obtenu) AS (
     UNION ALL SELECT 6, 'lignes groupe_ged',              (SELECT count(*) FROM reprise_source.access_groups),          (SELECT count(*) FROM groupe_ged)
     UNION ALL SELECT 7, 'liens groupe / espace au rapport', (SELECT count(*) FROM (SELECT DISTINCT access_group_id, workspace_id FROM reprise_source.pivot_workspace_groups) p),
                                                           (SELECT count(*) FROM reprise_lien_groupe_espace)
+    UNION ALL SELECT 42, 'groupes à droits hérités au rapport', (SELECT count(*) FROM reprise_source.access_groups s
+                                                             WHERE s.droit_access OR s.droit_lecture OR s.droit_modifier OR s.droit_uploader
+                                                                OR s.droit_supprimer OR s.droit_deplacer OR s.droit_ajouter_version
+                                                                OR s.droit_verrouiller_deverrouiller),
+                                                          (SELECT count(*) FROM reprise_droits_groupe)
     UNION ALL SELECT 8, 'lignes groupe_membre',           (SELECT count(*) FROM reprise_source.pivot_employe_groups),   (SELECT count(*) FROM groupe_membre)
     UNION ALL SELECT 9, 'lignes etiquette',               (SELECT count(*) FROM reprise_source.etiquettes),             (SELECT count(*) FROM etiquette)
     UNION ALL SELECT 10, 'lignes index_def',              (SELECT count(*) FROM reprise_source.indices),                (SELECT count(*) FROM index_def)

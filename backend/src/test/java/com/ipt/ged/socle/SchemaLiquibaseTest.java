@@ -133,6 +133,8 @@ class SchemaLiquibaseTest {
         TABLES_E8 = Set.copyOf(t);
         // Alerte d'échéance (T-112) : verrou des tâches planifiées.
         t.add("verrou_tache");
+        // T-025 : rapport des droits hérités des groupes (colonnes droit_* retirées).
+        t.add("reprise_droits_groupe");
         TABLES_ATTENDUES = Set.copyOf(t);
     }
 
@@ -376,8 +378,8 @@ class SchemaLiquibaseTest {
                 String s = schema + ".";
                 executer(c, "INSERT INTO " + s + "employe (id, first_name, last_name) VALUES"
                         + " ('01920000-0000-7000-8000-00000000e001', 'Karim', 'El Fassi')");
-                executer(c, "INSERT INTO " + s + "regle_workflow (id, name) VALUES ('01920000-0000-7000-8000-00000000f001', 'WF')");
-                executer(c, "INSERT INTO " + s + "noeud (id, name, code, status, employe_id, regle_workflow_id) VALUES"
+                executer(c, "INSERT INTO " + s + "regle_workflow (id, nom) VALUES ('01920000-0000-7000-8000-00000000f001', 'WF')");
+                executer(c, "INSERT INTO " + s + "noeud (id, nom, code, status, employe_id, regle_workflow_id) VALUES"
                         + " ('01920000-0000-7000-8000-00000000a001', 'Compta', 'WS-C', 'ACTIF',"
                         + " '01920000-0000-7000-8000-00000000e001', '01920000-0000-7000-8000-00000000f001')");
                 executer(c, "INSERT INTO " + s + "type_document (id, code, type_de_document, description, noeud_id,"
@@ -408,6 +410,196 @@ class SchemaLiquibaseTest {
                 assertEquals(new TreeSet<>(TABLES_E7), tablesMetier(c, schema));
             } finally {
                 executer(c, "RESET ged.retour_arriere_avec_perte");
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("ANO-E8-004 : au-delà de workflow-e8, diffusions et signalements d'échéance ne se perdent pas sans décision")
+    void retourArriereApresJalonWorkflowSansPerte() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                liquibase.update(new Contexts(), new LabelExpression());
+                String s = schema + ".";
+                executer(c, "INSERT INTO " + s + "employe (id, first_name, last_name) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000e001', 'Karim', 'El Fassi')");
+                executer(c, "INSERT INTO " + s + "utilisateur (id, object_guid, identifiant, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000c001', '01920000-0000-7000-8000-00000000c0aa', 'kelfassi',"
+                        + " '01920000-0000-7000-8000-00000000e001')");
+                executer(c, "INSERT INTO " + s + "noeud (id, nom, code, status, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-00000000a001', 'Compta', 'WS-C', 'ACTIF',"
+                        + " '01920000-0000-7000-8000-00000000e001')");
+                executer(c, "INSERT INTO " + s + "type_document (id, code, type_de_document, description, noeud_id,"
+                        + " type_autorise, taille_max_mo) VALUES ('01920000-0000-7000-8000-00000000d001', 'TD', 'Facture',"
+                        + " 'd', '01920000-0000-7000-8000-00000000a001', 'pdf', 5)");
+                executer(c, "INSERT INTO " + s + "document (id, name, noeud_principal_id, type_document_id)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000b001', 'Facture',"
+                        + " '01920000-0000-7000-8000-00000000a001', '01920000-0000-7000-8000-00000000d001')");
+                String sansRegle = "SELECT count(*) FROM " + s + "noeud WHERE regle_workflow_id IS NULL";
+                // Une diffusion (habilitation du rôle Lecteur sur le document) et un signalement d'échéance.
+                executer(c, "INSERT INTO " + s + "habilitation (id, sujet_type, utilisateur_id, role_id, document_id)"
+                        + " VALUES ('01920000-0000-7000-8000-00000000f101', 'UTILISATEUR',"
+                        + " '01920000-0000-7000-8000-00000000c001', '0192a000-0000-7000-8000-000000000005',"
+                        + " '01920000-0000-7000-8000-00000000b001')");
+                executer(c, "UPDATE " + s + "document SET echeance_signalee_le = now()"
+                        + " WHERE id = '01920000-0000-7000-8000-00000000b001'");
+                if (!c.getAutoCommit()) c.commit();
+                String diffusions = "SELECT count(*) FROM " + s + "habilitation WHERE role_id = '0192a000-0000-7000-8000-000000000005'";
+                String signales = "SELECT count(*) FROM " + s + "document WHERE echeance_signalee_le IS NOT NULL";
+
+                // 1. Refus au premier changeset destructeur défait (202610031000-1), avant toute perte.
+                Exception refus = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
+                        () -> liquibase.rollback("modele-e7", (String) null));
+                assertTrue(causes(refus).contains("1 marque(s) de signalement"), causes(refus));
+                assertEquals(1, compter(c, signales));
+                assertEquals(1, compter(c, diffusions));
+                if (!c.getAutoCommit()) c.rollback();
+
+                // 2. Sans signalement : refus au rôle Lecteur (202610021130), la diffusion reste.
+                executer(c, "UPDATE " + s + "document SET echeance_signalee_le = NULL");
+                if (!c.getAutoCommit()) c.commit();
+                refus = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
+                        () -> liquibase.rollback("modele-e7", (String) null));
+                assertTrue(causes(refus).contains("1 habilitation(s) du rôle"), causes(refus));
+                assertEquals(1, compter(c, diffusions), "la diffusion n'est pas supprimée");
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "role WHERE code = 'LECTEUR'"));
+                if (!c.getAutoCommit()) c.rollback();
+
+                // 3. Sans diffusion : refus aux règles (202610021100-2), le nœud sans règle n'en reçoit
+                //    pas une au hasard ; sans aucune règle, impossible même sur décision explicite.
+                executer(c, "DELETE FROM " + s + "habilitation WHERE role_id = '0192a000-0000-7000-8000-000000000005'");
+                if (!c.getAutoCommit()) c.commit();
+                refus = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
+                        () -> liquibase.rollback("modele-e7", (String) null));
+                assertTrue(causes(refus).contains("règle arbitraire à 1 nœud(s)"), causes(refus));
+                assertEquals(1, compter(c, sansRegle));
+                if (!c.getAutoCommit()) c.rollback();
+
+                // 4. Remontée possible depuis cet état intermédiaire (rien de perdu), puis décision explicite.
+                liquibase.update(new Contexts(), new LabelExpression());
+                assertEquals(new TreeSet<>(TABLES_ATTENDUES), tablesMetier(c, schema));
+                executer(c, "SET ged.retour_arriere_avec_perte = 'oui'");
+                if (!c.getAutoCommit()) c.commit();
+                refus = org.junit.jupiter.api.Assertions.assertThrows(Exception.class,
+                        () -> liquibase.rollback("modele-e7", (String) null));
+                assertTrue(causes(refus).contains("aucune règle à leur attribuer"), causes(refus));
+                if (!c.getAutoCommit()) c.rollback();
+                // Les changesets T-025 (colonnes « nom ») sont déjà défaits : la colonne s'appelle de nouveau name.
+                executer(c, "INSERT INTO " + s + "regle_workflow (id, name) VALUES ('01920000-0000-7000-8000-00000000f001', 'WF')");
+                if (!c.getAutoCommit()) c.commit();
+                liquibase.rollback("modele-e7", (String) null);
+                assertEquals(new TreeSet<>(TABLES_E7), tablesMetier(c, schema));
+            } finally {
+                executer(c, "RESET ged.retour_arriere_avec_perte");
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("ANO-F-001 : l'Agent d'archive reçoit Valider, Diffuser, Purger ; le retour arrière épargne un ajout fait à l'écran")
+    void compositionAgentArchive() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                List<liquibase.changelog.ChangeSet> aJouer = liquibase.listUnrunChangeSets(new Contexts(),
+                        new LabelExpression());
+                int avant = 0;
+                while (!aJouer.get(avant).getId().equals("202610041000-1")) avant++;
+                liquibase.update(avant, new Contexts(), new LabelExpression());
+                String s = schema + ".";
+                String agent = "'0192a000-0000-7000-8000-000000000002'";
+                String composition = "SELECT count(*) FROM " + s + "role_permission rp JOIN " + s
+                        + "permission p ON p.id = rp.permission_id WHERE rp.role_id = " + agent;
+                assertEquals(7, compter(c, composition), "composition livrée avant le correctif");
+                // Un Administrateur a déjà ajouté Valider depuis l'écran des rôles.
+                executer(c, "INSERT INTO " + s + "role_permission (role_id, permission_id) VALUES (" + agent
+                        + ", '0192b000-0000-7000-8000-000000000004')");
+                if (!c.getAutoCommit()) c.commit();
+
+                liquibase.update(new Contexts(), new LabelExpression());
+                assertEquals(10, compter(c, composition), "neuf permissions élémentaires et Voir privé");
+                assertEquals(3, compter(c, composition + " AND p.code IN ('VALIDER', 'DIFFUSER', 'PURGER')"));
+
+                // Retour arrière jusqu'à ce changeset inclus : Diffuser et Purger partent, Valider
+                // (posé à l'écran) reste.
+                int apres = compter(c, "SELECT count(*) FROM " + s + "databasechangelog WHERE orderexecuted >="
+                        + " (SELECT orderexecuted FROM " + s + "databasechangelog WHERE id = '202610041000-1')");
+                liquibase.rollback(apres, (String) null);
+                assertEquals(8, compter(c, composition));
+                assertEquals(1, compter(c, composition + " AND p.code = 'VALIDER'"));
+                assertEquals(0, compter(c, composition + " AND p.code IN ('DIFFUSER', 'PURGER')"));
+            } finally {
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("T-025 : droits hérités des groupes au rapport de reprise, colonnes « nom » ; retour arrière sans perte")
+    void modeleDeReferenceGroupesEtNoms() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                List<liquibase.changelog.ChangeSet> aJouer = liquibase.listUnrunChangeSets(new Contexts(),
+                        new LabelExpression());
+                int avant = 0;
+                while (!aJouer.get(avant).getId().equals("202610041010-1")) avant++;
+                liquibase.update(avant, new Contexts(), new LabelExpression());
+                String s = schema + ".";
+                // Un groupe repris avec des droits hérités, un autre sans (valeurs par défaut).
+                executer(c, "INSERT INTO " + s + "groupe_ged (id, code, name, droit_lecture, droit_deplacer) VALUES"
+                        + " ('01920000-0000-7000-8000-0000000fa001', 'AG-A', 'Archivistes', true, true)");
+                executer(c, "INSERT INTO " + s + "groupe_ged (id, code, name) VALUES"
+                        + " ('01920000-0000-7000-8000-0000000fa002', 'AG-B', 'Lecteurs')");
+                executer(c, "INSERT INTO " + s + "regle_workflow (id, name) VALUES ('01920000-0000-7000-8000-0000000fa003', 'Visa')");
+                if (!c.getAutoCommit()) c.commit();
+
+                liquibase.update(new Contexts(), new LabelExpression());
+                String colonnes = "SELECT string_agg(table_name || '.' || column_name, ',' ORDER BY table_name, column_name)"
+                        + " FROM information_schema.columns WHERE table_schema = '" + schema + "'"
+                        + " AND table_name IN ('groupe_ged', 'noeud', 'regle_workflow')"
+                        + " AND (column_name IN ('name', 'nom') OR column_name LIKE 'droit\\_%')";
+                assertEquals("groupe_ged.nom,noeud.nom,regle_workflow.nom", texte(c, colonnes));
+                assertEquals("{droit_lecture,droit_deplacer}", texte(c, "SELECT droits::text FROM " + s
+                        + "reprise_droits_groupe WHERE groupe_ged_id = '01920000-0000-7000-8000-0000000fa001'"));
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "reprise_droits_groupe"));
+                assertEquals("Archivistes", texte(c, "SELECT nom FROM " + s + "groupe_ged WHERE code = 'AG-A'"));
+                assertEquals(1, compter(c, "SELECT count(*) FROM pg_constraint WHERE conname = 'uk_groupe_ged_nom'"
+                        + " AND connamespace = '" + schema + "'::regnamespace"));
+                verifierConventionsDeNommage(c, schema);
+
+                // Retour arrière des deux changesets : colonnes et valeurs d'origine, rapport retiré.
+                liquibase.rollback(2, (String) null);
+                assertEquals("groupe_ged.droit_access,groupe_ged.droit_ajouter_version,groupe_ged.droit_deplacer,"
+                        + "groupe_ged.droit_lecture,groupe_ged.droit_modifier,groupe_ged.droit_supprimer,"
+                        + "groupe_ged.droit_uploader,groupe_ged.droit_verrouiller_deverrouiller,groupe_ged.name,"
+                        + "noeud.name,regle_workflow.name", texte(c, colonnes));
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "groupe_ged WHERE code = 'AG-A' AND droit_lecture"
+                        + " AND droit_deplacer AND NOT (droit_access OR droit_modifier OR droit_uploader OR droit_supprimer"
+                        + " OR droit_ajouter_version OR droit_verrouiller_deverrouiller)"));
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "groupe_ged WHERE code = 'AG-B' AND NOT"
+                        + " (droit_access OR droit_lecture OR droit_modifier OR droit_uploader OR droit_supprimer"
+                        + " OR droit_deplacer OR droit_ajouter_version OR droit_verrouiller_deverrouiller)"));
+                assertEquals("Visa", texte(c, "SELECT name FROM " + s + "regle_workflow"));
+                assertEquals(0, compter(c, "SELECT count(*) FROM information_schema.tables WHERE table_schema = '"
+                        + schema + "' AND table_name = 'reprise_droits_groupe'"));
+                assertEquals(1, compter(c, "SELECT count(*) FROM pg_constraint WHERE conname = 'uk_groupe_ged_name'"
+                        + " AND connamespace = '" + schema + "'::regnamespace"));
+
+                // Remontée : même état qu'avant le retour arrière.
+                liquibase.update(new Contexts(), new LabelExpression());
+                assertEquals("groupe_ged.nom,noeud.nom,regle_workflow.nom", texte(c, colonnes));
+                assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "reprise_droits_groupe"));
+            } finally {
                 supprimerSchema(c, schema);
             }
         }

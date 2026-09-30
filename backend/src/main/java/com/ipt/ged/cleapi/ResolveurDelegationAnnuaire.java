@@ -7,6 +7,7 @@ import com.ipt.ged.identite.ServiceIdentites;
 import com.ipt.ged.identite.Utilisateur;
 import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.identite.annuaire.Annuaire;
+import com.ipt.ged.identite.annuaire.EtatCompteAnnuaire;
 import com.ipt.ged.identite.annuaire.FicheAnnuaire;
 import com.ipt.ged.identite.erreur.AnnuaireIndisponibleException;
 import com.ipt.ged.security.UtilisateurConnecte;
@@ -26,9 +27,13 @@ import java.util.regex.Pattern;
  *       les identités GED, puis dans l'annuaire : une identité de l'annuaire
  *       jamais connectée est provisionnée sans rôle (cache d'annuaire compris).
  *       Inconnue des deux : 422 {@code IDENTITE_DELEGUEE_INVALIDE}.</li>
- *   <li>Option {@code ged.api.delegation.verifier-compte-annuaire} : l'annuaire est
- *       relu et une identité qui n'y figure plus est refusée (QR9, voir
- *       {@link ProprietesDelegation}).</li>
+ *   <li><b>Compte actif</b> (décision D15, risque R28) : l'état du compte
+ *       ({@code userAccountControl}) est lu dans l'annuaire, avec un cache court
+ *       ({@link com.ipt.ged.identite.annuaire.EtatCompteEnCache}). Compte
+ *       désactivé, disparu ou d'état illisible : 422
+ *       {@code IDENTITE_DELEGUEE_INVALIDE}, motif précis au journal d'audit, et
+ *       aucun provisionnement. Exception bornée à D1 : la connexion
+ *       interactive ne lit toujours pas cet état.</li>
  * </ol>
  * Annuaire injoignable quand il faut le lire : 503, jamais d'exécution au nom
  * d'une identité non vérifiée.
@@ -40,15 +45,17 @@ public class ResolveurDelegationAnnuaire implements ResolveurIdentiteDeleguee {
     private final UtilisateurRepository utilisateurs;
     private final ServiceIdentites identites;
     private final Annuaire annuaire;
+    private final EtatCompteAnnuaire etatCompte;
     private final ApplicationRepository applications;
     private final ProprietesDelegation proprietes;
 
     public ResolveurDelegationAnnuaire(UtilisateurRepository utilisateurs, ServiceIdentites identites,
-                                       Annuaire annuaire, ApplicationRepository applications,
-                                       ProprietesDelegation proprietes) {
+                                       Annuaire annuaire, EtatCompteAnnuaire etatCompte,
+                                       ApplicationRepository applications, ProprietesDelegation proprietes) {
         this.utilisateurs = utilisateurs;
         this.identites = identites;
         this.annuaire = annuaire;
+        this.etatCompte = etatCompte;
         this.applications = applications;
         this.proprietes = proprietes;
     }
@@ -63,21 +70,42 @@ public class ResolveurDelegationAnnuaire implements ResolveurIdentiteDeleguee {
         }
         String v = valeur == null ? "" : valeur.trim();
         UUID guid = guid(v);
-        if (guid == null && !IDENTIFIANT.matcher(v).matches()) throw invalide();
+        if (guid == null && !IDENTIFIANT.matcher(v).matches()) throw invalide(null);
 
         Optional<Utilisateur> connue = guid != null ? utilisateurs.findByObjectGuid(guid)
                 : utilisateurs.findByIdentifiant(v);
         Utilisateur u;
         if (connue.isPresent()) {
             u = connue.get();
-            if (proprietes.verifierCompteAnnuaire() && lire(null, u.getObjectGuid()).isEmpty()) throw invalide();
+            exigerCompteActif(u.getObjectGuid(), u.getIdentifiant());
         } else {
-            FicheAnnuaire fiche = lire(guid == null ? v : null, guid).orElseThrow(ResolveurDelegationAnnuaire::invalide);
-            if (!proprietes.provisionnerInconnus()) throw invalide();
+            FicheAnnuaire fiche = lire(guid == null ? v : null, guid)
+                    .orElseThrow(() -> invalide("identité inconnue de la GED et de l'annuaire"));
+            if (!proprietes.provisionnerInconnus()) throw invalide("identité jamais connectée, provisionnement désactivé");
+            // Avant le provisionnement : un compte désactivé ne devient pas une identité GED.
+            exigerCompteActif(fiche.objectGuid(), fiche.identifiant());
             u = identites.provisionner(fiche, false).utilisateur();
         }
-        UtilisateurConnecte principal = identites.principal(u.getId(), null).orElseThrow(ResolveurDelegationAnnuaire::invalide);
+        UtilisateurConnecte principal = identites.principal(u.getId(), null)
+                .orElseThrow(() -> invalide("identité GED introuvable"));
         return new IdentiteDeleguee(u.getId(), u.getIdentifiant(), principal);
+    }
+
+    /** D15 : aucune délégation vers un compte désactivé, disparu ou d'état non vérifiable. */
+    private void exigerCompteActif(UUID objectGuid, String identifiant) {
+        EtatCompteAnnuaire.Etat etat;
+        try {
+            etat = etatCompte.etat(objectGuid);
+        } catch (AnnuaireIndisponibleException e) {
+            throw new ServiceIndisponibleException("ANNUAIRE_INDISPONIBLE",
+                    "Annuaire injoignable : l'identité déléguée ne peut pas être vérifiée.", e);
+        }
+        switch (etat) {
+            case ACTIF -> { }
+            case DESACTIVE -> throw invalide("compte désactivé dans l'annuaire (" + identifiant + ")");
+            case INTROUVABLE -> throw invalide("compte absent de l'annuaire (" + identifiant + ")");
+            case INDETERMINE -> throw invalide("état du compte illisible dans l'annuaire (" + identifiant + ")");
+        }
     }
 
     private Optional<FicheAnnuaire> lire(String identifiant, UUID guid) {
@@ -97,8 +125,17 @@ public class ResolveurDelegationAnnuaire implements ResolveurIdentiteDeleguee {
         }
     }
 
-    private static RegleMetierException invalide() {
-        return new RegleMetierException(CodesErreurCleApi.IDENTITE_DELEGUEE_INVALIDE,
+    /**
+     * Refus 422, même libellé pour l'application quelle qu'en soit la cause (elle
+     * n'apprend pas l'état d'un compte) ; la cause précise va au journal d'audit.
+     */
+    private static RegleMetierException invalide(String motif) {
+        RegleMetierException e = new RegleMetierException(CodesErreurCleApi.IDENTITE_DELEGUEE_INVALIDE,
                 "Identité déléguée inconnue de l'annuaire ou invalide.");
+        if (motif != null) e.avec(MOTIF_AUDIT, motif);
+        return e;
     }
+
+    /** Propriété de l'exception lue par {@link FiltreCleApi} pour le journal ; jamais renvoyée au client. */
+    static final String MOTIF_AUDIT = "motifAudit";
 }

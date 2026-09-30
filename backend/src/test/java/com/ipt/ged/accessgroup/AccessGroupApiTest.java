@@ -47,6 +47,7 @@ class AccessGroupApiTest {
     @Autowired private WorkflowRepository workflowRepository;
     @Autowired private EmployeRepository employeRepository;
     @Autowired private WorkSpaceRepository workspaceRepository;
+    @Autowired private com.ipt.ged.identite.UtilisateurRepository utilisateurs;
 
     private static final String BASE = "/api/v1/access-groups";
 
@@ -151,6 +152,38 @@ class AccessGroupApiTest {
                 .andExpect(jsonPath("$.name").value("ApresMaj"))
                 .andExpect(jsonPath("$.usersCount").value(2))
                 .andExpect(jsonPath("$.workspacesCount").value(1));
+    }
+
+    @Test
+    @DisplayName("ANO-F-009 : membre ou espace inconnu refusé en 422, identifiants listés, rien d'écrit")
+    void referencesInconnuesRefusees() throws Exception {
+        // Scénario de la recette : un identifiant d'utilisateur GED au lieu d'un identifiant d'employé.
+        UUID utilisateur = utilisateurs.findByIdentifiant(Comptes.ADMIN).orElseThrow().getId();
+        UUID inconnu = UUID.randomUUID();
+        String membres = "[\"" + Comptes.idAdmin(employeRepository) + "\",\"" + utilisateur + "\",\"" + inconnu + "\"]";
+        mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(body("AG-INC", "Inconnus", "[]", membres)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
+                .andExpect(jsonPath("$.code").value(CodesErreurGroupe.MEMBRES_INCONNUS))
+                .andExpect(jsonPath("$.identifiantsInconnus.length()").value(2))
+                .andExpect(jsonPath("$.identifiantsInconnus", containsInAnyOrder(utilisateur.toString(), inconnu.toString())));
+        mvc.perform(get(BASE).param("search", "Inconnus")).andExpect(jsonPath("$.content.length()").value(0));
+
+        mvc.perform(post(BASE).contentType(APPLICATION_JSON)
+                        .content(body("AG-INC", "Inconnus", "[\"" + inconnu + "\"]", employes(1))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value(CodesErreurGroupe.ESPACES_INCONNUS))
+                .andExpect(jsonPath("$.identifiantsInconnus[0]").value(inconnu.toString()));
+
+        // Modification : refusée de même, membres et nom inchangés.
+        UUID id = create("AG-INC2", "Avant", "[]", employes(1));
+        mvc.perform(put(BASE + "/" + id).contentType(APPLICATION_JSON)
+                        .content(body("AG-INC2", "Apres", "[]", "[\"" + inconnu + "\"]")))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value(CodesErreurGroupe.MEMBRES_INCONNUS));
+        mvc.perform(get(BASE + "/" + id))
+                .andExpect(jsonPath("$.name").value("Avant"))
+                .andExpect(jsonPath("$.usersCount").value(1));
     }
 
     @Test

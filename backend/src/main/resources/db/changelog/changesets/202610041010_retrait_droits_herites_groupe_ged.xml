@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610041010_retrait_droits_herites_groupe_ged.xml">
+
+    <!--
+        T-025, écart 1 (décision P2 du chef de projet IPTECH) : au §12.2.1 un
+        groupe GED n'est qu'un SUJET d'habilitation ; les droits passent par
+        role, role_permission et habilitation. Les huit colonnes booléennes
+        droit_* héritées de l'ancien modèle (inertes depuis E3 : jamais lues
+        ni écrites par l'application) formaient une seconde source de droits
+        apparente. Ce changeset les retire (phase « contract » : l'application
+        ne les mappe plus depuis ce même lot, et ne les lisait plus depuis E3).
+
+        Sans perte (P-17, GARANTIE.md) : les valeurs vraies, seules porteuses
+        d'information (défaut faux), sont d'abord consignées dans un RAPPORT de
+        reprise, comme les anciens liens groupe / espace (202610011000) ; le
+        retour arrière recrée les colonnes et y remet ces valeurs.
+    -->
+    <changeSet id="202610041010-1" author="ged">
+        <comment>Groupes GED : droits hérités consignés au rapport de reprise, colonnes droit_* retirées.</comment>
+        <createTable tableName="reprise_droits_groupe">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()"><constraints primaryKey="true" primaryKeyName="pk_reprise_droits_groupe" nullable="false"/></column>
+            <column name="groupe_ged_id" type="UUID"><constraints nullable="false"/></column>
+            <!-- Noms des anciennes colonnes à vrai, par exemple {droit_access, droit_lecture}. -->
+            <column name="droits" type="TEXT[]"><constraints nullable="false"/></column>
+            <column name="repris_le" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_reprise_droits_groupe_groupe_ged_id" tableName="reprise_droits_groupe" columnNames="groupe_ged_id"/>
+        <addForeignKeyConstraint constraintName="fk_reprise_droits_groupe_groupe_ged" baseTableName="reprise_droits_groupe" baseColumnNames="groupe_ged_id"
+                                 referencedTableName="groupe_ged" referencedColumnNames="id" onDelete="CASCADE"/>
+        <sql>INSERT INTO ${database.defaultSchemaName}.reprise_droits_groupe (groupe_ged_id, droits)
+             SELECT id, array_remove(ARRAY[
+                        CASE WHEN droit_access THEN 'droit_access' END,
+                        CASE WHEN droit_lecture THEN 'droit_lecture' END,
+                        CASE WHEN droit_modifier THEN 'droit_modifier' END,
+                        CASE WHEN droit_uploader THEN 'droit_uploader' END,
+                        CASE WHEN droit_supprimer THEN 'droit_supprimer' END,
+                        CASE WHEN droit_deplacer THEN 'droit_deplacer' END,
+                        CASE WHEN droit_ajouter_version THEN 'droit_ajouter_version' END,
+                        CASE WHEN droit_verrouiller_deverrouiller THEN 'droit_verrouiller_deverrouiller' END]::text[], NULL)
+               FROM ${database.defaultSchemaName}.groupe_ged
+              WHERE droit_access OR droit_lecture OR droit_modifier OR droit_uploader OR droit_supprimer
+                 OR droit_deplacer OR droit_ajouter_version OR droit_verrouiller_deverrouiller</sql>
+        <dropColumn tableName="groupe_ged">
+            <column name="droit_access"/>
+            <column name="droit_lecture"/>
+            <column name="droit_modifier"/>
+            <column name="droit_uploader"/>
+            <column name="droit_supprimer"/>
+            <column name="droit_deplacer"/>
+            <column name="droit_ajouter_version"/>
+            <column name="droit_verrouiller_deverrouiller"/>
+        </dropColumn>
+        <rollback>
+            <addColumn tableName="groupe_ged">
+                <column name="droit_access" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+                <column name="droit_lecture" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+                <column name="droit_modifier" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+                <column name="droit_uploader" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+                <column name="droit_supprimer" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+                <column name="droit_deplacer" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+                <column name="droit_ajouter_version" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+                <column name="droit_verrouiller_deverrouiller" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            </addColumn>
+            <sql>UPDATE ${database.defaultSchemaName}.groupe_ged g
+                    SET droit_access = 'droit_access' = ANY (r.droits),
+                        droit_lecture = 'droit_lecture' = ANY (r.droits),
+                        droit_modifier = 'droit_modifier' = ANY (r.droits),
+                        droit_uploader = 'droit_uploader' = ANY (r.droits),
+                        droit_supprimer = 'droit_supprimer' = ANY (r.droits),
+                        droit_deplacer = 'droit_deplacer' = ANY (r.droits),
+                        droit_ajouter_version = 'droit_ajouter_version' = ANY (r.droits),
+                        droit_verrouiller_deverrouiller = 'droit_verrouiller_deverrouiller' = ANY (r.droits)
+                   FROM ${database.defaultSchemaName}.reprise_droits_groupe r
+                  WHERE r.groupe_ged_id = g.id</sql>
+            <dropTable tableName="reprise_droits_groupe"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

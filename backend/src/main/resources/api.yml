@@ -23,9 +23,16 @@ ged:
       # X-On-Behalf-Of (DAT §5.5) : une identité de l'annuaire jamais connectée est
       # provisionnée sans rôle ; faux = refusée (422 IDENTITE_DELEGUEE_INVALIDE).
       provisionner-inconnus: true
-      # Relire l'annuaire à chaque délégation et refuser une identité qui n'y figure
-      # plus. Le rejet d'un compte DÉSACTIVÉ reste en question (QR9, décision D1) :
-      # la GED ne lit pas l'état du compte (D1, D3). Existence seule par défaut.
+      # Décision D15 (30/09/2026, risque R28) : à chaque délégation, l'état du compte
+      # (userAccountControl, bit ACCOUNTDISABLE 0x2) est lu dans l'annuaire par le
+      # compte de service, en lecture seule et limité à ce contrôle. Compte désactivé
+      # ou absent : 422 IDENTITE_DELEGUEE_INVALIDE, motif au journal d'audit.
+      # Exception bornée à D1 : la connexion interactive ne lit pas cet état.
+      # Durée pendant laquelle l'état lu est réutilisé : 5 min au plus (démarrage
+      # refusé au-delà), 0 = relecture à chaque appel.
+      cache-etat-compte: ${GED_DELEGATION_CACHE_ETAT_COMPTE:2m}
+      # Sans effet depuis D15 (l'état lu vérifie aussi l'existence du compte) ;
+      # conservé pour ne pas invalider une configuration existante.
       verifier-compte-annuaire: false
     idempotence:
       # Réponse d'une création mémorisée 24 heures par appelant.

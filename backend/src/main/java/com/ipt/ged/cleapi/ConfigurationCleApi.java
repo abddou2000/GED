@@ -7,6 +7,9 @@ import com.ipt.ged.common.erreur.NonAuthentifieException;
 import com.ipt.ged.identite.ServiceIdentites;
 import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.identite.annuaire.Annuaire;
+import com.ipt.ged.identite.annuaire.EtatCompteAnnuaireLdap;
+import com.ipt.ged.identite.annuaire.EtatCompteEnCache;
+import java.time.Clock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -60,13 +63,24 @@ public class ConfigurationCleApi {
         };
     }
 
-    /** Délégation résolue par les identités GED et l'annuaire (lot E2). */
+    /**
+     * État des comptes lu dans l'annuaire au moment d'une délégation (D15) :
+     * compte de service, recherche en lecture seule de {@code userAccountControl}
+     * seul, cache court ({@code ged.api.delegation.cache-etat-compte}, 5 min au plus).
+     */
+    @Bean
+    public EtatCompteEnCache etatCompteDelegation(EtatCompteAnnuaireLdap annuaire, ProprietesDelegation proprietes) {
+        return new EtatCompteEnCache(annuaire, proprietes.cacheEtatCompte(), Clock.systemUTC());
+    }
+
+    /** Délégation résolue par les identités GED et l'annuaire (lot E2), état du compte compris (D15). */
     @Bean
     @ConditionalOnMissingBean(ResolveurIdentiteDeleguee.class)
     public ResolveurIdentiteDeleguee resolveurDelegationAnnuaire(UtilisateurRepository utilisateurs,
                                                                  ServiceIdentites identites, Annuaire annuaire,
+                                                                 EtatCompteEnCache etatCompte,
                                                                  ApplicationRepository applications,
                                                                  ProprietesDelegation proprietes) {
-        return new ResolveurDelegationAnnuaire(utilisateurs, identites, annuaire, applications, proprietes);
+        return new ResolveurDelegationAnnuaire(utilisateurs, identites, annuaire, etatCompte, applications, proprietes);
     }
 }

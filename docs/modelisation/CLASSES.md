@@ -76,6 +76,20 @@ classDiagram
   }
   class ErreurIdentite {
   }
+  class EtatCompteAnnuaire {
+    <<interface>>
+  }
+  class EtatCompteAnnuaireLdap {
+    LdapTemplate modele
+    String base
+    int delaiLectureMs
+  }
+  class EtatCompteEnCache {
+    EtatCompteAnnuaire source
+    Duration duree
+    Clock horloge
+    Map~UUID, Entree~ entrees
+  }
   class FabriqueSocketsLdaps {
     SSLSocketFactory delegue
   }
@@ -228,6 +242,9 @@ classDiagram
   ConnexionEchouee --> MotifEchecConnexion
   EvenementAudit <|.. ConnexionReussie
   ErreurIdentite <|-- EnteteCsrfManquantException
+  EtatCompteAnnuaire <|.. EtatCompteAnnuaireLdap
+  EtatCompteAnnuaire <|.. EtatCompteEnCache
+  EtatCompteEnCache --> EtatCompteAnnuaire
   ErreurIdentite <|-- IdentifiantsRefusesException
   ProprietesIdentite --> Annuaire
   ErreurIdentite <|-- RenouvellementRefuseException
@@ -364,6 +381,7 @@ classDiagram
     AntPathMatcher chemins
     ControleAcces controle
     comiptgeddocumentGardeEcriture garde
+    GardeReglesWorkflowApplications reglesParApplication
   }
   class Habilitation {
     <<entity>>
@@ -491,7 +509,6 @@ classDiagram
     UUID id
     String code
     String name
-    GedRights rights
     Set~Employe~ users
   }
   class AccessGroupController {
@@ -520,17 +537,8 @@ classDiagram
   class AccessGroupTriParTaille {
     EntityManager em
   }
-  class GedRights {
-    boolean access
-    boolean lecture
-    boolean modifier
-    boolean uploader
-    boolean supprimer
-    boolean deplacer
-    boolean ajouterVersion
-    boolean verrouillerDeverrouiller
+  class CodesErreurGroupe {
   }
-  AccessGroup --> GedRights
   AccessGroupController --> AccessGroupService
   AccessGroupSeeder --> AccessGroupRepository
   AccessGroupService --> AccessGroupRepository
@@ -590,6 +598,7 @@ classDiagram
     VersionHabilitations version
     HabilitationRepository habilitations
     AccessGroupRepository groupes
+    ArchivageNoeuds archivage
     orgspringframeworkbeansfactoryObjectProvider~comiptgedcleapiControlePorteeApplication~ porteeApplications
   }
   class WorkspaceStatus {
@@ -601,6 +610,7 @@ classDiagram
   WorkSpaceController --> WorkSpaceService
   WorkSpaceSeeder --> WorkSpaceRepository
   WorkSpaceService --> WorkSpaceRepository
+  WorkSpaceService --> ArchivageNoeuds
 ```
 
 DTO : `TreeNode`, `WorkSpaceResponse`.
@@ -613,6 +623,20 @@ classDiagram
     <<record>>
     UUID employeId
     UUID applicationId
+  }
+  class AgentsArchiveCompetents {
+    JdbcTemplate jdbc
+    AccessPredicate droits
+  }
+  class AlertesEcheanceConservation {
+    JdbcTemplate jdbc
+    VerrouTache verrou
+    AgentsArchiveCompetents agents
+    ApplicationEventPublisher evenements
+    TransactionTemplate tranche
+    int taille
+    Duration bail
+    Clock horloge
   }
   class ApercuConsulte {
     <<record>>
@@ -788,6 +812,15 @@ classDiagram
   class DocumentVersionRepository {
     <<interface>>
   }
+  class EcheanceConservationAtteinte {
+    <<record>>
+    UUID documentId
+    String document
+    LocalDate echeance
+    List~UUID~ destinataires
+  }
+  class Echeances {
+  }
   class EvenementModeleDocument {
     <<record>>
     String action
@@ -839,6 +872,9 @@ classDiagram
     JdbcTemplate jdbc
     EntityManager em
   }
+  class TacheAlertesEcheance {
+    AlertesEcheanceConservation alertes
+  }
   class UploadDocument {
     <<entity>>
     UUID id
@@ -889,6 +925,7 @@ classDiagram
     UUID versionPrecedenteId
     String statutOcr
   }
+  AlertesEcheanceConservation --> AgentsArchiveCompetents
   ApercuConsulte --> Acteur
   ArchivageDocuments <|.. ArchivageDocumentsJdbc
   ArchivageDocumentsJdbc --> GardeEcriture
@@ -912,12 +949,15 @@ classDiagram
   DocumentSupprime --> Acteur
   DocumentTelecharge --> Acteur
   DocumentVersion --> UploadDocument
+  EvenementAudit <|.. EcheanceConservationAtteinte
+  EvenementNotifiable <|.. EcheanceConservationAtteinte
   EvenementAudit <|.. EvenementModeleDocument
   MetadonneesModifiees --> Acteur
   OcrEnEchec --> Acteur
   RechercheMetadonnees --> DocumentService
   ServiceModeleDocument --> DocumentRattachementRepository
   ServiceVersions --> DocumentVersionRepository
+  TacheAlertesEcheance --> AlertesEcheanceConservation
   UploadDocument --> DocumentVersion
   VerrouModifie --> Acteur
   VersionAjoutee --> Acteur
@@ -1388,6 +1428,7 @@ classDiagram
     LocalDate deposeAu
     Archives archives
     String canalDepot
+    boolean echeanceDepassee
   }
   class FragmentSql {
     <<record>>
@@ -1552,6 +1593,7 @@ classDiagram
     TransactionTemplate transaction
     comiptgedautorisationControleAcces controle
     comiptgedfichierintegriteLectureControlee lectures
+    comiptgedfichierintegriteVerificationIntegrite integrite
   }
   class FabriquePdfA {
   }
@@ -2097,6 +2139,8 @@ classDiagram
   class GardeAdministrationCles {
     <<interface>>
   }
+  class GardeReglesWorkflowApplications {
+  }
   class OperationApi {
     <<enumeration>>
     Set~CodePermission~ permissions
@@ -2110,6 +2154,9 @@ classDiagram
   }
   class PorteeCleApiRepository {
     <<interface>>
+  }
+  class PorteeReglesWorkflowCorps {
+    GardeReglesWorkflowApplications garde
   }
   class ProprietesCleApi {
     <<record>>
@@ -2125,6 +2172,7 @@ classDiagram
     <<record>>
     Boolean provisionnerInconnus
     Boolean verifierCompteAnnuaire
+    Duration cacheEtatCompte
   }
   class QuotasCleApi {
     JdbcTemplate jdbc
@@ -2135,6 +2183,7 @@ classDiagram
     UtilisateurRepository utilisateurs
     ServiceIdentites identites
     Annuaire annuaire
+    EtatCompteAnnuaire etatCompte
     ApplicationRepository applications
     ProprietesDelegation proprietes
   }
@@ -2176,6 +2225,7 @@ classDiagram
   ClesApiController --> ServicePorteeCles
   FiltreCleApi --> AuthentificationCleApi
   FiltreCleApi --> ResolveurIdentiteDeleguee
+  PorteeReglesWorkflowCorps --> GardeReglesWorkflowApplications
   ResolveurIdentiteDeleguee <|.. ResolveurDelegationAnnuaire
   ResolveurDelegationAnnuaire --> ApplicationRepository
   ResolveurDelegationAnnuaire --> ProprietesDelegation

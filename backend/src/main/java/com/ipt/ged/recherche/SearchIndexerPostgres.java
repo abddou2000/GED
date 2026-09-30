@@ -105,7 +105,7 @@ public class SearchIndexerPostgres implements SearchIndexer {
                 + "ts_headline('ged_francais', ged_normaliser_arabe(dt.texte), "
                 + "            websearch_to_tsquery('ged_francais', ged_normaliser_arabe(:q)), :options) AS extrait "
                 + "FROM (SELECT * FROM (SELECT dt.document_id, dt.version_id, dt.indexe_le, d.name AS nom, "
-                + "             d.created_at AS cree_le, t.type_de_document AS type_document, w.name AS espace, "
+                + "             d.created_at AS cree_le, t.type_de_document AS type_document, w.nom AS espace, "
                 + "             d.statut_conservation, d.canal_depot, d.echeance_conservation, "
                 + "             ts_rank_cd(dt.tsv, q.requete) AS rang, count(*) OVER () AS total "
                 + "      " + depuis + "WHERE " + where + ") a "

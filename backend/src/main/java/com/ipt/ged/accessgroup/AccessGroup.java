@@ -34,17 +34,9 @@ public class AccessGroup extends Supprimable {
     @Column(nullable = false, unique = true)
     private String code;
 
-    @Column(nullable = false, unique = true)
+    /** Colonne {@code nom} (T-025, §4.2.2) ; propriété {@code name} de l'API inchangée. */
+    @Column(name = "nom", nullable = false, unique = true)
     private String name;
-
-    /**
-     * Colonnes héritées, conservées pour ne rien perdre des données reprises de
-     * l'ancienne base (le schéma Liquibase les porte, le mapping doit donc les
-     * déclarer pour que {@code ddl-auto: validate} passe). Plus jamais lues ni
-     * écrites par l'application.
-     */
-    @Embedded
-    private GedRights rights = new GedRights();
 
     /**
      * Membres du groupe (table {@code groupe_membre}). Le membre est la personne

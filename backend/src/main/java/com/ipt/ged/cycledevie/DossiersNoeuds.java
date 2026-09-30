@@ -26,7 +26,7 @@ public class DossiersNoeuds implements Dossiers {
             WITH RECURSIVE arbre(id, chemin) AS (
                 SELECT id, CAST('' AS text) FROM noeud WHERE id = ? AND NOT supprime
                 UNION ALL
-                SELECT n.id, CASE WHEN a.chemin = '' THEN n.name ELSE a.chemin || '/' || n.name END
+                SELECT n.id, CASE WHEN a.chemin = '' THEN n.nom ELSE a.chemin || '/' || n.nom END
                   FROM noeud n JOIN arbre a ON n.parent_id = a.id
                  WHERE NOT n.supprime
             ),
@@ -50,8 +50,8 @@ public class DossiersNoeuds implements Dossiers {
 
     @Override
     public Optional<Dossier> trouver(UUID dossierId) {
-        return jdbc.query("SELECT id, name FROM noeud WHERE id = ? AND NOT supprime",
-                (rs, i) -> new Dossier(rs.getObject("id", UUID.class), rs.getString("name")), dossierId)
+        return jdbc.query("SELECT id, nom FROM noeud WHERE id = ? AND NOT supprime",
+                (rs, i) -> new Dossier(rs.getObject("id", UUID.class), rs.getString("nom")), dossierId)
                 .stream().findFirst();
     }
 

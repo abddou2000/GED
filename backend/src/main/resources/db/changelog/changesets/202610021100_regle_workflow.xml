@@ -76,7 +76,35 @@
         <addForeignKeyConstraint constraintName="fk_type_document_regle_workflow" baseTableName="type_document" baseColumnNames="regle_workflow_id"
                                  referencedTableName="regle_workflow" referencedColumnNames="id"/>
         <createIndex indexName="idx_type_document_regle_workflow_id" tableName="type_document"><column name="regle_workflow_id"/></createIndex>
+        <!--
+            Retour arrière (ANO-E8-004) : l'ancien modèle ne connaît ni la règle
+            d'un type, ni le validateur par rôle, et exige une règle sur chaque
+            nœud (le retour arrière donne la première règle venue aux nœuds qui
+            n'en ont pas). Ces pertes et ces attributions arbitraires sont
+            REFUSÉES avec leur décompte, avant toute modification, sauf décision
+            explicite (ged.retour_arriere_avec_perte = oui, DEPLOIEMENT.md §8) ;
+            sans aucune règle à attribuer, le retour arrière est impossible. Le
+            bloc rollback n'entre pas dans la somme de contrôle.
+        -->
         <rollback>
+            <sql splitStatements="false"><![CDATA[DO $garde$
+DECLARE
+    types_regles INTEGER; par_role INTEGER; sans_regle INTEGER; regles INTEGER;
+BEGIN
+    SELECT count(*) INTO types_regles FROM ${database.defaultSchemaName}.type_document WHERE regle_workflow_id IS NOT NULL;
+    SELECT count(*) INTO par_role FROM ${database.defaultSchemaName}.regle_validateur WHERE employe_id IS NULL;
+    SELECT count(*) INTO sans_regle FROM ${database.defaultSchemaName}.noeud WHERE regle_workflow_id IS NULL;
+    SELECT count(*) INTO regles FROM ${database.defaultSchemaName}.regle_workflow;
+    IF (types_regles + par_role + sans_regle) > 0
+       AND coalesce(current_setting('ged.retour_arriere_avec_perte', true), '') <> 'oui' THEN
+        RAISE EXCEPTION 'Retour arrière des règles de workflow refusé : il perdrait % règle(s) rattachée(s) à un type et % validateur(s) par rôle, et attribuerait une règle arbitraire à % nœud(s) sans règle. Rien n''a été modifié. Décision explicite requise : ged.retour_arriere_avec_perte = oui (DEPLOIEMENT.md §8).',
+            types_regles, par_role, sans_regle;
+    END IF;
+    IF sans_regle > 0 AND regles = 0 THEN
+        RAISE EXCEPTION 'Retour arrière des règles de workflow impossible : % nœud(s) sans règle et aucune règle à leur attribuer (l''ancien modèle en exige une par nœud).', sans_regle;
+    END IF;
+END
+$garde$]]></sql>
             <dropIndex tableName="type_document" indexName="idx_type_document_regle_workflow_id"/>
             <dropForeignKeyConstraint baseTableName="type_document" constraintName="fk_type_document_regle_workflow"/>
             <dropColumn tableName="type_document" columnName="regle_workflow_id"/>

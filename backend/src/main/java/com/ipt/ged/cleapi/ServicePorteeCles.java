@@ -104,7 +104,7 @@ public class ServicePorteeCles {
     private List<PorteeResponse> reponses(List<PorteeCleApi> lignes) {
         Map<UUID, String> noms = new LinkedHashMap<>();
         for (PorteeCleApi p : lignes) {
-            noms.put(p.getNoeudId(), jdbc.queryForList("SELECT name FROM noeud WHERE id = ?", String.class,
+            noms.put(p.getNoeudId(), jdbc.queryForList("SELECT nom FROM noeud WHERE id = ?", String.class,
                     p.getNoeudId()).stream().findFirst().orElse(null));
         }
         return lignes.stream()

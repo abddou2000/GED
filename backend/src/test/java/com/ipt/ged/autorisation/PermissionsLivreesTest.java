@@ -51,8 +51,11 @@ class PermissionsLivreesTest {
     void compositionDesRolesSysteme() {
         assertEquals(EnumSet.allOf(CodePermission.class), composition(Role.ADMINISTRATEUR));
         assertEquals(EnumSet.of(CONSULTER, DEPOSER, MODIFIER, VALIDER, DIFFUSER), composition(Role.UTILISATEUR_STANDARD));
-        assertEquals(EnumSet.of(CONSULTER, DEPOSER, MODIFIER, DEPLACER, ARCHIVER, SUPPRIMER, VOIR_PRIVE),
-                composition(Role.AGENT_ARCHIVE));
+        // ANO-F-001 (dossier fonctionnel §3.2) : les neuf permissions élémentaires, plus Voir privé.
+        EnumSet<CodePermission> agent = EnumSet.copyOf(CodePermission.de(Categorie.ELEMENTAIRE));
+        agent.add(VOIR_PRIVE);
+        assertEquals(agent, composition(Role.AGENT_ARCHIVE));
+        assertTrue(composition(Role.AGENT_ARCHIVE).containsAll(EnumSet.of(VALIDER, DIFFUSER, PURGER)));
         Set<CodePermission> dg = composition(Role.DIRECTION_GENERALE);
         // Lecture et écriture sur tout nœud, pas de purge, pas d'administration technique.
         assertTrue(dg.containsAll(EnumSet.of(CONSULTER, DEPOSER, MODIFIER, VALIDER, DIFFUSER, DEPLACER, ARCHIVER,

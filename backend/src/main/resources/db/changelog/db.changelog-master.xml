@@ -151,4 +151,11 @@
     <!-- Alerte d'échéance de conservation (T-112, §12.9) et verrou des tâches planifiées. -->
     <include file="changesets/202610031000_alerte_echeance_conservation.xml" relativeToChangelogFile="true"/>
 
+    <!-- Correctifs de recette fonctionnelle (dev1, tour 1). -->
+    <!-- ANO-F-001 : l'Agent d'archive reçoit Valider, Diffuser et Purger (§3.2 du dossier fonctionnel). -->
+    <include file="changesets/202610041000_composition_agent_archive.xml" relativeToChangelogFile="true"/>
+    <!-- T-025 (§12.1, décision P2) : droits hérités des groupes au rapport de reprise, colonnes « name » en « nom ». -->
+    <include file="changesets/202610041010_retrait_droits_herites_groupe_ged.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610041020_colonnes_nom.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

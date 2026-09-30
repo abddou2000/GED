@@ -105,6 +105,17 @@ public class ConfigurationAnnuaire {
     }
 
     /**
+     * Lecture de l'état d'un compte, réservée à la délégation d'identité
+     * (décision D15, exception bornée à D1) : même compte de service, mêmes
+     * contrôleurs et délais que {@link #annuaire}.
+     */
+    @Bean
+    public EtatCompteAnnuaireLdap etatCompteAnnuaire(LdapContextSource sourceAnnuaire, ProprietesIdentite proprietes) {
+        ProprietesIdentite.Annuaire a = proprietes.getAnnuaire();
+        return new EtatCompteAnnuaireLdap(sourceAnnuaire, a.getBase(), a.getDelaiLecture());
+    }
+
+    /**
      * Contexte TLS de l'annuaire : magasin de confiance de MMED s'il est fourni,
      * sinon celui de la JVM. Aucun contournement de la validation n'est possible.
      */

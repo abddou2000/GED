@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610041000_composition_agent_archive.xml">
+
+    <!--
+        ANO-F-001 (dossier fonctionnel §3.2 p. 6 et 7, §4.6.5 p. 19) : l'Agent
+        d'archive détient « l'ensemble des neuf permissions sur les espaces
+        métier » — consulter, déposer, modifier, valider, diffuser, déplacer,
+        archiver, supprimer et purger ; la purge lui est « typiquement »
+        réservée avec l'Administrateur. 202609281015-2 l'avait livré sans
+        Valider, Diffuser ni Purger : ce changeset les ajoute.
+
+        La composition d'un rôle se modifie depuis l'écran des rôles : un
+        Administrateur a pu ajouter l'une de ces permissions lui-même. L'ajout
+        l'ignore alors (ON CONFLICT), et chaque ligne posée ici porte un
+        identifiant fixe : le retour arrière ne retire que ce que ce changeset a
+        posé, jamais une ligne posée depuis l'écran (retour arrière sans perte,
+        GARANTIE.md §2). version_habilitations est incrémenté par le déclencheur
+        de role_permission (202609281055) : les droits changent immédiatement.
+
+        Direction Générale (ANO-F-002) : inchangée, en attente de l'arbitrage du
+        Maître d'Ouvrage.
+    -->
+    <changeSet id="202610041000-1" author="ged" labels="data-initial">
+        <comment>Agent d'archive : ajout de Valider, Diffuser et Purger (neuf permissions élémentaires).</comment>
+        <sql>INSERT INTO ${database.defaultSchemaName}.role_permission (id, role_id, permission_id) VALUES
+                ('0192c000-0000-7000-8000-00000000f001', '0192a000-0000-7000-8000-000000000002', '0192b000-0000-7000-8000-000000000004'),
+                ('0192c000-0000-7000-8000-00000000f002', '0192a000-0000-7000-8000-000000000002', '0192b000-0000-7000-8000-000000000005'),
+                ('0192c000-0000-7000-8000-00000000f003', '0192a000-0000-7000-8000-000000000002', '0192b000-0000-7000-8000-000000000009')
+             ON CONFLICT ON CONSTRAINT uk_role_permission_role_id_permission_id DO NOTHING</sql>
+        <rollback>
+            <sql>DELETE FROM ${database.defaultSchemaName}.role_permission
+                  WHERE id IN ('0192c000-0000-7000-8000-00000000f001', '0192c000-0000-7000-8000-00000000f002',
+                               '0192c000-0000-7000-8000-00000000f003')</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

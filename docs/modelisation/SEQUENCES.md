@@ -135,7 +135,14 @@ sequenceDiagram
   D->>D: identité GED connue ?
   opt identité jamais connectée
     D->>L: rechercher par identifiant (compte de service)
-    D->>D: provisionner sans rôle (cache_annuaire)
+  end
+  D->>L: userAccountControl seul, par objectGUID (D15 ; cache court ≤ 5 min)
+  alt compte désactivé (bit 0x2), absent ou état illisible
+    D-->>F: 422 IDENTITE_DELEGUEE_INVALIDE (motif au journal CLE_API_REFUSEE, rien provisionné)
+  else compte actif
+    opt identité jamais connectée
+      D->>D: provisionner sans rôle (cache_annuaire)
+    end
   end
   D-->>F: principal de l'utilisateur délégué (sinon 422 IDENTITE_DELEGUEE_INVALIDE)
   F->>F: contexte de sécurité : sujet = la clé, principal = l'utilisateur

@@ -900,7 +900,7 @@ public class ServiceCircuits {
                 && !incarnes(c, acteur, d, doc).isEmpty();
         boolean peutAnnuler = ouvert && (acteur.utilisateurId().equals(c.getInitiateurId()) || administrateur(d));
         String regle = c.getRegleWorkflowId() == null ? null
-                : jdbc.query("SELECT name FROM regle_workflow WHERE id = ?", (rs, i) -> rs.getString(1),
+                : jdbc.query("SELECT nom FROM regle_workflow WHERE id = ?", (rs, i) -> rs.getString(1),
                         c.getRegleWorkflowId()).stream().findFirst().orElse(null);
         return new CircuitResponse(c.getId(), doc.getId(), doc.getName(), c.getStatut().name(), c.getRegleWorkflowId(),
                 regle, nomUtilisateur(c.getInitiateurId(), noms), c.getOuvertLe(), c.getClosLe(),

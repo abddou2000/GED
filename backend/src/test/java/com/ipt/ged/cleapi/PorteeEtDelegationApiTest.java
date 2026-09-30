@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.autorisation.CodePermission;
 import com.ipt.ged.autorisation.Confidentialite;
 import com.ipt.ged.autorisation.PermissionRefuseeException;
+import com.ipt.ged.identite.annuaire.AnnuaireEmbarque;
+import com.ipt.ged.identite.annuaire.EtatCompteEnCache;
+import com.unboundid.ldap.sdk.Modification;
+import com.unboundid.ldap.sdk.ModificationType;
 import com.ipt.ged.support.Comptes;
 import com.ipt.ged.support.JeuDroits;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,6 +60,8 @@ class PorteeEtDelegationApiTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private JeuDroits jeu;
     @Autowired private ControlePorteeApplication controlePortee;
+    @Autowired private AnnuaireEmbarque annuaireEmbarque;
+    @Autowired private EtatCompteEnCache etatCompte;
 
     private UUID espaceA;
     private UUID espaceB;
@@ -245,6 +251,52 @@ class PorteeEtDelegationApiTest {
                         .header(FiltreCleApi.ENTETE_DELEGATION, Comptes.SECOND_ACTEUR))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(CodesErreurCleApi.DELEGATION_SANS_ADRESSES));
+    }
+
+    @Test
+    @DisplayName("D15 : compte désactivé dans l'annuaire (userAccountControl 0x2) : 422, motif au journal, aucun provisionnement")
+    void delegationCompteDesactive() throws Exception {
+        Cle c = cle(true);
+        portee(c, Map.of(espaceA, List.of("CONSULTATION")));
+        // Jamais connecté : présent dans l'annuaire mais désactivé (514).
+        String refus = mvc.perform(parCle(get("/api/v1/documents/" + documentA), c)
+                        .header(FiltreCleApi.ENTETE_DELEGATION, Comptes.DESACTIVE))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value(CodesErreurCleApi.IDENTITE_DELEGUEE_INVALIDE))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        // L'application n'apprend pas l'état du compte : même réponse qu'une identité inconnue.
+        assertThat(refus).doesNotContain("désactiv").doesNotContain("motifAudit");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM utilisateur WHERE lower(identifiant) = ?",
+                Integer.class, Comptes.DESACTIVE)).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM journal_audit WHERE action = 'CLE_API_REFUSEE'"
+                        + " AND objet_id = ? AND resultat = 'REFUS' AND motif LIKE ?", Integer.class,
+                c.applicationId(), "IDENTITE_DELEGUEE_INVALIDE%compte désactivé dans l'annuaire (otazi)%"))
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("D15 : identité GED connue puis désactivée dans l'AD : refusée à la délégation suivante (cache court)")
+    void delegationCompteDesactiveApresConnexion() throws Exception {
+        Cle c = cle(true);
+        portee(c, Map.of(espaceA, List.of("CONSULTATION")));
+        String dn = "CN=Karim El Fassi,OU=Utilisateurs,DC=marchicamed,DC=ma";
+        assertThat(lire(c, documentA, Comptes.SECOND_ACTEUR)).isNotEqualTo(422);
+        UUID guid = jdbc.queryForObject("SELECT object_guid FROM utilisateur WHERE identifiant = ?", UUID.class,
+                Comptes.SECOND_ACTEUR);
+        try {
+            annuaireEmbarque.simulateur().serveur().modify(dn,
+                    new Modification(ModificationType.REPLACE, "userAccountControl", "514"));
+            // Dans la durée du cache, l'état déjà lu est réutilisé (D15 : quelques minutes au plus).
+            assertThat(lire(c, documentA, Comptes.SECOND_ACTEUR)).isNotEqualTo(422);
+            etatCompte.oublier(guid); // expiration du cache
+            assertThat(lire(c, documentA, Comptes.SECOND_ACTEUR)).isEqualTo(422);
+        } finally {
+            annuaireEmbarque.simulateur().serveur().modify(dn,
+                    new Modification(ModificationType.REPLACE, "userAccountControl", "512"));
+            etatCompte.oublier(guid);
+        }
+        assertThat(lire(c, documentA, Comptes.SECOND_ACTEUR)).isNotEqualTo(422);
+        assertThat(etatCompte.duree()).isLessThanOrEqualTo(EtatCompteEnCache.MAXIMUM);
     }
 
     @Test

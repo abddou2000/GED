@@ -96,6 +96,15 @@ appliquent les mêmes contrôles (le profil `uat` importe `application-prod.yml`
   `displayName`, `mail` (notifications), `department` (s'il existe). Jamais
   `memberOf`, groupes, unité, ni `userAccountControl` (P2, D1) : un compte
   désactivé est refusé par l'annuaire lui-même au moment de la liaison.
+- **Seule exception (décision D15)** : à chaque appel délégué (`X-On-Behalf-Of`
+  d'une application), le compte de service lit le seul attribut
+  `userAccountControl` du compte désigné (recherche par `objectGUID`) ; bit
+  ACCOUNTDISABLE (0x2) = refus 422 `IDENTITE_DELEGUEE_INVALIDE`, motif au journal
+  d'audit. Le compte de service doit donc pouvoir lire cet attribut (c'est le
+  cas par défaut dans AD pour les utilisateurs authentifiés). État gardé en
+  cache `GED_DELEGATION_CACHE_ETAT_COMPTE` (2 min par défaut, 5 min au plus :
+  le démarrage est refusé au-delà). La connexion interactive ne lit toujours
+  pas cet attribut.
 - Annuaire indisponible : connexion impossible avec un message explicite (503),
   sessions ouvertes conservées. Sonde de santé `annuaire` : à placer dans un
   groupe de supervision, **pas** dans la sonde `readiness`.
@@ -359,7 +368,9 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
     rien. Le poursuivre est une **décision explicite** de l'exploitant, après
     export de ces données (`circuit`, `circuit_validateur`, `decision`) : ajouter
     à l'URL de la CLI `&options=-c%20ged.retour_arriere_avec_perte%3Doui`, puis
-    relancer la même commande ;
+    relancer la même commande ; la même garde protège les autres changesets
+    destructeurs du lot et des lots suivants (voir « Retour arrière sans perte »
+    ci-dessous) ;
   - un rôle ordinaire **Lecteur (diffusion)** (`LECTEUR`, permission Consulter)
     est livré : c'est lui que la diffusion d'un document validé attribue ;
   - une règle sans validateur ne masque plus celle d'un nœud ancêtre ; les
@@ -379,6 +390,14 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
 - **Alerte d'échéance de conservation (T-112)** : table `verrou_tache` et colonne
   `document.echeance_signalee_le` (`202610031000`) ; à la première exécution, tous
   les documents déjà échus sont signalés d'un coup aux Agents d'archive.
+- **Modèle de référence §12.1 (T-025)** : `202610041010` retire les huit colonnes
+  `droit_*` de `groupe_ged` (inertes depuis E3) après avoir consigné leurs
+  valeurs vraies dans le rapport `reprise_droits_groupe` ; `202610041020`
+  renomme `name` en `nom` dans `groupe_ged`, `noeud` et `regle_workflow`
+  (contrainte `uk_groupe_ged_nom`). L'API ne change pas (propriété JSON
+  `name`). **Toute requête SQL externe** (rapport, export, supervision) qui lit
+  ces colonnes est à adapter avant la montée. Retour arrière sans perte :
+  colonnes et valeurs d'origine recréées depuis le rapport.
 - **Index d'expression d'une métadonnée fréquente** (§12.7) : un changeset par
   champ, sur les fonctions immuables de la base, par exemple :
   ```sql
@@ -399,6 +418,38 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
   # puis : rollback --tag=socle-e1   (ou rollback-count --count=N)
   ```
   `validate` et `status` s'utilisent de la même façon avant un déploiement.
+- **Retour arrière sans perte (ANO-E8-003, ANO-E8-004)** : tout changeset dont
+  le retour arrière supprimerait des données produites en service porte une
+  garde. S'il en trouve, il refuse avec leur décompte **avant toute
+  suppression**, et la commande s'arrête (code 1). Changesets gardés :
+
+  | Changeset | Données qui seraient perdues |
+  |---|---|
+  | `202610031000-1` (alerte d'échéance) | marques `document.echeance_signalee_le` (les Agents d'archive seraient notifiés de nouveau) |
+  | `202610021130-1` (rôle Lecteur) | habilitations du rôle `LECTEUR` (diffusions de documents validés), permissions ajoutées au rôle |
+  | `202610021120-1` (reprise des signatures) | circuits annulés, validateurs par rôle, réaffectations, historique des décisions |
+  | `202610021100-2` (règles de workflow) | règles rattachées à un type, validateurs de règle par rôle ; règle arbitraire donnée aux nœuds sans règle (impossible s'il n'existe aucune règle) |
+
+  Les changesets défaits avant le refus (bascule du gel des versions
+  `202609301049` / `202609301051`, verrou des tâches planifiées `verrou_tache`,
+  composition des rôles `202610041000`, droits hérités des groupes
+  `202610041010`, colonnes `nom` `202610041020`) ne perdent rien : la base reste
+  cohérente et une nouvelle montée (`update`) la ramène à son état de départ.
+  Poursuivre malgré la perte annoncée est une décision explicite
+  (`ged.retour_arriere_avec_perte = oui`, ci-dessus), après export des données
+  concernées. **Contrôle préalable**, à exécuter avant tout retour arrière
+  au-delà de `workflow-e8` (compte `ged_owner`, schéma `ged`) : tout résultat
+  non nul annonce un refus.
+  ```sql
+  SELECT (SELECT count(*) FROM ged.document WHERE echeance_signalee_le IS NOT NULL) AS signalements_echeance,
+         (SELECT count(*) FROM ged.habilitation WHERE role_id = '0192a000-0000-7000-8000-000000000005') AS diffusions,
+         (SELECT count(*) FROM ged.circuit WHERE statut = 'ANNULE') AS circuits_annules,
+         (SELECT count(*) FROM ged.circuit_validateur WHERE employe_id IS NULL OR reaffecte_le IS NOT NULL) AS validateurs_role_ou_reaffectes,
+         (SELECT count(*) FROM ged.type_document WHERE regle_workflow_id IS NOT NULL) AS regles_de_type,
+         (SELECT count(*) FROM ged.regle_validateur WHERE employe_id IS NULL) AS validateurs_de_regle_par_role,
+         (SELECT count(*) FROM ged.noeud WHERE regle_workflow_id IS NULL) AS noeuds_sans_regle;
+  ```
+  (la première colonne n'existe plus si `202610031000` est déjà défait : la retirer.)
 - Aucune migration n'est déployée en production sans que son retour arrière ait
   été exécuté avec succès en UAT. En continu, le test `SchemaLiquibaseTest`
   déroule **tous** les changesets sur un schéma vierge, vérifie les conventions
