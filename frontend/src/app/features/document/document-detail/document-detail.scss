@@ -3,17 +3,20 @@
 
 .page { gap: 16px; }
 
-/* Quatre blocs empilés dépassent la hauteur d'écran. Plutôt que de laisser la
-   page défiler — ce que le reste de l'application évite — les deux colonnes
-   absorbent la place restante et défilent chacune de leur côté, et la carte des
-   versions garde une part fixe en bas. */
-.page > .colonnes { flex: 1 1 auto; min-height: 0; }
-.colonnes > * { max-height: 100%; overflow: auto; }
+/* La fiche défile dans son cadre (`.page`, overflow auto) et chaque bloc
+   garde sa hauteur naturelle (ANO-F-021). Comprimer les colonnes dans la
+   hauteur restante de la fenêtre, avec défilement interne, réduisait le bloc
+   Informations / Étiquettes / Champs indexés à une bande de 16 à 84 px sur un
+   portable (1366×768) : la correction de l'objet, de la date et la reprise des
+   index y devenaient inaccessibles. Seul le tableau des versions, qui peut
+   s'allonger, garde un défilement propre. */
+.page > .colonnes { flex: 0 0 auto; }
+.colonnes > * { max-height: none; overflow: visible; }
 .page > .card-versions {
-  flex: 0 0 auto; max-height: 38%;
+  flex: 0 0 auto;
   display: flex; flex-direction: column;
 }
-.card-versions > .table-wrap { flex: 1; min-height: 0; overflow: auto; }
+.card-versions > .table-wrap { max-height: 420px; overflow: auto; }
 .etat { font-size: 13px; color: var(--ink-soft); padding: 6px 0 0; margin: 0; }
 .tete-actions { display: flex; align-items: center; gap: 8px; }
 
