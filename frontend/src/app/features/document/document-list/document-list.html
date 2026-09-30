@@ -43,8 +43,10 @@
             <mat-icon svgIcon="archive"></mat-icon> {{ echeanceView() ? 'Tous les documents' : 'Échéance dépassée' }}
           </button>
         }
-        <button mat-stroked-button (click)="toggleArchive()">
-          <mat-icon svgIcon="archive"></mat-icon> {{ archiveView() ? 'Actifs' : 'Archive' }}
+        <!-- La corbeille (suppression réversible puis purge), pas l'archivage
+             (statut « archivé », lecture seule, D10) : ANO-F-023. -->
+        <button mat-stroked-button class="corbeille" (click)="toggleArchive()">
+          <mat-icon [svgIcon]="archiveView() ? 'nav-upload' : 'delete'"></mat-icon> {{ archiveView() ? 'Documents' : 'Corbeille' }}
         </button>
       </div>
     </div>
@@ -217,7 +219,7 @@
             <div class="empty-state">
               <span class="empty-ic"><mat-icon svgIcon="inbox"></mat-icon></span>
               @if (archiveView()) {
-                <span class="empty-title">L'archive est vide</span>
+                <span class="empty-title">La corbeille est vide</span>
                 <span class="empty-sub">Aucun document supprimé n'attend d'être restauré.</span>
               } @else {
                 <span class="empty-title">Aucun document</span>

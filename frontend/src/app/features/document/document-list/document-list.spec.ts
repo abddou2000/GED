@@ -62,6 +62,13 @@ describe('DocumentList', () => {
     expect(badges[1].classList).toContain('echec');
   });
 
+  it("ANO-F-023 : la corbeille s'appelle « Corbeille », pas « Archive » (l'archivage est autre chose, D10)", () => {
+    const el: HTMLElement = ouvrir().nativeElement;
+    const bouton = el.querySelector('button.corbeille') as HTMLButtonElement;
+    expect(bouton.textContent?.trim()).toBe('Corbeille');
+    expect(Array.from(el.querySelectorAll('button')).some(b => b.textContent?.trim() === 'Archive')).toBe(false);
+  });
+
   it('ANO-F-006 : affiche la date du document et trie la liste sur elle (sortBy=dateDocument)', () => {
     const f = ouvrir();
     const el: HTMLElement = f.nativeElement;
