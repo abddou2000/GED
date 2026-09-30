@@ -258,5 +258,15 @@ jobs:
           name: sbom-frontend
           path: frontend/dist
 
+      - name: Tests de l'outillage SBOM et licences
+        run: node --test outils/tests/*.test.mjs
+
+      - name: Tesseract et modèles présents dans le SBOM du back-end
+        run: |
+          node -e 'const b=require("./backend/target/bom.json");
+            const n=b.components.filter(c=>c.group==="tesseract-ocr").length;
+            if(n<2){console.error("::error::Tesseract et ses modèles absents du SBOM");process.exit(1)}
+            console.log(n+" composant(s) tesseract-ocr dans le SBOM")'
+
       - name: Licences arbitrées, registre à jour
         run: node outils/registre-dependances.mjs --verifier

@@ -198,8 +198,10 @@ t=$SECONDS
 "$DIR/restaurer.sh" cles --archive "$ARCHIVE_CLES" --cible "$TRAVAIL/restauration/cles" >/dev/null
 note "   clés restaurées en $((SECONDS - t)) s"
 t=$SECONDS
+# Les « dépôts » de l'exercice datent de quelques secondes : sans
+# --age-minimal-minutes 0, ils seraient tenus pour des dépôts en cours.
 "$DIR/rapprocher-orphelins.sh" --base "$CIBLE" --racine "$TRAVAIL/restauration/fichiers" \
-    --appliquer --rapport "$TRAVAIL/rapprochement.txt" >/dev/null
+    --appliquer --age-minimal-minutes 0 --rapport "$TRAVAIL/rapprochement.txt" >/dev/null
 note "   rapprochement en $((SECONDS - t)) s"
 DUREE_RESTAURATION=$((SECONDS - DEBUT_RESTAURATION))
 

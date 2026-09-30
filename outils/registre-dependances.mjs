@@ -13,10 +13,10 @@
  *   --verifier : n'écrit rien ; avertit si le registre versionné n'est plus à
  *                jour, échoue si une licence non permissive n'a pas été arbitrée.
  */
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TESSERACT, modelesTesseract, HORS_GESTIONNAIRE_FRONT } from './composants-hors-gestionnaire.mjs';
 
 const racine = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SBOM_BACK = join(racine, 'backend/target/bom.json');
@@ -74,48 +74,16 @@ const USAGES = {
   ':tslib': 'Assistants d\'exécution TypeScript',
 };
 
-/* Composants tiers qui ne passent par aucun gestionnaire de paquets et
-   n'apparaissent donc dans aucun SBOM : le DAT 8.3 exige pourtant de les
-   tracer (« moteur OCR notamment »). */
-/* Modèles Tesseract livrés dans backend/tessdata, identifiés par leur
-   empreinte SHA-256 contre les publications officielles (dépôts
-   tesseract-ocr/tessdata_best et tesseract-ocr/tessdata, étiquette 4.1.0,
-   fichiers identiques sur la branche main ; vérifié le 30/09/2026). Un modèle
-   ajouté ou remplacé sans être inscrit ici bloque la vérification : son
-   origine et sa version doivent être consignées (DAT 8.3). */
-const MODELES_TESSERACT = {
-  '8280aed0782fe27257a68ea10fe7ef324ca0f8d85bd2fd145d1c2b560bcb66ba': 'tessdata_best 4.1.0',
-  '907743d98915c91a3906dfbf6e48b97598346698fe53aaa797e1a064ffcac913': 'tessdata_best 4.1.0',
-  'ab9d157d8e38ca00e7e39c7d5363a5239e053f5b0dbdb3167dde9d8124335896': 'tessdata_best 4.1.0',
-  'e19f2ae860792fdf372cf48d8ce70ae5da3c4052962fe22e9de1f680c374bb0e': 'tessdata 4.1.0',
-};
-const USAGE_MODELES = {
-  ara: 'OCR en arabe (DAT 4.3.1)', fra: 'OCR en français (DAT 4.3.1)', eng: 'OCR en anglais',
-  osd: 'Orientation et écriture de la page (OSD)',
-};
-
-function modelesTesseract() {
-  if (!existsSync(TESSDATA)) return { lignes: [], inconnus: [] };
-  const lignes = [], inconnus = [];
-  for (const f of readdirSync(TESSDATA).filter(n => n.endsWith('.traineddata')).sort()) {
-    const langue = f.replace('.traineddata', '');
-    const sha = createHash('sha256').update(readFileSync(join(TESSDATA, f))).digest('hex');
-    const version = MODELES_TESSERACT[sha];
-    if (!version) inconnus.push(`${f} (SHA-256 ${sha})`);
-    lignes.push({ nom: `Modèle Tesseract ${langue}`, version: version || '**origine inconnue**',
-      licence: 'Apache-2.0',
-      usage: `${USAGE_MODELES[langue] || 'OCR'} ; backend/tessdata/${f}, SHA-256 \`${sha.slice(0, 16)}…\`` });
-  }
-  return { lignes, inconnus };
-}
-const MODELES = modelesTesseract();
-
+/* Composants tiers qui ne passent par aucun gestionnaire de paquets (moteur
+   OCR, modèles de langue, icônes recopiées) : liste et empreintes des modèles
+   dans outils/composants-hors-gestionnaire.mjs. Tesseract et ses modèles
+   figurent aussi dans le SBOM du back-end (outils/completer-sbom.mjs, appelé
+   par `mvn package`) ; ils n'apparaissent ici que dans leur propre tableau. */
+const MODELES = modelesTesseract(TESSDATA);
 const HORS_GESTIONNAIRE = [
-  { nom: 'Tesseract OCR', version: '5.x (paquet du serveur ; 5.3.4 sur le poste de développement)',
-    licence: 'Apache-2.0', usage: 'Moteur OCR, appelé en processus externe (DAT 4.3.1)' },
-  ...MODELES.lignes,
-  { nom: 'Icônes lucide-static', version: '1.26.0', licence: 'ISC',
-    usage: 'Tracés SVG recopiés dans frontend/src/app/core/ged-icons.ts' },
+  { ...TESSERACT, version: TESSERACT.versionDetail },
+  ...MODELES.lignes.map(m => ({ ...m, version: m.versionDetail })),
+  ...HORS_GESTIONNAIRE_FRONT,
 ];
 
 /* Licences dont la déclaration du paquet est illisible par l'outil mais
@@ -124,10 +92,20 @@ const LICENCES_VERIFIEES = {
   ':primeicons': 'MIT',
 };
 
-/* Double licence dont l'option est retenue pour tout un groupe (préfixe « groupe: »). */
+/* Double licence dont l'option est retenue pour tout un groupe (préfixe
+   « groupe: »). L'option n'est retenue que pour un composant qui la DÉCLARE
+   parmi ses licences : un composant du groupe publié sous une autre licence
+   seule (GPL-3.0-only, BSD…) est évalué sur sa propre déclaration (ANO-E0-003). */
 const LICENCES_RETENUES_GROUPES = {
   // veraPDF : GPL-3.0-or-later OU MPL-2.0-or-later ; MPL-2.0 retenue (lot E7, dev3).
   'org.verapdf:': 'MPL-2.0',
+};
+
+/* Composants REFUSÉS quel que soit leur arbitrage : leur présence dans un SBOM
+   fait échouer --verifier. Un arbitrage qui conclut « ne pas livrer » est un
+   refus, pas une acceptation (ANO-E0-003). */
+const REFUSES = {
+  'com.mysql:mysql-connector-j': 'GPL-2.0 avec exception FOSS universelle : l\'exception couvre l\'usage avec un logiciel sous licence libre, **pas une application propriétaire cédée à MMED**. Pilote du socle historique, remplacé par PostgreSQL (E1) : ne doit plus figurer dans le livrable.',
 };
 
 // --- Classement des licences (DAT 11.2) ------------------------------------
@@ -164,10 +142,16 @@ const LIBELLE_CLASSE = {
    favorable, et on l'indique. */
 function licencesDe(composant, cle) {
   if (LICENCES_VERIFIEES[cle]) return { ids: [LICENCES_VERIFIEES[cle]], verifiee: true };
-  const groupe = Object.keys(LICENCES_RETENUES_GROUPES).find(p => cle.startsWith(p));
-  if (groupe) return { ids: [LICENCES_RETENUES_GROUPES[groupe]], verifiee: true };
   const ids = (composant.licenses || []).map(l =>
     l.expression ? l.expression : normaliser(l.license?.id || l.license?.name)).filter(Boolean);
+  const groupe = Object.keys(LICENCES_RETENUES_GROUPES).find(p => cle.startsWith(p));
+  if (groupe) {
+    const retenue = LICENCES_RETENUES_GROUPES[groupe];
+    // Déclarée seule, dans une liste d'options ou dans une expression « … OR … ».
+    const declaree = ids.some(id => id === retenue || id.startsWith(retenue + '-')
+      || id.split(/\s+OR\s+/i).some(o => o.replace(/[()]/g, '').trim().startsWith(retenue)));
+    if (declaree) return { ids: [retenue], verifiee: true, choixGroupe: true };
+  }
   return { ids, verifiee: false };
 }
 
@@ -205,9 +189,10 @@ function lire(chemin, ecosysteme) {
   const parRef = new Map((bom.components || []).map(c => [c['bom-ref'], c]));
   const nomDe = c => (c.group ? `${c.group}:` : (ecosysteme === 'npm' ? ':' : '')) + c.name;
 
-  return (bom.components || []).map(c => {
+  const horsGestionnaire = c => (c.properties || []).some(p => p.name === 'ged:origine' && p.value === 'hors-gestionnaire');
+  return (bom.components || []).filter(c => !horsGestionnaire(c)).map(c => {
     const cle = nomDe(c);
-    const { ids, verifiee } = licencesDe(c, cle);
+    const { ids, verifiee, choixGroupe } = licencesDe(c, cle);
     const direct = directs.has(c['bom-ref']);
     const amenePar = parent.get(c['bom-ref']);
     return {
@@ -216,6 +201,7 @@ function lire(chemin, ecosysteme) {
       version: c.version || '',
       licences: ids,
       verifiee,
+      choixGroupe: Boolean(choixGroupe),
       classe: evaluer(ids),
       direct,
       usage: direct
@@ -231,7 +217,8 @@ function tableau(lignes) {
   const t = ['| Nom | Version | Licence | Compatibilité | Usage |', '|---|---|---|---|---|'];
   for (const l of lignes) {
     const lic = (l.licences.join(' ou ') || 'non déclarée') + (l.verifiee ? ' (vérifiée à la main)' : '');
-    const classe = l.classe === 'a-examiner' && arbitrage(l.cle) ? 'Compatible (arbitrage ci-dessus)' : LIBELLE_CLASSE[l.classe];
+    const classe = REFUSES[l.cle] ? '**Refusé**'
+      : l.classe === 'a-examiner' && arbitrage(l) ? 'Compatible (arbitrage ci-dessus)' : LIBELLE_CLASSE[l.classe];
     t.push(`| ${echapper(l.nom)} | ${echapper(l.version)} | ${echapper(lic)} | ${classe} | ${echapper(l.usage)} |`);
   }
   return t.join('\n');
@@ -240,7 +227,6 @@ function tableau(lignes) {
 /* Arbitrages écrits pour chaque composant « à examiner » ou sous condition :
    un registre qui liste un risque sans le trancher ne sert à rien. */
 const ARBITRAGES = {
-  'com.mysql:mysql-connector-j': 'GPL-2.0 avec exception FOSS universelle : l\'exception couvre l\'usage avec un logiciel sous licence libre, **pas une application propriétaire cédée à MMED**. Risque réel. Le composant disparaît avec la migration PostgreSQL (E1, dev1) : à retirer du `pom.xml` à ce moment, et ne pas livrer en production avant.',
   'org.hibernate.orm:hibernate-core': 'LGPL-2.1 : utilisation comme bibliothèque non modifiée, liée dynamiquement (JAR séparé dans le JAR Spring Boot) — aucune obligation sur le code de la GED. Ne jamais modifier ni recompiler Hibernate dans le livrable.',
   'ch.qos.logback:logback-classic': 'Double licence EPL-1.0 ou LGPL-2.1, au choix : EPL-1.0 retenue, bibliothèque non modifiée.',
   'ch.qos.logback:logback-core': 'Idem logback-classic.',
@@ -255,11 +241,15 @@ const ARBITRAGES = {
   'org.mozilla:rhino': 'MPL-2.0, moteur JavaScript tiré par veraPDF (évaluation de règles) : copyleft au niveau du fichier, bibliothèque non modifiée. Aucun script de l\'application n\'y est exécuté.',
 };
 
-/** Arbitrage d'un composant : clé exacte, sinon celui de son groupe (clé « groupe: »). */
-function arbitrage(cle) {
-  if (ARBITRAGES[cle]) return ARBITRAGES[cle];
-  const groupe = Object.keys(ARBITRAGES).find(p => p.endsWith(':') && cle.startsWith(p));
-  return groupe ? ARBITRAGES[groupe] : null;
+/** Arbitrage d'un composant : clé exacte, sinon celui de son groupe (clé
+    « groupe: »), qui ne couvre que les composants dont la licence a été
+    retenue par le choix du groupe ou n'est pas à examiner : un composant GPL
+    seul dans un groupe arbitré reste « à examiner ». Jamais pour un refusé. */
+function arbitrage(l) {
+  if (REFUSES[l.cle]) return null;
+  if (ARBITRAGES[l.cle]) return ARBITRAGES[l.cle];
+  const groupe = Object.keys(ARBITRAGES).find(p => p.endsWith(':') && l.cle.startsWith(p));
+  return groupe && (l.choixGroupe || l.classe !== 'a-examiner') ? ARBITRAGES[groupe] : null;
 }
 
 function generer() {
@@ -283,9 +273,11 @@ function generer() {
   md.push(`| Composants hors gestionnaire de paquets | ${HORS_GESTIONNAIRE.length} |`);
   md.push(`| Licence permissive — compatible | ${compte('permissive') + HORS_GESTIONNAIRE.length} |`);
   md.push(`| Copyleft faible — compatible sous condition de non-modification | ${compte('copyleft-faible')} |`);
-  const arbitres = tous.filter(l => l.classe === 'a-examiner' && arbitrage(l.cle)).length;
+  const arbitres = tous.filter(l => l.classe === 'a-examiner' && arbitrage(l)).length;
+  const refuses = tous.filter(l => REFUSES[l.cle]);
   md.push(`| Hors des classes ci-dessus, compatible par arbitrage écrit | ${arbitres} |`);
-  md.push(`| **À examiner** (sans arbitrage) | ${compte('a-examiner') - arbitres} |`, '');
+  md.push(`| **À examiner** (sans arbitrage) | ${compte('a-examiner') - arbitres - refuses.filter(l => l.classe === 'a-examiner').length} |`);
+  md.push(`| **Refusés** (interdits dans le livrable) | ${refuses.length} |`, '');
   md.push('## Règle de compatibilité appliquée (DAT 11.2)', '');
   md.push('La cession à MMED porte sur le code développé pour le marché ; les bibliothèques tierces restent');
   md.push('sous leur licence. Une licence est compatible si elle permet à MMED d\'utiliser, modifier et');
@@ -297,11 +289,14 @@ function generer() {
   md.push('- **Copyleft fort** (GPL, AGPL) ou licence absente : **à examiner**, bloquant pour la mise en production.', '');
   md.push('## Points d\'attention et arbitrages', '');
   for (const l of sensibles) {
-    const arb = arbitrage(l.cle) || '_Arbitrage à rédiger._';
+    const arb = REFUSES[l.cle] ? `**REFUSÉ** : ${REFUSES[l.cle]}` : arbitrage(l) || '_Arbitrage à rédiger._';
     md.push(`- **${l.nom} ${l.version}** (${l.licences.join(' ou ') || 'licence non déclarée'}) — ${arb}`);
   }
   md.push('');
   md.push('## Composants hors gestionnaire de paquets', '');
+  md.push('Tesseract et ses modèles figurent aussi dans le SBOM CycloneDX du back-end (propriété');
+  md.push('`ged:origine` = `hors-gestionnaire`, empreinte SHA-256 de chaque modèle), ajoutés à chaque');
+  md.push('`mvn package` par `outils/completer-sbom.mjs`.', '');
   md.push('| Nom | Version | Licence | Usage |', '|---|---|---|---|');
   for (const h of HORS_GESTIONNAIRE) md.push(`| ${h.nom} | ${h.version} | ${h.licence} | ${h.usage} |`);
   md.push('');
@@ -309,10 +304,10 @@ function generer() {
   md.push('## Front-end — dépendances directes livrées', '', tableau(front.filter(l => l.direct)), '');
   md.push('## Back-end — dépendances transitives', '', tableau(back.filter(l => !l.direct)), '');
   md.push('## Front-end — dépendances transitives livrées', '', tableau(front.filter(l => !l.direct)), '');
-  return { texte: md.join('\n'), nonArbitres: sensibles.filter(l => !arbitrage(l.cle)) };
+  return { texte: md.join('\n'), nonArbitres: sensibles.filter(l => !REFUSES[l.cle] && !arbitrage(l)), refuses };
 }
 
-const { texte, nonArbitres } = generer();
+const { texte, nonArbitres, refuses } = generer();
 if (process.argv.includes('--verifier')) {
   const actuel = existsSync(SORTIE) ? readFileSync(SORTIE, 'utf-8').replace(/\r\n/g, '\n') : '';
   /* Un registre en retard est signalé sans bloquer : le SBOM, produit à
@@ -328,6 +323,11 @@ if (process.argv.includes('--verifier')) {
       + nonArbitres.map(l => `${l.nom} (${l.licences.join(', ') || 'aucune'})`).join(' ; '));
     echec = true;
   }
+  if (refuses.length) {
+    console.error('::error::Composants refusés présents dans le livrable : '
+      + refuses.map(l => `${l.nom} ${l.version} (${l.licences.join(', ') || 'aucune'})`).join(' ; '));
+    echec = true;
+  }
   if (MODELES.inconnus.length) {
     console.error('::error::Modèles Tesseract d\'origine non consignée (MODELES_TESSERACT) : '
       + MODELES.inconnus.join(' ; '));
@@ -338,4 +338,5 @@ if (process.argv.includes('--verifier')) {
 writeFileSync(SORTIE, texte, 'utf-8');
 console.log(`Registre écrit : ${SORTIE}`);
 if (nonArbitres.length) console.warn('Licences sans arbitrage : ' + nonArbitres.map(l => l.nom).join(', '));
+if (refuses.length) console.warn('Composants refusés : ' + refuses.map(l => l.nom).join(', '));
 if (MODELES.inconnus.length) console.warn('Modèles Tesseract d\'origine non consignée : ' + MODELES.inconnus.join(', '));

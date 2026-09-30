@@ -5,7 +5,8 @@
 #
 #  Étapes (une commande chacune, dans cet ordre) :
 #    base-logique  --sauvegarde DIR --cible NOM [--sans-proprietaires]
-#        Recrée la base NOM (qui ne doit pas exister) depuis l'export pg_dump.
+#        Recrée la base NOM (qui ne doit pas exister) depuis l'export pg_dump,
+#        puis rétablit ses droits de niveau base (droits-base.sql).
 #    base-physique --sauvegarde DIR --pgdata DIR [--instant "AAAA-MM-JJ HH:MM:SS+00"] [--wal DIR]
 #        Prépare un répertoire de données vide pour une restauration à un
 #        instant donné (sauvegarde de base + WAL archivés), puis indique la
@@ -69,6 +70,19 @@ base-logique)
     debut=$SECONDS
     createdb "$CIBLE"
     pg_restore "${options[@]}" --dbname="$CIBLE" "$dump" || echec "pg_restore en échec"
+    # Droits de niveau base et réglages des rôles dans la base : absents de
+    # l'export (pg_dump sans --create), capturés à part par sauvegarder-base.sh.
+    # Sans eux, CONNECT et TEMPORARY reviennent à PUBLIC et search_path
+    # disparaît (§4.2.3 ; ANO-E10-006).
+    if [[ "$SANS_PROPRIETAIRES" == oui ]]; then
+        journal "--sans-proprietaires : droits de niveau base NON rétablis (rôles d'origine supposés absents)"
+    elif [[ -f "$SAUVEGARDE/droits-base.sql" ]]; then
+        psql -X -q -v ON_ERROR_STOP=1 -v cible="$CIBLE" -d "$CIBLE" -f "$SAUVEGARDE/droits-base.sql" \
+            || echec "rétablissement des droits de niveau base en échec ($SAUVEGARDE/droits-base.sql)"
+        journal "Droits de niveau base et réglages des rôles rétablis sur $CIBLE"
+    else
+        journal "ATTENTION : sauvegarde antérieure à droits-base.sql : rejouer preparer-base.sql sur $CIBLE (psql -U postgres -d postgres -v base=$CIBLE -f backend/scripts/db/preparer-base.sql)"
+    fi
     journal "Base $CIBLE restaurée depuis $(basename "$dump") en $((SECONDS - debut)) s"
     ;;
 

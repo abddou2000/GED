@@ -2,6 +2,7 @@ package com.ipt.ged.cleapi;
 
 import com.ipt.ged.audit.AuditService;
 import com.ipt.ged.common.erreur.ReponsesSecuriteProblem;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -48,11 +49,12 @@ public class ConfigurationSecuriteApplications {
     @Order(ORDRE)
     public SecurityFilterChain chaineApplications(HttpSecurity http, AuthentificationCleApi authentification,
                                                   ResolveurIdentiteDeleguee delegation,
-                                                  ReponsesSecuriteProblem reponses, AuditService audit)
+                                                  ReponsesSecuriteProblem reponses, AuditService audit,
+                                                  MeterRegistry metriques)
             throws Exception {
         // Instancié ici et non déclaré en bean : Spring Boot inscrirait sinon
         // le filtre dans la chaîne des servlets, pour toutes les requêtes.
-        FiltreCleApi filtre = new FiltreCleApi(authentification, delegation, reponses, audit);
+        FiltreCleApi filtre = new FiltreCleApi(authentification, delegation, reponses, audit, metriques);
         http.securityMatcher(requete -> requete.getHeader(FiltreCleApi.ENTETE_CLE) != null
                         && requete.getRequestURI().startsWith("/api/"))
                 // Appel serveur à serveur, sans cookie : pas de vecteur CSRF.

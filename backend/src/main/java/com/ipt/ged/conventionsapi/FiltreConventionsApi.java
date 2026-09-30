@@ -2,12 +2,15 @@ package com.ipt.ged.conventionsapi;
 
 import com.ipt.ged.common.erreur.CodesErreur;
 import com.ipt.ged.common.erreur.ReponsesSecuriteProblem;
+import com.ipt.ged.fichier.CodesErreurFichier;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.Part;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -44,6 +47,8 @@ public class FiltreConventionsApi extends OncePerRequestFilter {
 
     public static final String METADONNEES_TROP_VOLUMINEUSES = "METADONNEES_TROP_VOLUMINEUSES";
 
+    private static final Logger JOURNAL = LoggerFactory.getLogger(FiltreConventionsApi.class);
+
     /** Taille de page par défaut (DAT §5.3.2) ; le maximum, 200, est appliqué par {@code Tri}. */
     public static final int TAILLE_DEFAUT = 50;
 
@@ -65,7 +70,19 @@ public class FiltreConventionsApi extends OncePerRequestFilter {
                                     @NonNull FilterChain suite) throws ServletException, IOException {
         annoncerDepreciation(requete, reponse);
 
-        long metadonnees = tailleMetadonnees(requete);
+        long metadonnees;
+        try {
+            metadonnees = tailleMetadonnees(requete);
+        } catch (IllegalStateException | IOException | ServletException e) {
+            if (!plafondDepasse(e)) throw e;
+            // Le conteneur refuse l'envoi au-delà de spring.servlet.multipart.* :
+            // même réponse que le gestionnaire commun (413, §6.1.5), et non une
+            // 500 hors de Spring MVC (ANO-E5-004).
+            JOURNAL.warn("Refus 413 {} : {}", CodesErreurFichier.FICHIER_TROP_VOLUMINEUX, e.getMessage());
+            reponses.ecrire(requete, reponse, HttpStatus.PAYLOAD_TOO_LARGE, CodesErreurFichier.FICHIER_TROP_VOLUMINEUX,
+                    "Fichier trop volumineux : plafond de la plateforme dépassé.");
+            return;
+        }
         if (metadonnees > proprietes.metadonneesMax()) {
             reponses.ecrire(requete, reponse, HttpStatus.PAYLOAD_TOO_LARGE, METADONNEES_TROP_VOLUMINEUSES,
                     "Métadonnées trop volumineuses : " + metadonnees + " octets pour un maximum de "
@@ -112,6 +129,23 @@ public class FiltreConventionsApi extends OncePerRequestFilter {
             return total;
         }
         return 0;
+    }
+
+    /**
+     * Vrai si l'échec d'analyse multipart vient d'un plafond de taille (fichier ou
+     * requête). Tomcat enveloppe sa {@code FileSizeLimitExceededException} ou sa
+     * {@code SizeLimitExceededException} dans une {@link IllegalStateException} ;
+     * le critère est celui de Spring ({@code StandardMultipartHttpServletRequest}),
+     * indépendant du conteneur.
+     */
+    static boolean plafondDepasse(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            String nom = t.getClass().getSimpleName();
+            if (nom.contains("SizeLimitExceeded") || nom.contains("SizeException")) return true;
+            String msg = t.getMessage() == null ? "" : t.getMessage().toLowerCase();
+            if (msg.contains("exceed") && (msg.contains("size") || msg.contains("length"))) return true;
+        }
+        return false;
     }
 
     private static long tailleParametres(Map<String, String[]> params) {

@@ -23,6 +23,8 @@ import com.ipt.ged.identite.Role;
 import com.ipt.ged.identite.RoleRepository;
 import com.ipt.ged.identite.Utilisateur;
 import com.ipt.ged.identite.UtilisateurRepository;
+import com.ipt.ged.modules.ModuleMetier;
+import com.ipt.ged.modules.ModulesActifs;
 import com.ipt.ged.notification.DemandeNotification;
 import com.ipt.ged.notification.TypeNotification;
 import com.ipt.ged.workflow.WorkflowGed;
@@ -32,6 +34,8 @@ import com.ipt.ged.workflow.circuit.dto.CircuitResponse;
 import com.ipt.ged.workflow.circuit.dto.VuesWorkflow;
 import com.ipt.ged.workflow.circuit.evenement.EvenementWorkflow;
 import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
@@ -85,6 +89,7 @@ public class ServiceCircuits {
     static final String ROLE = "ROLE";
     static final String EN_ATTENTE = "EN_ATTENTE";
     private static final String LECTEUR = "LECTEUR";
+    private static final Logger journal = LoggerFactory.getLogger(ServiceCircuits.class);
 
     private final CircuitRepository circuits;
     private final DecisionRepository decisions;
@@ -104,13 +109,14 @@ public class ServiceCircuits {
     private final JdbcTemplate jdbc;
     private final ApplicationEventPublisher evenements;
     private final Duration inactivite;
+    private final ModulesActifs modules;
 
     public ServiceCircuits(CircuitRepository circuits, DecisionRepository decisions,
                            UploadDocumentRepository documents, DocumentVersionRepository versions,
                            EmployeRepository employes, UtilisateurRepository utilisateurs, RoleRepository roles,
                            HabilitationRepository habilitations, ServiceHabilitations serviceHabilitations,
                            AccessPredicate predicat, ReglesApplicables regles, JdbcTemplate jdbc,
-                           ApplicationEventPublisher evenements,
+                           ApplicationEventPublisher evenements, ModulesActifs modules,
                            @Value("${ged.workflow.inactivite-jours:90}") int joursInactivite) {
         this.circuits = circuits;
         this.decisions = decisions;
@@ -126,6 +132,7 @@ public class ServiceCircuits {
         this.jdbc = jdbc;
         this.evenements = evenements;
         this.inactivite = Duration.ofDays(Math.max(1, joursInactivite));
+        this.modules = modules;
     }
 
     /* ============================================================ ouverture */
@@ -135,11 +142,24 @@ public class ServiceCircuits {
      * transaction du dépôt. Sans règle applicable (ou règle sans validateur),
      * le document est utilisable d'emblée ; sinon il ne l'est qu'une fois
      * validé.
+     *
+     * <p>Module {@code workflow} inactif (T-088, DAT §9.3) : aucun circuit
+     * n'est ouvert et le document est utilisable d'emblée, comme sans règle.
+     * Ouvrir un circuit que plus aucune route ne permet de traiter laisserait
+     * le document bloqué jusqu'à la réactivation (ANO-E10-008). Le dépôt fait
+     * partie du socle : il n'est pas refusé. Après réactivation, un circuit peut
+     * être ouvert à la main ({@link #ouvrir}).
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public Optional<Circuit> ouvrirAuDepot(UploadDocument doc) {
         Optional<ReglesApplicables.RegleApplicable> r = regles.pour(doc.getTypeDocument(), doc.getWorkspace());
         if (r.isEmpty() || r.get().regle().getSteps().isEmpty()) {
+            doc.setActive(true);
+            return Optional.empty();
+        }
+        if (!modules.actif(ModuleMetier.WORKFLOW)) {
+            journal.warn("Dépôt {} sans circuit : règle {} applicable, module workflow inactif sur cet environnement",
+                    doc.getId(), r.get().regle().getId());
             doc.setActive(true);
             return Optional.empty();
         }

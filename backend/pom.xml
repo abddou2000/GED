@@ -25,6 +25,7 @@
         <!-- Seuil CVSS au-dela duquel OWASP Dependency-Check fait echouer la
              construction (DAT 6.2.3, A06). Surchargeable : -Dged.cvss.seuil=9 -->
         <ged.cvss.seuil>7</ged.cvss.seuil>
+        <ged.sbom.completer.skip>false</ged.sbom.completer.skip>
     </properties>
 
     <dependencies>
@@ -311,6 +312,36 @@
                         <goals>
                             <goal>makeAggregateBom</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Composants hors gestionnaire de paquets (T-085) : Tesseract et les
+                 modèles de backend/tessdata ajoutés au SBOM juste après sa
+                 production (même phase, plugin déclaré après). Node requis,
+                 comme pour le front ; -Dged.sbom.completer.skip=true pour s'en
+                 passer (SBOM alors incomplet). -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>sbom-hors-gestionnaire</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${ged.sbom.completer.skip}</skip>
+                            <executable>node</executable>
+                            <arguments>
+                                <argument>${project.basedir}/../outils/completer-sbom.mjs</argument>
+                                <argument>${project.build.directory}/bom.json</argument>
+                                <argument>${project.build.directory}/bom.xml</argument>
+                                <argument>--tessdata</argument>
+                                <argument>${project.basedir}/tessdata</argument>
+                            </arguments>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
