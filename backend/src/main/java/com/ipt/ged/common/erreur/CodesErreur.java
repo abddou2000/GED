@@ -22,6 +22,12 @@ public final class CodesErreur {
     public static final String VALIDATION_ECHOUEE = "VALIDATION_ECHOUEE";
     /** 400 — identifiant ou paramètre de mauvais type (UUID attendu…). */
     public static final String PARAMETRE_INVALIDE = "PARAMETRE_INVALIDE";
+    /**
+     * 400 — paramètre de requête ou champ du corps inconnu de ce point d'entrée
+     * (propriété {@code parametre}) : refusé plutôt qu'ignoré, pour qu'un critère
+     * mal orthographié ne rende pas en silence un résultat non filtré.
+     */
+    public static final String PARAMETRE_INCONNU = "PARAMETRE_INCONNU";
     /** 400 — donnée refusée par une contrainte du schéma (longueur, unicité, obligation). */
     public static final String DONNEE_REFUSEE = "DONNEE_REFUSEE";
     /** 401 — appelant non authentifié : jeton ou clé absent, invalide ou expiré. */

@@ -38,8 +38,11 @@ public interface OcrJobQueue {
 
     /**
      * Enregistre un échec : nouvelle tentative programmée selon la politique de
-     * reprise, ou {@link StatutOcr#OCR_ECHEC} si elle est épuisée ou l'échec définitif.
+     * reprise, ou {@link StatutOcr#OCR_ECHEC} si elle est épuisée.
      *
+     * @param definitif clôture immédiate en {@code OCR_ECHEC}, sans reprise ; le
+     *                  worker ne l'emploie pas (§4.3.4 : trois tentatives pour tout
+     *                  échec, T-034) ;
      * @return le statut résultant.
      */
     StatutOcr echouer(UUID jobId, String worker, String motif, boolean definitif);

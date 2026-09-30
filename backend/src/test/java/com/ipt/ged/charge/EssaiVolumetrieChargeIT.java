@@ -286,7 +286,7 @@ class EssaiVolumetrieChargeIT extends BaseCharge {
                 }
                 Mesures.noter(mc + ".un_type.p50_ms", Mesures.centile(multi, 50));
                 long m0 = System.nanoTime();
-                int groupes = indexation.rechercher(new RechercheRequest(null, null, List.of(), null, null, null)).size();
+                int groupes = indexation.rechercher(new RechercheRequest(null, null, List.of(), null, null, null)).content().size();
                 Mesures.noter(mc + ".tout_le_fonds_ms", (System.nanoTime() - m0) / 1_000_000);
                 Mesures.noter(mc + ".tout_le_fonds_groupes", groupes);
                 Mesures.noter(mc + ".pic_tas_mo", pic.picMo());
@@ -302,14 +302,14 @@ class EssaiVolumetrieChargeIT extends BaseCharge {
                 for (int rep = 0; rep < 3; rep++) {
                     long m0 = System.nanoTime();
                     totalType = contrat.rechercher(new RechercheContratRequest(null, List.of(), f.types().get(rep), null,
-                            null, null, null, null, null, null, 0, 50), a).total();
+                            null, null, null, null, null, null, 0, 50, null, null, null, null), a).total();
                     multi.add((System.nanoTime() - m0) / 1_000_000);
                 }
                 Mesures.noter(mcc + ".un_type.p50_ms", Mesures.centile(multi, 50) + " (total " + totalType + ")");
                 for (int pageNo : List.of(0, 100)) {
                     long m0 = System.nanoTime();
                     long total = contrat.rechercher(new RechercheContratRequest(null, List.of(), null, null, null, null,
-                            null, null, null, null, pageNo, 50), a).total();
+                            null, null, null, null, pageNo, 50, null, null, null, null), a).total();
                     Mesures.noter(mcc + ".tout_le_fonds_page_" + pageNo + "_ms", (System.nanoTime() - m0) / 1_000_000
                             + " (total " + total + ")");
                 }

@@ -44,15 +44,20 @@ public class VerificationPeriodique {
 
     /**
      * Lance une passe dans un fil dédié (le fonds entier peut demander des
-     * heures) ; {@code false} si une passe est déjà en cours.
+     * heures).
+     *
+     * @return l'état au lancement (passe en cours), stable même si un petit fonds
+     *         est vérifié avant que l'appelant ne le lise ; vide si une passe est
+     *         déjà en cours.
      */
-    public boolean demarrerEnFond() {
-        if (!enCours.compareAndSet(false, true)) return false;
-        etat = new Etat(true, Instant.now(), null, Map.of());
+    public java.util.Optional<Etat> demarrerEnFond() {
+        if (!enCours.compareAndSet(false, true)) return java.util.Optional.empty();
+        Etat lancee = new Etat(true, Instant.now(), null, Map.of());
+        etat = lancee;
         Thread fil = new Thread(this::passe, "ged-verification-integrite");
         fil.setDaemon(true);
         fil.start();
-        return true;
+        return java.util.Optional.of(lancee);
     }
 
     /** État de la passe en cours ou de la dernière passe terminée. */

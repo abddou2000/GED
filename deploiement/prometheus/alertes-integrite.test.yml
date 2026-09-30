@@ -1,0 +1,48 @@
+# Test unitaire de la règle GedIntegriteFichiersAnomalie (ANO-E5-005, T-059).
+# Exécution, depuis ce répertoire : promtool test rules alertes-integrite.test.yml
+rule_files:
+  - alertes.yml
+evaluation_interval: 1m
+tests:
+  # Détection à la demande : le compteur passe de 0 à 1 à la 10e minute.
+  - interval: 1m
+    input_series:
+      - series: 'ged_integrite_anomalies_total{statut="ALTERE", environnement="recette"}'
+        values: '0x9 1x80'
+      - series: 'ged_integrite_derniere_passe_anomalies{environnement="recette"}'
+        values: '0x90'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: GedIntegriteFichiersAnomalie
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: GedIntegriteFichiersAnomalie
+        exp_alerts:
+          - exp_labels: {severite: critique, environnement: recette}
+            exp_annotations:
+              resume: "Intégrité des fichiers : anomalie détectée (recette)"
+              description: "Fichier(s) non conforme(s) : 1. Détail : journal d'audit (action INTEGRITE_ANOMALIE) ou GET /api/v1/admin/integrite/verification. Restaurer depuis la sauvegarde (base, fichiers, clés) après expertise."
+      - eval_time: 85m
+        alertname: GedIntegriteFichiersAnomalie
+        exp_alerts: []
+  # Passe du fonds en anomalie : l'alerte dure tant que la jauge reste > 0.
+  - interval: 1m
+    input_series:
+      - series: 'ged_integrite_anomalies_total{statut="ABSENT", environnement="recette"}'
+        values: '0x200'
+      - series: 'ged_integrite_derniere_passe_anomalies{environnement="recette"}'
+        values: 'NaN NaN 2x150 0x40'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: GedIntegriteFichiersAnomalie
+        exp_alerts: []
+      - eval_time: 120m
+        alertname: GedIntegriteFichiersAnomalie
+        exp_alerts:
+          - exp_labels: {severite: critique, environnement: recette}
+            exp_annotations:
+              resume: "Intégrité des fichiers : anomalie détectée (recette)"
+              description: "Fichier(s) non conforme(s) : 2. Détail : journal d'audit (action INTEGRITE_ANOMALIE) ou GET /api/v1/admin/integrite/verification. Restaurer depuis la sauvegarde (base, fichiers, clés) après expertise."
+      - eval_time: 170m
+        alertname: GedIntegriteFichiersAnomalie
+        exp_alerts: []

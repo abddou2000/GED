@@ -19,7 +19,7 @@ import java.util.UUID;
  *   <li>{@code GET  /documents/{id}/champs} — champs à renseigner (plan du type)</li>
  *   <li>{@code GET  /documents/{id}}      — valeurs actuelles du document</li>
  *   <li>{@code PUT  /documents/{id}}      — enregistre les valeurs</li>
- *   <li>{@code POST /recherche}           — recherche multi-critères</li>
+ *   <li>{@code POST /recherche}           — recherche multi-critères paginée</li>
  * </ul>
  */
 @RestController
@@ -78,8 +78,14 @@ public class IndexationController {
         return service.enregistrer(id, requete);
     }
 
+    /**
+     * Recherche par index, regroupée, <b>paginée</b> (50 par défaut, plafond 200) :
+     * page de groupes, {@code total} = documents retenus. L'écran de recherche
+     * multicritère s'appuie sur {@code POST /documents/recherche} ; ce chemin reste
+     * pour le regroupement par index.
+     */
     @PostMapping("/recherche")
-    public List<GroupeResponse> rechercher(@RequestBody RechercheRequest requete) {
+    public com.ipt.ged.common.PageResponse<GroupeResponse> rechercher(@RequestBody RechercheRequest requete) {
         return service.rechercher(requete);
     }
 }

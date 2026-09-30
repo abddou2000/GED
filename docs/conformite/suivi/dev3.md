@@ -584,3 +584,44 @@ référence dépendant de l'ordre ou des données (`WorkflowApiTest.employesWith
 `WorkSpaceApiTest.moveIntoDescendant`) et `SupervisionIntegrationTest.portDeManagement`, dû à
 `GED_MANAGEMENT_PORT` exporté par l'environnement d'équipe (même constat chez dev5). Les deux
 échecs LibreOffice de la référence sont corrigés. Front : `ng build` vert.
+
+## Tour 2 de la mise en conformité (`ct/dev3-r2`, depuis `claude/inspiring-lovelace-10bg1c` @ `08c710c`)
+
+Même poste (conteneur Linux partagé, bases `ged_dev3` / `ged_dev3_test`).
+
+| Id | État | Commit(s) | Cause, correctif, preuve |
+|---|---|---|---|
+| ANO-F-011 | Corrigée | `552fdf0`, `1c2779e`, `0ab45de` | Cause : `RechercheMetadonnees.Requete`, `RechercheContratRequest` et les paramètres de `GET /recherche/plein-texte` ne portaient ni la date du document, ni la confidentialité, ni le déposant ; Jackson (et Spring pour la chaîne de requête) ignorait tout nom inconnu. Correctif : `recherche.CriteresDocument` (`dateDocumentDu`/`dateDocumentAu` bornes incluses, `confidentialite` PUBLIC/PRIVE/CONFIDENTIEL dans le périmètre autorisé, `deposantUtilisateurId` ; à défaut d'identité du déposant — documents antérieurs à `202610011000` ou repris — l'employé auteur du dépôt rattaché à l'identité), fragments SQL communs aux trois recherches. Paramètre inconnu : 400 `PARAMETRE_INCONNU` (problem+json, membre `parametre`, chemin complet pour un critère imbriqué, ex. `criteres[0].valeurr`) — corps marqués `@ChampsInconnusRefuses` (module Jackson `ModuleChampsInconnus`, les autres corps de l'API gardent leur comportement), chaîne de requête contrôlée par `ParametresConnus`. Documentation de l'API complétée (`champs.yml`). Test : `CriteresImposesApiTest` (critères sur les trois recherches, déposant ancien, refus des paramètres inconnus). Rouge sans le correctif par construction : sur `08c710c` les champs n'existent pas, ils sont ignorés (3 résultats au lieu de 1, 200 au lieu de 400, constat de qa2). |
+| ANO-E6-001 | Corrigée (par R32) | `9ebe15d` (tour 1), test `55b3d88` | Cause : `ts_headline` sur le texte entier normalisé (157 Mo → allocation de 1,5 Gio refusée). La borne de l'extrait du tour 1 (`left(texte, 32 768)`) la lève : **vérifié en réel** sur PostgreSQL 16, même expression sur 157 286 388 caractères : `invalid memory alloc request size 1610612736` en 27 s sans la borne, extrait de 928 caractères en 0,15 s avec. Test : `SearchIndexerPostgresTest.texteDe150Mo` (texte de 150 Mo écrit par la base, recherche qui répond, extrait borné ; 1,8 s). |
+| ANO-E5-005 | Corrigée | `5006a3b`, `ce1f039` | Cause : l'événement `AnomalieIntegrite` n'avait que l'audit pour auditeur. Correctif : `MetriquesIntegrite` — compteur `ged_integrite_anomalies_total{statut}` (toute divergence : passe mensuelle, passe ou vérification à la demande ; publié à 0 au démarrage) et jauge `ged_integrite_derniere_passe_anomalies` (dernière passe terminée du fonds, gardée pendant la suivante) ; règle `GedIntegriteFichiersAnomalie` (critique : détection dans l'heure, ou dernière passe en anomalie jusqu'à une passe conforme). `promtool check rules` : 13 règles, SUCCESS ; `promtool test rules deploiement/prometheus/alertes-integrite.test.yml` : SUCCESS (déclenchement puis extinction). Tests : `VerificationIntegriteTest.metriques`, compteur vérifié dans le contexte réel (`IntegriteALaDemandeApiTest.document`), `SupervisionIntegrationTest.alertesSurDesMetriquesPubliees` (les deux séries sont publiées). La commande à la demande existe depuis le tour 1 (`21bc675`). `EXPLOITATION.md` §7 complété. |
+| `POST /indexation/recherche` | Paginé | `028004b`, `e21b86e` | Gardé (seul chemin qui regroupe par index de groupage) mais paginé : `page`, `taille` (50 par défaut, plafond 200) ; réponse `PageResponse` de groupes (`content`, `total` des documents, `page`, `size`, `totalPages`) ; avec groupage, tri par valeur de groupe (ordre binaire) puis du plus récent ; `total` d'un groupe sur tout l'ensemble ; seule la page est lue. Corps strict (`PARAMETRE_INCONNU`). Test : `CriteresImposesApiTest.rechercheParIndexPaginee`. |
+| T-034 | Aligné sur le §4.3.4 | `5fe9df1` | Le dossier : « trois tentatives avec délais croissants (1, 5 puis 30 minutes) ; après échec, le job passe à OCR_ECHEC », sans exception pour les fichiers corrompus. Le worker clôturait d'emblée les motifs « définitifs » (O6). Correctif : tout échec suit la politique de reprise (motif conservé ; « définitif » n'est plus qu'une information de diagnostic). Test : `TravailleurOcrPostgresTest.pdfCorrompu` (reprise à 1 min, `OCR_ECHEC` après 4 exécutions, motif `FICHIER_CORROMPU`), `echecs` et `fichierAbsent` adaptés. |
+| T-059 (course) | Corrigée | `e61c708` | `IntegriteALaDemandeApiTest.fonds` échouait par intermittence (`enCours: false` dans la réponse 202 : un petit fonds était vérifié avant la lecture de l'état). `demarrerEnFond` rend l'état au lancement, porté par la réponse 202. |
+
+### Points pour pm
+
+1. **dev5 (écran de recherche multicritère)** : sur `POST /documents/recherche`, les nouveaux
+   champs sont `dateDocumentDu`, `dateDocumentAu` (AAAA-MM-JJ), `confidentialite`
+   (`PUBLIC`, `PRIVE`, `CONFIDENTIEL`), `deposantUtilisateurId` (UUID de l'identité GED).
+   Tout champ inconnu est désormais **refusé en 400** : ce point d'entrée pagine par `page` et
+   **`size`** (pas `taille`, contrairement à `POST /recherches`). Harmoniser à la prochaine
+   version du contrat.
+2. `GET /recherche/plein-texte` : `size` est accepté (alias posé par `FiltreConventionsApi` sur
+   tout GET) mais non lu ; le défaut de `taille` y reste 20, pas 50 (DAT §5.3.2).
+3. `POST /indexation/recherche` : la réponse passe d'une liste de groupes à une page de groupes
+   (changement de contrat ; aucun appel du front).
+4. **T-034 change de comportement** : un fichier corrompu, protégé ou non pris en charge passe en
+   `OCR_ECHEC` après 4 exécutions (~36 min) au lieu d'immédiatement ; l'observation O6 de la
+   recette vague 8 est levée. À revérifier par qa.
+5. Risque hors de mes tâches : `GET /api/v1/ocr/documents/{id}/texte` renvoie le texte extrait
+   **entier** (157 Mo pour le fichier de la recette E6-001) : à borner ou à servir en flux.
+6. `deploiement/prometheus/alertes.yml` (dev2) : une règle ajoutée (`ged-integrite`), 13 règles.
+
+### Tests du tour 2
+
+Suite back complète (`0ab45de`, `mvn -B -q test`, sans `GED_MANAGEMENT_PORT` ni `SERVER_PORT`) :
+**639 tests, 0 échec, 0 erreur** (référence : 630 ; +9 : `CriteresImposesApiTest` ×6,
+`texteDe150Mo`, `VerificationIntegriteTest.metriques`, `pdfCorrompu`). Une première passe
+avait relevé 6 échecs dans `IndexationApiTest` et `IndexationAutomatiqueApiTest` (lecture de
+l'ancienne forme de réponse de `POST /indexation/recherche`), corrigés par `e21b86e`.
+`promtool check rules` et `promtool test rules` : SUCCESS. Front non modifié (pas de build).

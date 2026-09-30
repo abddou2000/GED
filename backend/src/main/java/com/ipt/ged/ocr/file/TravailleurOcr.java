@@ -28,6 +28,14 @@ import java.util.List;
  * <p>Le travail long (OCR) se fait hors transaction, sous bail prolongé à chaque
  * page ; si le bail a été perdu (worker jugé mort et job repris ailleurs), le
  * résultat est abandonné au lieu d'écraser celui de l'autre worker.
+ *
+ * <p><b>Tout échec suit la politique de reprise</b> (§4.3.4 : « trois
+ * tentatives avec délais croissants ; après échec, le job passe à
+ * OCR_ECHEC »), y compris un fichier jugé corrompu, protégé ou non pris en
+ * charge : le dossier ne prévoit pas d'exception, et une lecture illisible peut
+ * venir d'une cause passagère (support, clé, langue en cours d'installation).
+ * Le motif est gardé ; {@code OCR_ECHEC} n'est posé qu'une fois les reprises
+ * épuisées (T-034, avertissement de la recette vague 8).
  */
 public class TravailleurOcr {
 
@@ -88,15 +96,15 @@ public class TravailleurOcr {
             log.warn("Job OCR {} repris par un autre worker : résultat abandonné", job.id());
             return;
         } catch (EchecOcrException e) {
-            echouer(job, e.libelle(), e.definitif());
+            echouer(job, e.libelle());
             return;
         } catch (ErreurFichierException e) {
-            // Déchiffrement refusé (GCM) ou fichier purgé : rejouer ne changera rien.
-            echouer(job, EchecOcrException.Motif.FICHIER_CORROMPU + " : " + e.getMessage(), true);
+            // Déchiffrement refusé (GCM) ou fichier purgé.
+            echouer(job, EchecOcrException.Motif.FICHIER_CORROMPU + " : " + e.getMessage());
             return;
         } catch (IOException | RuntimeException e) {
             log.error("Job OCR {} : erreur inattendue", job.id(), e);
-            echouer(job, EchecOcrException.Motif.ERREUR_MOTEUR + " : " + e.getMessage(), false);
+            echouer(job, EchecOcrException.Motif.ERREUR_MOTEUR + " : " + e.getMessage());
             return;
         }
 
@@ -121,8 +129,8 @@ public class TravailleurOcr {
         }
     }
 
-    private void echouer(OcrJob job, String motif, boolean definitif) {
-        StatutOcr s = file.echouer(job.id(), nom, motif, definitif);
+    private void echouer(OcrJob job, String motif) {
+        StatutOcr s = file.echouer(job.id(), nom, motif, false);
         if (s == StatutOcr.OCR_ECHEC) {
             metriques.echec();
             evenements.publishEvent(new OcrEnEchec(job.documentId(), job.versionId(), Acteur.SYSTEME, Instant.now(),

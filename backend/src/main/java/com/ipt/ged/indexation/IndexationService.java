@@ -4,6 +4,8 @@ import com.ipt.ged.audit.ActionAudit;
 import com.ipt.ged.audit.AuditService;
 import com.ipt.ged.audit.EntreeAudit;
 import com.ipt.ged.common.Limites;
+import com.ipt.ged.common.PageResponse;
+import com.ipt.ged.common.Tri;
 import com.ipt.ged.document.ContraintesDepot;
 import com.ipt.ged.fichier.controle.ControleFichiers;
 import com.ipt.ged.fichier.controle.SourceFichier;
@@ -18,8 +20,11 @@ import com.ipt.ged.typedocument.TypeDocument;
 import com.ipt.ged.typedocument.TypeDocumentRepository;
 import com.ipt.ged.planindexation.JetonsSysteme;
 import com.ipt.ged.planindexation.PlanIndexation;
+import com.ipt.ged.recherche.FragmentSql;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -643,116 +648,135 @@ public class IndexationService {
 
     /* ===================== Recherche ===================== */
 
+    /** Libellé du groupe des documents sans valeur pour l'index de groupage. */
+    static final String NON_RENSEIGNE = "(non renseigné)";
+
     /**
-     * Recherche multi-critères. Un document est retenu s'il satisfait
-     * <b>tous</b> les filtres renseignés (ET logique).
+     * Recherche multi-critères, <b>paginée</b> (50 par défaut, plafond 200, DAT
+     * §5.3.2) : un document est retenu s'il satisfait <b>tous</b> les filtres
+     * renseignés (ET logique).
+     *
+     * <p>La page porte sur les documents ; avec un index de groupage, ils sont
+     * triés par valeur de groupe (ordre binaire, « (non renseigné) » compris),
+     * puis du plus récent au plus ancien, et regroupés sur la page : un groupe
+     * peut ainsi se poursuivre sur la page suivante. Le {@code total} d'un groupe
+     * compte tous ses documents, pas seulement ceux de la page ; celui de la page
+     * compte tous les documents retenus.
      */
-    public List<GroupeResponse> rechercher(RechercheRequest requete) {
-        // Filtres, critères d'index et droits évalués par la base (R32) : seuls les
-        // documents retenus sont chargés, au lieu de tout le fonds autorisé.
-        // Droits À LA SOURCE (point d'application unique, P5) : un document hors
-        // périmètre n'entre ni dans les résultats ni dans les totaux.
-        // Projection SQL (pas d'entités JPA) : la mémoire suit le nombre de résultats,
-        // sans le graphe d'objets et le contexte de persistance de chaque document.
-        List<LigneRecherche> retenus = documentsRetenus(requete);
-        if (retenus.isEmpty()) return List.of();
-
-        Map<UUID, Map<UUID, String>> parDocument = new HashMap<>();
-        // Par tranches, en tableau (= ANY) : un paramètre par requête, quel que soit le nombre.
-        List<UUID> ids = retenus.stream().map(LigneRecherche::id).toList();
-        for (int i = 0; i < ids.size(); i += TRANCHE_RECHERCHE) {
-            UUID[] tranche = ids.subList(i, Math.min(i + TRANCHE_RECHERCHE, ids.size())).toArray(UUID[]::new);
-            jdbc.query("SELECT document_id, index_def_id, valeur FROM document_index_valeur WHERE document_id = ANY (?)",
-                    rs -> {
-                        parDocument.computeIfAbsent(rs.getObject(1, UUID.class), k -> new HashMap<>())
-                                .put(rs.getObject(2, UUID.class), rs.getString(3));
-                    }, (Object) tranche);
-        }
-
+    public PageResponse<GroupeResponse> rechercher(RechercheRequest requete) {
+        int page = requete.page() == null ? 0 : Math.max(0, requete.page());
+        int taille = requete.taille() == null || requete.taille() < 1 ? Tri.TAILLE_DEFAUT
+                : Math.min(requete.taille(), Tri.TAILLE_MAX);
         Map<UUID, IndexField> champs = indexRepository.findBySupprimeFalseOrderByIdAsc().stream()
                 .collect(Collectors.toMap(IndexField::getId, f -> f));
+        UUID grouperPar = requete.grouperPar() != null && champs.containsKey(requete.grouperPar())
+                ? requete.grouperPar() : null;
 
-        return grouper(retenus, parDocument, champs, requete.grouperPar());
+        // Filtres, critères d'index et droits évalués par la base (R32) ; seule la page
+        // est lue. Droits À LA SOURCE (point d'application unique, P5) : un document hors
+        // périmètre n'entre ni dans les résultats ni dans les totaux.
+        MapSqlParameterSource p = new MapSqlParameterSource();
+        String ou = conditionsRecherche(requete, p);
+        NamedParameterJdbcTemplate nomme = new NamedParameterJdbcTemplate(jdbc);
+        Long total = nomme.queryForObject("SELECT count(*) FROM document d WHERE " + ou, p, Long.class);
+        long n = total == null ? 0 : total;
+        int pages = (int) ((n + taille - 1) / taille);
+        if (n == 0) return new PageResponse<>(List.of(), 0, page, taille, 0);
+
+        // Clé de groupe calculée par la base : la page suit l'ordre des groupes.
+        String groupe = grouperPar == null ? "NULL" : "CASE WHEN g.valeur IS NULL OR btrim(g.valeur, E' \\t\\r\\n') = '' "
+                + "THEN '" + NON_RENSEIGNE + "' ELSE g.valeur END";
+        String jointureGroupe = grouperPar == null ? "" : " LEFT JOIN document_index_valeur g"
+                + " ON g.document_id = d.id AND g.index_def_id = :recherche_groupe";
+        if (grouperPar != null) p.addValue("recherche_groupe", grouperPar);
+        p.addValue("recherche_taille", taille).addValue("recherche_decalage", (long) page * taille);
+        List<LigneRecherche> retenus = nomme.query("SELECT d.id, d.name, d.extension, d.size_ko, w.nom AS espace, "
+                        + "t.type_de_document, d.expiration_date, d.reference, d.statut_conservation, " + groupe
+                        + " AS groupe FROM document d LEFT JOIN noeud w ON w.id = d.noeud_principal_id "
+                        + "LEFT JOIN type_document t ON t.id = d.type_document_id" + jointureGroupe + " WHERE " + ou
+                        // Ordre binaire (celui de String.compareTo), indépendant de la collation de la base.
+                        + " ORDER BY " + (grouperPar == null ? "" : "(" + groupe + ") COLLATE \"C\", ")
+                        + "d.id DESC LIMIT :recherche_taille OFFSET :recherche_decalage", p,
+                (rs, i) -> new LigneRecherche(
+                        rs.getObject("id", UUID.class), rs.getString("name"), rs.getString("extension"),
+                        rs.getLong("size_ko"), rs.getString("espace"), rs.getString("type_de_document"),
+                        rs.getObject("expiration_date", java.time.LocalDate.class), rs.getString("reference"),
+                        rs.getString("statut_conservation"), rs.getString("groupe")));
+        if (retenus.isEmpty()) return new PageResponse<>(List.of(), n, page, taille, pages);
+
+        Map<UUID, Map<UUID, String>> parDocument = new HashMap<>();
+        jdbc.query("SELECT document_id, index_def_id, valeur FROM document_index_valeur WHERE document_id = ANY (?)",
+                rs -> {
+                    parDocument.computeIfAbsent(rs.getObject(1, UUID.class), k -> new HashMap<>())
+                            .put(rs.getObject(2, UUID.class), rs.getString(3));
+                }, (Object) retenus.stream().map(LigneRecherche::id).toArray(UUID[]::new));
+
+        // Effectif de chaque groupe de la page sur l'ensemble des documents retenus.
+        Map<String, Integer> effectifs = new HashMap<>();
+        if (grouperPar == null) {
+            effectifs.put(null, (int) n);
+        } else {
+            p.addValue("recherche_cles", retenus.stream().map(LigneRecherche::groupe).distinct().toArray(String[]::new));
+            nomme.query("SELECT groupe, count(*) FROM (SELECT " + groupe + " AS groupe FROM document d" + jointureGroupe
+                    + " WHERE " + ou + ") s WHERE groupe = ANY (:recherche_cles) GROUP BY groupe", p,
+                    rs -> { effectifs.put(rs.getString(1), rs.getInt(2)); });
+        }
+
+        Map<String, List<ResultatResponse>> groupes = new LinkedHashMap<>();
+        for (LigneRecherche d : retenus) {
+            groupes.computeIfAbsent(d.groupe(), k -> new ArrayList<>()).add(versResultat(d, parDocument, champs));
+        }
+        List<GroupeResponse> contenu = groupes.entrySet().stream()
+                .map(e -> new GroupeResponse(e.getKey() == null ? "Tous" : e.getKey(),
+                        effectifs.getOrDefault(e.getKey(), e.getValue().size()), e.getValue()))
+                .toList();
+        return new PageResponse<>(contenu, n, page, taille, pages);
     }
 
-    /** Taille des tranches de lecture des valeurs d'index des documents retenus. */
-    private static final int TRANCHE_RECHERCHE = 10_000;
-
-    /** Colonnes d'un document retenu, lues en SQL. */
+    /** Colonnes d'un document retenu, lues en SQL ; {@code groupe} : valeur de l'index de groupage. */
     private record LigneRecherche(UUID id, String name, String extension, long sizeKo, String workspace,
                                   String typeDocument, java.time.LocalDate expirationDate, String reference,
-                                  String statutConservation) {
+                                  String statutConservation, String groupe) {
     }
 
     /**
-     * Documents vivants, visibles, qui satisfont la requête, du plus récent au
-     * plus ancien (ordre historique de cette recherche).
+     * Conditions SQL (alias {@code d}) des documents vivants, visibles, qui
+     * satisfont la requête ; leurs paramètres sont ajoutés à {@code p}.
      */
-    private List<LigneRecherche> documentsRetenus(RechercheRequest requete) {
-        List<com.ipt.ged.recherche.FragmentSql> fragments = new ArrayList<>();
+    private String conditionsRecherche(RechercheRequest requete, MapSqlParameterSource p) {
+        List<FragmentSql> fragments = new ArrayList<>();
         fragments.add(droits.predicatSql("d.id", org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication(), com.ipt.ged.autorisation.CodePermission.CONSULTER));
         if (requete.workspaceId() != null) {
             // Emplacement principal, comme la recherche historique.
-            fragments.add(new com.ipt.ged.recherche.FragmentSql("d.noeud_principal_id = :recherche_espace",
+            fragments.add(new FragmentSql("d.noeud_principal_id = :recherche_espace",
                     Map.of("recherche_espace", requete.workspaceId())));
         }
         if (requete.typeDocumentId() != null) {
-            fragments.add(new com.ipt.ged.recherche.FragmentSql("d.type_document_id = :recherche_type",
+            fragments.add(new FragmentSql("d.type_document_id = :recherche_type",
                     Map.of("recherche_type", requete.typeDocumentId())));
         }
         // Archivés inclus par défaut, filtre pour les exclure ou ne garder qu'eux (§12.6).
         if ("EXCLURE".equals(requete.archives())) {
-            fragments.add(new com.ipt.ged.recherche.FragmentSql("d.statut_conservation <> 'ARCHIVE'", Map.of()));
+            fragments.add(new FragmentSql("d.statut_conservation <> 'ARCHIVE'", Map.of()));
         } else if ("SEULEMENT".equals(requete.archives())) {
-            fragments.add(new com.ipt.ged.recherche.FragmentSql("d.statut_conservation = 'ARCHIVE'", Map.of()));
+            fragments.add(new FragmentSql("d.statut_conservation = 'ARCHIVE'", Map.of()));
         }
         if (requete.canal() != null && !requete.canal().isBlank()) {
-            fragments.add(new com.ipt.ged.recherche.FragmentSql("upper(d.canal_depot) = :recherche_canal",
+            fragments.add(new FragmentSql("upper(d.canal_depot) = :recherche_canal",
                     Map.of("recherche_canal", requete.canal().trim().toUpperCase(java.util.Locale.ROOT))));
         }
         fragments.addAll(criteresIndex.fragments(requete.criteres()));
 
-        org.springframework.jdbc.core.namedparam.MapSqlParameterSource p =
-                new org.springframework.jdbc.core.namedparam.MapSqlParameterSource();
-        StringBuilder sql = new StringBuilder("SELECT d.id, d.name, d.extension, d.size_ko, w.nom AS espace, "
-                + "t.type_de_document, d.expiration_date, d.reference, d.statut_conservation FROM document d "
-                + "LEFT JOIN noeud w ON w.id = d.noeud_principal_id "
-                + "LEFT JOIN type_document t ON t.id = d.type_document_id WHERE NOT d.supprime");
-        for (com.ipt.ged.recherche.FragmentSql f : fragments) {
-            sql.append(" AND (").append(f.sql()).append(')');
+        StringBuilder ou = new StringBuilder("NOT d.supprime");
+        for (FragmentSql f : fragments) {
+            ou.append(" AND (").append(f.sql()).append(')');
             f.parametres().forEach(p::addValue);
         }
-        return new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(jdbc)
-                .query(sql.append(" ORDER BY d.id DESC").toString(), p, (rs, i) -> new LigneRecherche(
-                        rs.getObject("id", UUID.class), rs.getString("name"), rs.getString("extension"),
-                        rs.getLong("size_ko"), rs.getString("espace"), rs.getString("type_de_document"),
-                        rs.getObject("expiration_date", java.time.LocalDate.class), rs.getString("reference"),
-                        rs.getString("statut_conservation")));
+        return ou.toString();
     }
 
     /* ===================== Regroupement ===================== */
-
-    private List<GroupeResponse> grouper(List<LigneRecherche> documents,
-                                         Map<UUID, Map<UUID, String>> parDocument,
-                                         Map<UUID, IndexField> champs,
-                                         UUID grouperPar) {
-        if (grouperPar == null || !champs.containsKey(grouperPar)) {
-            List<ResultatResponse> tous = documents.stream()
-                    .map(d -> versResultat(d, parDocument, champs)).toList();
-            return tous.isEmpty() ? List.of() : List.of(new GroupeResponse("Tous", tous.size(), tous));
-        }
-
-        Map<String, List<ResultatResponse>> groupes = new TreeMap<>();
-        for (LigneRecherche d : documents) {
-            String cle = parDocument.getOrDefault(d.id(), Map.of()).get(grouperPar);
-            if (cle == null || cle.isBlank()) cle = "(non renseigné)";
-            groupes.computeIfAbsent(cle, k -> new ArrayList<>()).add(versResultat(d, parDocument, champs));
-        }
-        return groupes.entrySet().stream()
-                .map(e -> new GroupeResponse(e.getKey(), e.getValue().size(), e.getValue()))
-                .toList();
-    }
 
     private static ResultatResponse versResultat(LigneRecherche d,
                                                  Map<UUID, Map<UUID, String>> parDocument,

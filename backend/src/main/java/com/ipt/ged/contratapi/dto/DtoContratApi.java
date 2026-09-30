@@ -1,5 +1,7 @@
 package com.ipt.ged.contratapi.dto;
 
+import com.ipt.ged.autorisation.Confidentialite;
+import com.ipt.ged.common.erreur.ChampsInconnusRefuses;
 import com.ipt.ged.indexation.dto.RechercheRequest;
 import com.ipt.ged.recherche.RequeteRecherche;
 import jakarta.validation.Valid;
@@ -38,7 +40,14 @@ public final class DtoContratApi {
      * @param archives  INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6)
      * @param tri       PERTINENCE (défaut avec texte), DATE_DEPOT (défaut sans texte), NOM, TYPE
      * @param taille    50 par défaut, plafonnée à 200 (DAT §5.3.2)
+     * @param dateDocumentDu borne basse incluse de la date du document (§4.4.3)
+     * @param dateDocumentAu borne haute incluse de la date du document (§4.4.3)
+     * @param confidentialite niveau de confidentialité : PUBLIC, PRIVE ou CONFIDENTIEL (§4.4.3)
+     * @param deposantUtilisateurId identité GED du déposant (§4.4.3)
+     *
+     * <p>Un champ inconnu est refusé (400 {@code PARAMETRE_INCONNU}, ANO-F-011).
      */
+    @ChampsInconnusRefuses
     public record RechercheContratRequest(
             @Size(max = 500, message = "La recherche ne peut pas dépasser 500 caractères.") String texte,
             @Size(max = 50) @Valid List<RechercheRequest.FiltreIndex> criteres,
@@ -53,5 +62,9 @@ public final class DtoContratApi {
             Boolean echeanceDepassee,
             RequeteRecherche.Tri tri,
             @Min(0) Integer page,
-            Integer taille) {}
+            Integer taille,
+            LocalDate dateDocumentDu,
+            LocalDate dateDocumentAu,
+            Confidentialite confidentialite,
+            UUID deposantUtilisateurId) {}
 }

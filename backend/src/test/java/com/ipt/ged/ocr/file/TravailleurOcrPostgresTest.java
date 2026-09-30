@@ -158,8 +158,21 @@ class TravailleurOcrPostgresTest {
         assertEquals(1, supervisee.profondeur());
     }
 
+    /**
+     * Rejoue le job jusqu'à épuisement des reprises (échéance avancée à chaque
+     * fois) ; renvoie le job clos.
+     */
+    private OcrJob jusquAuBout(Depot d, OcrEngine m) {
+        for (int i = 0; i < PolitiqueReprise.PAR_DEFAUT.executionsMax(); i++) {
+            jdbc.update("UPDATE ocr_job SET prochaine_tentative_le = now() - interval '1 second' "
+                    + "WHERE id = ? AND statut = 'EN_ATTENTE_OCR'", d.job());
+            travailleur("w1", m).traiterUn();
+        }
+        return file.trouver(d.job()).orElseThrow();
+    }
+
     @Test
-    @DisplayName("Échec transitoire : reprise programmée ; échec définitif : OCR_ECHEC, document non interrogeable")
+    @DisplayName("Échec transitoire ou a priori définitif : reprises (§4.3.4), puis OCR_ECHEC, document non interrogeable")
     void echecs() {
         OcrEngine enPanne = new OcrEngine() {
             @Override public String nom() { return "panne"; }
@@ -176,22 +189,47 @@ class TravailleurOcrPostgresTest {
         assertTrue(j.motifEchec().startsWith("MOTEUR_INDISPONIBLE"));
         assertEquals(1.0, registre.get("ged.ocr.jobs").tag("issue", "reprise").counter().count());
 
+        // Format non pris en charge : a priori définitif, mais le §4.3.4 ne fait pas
+        // d'exception : reprise programmée, puis OCR_ECHEC après la dernière tentative.
         Depot zip = deposer(new byte[]{1}, "application/zip", Instant.now());
         travailleur("w1", moteur).traiterUn();
         OcrJob z = file.trouver(zip.job()).orElseThrow();
+        assertEquals(StatutOcr.EN_ATTENTE_OCR, z.statut());
+        assertTrue(z.motifEchec().startsWith("FORMAT_NON_SUPPORTE"), z.motifEchec());
+        z = jusquAuBout(zip, moteur);
         assertEquals(StatutOcr.OCR_ECHEC, z.statut());
+        assertEquals(PolitiqueReprise.PAR_DEFAUT.executionsMax(), z.tentatives());
         assertTrue(z.motifEchec().startsWith("FORMAT_NON_SUPPORTE"), z.motifEchec());
         assertTrue(indexer.versionsIndexees(java.util.List.of(zip.version())).isEmpty());
         assertEquals(1.0, registre.get("ged.ocr.jobs").tag("issue", "echec").counter().count());
+        assertEquals(4.0, registre.get("ged.ocr.jobs").tag("issue", "reprise").counter().count());
     }
 
     @Test
-    @DisplayName("Fichier illisible (purgé) : OCR_ECHEC définitif")
+    @DisplayName("T-034 : PDF corrompu repris comme tout échec (1 + 3 tentatives), puis OCR_ECHEC avec son motif")
+    void pdfCorrompu() {
+        Depot d = deposer("%PDF-1.7\n1 0 obj << /Type /Catalog".getBytes(StandardCharsets.US_ASCII),
+                FormatsReconnus.PDF, Instant.now());
+        travailleur("w1", moteur).traiterUn();
+        OcrJob j = file.trouver(d.job()).orElseThrow();
+        assertEquals(StatutOcr.EN_ATTENTE_OCR, j.statut(), "reprise programmée, pas d'échec immédiat");
+        assertEquals(1, j.tentatives());
+        assertTrue(j.motifEchec().startsWith("FICHIER_CORROMPU"), j.motifEchec());
+        assertTrue(j.prochaineTentativeLe().isAfter(Instant.now().plusSeconds(50)), "première reprise à 1 minute");
+        j = jusquAuBout(d, moteur);
+        assertEquals(StatutOcr.OCR_ECHEC, j.statut());
+        assertEquals(4, j.tentatives());
+        assertTrue(j.motifEchec().startsWith("FICHIER_CORROMPU"), j.motifEchec());
+    }
+
+    @Test
+    @DisplayName("Fichier illisible (purgé) : reprises, puis OCR_ECHEC")
     void fichierAbsent() {
         Depot d = deposer("x".getBytes(StandardCharsets.UTF_8), "text/plain", Instant.now());
         fichiers.clear();
         travailleur("w1", moteur).traiterUn();
-        assertEquals(StatutOcr.OCR_ECHEC, file.trouver(d.job()).orElseThrow().statut());
+        assertEquals(StatutOcr.EN_ATTENTE_OCR, file.trouver(d.job()).orElseThrow().statut());
+        assertEquals(StatutOcr.OCR_ECHEC, jusquAuBout(d, moteur).statut());
     }
 
     @Test

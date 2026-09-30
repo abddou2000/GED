@@ -170,7 +170,7 @@ class IndexationAutomatiqueApiTest {
         mvc.perform(post(BASE + "/recherche").contentType(APPLICATION_JSON)
                         .content("{\"criteres\":[{\"indexFieldId\":\"" + idFourn + "\",\"valeur\":\"acme\"}]}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].documents[0].reference", is("2026-01-15_ACME Distribution_Haute")));
+                .andExpect(jsonPath("$.content[0].documents[0].reference", is("2026-01-15_ACME Distribution_Haute")));
     }
 
     @Test
@@ -261,7 +261,7 @@ class IndexationAutomatiqueApiTest {
 
         mvc.perform(post(BASE + "/recherche").contentType(APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].documents[?(@.id=='" + doc + "')].reference",
+                .andExpect(jsonPath("$.content[0].documents[?(@.id=='" + doc + "')].reference",
                         everyItem(nullValue())));
     }
 }

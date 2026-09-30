@@ -3,10 +3,12 @@ package com.ipt.ged.ocr.moteur;
 /**
  * Échec du traitement OCR d'un document, avec son motif (§4.3.4).
  *
- * <p>Un échec <b>définitif</b> (fichier corrompu, protégé par mot de passe,
- * format non supporté) ne gagne rien à être rejoué : le job passe directement
- * à {@code OCR_ECHEC}. Un échec transitoire (délai dépassé, moteur
- * indisponible) suit la politique de reprise à 1, 5 puis 30 minutes.
+ * <p>Le motif dit si l'échec est a priori <b>définitif</b> (fichier corrompu,
+ * protégé par mot de passe, format non supporté) ou transitoire (délai
+ * dépassé, moteur indisponible). Information de diagnostic seulement : le
+ * worker applique à tous la politique de reprise du §4.3.4 (1, 5 puis
+ * 30 minutes, puis {@code OCR_ECHEC}), le dossier ne prévoyant pas
+ * d'exception (T-034).
  */
 public class EchecOcrException extends Exception {
 

@@ -6,6 +6,7 @@ import com.ipt.ged.support.Comptes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.test.context.support.WithUserDetails;
 
 import java.nio.file.Files;
@@ -28,6 +29,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 class IntegriteALaDemandeApiTest extends BaseCycleDeVieApiTest {
 
+    @Autowired private io.micrometer.core.instrument.MeterRegistry registre;
+
     private UUID type;
 
     @BeforeEach
@@ -38,6 +41,10 @@ class IntegriteALaDemandeApiTest extends BaseCycleDeVieApiTest {
     private long audits(String action, UUID objet, String resultat) {
         return jdbc.queryForObject("SELECT count(*) FROM journal_audit WHERE action = ? AND objet_id = ? AND resultat = ?",
                 Long.class, action, objet, resultat);
+    }
+
+    private double alteres() {
+        return registre.get("ged.integrite.anomalies").tag("statut", "ALTERE").counter().count();
     }
 
     @Test
@@ -59,11 +66,14 @@ class IntegriteALaDemandeApiTest extends BaseCycleDeVieApiTest {
         byte[] octets = Files.readAllBytes(chiffre);
         octets[octets.length - 20] ^= 0x5A;
         Files.write(chiffre, octets);
+        double avant = alteres();
         JsonNode altere = json(mvc.perform(post("/api/v1/admin/integrite/documents/" + doc)).andExpect(status().isOk()));
         assertFalse(altere.get("conforme").asBoolean());
         assertEquals("ALTERE", altere.get("fichiers").get(0).get("statut").asText());
         assertEquals(1, audits("INTEGRITE_VERIFIEE", doc, "ECHEC"));
         assertEquals(1, audits("INTEGRITE_ANOMALIE", fichier, "ECHEC"));
+        // ANO-E5-005 : la divergence produit aussi la métrique de l'alerte de supervision.
+        assertEquals(avant + 1, alteres());
 
         mvc.perform(post("/api/v1/admin/integrite/documents/" + UUID.randomUUID())).andExpect(status().isNotFound());
     }

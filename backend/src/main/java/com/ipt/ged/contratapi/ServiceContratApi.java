@@ -12,6 +12,7 @@ import com.ipt.ged.document.conservation.Echeances;
 import com.ipt.ged.identite.Utilisateur;
 import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.indexation.CriteresIndexSql;
+import com.ipt.ged.recherche.CriteresDocument;
 import com.ipt.ged.recherche.CriteresMetadonnees;
 import com.ipt.ged.recherche.FragmentSql;
 import com.ipt.ged.recherche.PageResultats;
@@ -121,6 +122,9 @@ public class ServiceContratApi {
         List<FragmentSql> filtres = new ArrayList<>(new CriteresMetadonnees(r.typeDocumentId(), r.noeudId(),
                 r.deposeDu(), r.deposeAu(), CriteresMetadonnees.Archives.valueOf(archives), r.canal(),
                 Boolean.TRUE.equals(r.echeanceDepassee())).fragments());
+        // Critères imposés du §4.4.3 portés par le document (ANO-F-011).
+        filtres.addAll(new CriteresDocument(r.dateDocumentDu(), r.dateDocumentAu(), r.confidentialite(),
+                r.deposantUtilisateurId()).fragments());
         filtres.addAll(criteresIndex.fragments(r.criteres()));
 
         if (texte) {

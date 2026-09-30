@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.autorisation.AccessPredicate;
 import com.ipt.ged.autorisation.CodePermission;
+import com.ipt.ged.autorisation.Confidentialite;
+import com.ipt.ged.common.erreur.ChampsInconnusRefuses;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.document.DocumentService;
@@ -12,6 +14,7 @@ import com.ipt.ged.document.UploadDocumentRepository;
 import com.ipt.ged.document.dto.DocumentResponse;
 import com.ipt.ged.planindexation.metamodele.ChampPlan;
 import com.ipt.ged.planindexation.metamodele.ValeursMetadonnees;
+import com.ipt.ged.recherche.CriteresDocument;
 import com.ipt.ged.recherche.FragmentSql;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -45,20 +48,31 @@ import java.util.UUID;
  * d'{@link AccessPredicate}, confidentialité comprise) : un document hors
  * périmètre n'entre ni dans les résultats ni dans le total. Les documents
  * archivés sont inclus par défaut, avec un filtre pour les inclure ou les
- * exclure (§12.6).
+ * exclure (§12.6). Critères imposés du §4.4.3 portés par le document : plage
+ * de date du document, confidentialité, déposant ({@link CriteresDocument}).
+ * Un champ inconnu du corps est refusé (400 {@code PARAMETRE_INCONNU},
+ * ANO-F-011) au lieu d'être ignoré.
  */
 @Service
 public class RechercheMetadonnees {
 
     /** Un critère : {@code valeur} (texte, liste, booléen) ou bornes {@code de} / {@code a} (date, nombre). */
+    @ChampsInconnusRefuses
     public record Critere(String code, String valeur, String de, String a) {}
 
     /**
      * @param statutConservation ACTIF ou ARCHIVE pour filtrer ; absent = les deux
      * @param echeanceDepassee   vrai : documents dont l'échéance de conservation est atteinte (§12.9)
+     * @param dateDocumentDu     borne basse incluse de la date du document (§4.4.3)
+     * @param dateDocumentAu     borne haute incluse de la date du document (§4.4.3)
+     * @param confidentialite    PUBLIC, PRIVE ou CONFIDENTIEL (§4.4.3), dans le périmètre autorisé
+     * @param deposantUtilisateurId identité GED du déposant (§4.4.3)
      */
+    @ChampsInconnusRefuses
     public record Requete(UUID typeDocumentId, UUID noeudId, String texte, List<Critere> criteres,
-                          String statutConservation, Integer page, Integer size, Boolean echeanceDepassee) {}
+                          String statutConservation, Integer page, Integer size, Boolean echeanceDepassee,
+                          LocalDate dateDocumentDu, LocalDate dateDocumentAu, Confidentialite confidentialite,
+                          UUID deposantUtilisateurId) {}
 
     private final NamedParameterJdbcTemplate nomme;
     private final JdbcTemplate jdbc;
@@ -112,6 +126,11 @@ public class RechercheMetadonnees {
         if (Boolean.TRUE.equals(r.echeanceDepassee())) {
             ou.append(" AND d.echeance_conservation <= :echeance");
             p.addValue("echeance", com.ipt.ged.document.conservation.Echeances.aujourdhui());
+        }
+        for (FragmentSql f : new CriteresDocument(r.dateDocumentDu(), r.dateDocumentAu(), r.confidentialite(),
+                r.deposantUtilisateurId()).fragments()) {
+            ou.append(" AND ").append(f.sql());
+            p.addValues(f.parametres());
         }
         List<Critere> criteres = r.criteres() == null ? List.of() : r.criteres();
         for (int i = 0; i < criteres.size(); i++) {
