@@ -278,6 +278,32 @@ class ModeleDocumentApiTest {
         assertEquals(Boolean.FALSE, parCode.get(montant.getCode()));
     }
 
+    @Test
+    @DisplayName("ANO-F-010 : la recherche sur métadonnées se trie (nom, date du document, dépôt) ; tri inconnu = 400")
+    void rechercheTriable() throws Exception {
+        UUID b = deposer("Bravo", null, "2026-01-10");
+        UUID a = deposer("alpha", null, "2026-03-10");
+        UUID c = deposer("Charlie", null, "2026-02-10");
+        String requete = "{\"typeDocumentId\":\"" + type + "\"}";
+
+        assertEquals(List.of(a, c, b), ids(requete), "défaut : date du document décroissante");
+        assertEquals(List.of(a, b, c), ids(requete, "name", "asc"), "nom, sans égard à la casse");
+        assertEquals(List.of(b, c, a), ids(requete, "dateDocument", "asc"));
+        assertEquals(3, ids(requete, "createdAt", "desc").size());
+        mvc.perform(post(DOCS + "/recherche").param("sortBy", "reference").contentType(APPLICATION_JSON).content(requete))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post(DOCS + "/recherche").param("sortDir", "haut").contentType(APPLICATION_JSON).content(requete))
+                .andExpect(status().isBadRequest());
+    }
+
+    private List<UUID> ids(String requete, String sortBy, String sortDir) throws Exception {
+        JsonNode r = json(mvc.perform(post(DOCS + "/recherche").param("sortBy", sortBy).param("sortDir", sortDir)
+                .contentType(APPLICATION_JSON).content(requete)).andExpect(status().isOk()));
+        List<UUID> l = new ArrayList<>();
+        r.get("content").forEach(n -> l.add(UUID.fromString(n.get("id").asText())));
+        return l;
+    }
+
     private List<UUID> ids(String requete) throws Exception {
         JsonNode r = json(mvc.perform(post(DOCS + "/recherche").contentType(APPLICATION_JSON).content(requete))
                 .andExpect(status().isOk()));

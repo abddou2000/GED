@@ -77,8 +77,28 @@ public class RechercheMetadonnees {
         this.json = json;
     }
 
+    /**
+     * Tris proposés par l'écran de recherche (ANO-F-010) : clé de l'API vers
+     * expression SQL. Liste blanche : une clé inconnue est refusée (400) plutôt
+     * qu'ignorée en silence.
+     */
+    private static final Map<String, String> TRIS = Map.of(
+            "dateDocument", "d.date_document",
+            "name", "lower(d.name)",
+            "createdAt", "d.created_at");
+
     @Transactional(readOnly = true)
     public PageResponse<DocumentResponse> rechercher(Requete r) {
+        return rechercher(r, null, null);
+    }
+
+    /**
+     * @param sortBy  {@code dateDocument} (défaut), {@code name} ou {@code createdAt}
+     * @param sortDir {@code desc} (défaut) ou {@code asc} ; l'identifiant départage les ex-aequo
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<DocumentResponse> rechercher(Requete r, String sortBy, String sortDir) {
+        String ordre = ordre(sortBy, sortDir);
         int page = r.page() == null ? 0 : Math.max(0, r.page());
         int taille = r.size() == null || r.size() <= 0 ? Tri.TAILLE_DEFAUT : Math.min(r.size(), Tri.TAILLE_MAX);
 
@@ -121,12 +141,27 @@ public class RechercheMetadonnees {
         Long total = nomme.queryForObject("SELECT count(*)" + ou, p, Long.class);
         p.addValue("taille", taille).addValue("decalage", (long) page * taille);
         List<UUID> ids = nomme.queryForList("SELECT d.id" + ou
-                + " ORDER BY d.date_document DESC, d.id DESC LIMIT :taille OFFSET :decalage", p, UUID.class);
+                + " ORDER BY " + ordre + " LIMIT :taille OFFSET :decalage", p, UUID.class);
 
         Map<UUID, UploadDocument> parId = new HashMap<>();
         documents.findAllById(ids).forEach(d -> parId.put(d.getId(), d));
         List<UploadDocument> ordonnes = ids.stream().map(parId::get).filter(java.util.Objects::nonNull).toList();
         return service.pageDe(new PageImpl<>(ordonnes, PageRequest.of(page, taille), total == null ? 0 : total));
+    }
+
+    /** Clause ORDER BY issue de la liste blanche ; date du document décroissante par défaut. */
+    static String ordre(String sortBy, String sortDir) {
+        String cle = sortBy == null || sortBy.isBlank() ? "dateDocument" : sortBy.trim();
+        String colonne = TRIS.get(cle);
+        if (colonne == null) {
+            throw new IllegalArgumentException("Tri inconnu : " + cle + " (dateDocument, name ou createdAt)");
+        }
+        String sens = sortDir == null || sortDir.isBlank() ? "desc" : sortDir.trim().toLowerCase();
+        if (!sens.equals("asc") && !sens.equals("desc")) {
+            throw new IllegalArgumentException("Sens de tri : asc ou desc");
+        }
+        String s = sens.toUpperCase();
+        return colonne + " " + s + ", d.id " + s;
     }
 
     private void ajouter(StringBuilder ou, MapSqlParameterSource p, Critere c, int i) {

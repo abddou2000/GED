@@ -39,11 +39,15 @@ public class DocumentController {
     /**
      * Recherche sur métadonnées (§12.7) : critères par index du plan, date du
      * document comme clé de tri prioritaire, périmètre autorisé seulement.
+     * Tri choisi par {@code sortBy} / {@code sortDir}, comme la liste
+     * (ANO-F-010) : dateDocument (défaut), name, createdAt.
      */
     @PostMapping("/recherche")
     public PageResponse<DocumentResponse> rechercher(
-            @RequestBody com.ipt.ged.document.recherche.RechercheMetadonnees.Requete requete) {
-        return recherche.rechercher(requete);
+            @RequestBody com.ipt.ged.document.recherche.RechercheMetadonnees.Requete requete,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDir) {
+        return recherche.rechercher(requete, sortBy, sortDir);
     }
 
     @GetMapping
