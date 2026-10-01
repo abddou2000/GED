@@ -625,6 +625,11 @@ surcharges:
   Export.etat: {description: "État de l'export (EN_ATTENTE, EN_COURS, TERMINE, ECHEC, EXPIRE…).", exemple: TERMINE}
   Job.etat: {description: "État du traitement (EN_ATTENTE, EN_COURS, TERMINE, ANNULE…).", exemple: EN_COURS}
   Info.statut: {description: "Statut de la copie (VALIDE, ECHEC…).", exemple: VALIDE}
+  Texte.texte: {description: "Plage demandée du texte extrait (au plus 1 000 000 caractères) ; nulle si le texte n'est pas interrogeable.", exemple: "MARCHÉ N° 2026-014"}
+  Texte.debut: {description: "Rang (en caractères, à partir de 0) du premier caractère de la plage.", exemple: 0}
+  Texte.longueur: {description: "Nombre de caractères rendus dans la plage.", exemple: 18}
+  Texte.suite: {description: "Vrai s'il reste du texte après la plage : la suivante commence à debut + longueur.", exemple: false}
+  Texte.tailleOctets: {description: "Taille du texte extrait entier, en octets UTF-8.", exemple: 19}
   Texte.provenance: {description: "Origine du texte : COUCHE_TEXTE, OCR ou AUCUNE.", exemple: OCR}
 
 
@@ -681,6 +686,8 @@ parametres:
   dossierId: Identifiant du dossier.
   limite: "Nombre maximal de traitements listés (50 par défaut)."
   original: "Vrai pour télécharger l'original plutôt que la copie de conservation (document archivé)."
+  debut: "Rang (en caractères, à partir de 0) du premier caractère de la plage de texte rendue (0 par défaut)."
+  longueur: "Nombre de caractères de la plage de texte rendue : 1 000 000 par défaut et au plus."
 
 # Corps sans schéma nommé (Map côté contrôleur), reconnus par la fin du chemin.
 corps:
