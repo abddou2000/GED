@@ -1,6 +1,24 @@
 # Suivi — dev2 (qualité, exploitation, traçabilité, API)
 
-Branche `ct/dev2`. Mise à jour : 30/09/2026.
+Branche `ct/dev2`. Mise à jour : 01/10/2026.
+
+## Tour 4 de mise en conformité (01/10/2026) — branche `ct/dev2-r4`
+
+Base : `ct/qa-r3` (`8e38249`, part de `ff20f21`). Référence : 661 tests back, 0 échec.
+
+| Anomalie / constat | Commit | Cause | Correctif | Preuve (échoue sans le correctif) |
+|---|---|---|---|---|
+| ANO-E10-009 (T-006) | `1068003` | sans IPv6, le `nginx -t` de V2 laisse un `nginx.pid` vide ; le piège `EXIT` faisait `kill ''` sous `set -e` → code 1 après « RÉUSSI », `rm -rf` jamais atteint (répertoire `ged-nginx.*` laissé) | `arreter` ignore un PID vide ou périmé et attend la fin du processus ; piège `nettoyer` : `set +e`, arrêt, suppression du répertoire, code du script conservé ; `rm -f nginx.pid` après le `nginx -t` de V2 ; sans IPv6, démarrage en `[::1]` signalé `[N/A]` et « RÉSULTAT : RÉUSSI — NON APPLICABLE sur cet hôte : … », code 0 ; codes documentés (0/1/2) dans l'en-tête et `EXPLOITATION.md` §3 | `ScriptsExploitationTest.testNginxIpv6CodeDeSortieEtNettoyage` lance le vrai script (NGINX 1.24, ports libres, `TMPDIR` dédié) : code 0, aucun `[ÉCHEC]`, « NON APPLICABLE » sans IPv6, `TMPDIR` vide — **en échec sur l'ancien script** (code 1) ; ignoré si NGINX/openssl/curl absents. Chemin d'échec vérifié à la main (port occupé → code 1, répertoire supprimé) |
+| O1 recette vague 10 (T-085) | `86a1bb2` | hors ligne, `cyclonedx-maven-plugin` « requires online mode » et ne produit rien ; `completer-sbom.mjs` sortait en 2 → `mvn -o package` en échec depuis `f2fba2f` | le pom passe `--maven-hors-ligne=${settings.offline}` ; SBOM absent + hors ligne + hors CI : « [AVERTISSEMENT] SBOM INCOMPLET … JAR construit SANS SBOM, à ne pas livrer tel quel », code 0 ; **en CI (variable `CI`) ou en ligne : erreur, code 2 (inchangé)** ; hors ligne avec un `bom.json` ancien : avertissement « non régénéré » ; `DEPLOIEMENT.md` §3.1 (sous-section distincte) | `outils/tests/sbom-et-licences.test.mjs` : +3 tests (hors ligne hors CI → 0 + avertissement, **code 2 sur l'ancien outil** ; CI et en ligne → 2 ; argument présent dans le pom), 9/9. À la main : `mvn -o package` → BUILD SUCCESS avec l'avertissement ; `CI=true mvn -o package` → échec ; `mvn package` en ligne → SBOM complété (5 composants) |
+
+**Tests** : suite back complète sur PostgreSQL (`ged_dev2_test`) : **662 tests, 0 échec** (661 + 1 `ScriptsExploitationTest`). `node --test outils/tests/*.test.mjs` : 9/9. `test-nginx-ipv6.sh` : code 0, répertoire supprimé. Front non touché.
+
+**Reste** : variante IPv6 de `test-nginx-ipv6.sh` (démarrage en `[::1]`) à éprouver sur un hôte IPv6 (réserve UAT, inchangée).
+
+**Points pour pm** :
+- `DEPLOIEMENT.md` : ma note est la sous-section **§3.1 « Construction hors ligne et SBOM »**, en fin de §3, avant `## 4. Frontend` ; la note pm du même tour est à placer ailleurs dans §3 (ou à fusionner à la main si elle tombe au même endroit).
+- Ce journal : la section « Tour 3 » est sur `ct/dev2-r3`, cette branche part de `ct/qa-r3` ; les deux sections s'insèrent au même endroit (en tête) : garder les deux, Tour 4 au-dessus.
+- En CI, GitHub Actions positionne `CI=true` : le contrôle T-085 reste bloquant ; aucun changement de `ci.yml`.
 
 ## Tour 2 de mise en conformité (30/09/2026) — branche `ct/dev2-r2`
 
