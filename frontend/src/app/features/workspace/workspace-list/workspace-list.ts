@@ -321,6 +321,13 @@ export class WorkspaceList implements OnInit {
   readonly avatarInk = encreAvatar;
 
   /* =================== actions =================== */
+  /**
+   * Modifier un espace ou un dossier (nom, code, propriétaire, statut, usage,
+   * règle, parent) relève de la gestion des espaces (DF §4.3.4, ANO-F-026) :
+   * le serveur refuse tout autre appelant. Confort d'affichage.
+   */
+  peutModifier(): boolean { return this.auth.peut('GERER_ESPACES'); }
+
   create(parentId: string | null = null): void { this.openDialog(null, parentId); }
   edit(id: string): void {
     this.service.get(id).subscribe(w => this.openDialog(w, null));

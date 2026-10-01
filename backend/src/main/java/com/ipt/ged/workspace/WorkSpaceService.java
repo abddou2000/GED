@@ -53,13 +53,17 @@ import java.util.stream.Collectors;
  *       ajoute les ancêtres de ces nœuds, réduits à leur libellé de passage.
  *       Hors périmètre : 404.</li>
  *   <li>Écriture (§12.5) : créer un espace ou gérer n'importe quel nœud exige
- *       la permission d'administration {@code GERER_ESPACES} ; à défaut,
- *       renommer exige Modifier, archiver Archiver, supprimer / restaurer
- *       Supprimer, déplacer Déplacer sur le nœud et Déposer sur la
- *       destination. Créer un dossier : dans un espace MÉTIER, c'est la
- *       gestion des espaces ; dans un espace d'ÉCHANGE (R-03, D12), les membres
- *       habilités (Déposer sur le parent) créent librement dossiers et
- *       sous-dossiers.</li>
+ *       la permission d'administration {@code GERER_ESPACES}. Modifier un
+ *       espace ou un dossier ({@code PUT} : nom, code, propriétaire, statut,
+ *       usage métier / échange, règle de workflow, parent) relève aussi, et
+ *       seulement, de la gestion des espaces (DF §4.3.4, D12, ANO-F-026) : la
+ *       permission Modifier, que porte l'Utilisateur standard, vaut pour les
+ *       documents, pas pour la structure. À défaut de {@code GERER_ESPACES},
+ *       archiver exige Archiver, supprimer / restaurer Supprimer, déplacer
+ *       Déplacer sur le nœud et Déposer sur la destination. Créer un dossier :
+ *       dans un espace MÉTIER, c'est la gestion des espaces ; dans un espace
+ *       d'ÉCHANGE (R-03, D12), les membres habilités (Déposer sur le parent)
+ *       créent librement dossiers et sous-dossiers.</li>
  *   <li>Renommage : nom unique parmi les nœuds vivants du même parent (409
  *       {@code NOM_DEJA_UTILISE}).</li>
  *   <li>Toute modification de l'arborescence incrémente
@@ -139,10 +143,23 @@ public class WorkSpaceService {
     public WorkSpaceResponse get(UUID id) {
         WorkSpace w = load(id);
         exigerCouvert(id);
-        // Permissions effectives de l'appelant sur le nœud (ANO-F-018) : la
-        // fiche n'affiche que les actions qu'il peut exercer.
-        List<String> permissions = controle.droits().surNoeud(id).stream().map(Enum::name).sorted().toList();
-        return reponses(List.of(w)).get(w).avecPermissions(permissions);
+        return reponses(List.of(w)).get(w).avecPermissions(permissionsSurLaFiche(id));
+    }
+
+    /**
+     * Permissions effectives de l'appelant sur le nœud (ANO-F-018) : la fiche
+     * n'affiche que les actions qu'il peut exercer. {@code MODIFIER} y désigne
+     * la modification du nœud lui-même, réservée à la gestion des espaces
+     * (ANO-F-026, {@link #update}) : elle est retirée à qui ne la détient pas,
+     * même si son rôle porte Modifier (qui vaut alors pour les documents, dont
+     * la fiche porte ses propres permissions), et ajoutée au gestionnaire.
+     */
+    private List<String> permissionsSurLaFiche(UUID id) {
+        Set<CodePermission> p = java.util.EnumSet.noneOf(CodePermission.class);
+        p.addAll(controle.droits().surNoeud(id));
+        if (gestionnaire()) p.add(CodePermission.MODIFIER);
+        else p.remove(CodePermission.MODIFIER);
+        return p.stream().map(Enum::name).sorted().toList();
     }
 
     @Transactional
@@ -175,7 +192,7 @@ public class WorkSpaceService {
     @Transactional
     public WorkSpaceResponse update(UUID id, WorkSpaceRequest req) {
         WorkSpace w = loadPourEcriture(id);
-        exiger(CodePermission.MODIFIER, id);
+        exigerGestionDuNoeud(id);
         WorkSpaceResponse avant = reponses(List.of(w)).get(w);
         if (repo.existsByCodeIgnoreCaseAndIdNot(req.code(), id)) {
             throw new IllegalArgumentException("Le code « " + req.code() + " » est déjà utilisé");
@@ -413,6 +430,23 @@ public class WorkSpaceService {
         if (!gestionnaire() && !couverts().contains(id)) {
             throw controle.horsPerimetre("NOEUD", id, "Espace de travail introuvable : " + id);
         }
+    }
+
+    /**
+     * Modifier un espace ou un dossier (ANO-F-026, DF §4.3.4, D12) : la
+     * structure (nom, code, propriétaire, statut, usage, règle de workflow,
+     * parent) relève de la gestion des espaces, comme la création. La
+     * permission Modifier sur le nœud ne suffit plus : un Utilisateur standard
+     * basculait ainsi un espace métier en espace d'échange pour s'y ouvrir la
+     * création de dossiers. Hors périmètre : 404 tracé ; visible : 403 tracé
+     * {@code ACCES_REFUSE} (gestionnaire d'exceptions). Aucune exception D12 :
+     * dans un espace d'échange, le membre crée des dossiers
+     * ({@link #create}), il ne les restructure pas.
+     */
+    private void exigerGestionDuNoeud(UUID id) {
+        if (gestionnaire()) return;
+        controle.exigerNoeudVisible(id);
+        controle.exigerAdministration(CodePermission.GERER_ESPACES);
     }
 
     private void exiger(CodePermission p, UUID noeudId) {
