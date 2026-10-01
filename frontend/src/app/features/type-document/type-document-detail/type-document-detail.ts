@@ -41,6 +41,8 @@ export class TypeDocumentDetail implements OnInit {
 
   /** La re-typologisation relève du module « cycle de vie » (T-088). */
   retypageDisponible = () => this.modules.actif('cycledevie');
+  /** La règle de workflow du type relève du module workflow (T-088). */
+  workflowActif = () => this.modules.actif('workflow');
 
   regles = signal<Workflow[]>([]);
   /** Rattacher une règle relève de la gestion des référentiels. */
@@ -52,9 +54,12 @@ export class TypeDocumentDetail implements OnInit {
   introuvable = signal(false);
 
   ngOnInit(): void {
-    if (this.gereReferentiels()) {
-      this.reglesApi.list(0, 200).subscribe({ next: p => this.regles.set(p.content), error: () => this.regles.set([]) });
-    }
+    // Module workflow désactivé : ses routes répondent 404, rien à demander (T-088).
+    this.modules.charger().subscribe(() => {
+      if (this.gereReferentiels() && this.workflowActif()) {
+        this.reglesApi.list(0, 200).subscribe({ next: p => this.regles.set(p.content), error: () => this.regles.set([]) });
+      }
+    });
     this.route.paramMap.subscribe(p => {
       const id = p.get('id');
       if (!id) {

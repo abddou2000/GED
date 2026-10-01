@@ -11,6 +11,7 @@ import { teinteAvatar, encreAvatar, initialesDe } from '../../core/avatar';
 import { dateCourte } from '../home/dashboard/dates';
 import { CircuitService } from '../workflow/circuit.service';
 import { DecisionRendue } from '../workflow/circuit.model';
+import { ModulesService } from '../../core/modules.service';
 
 /**
  * Page « Mon profil » — identité et activité de l'utilisateur.
@@ -34,6 +35,11 @@ export class ProfilPage implements OnInit {
 
   private service = inject(ProfilService);
   private circuits = inject(CircuitService);
+  private modules = inject(ModulesService);
+
+  /** Validations, décisions et lien « Mes validations » relèvent du module
+   *  workflow : masqués quand il est désactivé (T-088). */
+  readonly workflowActif = () => this.modules.actif('workflow');
 
   /**
    * Mes dernières décisions de validation — accordées ou refusées (§12.8).
@@ -87,10 +93,14 @@ export class ProfilPage implements OnInit {
     /* L'historique est déjà filtré sur l'approbateur par le serveur : c'est
        bien MON activité, pas celle de la maison. Un échec laisse la carte vide
        sans empêcher le reste de la fiche de s'afficher. */
-    this.circuits.historique().subscribe({
-      next: l => this.decisions.set(
-        l.filter(s => s.decision !== 'ANNULEE').sort((a, b) => b.le.localeCompare(a.le))),
-      error: () => this.decisions.set([]),
+    // Module désactivé : ses routes répondent 404, rien à demander (T-088).
+    this.modules.charger().subscribe(() => {
+      if (!this.workflowActif()) { this.decisions.set([]); return; }
+      this.circuits.historique().subscribe({
+        next: l => this.decisions.set(
+          l.filter(s => s.decision !== 'ANNULEE').sort((a, b) => b.le.localeCompare(a.le))),
+        error: () => this.decisions.set([]),
+      });
     });
   }
 

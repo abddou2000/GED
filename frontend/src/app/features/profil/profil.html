@@ -35,12 +35,16 @@
       </div>
 
       <div class="stats">
-        <a class="stat" routerLink="/mes-workflow">
-          <span class="val">{{ p.signaturesEnAttente }}</span><span class="lib">À valider</span>
-        </a>
-        <div class="stat">
-          <span class="val">{{ p.signaturesTraitees }}</span><span class="lib">Traitées</span>
-        </div>
+        <!-- Validations : module workflow (T-088) ; « Mes validations » est fermé
+             quand il est désactivé. -->
+        @if (workflowActif()) {
+          <a class="stat stat-a-valider" routerLink="/mes-workflow">
+            <span class="val">{{ p.signaturesEnAttente }}</span><span class="lib">À valider</span>
+          </a>
+          <div class="stat stat-traitees">
+            <span class="val">{{ p.signaturesTraitees }}</span><span class="lib">Traitées</span>
+          </div>
+        }
         <a class="stat" routerLink="/televerser">
           <span class="val">{{ p.documentsDeposes }}</span><span class="lib">Déposés</span>
         </a>
@@ -60,7 +64,7 @@
 
          La grille remplit la hauteur restante ; les listes défilent dans leur
          carte, jamais la page. -->
-    <div class="grille-profil">
+    <div class="grille-profil" [class.sans-decisions]="!workflowActif()">
 
       <section class="card c-infos">
         <div class="bloc-tete"><mat-icon svgIcon="user"></mat-icon><span>Informations professionnelles</span></div>
@@ -149,30 +153,32 @@
         </div>
       </section>
 
-      <section class="card c-decisions">
-        <div class="bloc-tete"><mat-icon svgIcon="sign"></mat-icon><span>Mes dernières décisions</span>
-          @if (decisions().length) { <span class="cpt">{{ decisions().length }}</span> }
-          <a routerLink="/mes-workflow" class="voir">Tout voir</a>
-        </div>
-        @if (decisions().length) {
-          <ul class="decisions">
-            @for (s of decisions(); track s.id) {
-              <li>
-                <span class="fico" [class.ko]="s.decision === 'REFUSE'">
-                  <mat-icon [svgIcon]="s.decision === 'VALIDE' ? 'sign' : 'reject'"></mat-icon>
-                </span>
-                <span class="d-txt">
-                  <span class="d-nom">{{ s.document }}</span>
-                  <span class="d-sous">{{ s.decision === 'VALIDE' ? 'Validé' : 'Refusé' }} · {{ s.libelle }}</span>
-                </span>
-                <span class="d-quand">{{ quand(s.le) }}</span>
-              </li>
-            }
-          </ul>
-        } @else {
-          <p class="etat">Aucune décision prise pour l'instant.</p>
-        }
-      </section>
+      @if (workflowActif()) {
+        <section class="card c-decisions">
+          <div class="bloc-tete"><mat-icon svgIcon="sign"></mat-icon><span>Mes dernières décisions</span>
+            @if (decisions().length) { <span class="cpt">{{ decisions().length }}</span> }
+            <a routerLink="/mes-workflow" class="voir">Tout voir</a>
+          </div>
+          @if (decisions().length) {
+            <ul class="decisions">
+              @for (s of decisions(); track s.id) {
+                <li>
+                  <span class="fico" [class.ko]="s.decision === 'REFUSE'">
+                    <mat-icon [svgIcon]="s.decision === 'VALIDE' ? 'sign' : 'reject'"></mat-icon>
+                  </span>
+                  <span class="d-txt">
+                    <span class="d-nom">{{ s.document }}</span>
+                    <span class="d-sous">{{ s.decision === 'VALIDE' ? 'Validé' : 'Refusé' }} · {{ s.libelle }}</span>
+                  </span>
+                  <span class="d-quand">{{ quand(s.le) }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="etat">Aucune décision prise pour l'instant.</p>
+          }
+        </section>
+      }
 
     </div>
   }

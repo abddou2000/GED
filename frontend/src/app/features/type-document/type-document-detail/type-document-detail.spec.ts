@@ -103,6 +103,23 @@ describe('TypeDocumentDetail (ANO-F-015)', () => {
     expect(bouton(f, '.act-statut')!.textContent).toContain('Désactiver');
   });
 
+  it('T-088 : la règle de workflow du type suit le module workflow', () => {
+    const f = TestBed.createComponent(TypeDocumentDetail);
+    f.detectChanges();
+    serveur.expectOne(r => r.url === `${API_BASE}/workflow/regles`)
+      .flush({ content: [{ id: 'r1', name: 'Visa DAF' }], total: 1, page: 0, size: 200, totalPages: 1 });
+    serveur.expectOne(`${API_BASE}/type-documents/t1`).flush(type({ regleWorkflow: { id: 'r1', label: 'Visa DAF' } }));
+    f.detectChanges();
+    expect(bouton(f, '.c-regle-workflow')?.textContent).toContain('Règle de workflow');
+
+    inactifs.add('workflow');
+    const g = ouvrir(type({ regleWorkflow: { id: 'r1', label: 'Visa DAF' } }));
+    serveur.expectNone(r => r.url.startsWith(`${API_BASE}/workflow`));
+    expect(bouton(g, '.c-regle-workflow')).toBeNull();
+    expect(texte(g)).not.toContain('Règle de workflow');
+    expect(texte(g)).toContain("Plan d'indexation");
+  });
+
   it('mène à la re-typologie seulement si le module cycle de vie est actif', () => {
     expect(bouton(ouvrir(type()), '.act-retyper')).not.toBeNull();
     inactifs.add('cycledevie');

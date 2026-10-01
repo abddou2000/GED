@@ -375,6 +375,10 @@ a.stat:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   .grille-profil .decisions { flex: 1; min-height: 0; overflow-y: auto; }
 }
 
+/* Module workflow désactivé (T-088) : pas de carte des décisions, donc une
+   seule rangée ; sans cela la seconde, vide, gardait ses 200px au moins. */
+.grille-profil.sans-decisions { grid-template-rows: auto; align-content: start; }
+
 .c-infos       { grid-column: span 6; }
 .c-rattachements { grid-column: span 6; }
 .c-decisions   { grid-column: span 12; }
