@@ -321,6 +321,34 @@ export class WorkspaceList implements OnInit {
   readonly avatarInk = encreAvatar;
 
   /* =================== actions =================== */
+  /**
+   * Modifier un espace ou un dossier (nom, code, propriétaire, statut, usage,
+   * règle, parent) relève de la gestion des espaces (DF §4.3.4, ANO-F-026) :
+   * le serveur refuse tout autre appelant. Confort d'affichage.
+   */
+  peutModifier(): boolean { return this.auth.peut('GERER_ESPACES'); }
+
+  /*
+   * Les autres actions suivent la permission que le serveur exige (ANO-F-018,
+   * comme la fiche d'un dossier). La liste ne porte pas les permissions de
+   * chaque nœud : l'action paraît si l'utilisateur exerce la permission
+   * quelque part, et le serveur tranche nœud par nœud (403 tracé).
+   */
+
+  /** Archiver / désarchiver un dossier (D10) : ARCHIVER. */
+  peutArchiver(): boolean { return this.auth.peut('ARCHIVER'); }
+  /** Supprimer, restaurer (corbeille), un par un ou par lot : SUPPRIMER. */
+  peutSupprimer(): boolean { return this.auth.peut('SUPPRIMER'); }
+  /** Déplacer sous un autre dossier : DEPLACER (la racine relève de la gestion des espaces). */
+  peutDeplacer(): boolean { return this.peutModifier() || this.auth.peut('DEPLACER'); }
+  /**
+   * Créer un sous-dossier par le formulaire d'administration : gestion des
+   * espaces. Le membre d'un espace d'échange crée ses dossiers depuis la fiche
+   * du dossier (« Nouveau dossier », ANO-F-016) : l'arborescence ne dit pas
+   * quel nœud appartient à un espace d'échange.
+   */
+  peutCreerSousDossier(): boolean { return this.peutModifier(); }
+
   create(parentId: string | null = null): void { this.openDialog(null, parentId); }
   edit(id: string): void {
     this.service.get(id).subscribe(w => this.openDialog(w, null));

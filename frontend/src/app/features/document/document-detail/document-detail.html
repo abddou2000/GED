@@ -132,7 +132,7 @@
         }
         <div class="cartouche"><span class="val">{{ d.dateDocument ? dateCourte(d.dateDocument) : '—' }}</span><span class="lib">Date du document</span></div>
         @if (d.echeanceConservation) {
-          <div class="cartouche"><span class="val">{{ d.echeanceConservation }}</span><span class="lib">Échéance de conservation</span></div>
+          <div class="cartouche"><span class="val">{{ dateCourte(d.echeanceConservation) }}</span><span class="lib">Échéance de conservation</span></div>
         }
         @if (d.rattachements?.length) {
           <div class="cartouche">

@@ -1,8 +1,10 @@
 package com.ipt.ged.recherche;
 
 import com.ipt.ged.autorisation.Confidentialite;
+import com.ipt.ged.common.Tri;
 import com.ipt.ged.common.erreur.ParametresConnus;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
@@ -22,9 +24,10 @@ import java.util.UUID;
  * des documents (§4.4), combinée en ET avec des critères de métadonnées
  * (type, espace, période de dépôt, plage de date du document, confidentialité,
  * déposant), filtrée par droits à la source, triée (pertinence, date, nom,
- * type) et paginée. Les extraits sont rendus en segments (texte et
- * surlignage), jamais en HTML. Un paramètre inconnu est refusé (400
- * {@code PARAMETRE_INCONNU}) au lieu d'être ignoré (ANO-F-011).
+ * type) et paginée par {@code page} et {@code size} (alias {@code taille}) : 50
+ * par défaut, 200 au plus (DAT §5.3.2, T-050). Les extraits sont rendus en segments (texte et
+ * surlignage), jamais en HTML. Un paramètre inconnu est ignoré (DAT §5.3.2,
+ * P-08) et signalé dans l'en-tête {@code GED-Champs-Ignores} (ANO-F-011).
  */
 @RestController
 @RequestMapping("/api/v1/recherche")
@@ -32,7 +35,7 @@ import java.util.UUID;
 public class RechercheController {
 
     /**
-     * Paramètres acceptés ; tout autre est refusé. {@code size} est l'alias de
+     * Paramètres connus ; tout autre est ignoré et signalé. {@code size} est l'alias de
      * {@code taille} posé par les conventions de l'API (FiltreConventionsApi).
      */
     static final Set<String> PARAMETRES = Set.of("q", "page", "taille", "size", "tri", "typeDocumentId", "workspaceId",
@@ -48,7 +51,8 @@ public class RechercheController {
     @GetMapping("/plein-texte")
     public PageResultats pleinTexte(@RequestParam("q") String q,
                                     @RequestParam(defaultValue = "0") int page,
-                                    @RequestParam(defaultValue = "20") int taille,
+                                    @RequestParam(required = false) Integer size,
+                                    @RequestParam(required = false) Integer taille,
                                     @RequestParam(defaultValue = "PERTINENCE") RequeteRecherche.Tri tri,
                                     @RequestParam(required = false) UUID typeDocumentId,
                                     @RequestParam(required = false) UUID workspaceId,
@@ -61,8 +65,9 @@ public class RechercheController {
                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDocumentAu,
                                     @RequestParam(required = false) Confidentialite confidentialite,
                                     @RequestParam(required = false) UUID deposantUtilisateurId,
-                                    Authentication utilisateur, HttpServletRequest requete) {
-        ParametresConnus.exiger(requete, PARAMETRES);
+                                    Authentication utilisateur, HttpServletRequest requete,
+                                    HttpServletResponse reponse) {
+        ParametresConnus.signaler(requete, reponse, PARAMETRES);
         if (q.length() > 500) {
             throw new IllegalArgumentException("La recherche ne peut pas dépasser 500 caractères.");
         }
@@ -71,6 +76,6 @@ public class RechercheController {
         List<FragmentSql> filtres = new ArrayList<>(criteres.fragments());
         filtres.addAll(new CriteresDocument(dateDocumentDu, dateDocumentAu, confidentialite, deposantUtilisateurId)
                 .fragments());
-        return indexer.rechercher(new RequeteRecherche(q, page, taille, tri, filtres), utilisateur);
+        return indexer.rechercher(new RequeteRecherche(q, page, Tri.taillePage(size, taille), tri, filtres), utilisateur);
     }
 }

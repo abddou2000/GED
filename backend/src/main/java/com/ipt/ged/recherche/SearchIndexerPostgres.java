@@ -216,13 +216,29 @@ public class SearchIndexerPostgres implements SearchIndexer {
     }
 
     @Override
-    public java.util.Optional<TexteIndexe> texte(UUID documentId) {
-        return jdbc.query("SELECT document_id, version_id, langue, provenance, nb_pages, indexe_le, texte "
+    public java.util.Optional<TexteIndexe> texte(UUID documentId, int debut, int longueur) {
+        if (debut < 0 || longueur < 1) {
+            throw new IllegalArgumentException("Plage invalide : début " + debut + ", longueur " + longueur + ".");
+        }
+        // substr ne lit (et ne décompresse) que le début du texte jusqu'à la fin de la plage ;
+        // octet_length lit la taille stockée sans détoaster. Un caractère de plus dit s'il y a une suite.
+        int lus = longueur == Integer.MAX_VALUE ? longueur : longueur + 1;
+        return jdbc.query("SELECT document_id, version_id, langue, provenance, nb_pages, indexe_le, "
+                        + "substr(texte, ?, ?) AS plage, octet_length(texte) AS octets "
                         + "FROM document_texte WHERE document_id = ?",
-                (rs, i) -> new TexteIndexe(rs.getObject("document_id", UUID.class), rs.getObject("version_id", UUID.class),
-                        rs.getString("langue"), rs.getString("provenance"), (Integer) rs.getObject("nb_pages"),
-                        rs.getObject("indexe_le", java.time.OffsetDateTime.class).toInstant(), rs.getString("texte")),
-                documentId).stream().findFirst();
+                (rs, i) -> {
+                    String plage = rs.getString("plage");
+                    int points = plage.codePointCount(0, plage.length());
+                    boolean suite = points > longueur;
+                    String texte = suite ? plage.substring(0, plage.offsetByCodePoints(0, longueur)) : plage;
+                    return new TexteIndexe(rs.getObject("document_id", UUID.class),
+                            rs.getObject("version_id", UUID.class), rs.getString("langue"),
+                            rs.getString("provenance"), (Integer) rs.getObject("nb_pages"),
+                            rs.getObject("indexe_le", java.time.OffsetDateTime.class).toInstant(), texte, debut,
+                            suite, rs.getLong("octets"));
+                },
+                (long) debut + 1 > Integer.MAX_VALUE ? Integer.MAX_VALUE : debut + 1, lus, documentId)
+                .stream().findFirst();
     }
 
     @Override

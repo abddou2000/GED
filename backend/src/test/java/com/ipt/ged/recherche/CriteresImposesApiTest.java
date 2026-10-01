@@ -3,6 +3,7 @@ package com.ipt.ged.recherche;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.autorisation.Confidentialite;
+import com.ipt.ged.common.erreur.ChampsIgnores;
 import com.ipt.ged.support.Comptes;
 import com.ipt.ged.support.JeuDroits;
 import com.ipt.ged.support.Pdfs;
@@ -30,7 +31,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,8 +39,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * ANO-F-011 (§4.4.3) : plage de date du document, niveau de confidentialité et
  * déposant filtrent les trois recherches ({@code POST /documents/recherche},
  * {@code POST /recherches} avec et sans texte, {@code GET /recherche/plein-texte}) ;
- * un paramètre inconnu est refusé en 400 {@code PARAMETRE_INCONNU} au lieu d'être
- * ignoré. Et {@code POST /indexation/recherche} est paginé (plafond 200).
+ * un paramètre inconnu est ignoré (P-08) et signalé dans l'en-tête
+ * {@code GED-Champs-Ignores}. Et {@code POST /indexation/recherche} est paginé (plafond 200).
  *
  * <p>Mêmes propriétés que {@code OcrApiTest} (chaîne OCR active, sans worker) :
  * le contrôleur plein texte n'existe qu'avec la chaîne, et le contexte est partagé.
@@ -139,6 +140,33 @@ class CriteresImposesApiTest {
     }
 
     @Test
+    @DisplayName("ANO-F-028 : POST /documents/recherche filtre sur la date de dépôt (plage), comme POST /recherches")
+    void dateDeDepot() throws Exception {
+        jdbc.update("UPDATE document SET created_at = TIMESTAMPTZ '2026-03-10 09:00:00+00' WHERE id = ?", a);
+        jdbc.update("UPDATE document SET created_at = TIMESTAMPTZ '2026-03-31 23:30:00+00' WHERE id = ?", b);
+        jdbc.update("UPDATE document SET created_at = TIMESTAMPTZ '2026-04-01 00:00:00+00' WHERE id = ?", c);
+
+        // Bornes incluses, au jour près : le 31 mars à 23 h 30 est dans « au 31 mars ».
+        assertThat(metadonnees("\"dateDepotDu\":\"2026-03-01\",\"dateDepotAu\":\"2026-03-31\""))
+                .containsExactlyInAnyOrder(a.toString(), b.toString());
+        assertThat(metadonnees("\"dateDepotDu\":\"2026-04-01\"")).containsExactly(c.toString());
+        assertThat(metadonnees("\"dateDepotAu\":\"2026-03-10\"")).containsExactly(a.toString());
+        // Combinée en ET avec la date du document (b : août ; a : septembre).
+        assertThat(metadonnees("\"dateDepotAu\":\"2026-03-31\"," + SEPTEMBRE)).containsExactly(a.toString());
+        // Même lecture que deposeDu / deposeAu de POST /recherches.
+        assertThat(contrat("\"deposeDu\":\"2026-03-01\",\"deposeAu\":\"2026-03-31\"", false))
+                .containsExactlyInAnyOrder(a.toString(), b.toString());
+        // Reconnue : non signalée comme champ ignoré ; plage inversée refusée.
+        mvc.perform(post("/api/v1/documents/recherche").contentType(APPLICATION_JSON)
+                        .content("{\"dateDepotDu\":\"2026-03-01\"}"))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("GED-Champs-Ignores"));
+        mvc.perform(post("/api/v1/documents/recherche").contentType(APPLICATION_JSON)
+                        .content("{\"dateDepotDu\":\"2026-04-01\",\"dateDepotAu\":\"2026-03-01\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("Déposant d'un document antérieur à l'identité du déposant : l'employé auteur du dépôt fait foi")
     void deposantDUnDocumentAncien() throws Exception {
         jdbc.update("UPDATE document SET deposant_utilisateur_id = NULL, created_by_employe_id = ? WHERE id = ?",
@@ -171,39 +199,85 @@ class CriteresImposesApiTest {
     }
 
     @Test
-    @DisplayName("Paramètre inconnu : 400 PARAMETRE_INCONNU (problem+json) sur les quatre recherches, au lieu d'être ignoré")
-    void parametreInconnuRefuse() throws Exception {
-        mvc.perform(post("/api/v1/documents/recherche").contentType(APPLICATION_JSON)
+    @DisplayName("Paramètre inconnu (P-08) : ignoré, la recherche répond 200 sans filtrer, et signalé dans GED-Champs-Ignores")
+    void parametreInconnuIgnoreEtSignale() throws Exception {
+        // DAT §5.3.2 : évolutions additives, champs inconnus ignorés par le serveur ; l'en-tête évite
+        // qu'un critère mal nommé passe pour un filtre appliqué (ANO-F-011).
+        JsonNode r = json(mvc.perform(post("/api/v1/documents/recherche").contentType(APPLICATION_JSON)
                         .content("{\"typeDocumentId\":\"" + type + "\",\"confidentialit\":\"PRIVE\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
-                .andExpect(jsonPath("$.code").value("PARAMETRE_INCONNU"))
-                .andExpect(jsonPath("$.parametre").value("confidentialit"));
+                .andExpect(status().isOk())
+                .andExpect(header().string(ChampsIgnores.ENTETE, "confidentialit")));
+        assertThat(r.get("total").asLong()).isEqualTo(3);
         mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
-                        .content("{\"typeDocumentId\":\"" + type + "\",\"deposant\":\"x\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("PARAMETRE_INCONNU"))
-                .andExpect(jsonPath("$.parametre").value("deposant"));
+                        .content("{\"typeDocumentId\":\"" + type + "\",\"deposant\":\"x\",\"confidentialité\":{\"a\":[1]}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(3))
+                .andExpect(header().string(ChampsIgnores.ENTETE, "deposant, confidentialit%C3%A9"));
         // Champ inconnu dans un critère imbriqué : chemin complet.
         mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
                         .content("{\"criteres\":[{\"indexFieldId\":\"" + UUID.randomUUID() + "\",\"valeurr\":\"x\"}]}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("PARAMETRE_INCONNU"))
-                .andExpect(jsonPath("$.parametre").value("criteres[0].valeurr"));
-        mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot).param("dateDu", "2026-09-01"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
-                .andExpect(jsonPath("$.code").value("PARAMETRE_INCONNU"))
-                .andExpect(jsonPath("$.parametre").value("dateDu"));
-        mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON).content("{\"size\":10}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("PARAMETRE_INCONNU"));
-        // Valeur hors liste et bornes inversées : 400 également.
+                .andExpect(status().isOk())
+                .andExpect(header().string(ChampsIgnores.ENTETE, "criteres[0].valeurr"));
+        assertThat(json(mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot)
+                        .param("typeDocumentId", type.toString()).param("dateDu", "2026-09-01"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(ChampsIgnores.ENTETE, "dateDu"))).get("total").asLong()).isEqualTo(3);
+        mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON).content("{\"taile\":10}"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(ChampsIgnores.ENTETE, "taile"));
+        // Tout est connu : pas d'en-tête.
+        mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON).content("{" + PRIVE + "}"))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist(ChampsIgnores.ENTETE));
+        mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist(ChampsIgnores.ENTETE));
+        // Valeur hors liste et bornes inversées : toujours 400 (une valeur invalide n'est pas un champ inconnu).
         mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON).content("{\"confidentialite\":\"SECRET\"}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot)
                         .param("dateDocumentDu", "2026-10-01").param("dateDocumentAu", "2026-09-01"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("T-050 : page et size homogènes (alias taille) sur les quatre recherches ; 50 par défaut, 200 au plus")
+    void paginationHomogene() throws Exception {
+        // GET /recherche/plein-texte : défaut 50 (et non 20), size lu (et non ignoré), taille en alias.
+        JsonNode defaut = json(mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot))
+                .andExpect(status().isOk()));
+        assertThat(defaut.get("taille").asInt()).isEqualTo(50);
+        assertThat(defaut.get("size").asInt()).isEqualTo(50);
+        for (String nom : List.of("size", "taille")) {
+            JsonNode p = json(mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot).param(nom, "2")
+                    .param("page", "1")).andExpect(status().isOk()));
+            assertThat(p.get("size").asInt()).as(nom).isEqualTo(2);
+            assertThat(p.get("page").asInt()).as(nom).isEqualTo(1);
+            assertThat(p.get("total").asLong()).as(nom).isEqualTo(3);
+            assertThat(p.get("resultats")).as(nom).hasSize(1);
+        }
+        assertThat(json(mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot).param("size", "100000")))
+                .get("size").asInt()).isEqualTo(200);
+
+        // POST /recherches (avec et sans texte) : size accepté, taille gardé ; size l'emporte.
+        for (boolean texte : new boolean[]{false, true}) {
+            assertThat(contrat("\"size\":2", texte)).as("size, texte=" + texte).hasSize(2);
+            assertThat(contrat("\"taille\":2", texte)).as("taille, texte=" + texte).hasSize(2);
+            assertThat(contrat("\"size\":1,\"taille\":2", texte)).as("les deux, texte=" + texte).hasSize(1);
+        }
+        JsonNode contratDefaut = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content("{\"typeDocumentId\":\"" + type + "\"}")).andExpect(status().isOk()));
+        assertThat(contratDefaut.get("size").asInt()).isEqualTo(50);
+
+        // POST /documents/recherche : taille accepté en alias de size.
+        assertThat(metadonnees("\"taille\":2")).hasSize(2);
+        assertThat(metadonnees("\"size\":1,\"taille\":2")).hasSize(1);
+
+        // POST /indexation/recherche : size accepté en plus de taille.
+        JsonNode index = json(mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON)
+                .content("{\"typeDocumentId\":\"" + type + "\",\"size\":2}")).andExpect(status().isOk())
+                .andExpect(header().doesNotExist(ChampsIgnores.ENTETE)));
+        assertThat(index.get("size").asInt()).isEqualTo(2);
     }
 
     @Test

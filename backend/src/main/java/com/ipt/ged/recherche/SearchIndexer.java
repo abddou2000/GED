@@ -41,11 +41,22 @@ public interface SearchIndexer {
      */
     List<UUID> reindexerLot(UUID apres, int taille);
 
-    /** Texte indexé d'un document (version courante), s'il l'est. */
-    java.util.Optional<TexteIndexe> texte(UUID documentId);
+    /**
+     * Plage du texte indexé d'un document (version courante), s'il l'est : au
+     * plus {@code longueur} caractères à partir du rang {@code debut} (à partir
+     * de 0). Seule la plage est lue : un texte de 150 Mo ne transite jamais
+     * entier par l'application.
+     */
+    java.util.Optional<TexteIndexe> texte(UUID documentId, int debut, int longueur);
 
+    /**
+     * @param texte        la plage demandée (vide au-delà de la fin) ;
+     * @param debut        rang de son premier caractère ;
+     * @param suite        vrai si du texte suit la plage ;
+     * @param tailleOctets taille du texte entier en UTF-8.
+     */
     record TexteIndexe(UUID documentId, UUID versionId, String langue, String provenance, Integer nbPages,
-                       java.time.Instant indexeLe, String texte) {
+                       java.time.Instant indexeLe, String texte, int debut, boolean suite, long tailleOctets) {
     }
 
     record TexteAIndexer(UUID documentId, UUID versionId, String langue, String texte, String provenance,

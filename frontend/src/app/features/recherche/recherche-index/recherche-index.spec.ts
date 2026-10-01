@@ -119,9 +119,9 @@ describe('RechercheIndex', () => {
       confidentialite: 'PRIVE',
       deposantUtilisateurId: 'u-1',
       page: 0,
-      size: 20,
+      size: 50,
     });
-    req.flush({ content: [DOC], total: 1, page: 0, size: 20, totalPages: 1 });
+    req.flush({ content: [DOC], total: 1, page: 0, size: 50, totalPages: 1 });
     f.detectChanges();
     expect(el.querySelector('.total')?.textContent).toContain('1 document');
     expect((el.querySelector('a.nom') as HTMLAnchorElement).getAttribute('href')).toBe('/televerser/d1');
@@ -151,6 +151,63 @@ describe('RechercheIndex', () => {
     expect(page.request.body.page).toBe(2);
     expect(page.request.params.get('sortBy')).toBe('name');
     page.flush({ content: [], total: 45, page: 2, size: 20, totalPages: 3 });
+  });
+
+  it('T-050 : 50 résultats par page par défaut, sélecteur plafonné à 200', async () => {
+    const f = await ouvrir();
+    lancer(f);
+    const req = serveur.expectOne(r => r.url === `${API_BASE}/documents/recherche`);
+    expect(req.request.body.size).toBe(50);
+    req.flush({ content: [DOC], total: 300, page: 0, size: 50, totalPages: 6 });
+    f.detectChanges();
+    expect(Math.max(...f.componentInstance.taillesPage)).toBe(200);
+    f.componentInstance.pagination({ pageIndex: 0, pageSize: 200, length: 300 });
+    const grande = serveur.expectOne(r => r.url === `${API_BASE}/documents/recherche`);
+    expect(grande.request.body.size).toBe(200);
+    grande.flush({ content: [DOC], total: 300, page: 0, size: 200, totalPages: 2 });
+  });
+
+  it('signale discrètement un critère que le serveur a ignoré (GED-Champs-Ignores)', async () => {
+    const f = await ouvrir();
+    lancer(f);
+    serveur.expectOne(r => r.url === `${API_BASE}/documents/recherche`).flush(
+      { content: [DOC], total: 1, page: 0, size: 50, totalPages: 1 },
+      { headers: { 'GED-Champs-Ignores': 'criteres[0].valeurr' } });
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('.champs-ignores')?.textContent).toContain('Critère non appliqué : criteres[0].valeurr');
+    expect(el.querySelector('a.nom')).toBeTruthy();
+
+    lancer(f);
+    serveur.expectOne(r => r.url === `${API_BASE}/documents/recherche`)
+      .flush({ content: [DOC], total: 1, page: 0, size: 50, totalPages: 1 });
+    f.detectChanges();
+    expect(el.querySelector('.champs-ignores')).toBeNull();
+  });
+
+  it('ANO-F-028 : la date de dépôt (plage) est un critère, sans texte, combiné en ET', async () => {
+    const f = await ouvrir();
+    const el: HTMLElement = f.nativeElement;
+    for (const [nom, valeur] of [['dateDepotDu', '2026-03-01'], ['dateDepotAu', '2026-03-31']]) {
+      const champ = el.querySelector(`input[type="date"][name="${nom}"]`) as HTMLInputElement;
+      champ.value = valeur;
+      champ.dispatchEvent(new Event('input'));
+    }
+    f.componentInstance.socle.dateDocumentDu = '2026-09-01';
+    f.detectChanges();
+    lancer(f);
+    const req = serveur.expectOne(r => r.method === 'POST' && r.url === `${API_BASE}/documents/recherche`);
+    expect(req.request.body).toEqual({
+      dateDocumentDu: '2026-09-01', dateDepotDu: '2026-03-01', dateDepotAu: '2026-03-31', page: 0, size: 50,
+    });
+    req.flush({ content: [DOC], total: 1, page: 0, size: 50, totalPages: 1 });
+    f.detectChanges();
+
+    // Plage inversée : refusée à l'écran, sans appel.
+    f.componentInstance.socle.dateDepotDu = '2026-04-01';
+    lancer(f);
+    serveur.expectNone(r => r.url === `${API_BASE}/documents/recherche`);
+    expect(el.querySelector('.erreur')?.textContent).toContain('Date de dépôt');
   });
 
   it("refuse une plage incohérente sans appeler l'API", async () => {

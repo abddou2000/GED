@@ -1,12 +1,13 @@
 import { Component, OnInit, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Observable } from 'rxjs';
+import { Observable, of, switchMap } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DocumentService } from '../document.service';
 import { DocumentItem, Ref } from '../document.model';
 import { WorkspaceService } from '../../workspace/workspace.service';
+import { dossiersDeLEspace } from '../../workspace/workspace.model';
 import { NotifyService } from '../../../core/notify.service';
 
 /**
@@ -21,6 +22,10 @@ import { NotifyService } from '../../../core/notify.service';
  * retirer un rattachement (DELETE /rattachements/{noeud}), ces deux derniers
  * avec Modifier. Les dossiers proposés sont ceux que l'appelant voit ; le
  * serveur revérifie chaque droit.</p>
+ *
+ * <p>Espace d'échange (D12, ANO-F-027) : sans Déplacer, le membre qui peut
+ * Déposer range le document dans un autre dossier du même espace d'échange,
+ * comme le serveur l'accepte ; seuls ces dossiers lui sont proposés.</p>
  */
 @Component({
   selector: 'app-document-emplacements',
@@ -36,7 +41,7 @@ import { NotifyService } from '../../../core/notify.service';
         <div class="action">
           <select name="destination" aria-label="Dossier de destination" [(ngModel)]="destination">
             <option [ngValue]="null">Déplacer vers…</option>
-            @for (d of dossiersHors(doc().workspace?.id); track d.id) { <option [ngValue]="d.id">{{ d.name }}</option> }
+            @for (d of destinations(); track d.id) { <option [ngValue]="d.id">{{ d.name }}</option> }
           </select>
           <button mat-stroked-button type="button" class="deplacer" [disabled]="!destination || enCours()" (click)="deplacer()">
             <mat-icon svgIcon="folder-open"></mat-icon> Déplacer
@@ -100,21 +105,49 @@ export class DocumentEmplacements implements OnInit {
   readonly modifie = output<void>();
 
   dossiers = signal<{ id: string; name: string }[]>([]);
+  /**
+   * Dossiers de l'espace d'échange du document (D12, ANO-F-027) : le membre
+   * qui peut Déposer, sans Déplacer, y range le document. `null` hors espace
+   * d'échange, ou tant que l'espace n'est pas connu.
+   */
+  dossiersEchange = signal<{ id: string; name: string }[] | null>(null);
   enCours = signal(false);
   destination: string | null = null;
   cibleRattachement: string | null = null;
 
   ngOnInit(): void {
     this.espaces.forSelect().subscribe({ next: l => this.dossiers.set(l), error: () => this.dossiers.set([]) });
+    const dossier = this.doc().workspace?.id;
+    if (dossier && !this.peut('DEPLACER') && this.peut('DEPOSER')) this.chargerEspaceEchange(dossier);
+  }
+
+  /** Usage de l'espace du document, puis ses dossiers s'il s'agit d'un espace d'échange. */
+  private chargerEspaceEchange(dossier: string): void {
+    this.espaces.get(dossier).pipe(
+      switchMap(w => w.usageEspace === 'ECHANGE' ? this.espaces.tree() : of(null)),
+    ).subscribe({
+      next: arbre => this.dossiersEchange.set(arbre ? dossiersDeLEspace(arbre, dossier) : null),
+      error: () => this.dossiersEchange.set(null),
+    });
   }
 
   private peut(p: string): boolean { return this.doc().permissions?.includes(p) ?? false; }
 
-  peutDeplacer(): boolean { return !this.lectureSeule() && !this.doc().supprime && this.peut('DEPLACER'); }
+  /**
+   * Déplacer (§12.5) ; à défaut, ranger entre dossiers d'un même espace
+   * d'échange avec Déposer, que le serveur accepte (D12, ANO-F-016, ANO-F-027).
+   */
+  peutDeplacer(): boolean {
+    if (this.lectureSeule() || this.doc().supprime) return false;
+    return this.peut('DEPLACER') || (this.peut('DEPOSER') && this.dossiersEchange() !== null);
+  }
   peutRattacher(): boolean { return !this.lectureSeule() && !this.doc().supprime && this.peut('MODIFIER'); }
 
-  dossiersHors(id: string | undefined): { id: string; name: string }[] {
-    return this.dossiers().filter(d => d.id !== id);
+  /** Destinations proposées, sans le dossier actuel : tout dossier visible, ou ceux de l'espace d'échange. */
+  destinations(): { id: string; name: string }[] {
+    const actuel = this.doc().workspace?.id;
+    const candidats = this.peut('DEPLACER') ? this.dossiers() : this.dossiersEchange() ?? [];
+    return candidats.filter(d => d.id !== actuel);
   }
 
   /** Ni le dossier principal ni un dossier déjà rattaché. */

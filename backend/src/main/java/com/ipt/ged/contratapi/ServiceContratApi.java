@@ -59,9 +59,6 @@ import java.util.UUID;
 @Service
 public class ServiceContratApi {
 
-    static final int TAILLE_DEFAUT = 50;
-    static final int TAILLE_MAX = 200;
-
     private final WorkSpaceService espaces;
     private final WorkSpaceRepository noeuds;
     private final CriteresIndexSql criteresIndex;
@@ -112,7 +109,7 @@ public class ServiceContratApi {
 
     public PageResultats rechercher(RechercheContratRequest r, Authentication appelant) {
         int page = r.page() == null ? 0 : r.page();
-        int taille = r.taille() == null || r.taille() < 1 ? TAILLE_DEFAUT : Math.min(r.taille(), TAILLE_MAX);
+        int taille = r.tailleDemandee();
         String archives = r.archives() == null || r.archives().isBlank() ? "INCLURE" : r.archives();
         boolean texte = r.texte() != null && !r.texte().isBlank();
 

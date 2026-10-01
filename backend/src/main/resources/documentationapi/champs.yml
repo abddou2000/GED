@@ -140,6 +140,8 @@ champs:
   deposeAu: {description: "Date de dépôt maximale (incluse, AAAA-MM-JJ).", exemple: "2026-12-31"}
   dateDocumentDu: {description: "Date du document minimale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3.", exemple: "2026-09-01"}
   dateDocumentAu: {description: "Date du document maximale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3.", exemple: "2026-09-30"}
+  dateDepotDu: {description: "Date de dépôt minimale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3 ; même lecture que deposeDu.", exemple: "2026-01-01"}
+  dateDepotAu: {description: "Date de dépôt maximale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3 ; même lecture que deposeAu.", exemple: "2026-12-31"}
   taille: {description: "Taille de page : 50 par défaut, plafonnée à 200.", exemple: 50}
   tri: {description: "Tri en liste blanche : PERTINENCE (défaut avec texte), DATE_DOCUMENT (date du document décroissante, défaut sans texte, §12.7), DATE_DEPOT, NOM, TYPE, INDEXATION_RECENTE.", exemple: PERTINENCE}
   pertinence: {description: "Score de pertinence plein texte (0 sans texte).", exemple: 0.42}
@@ -604,6 +606,9 @@ surcharges:
   DemandeRole.permissions: {description: "Codes des permissions du rôle.", exemple: [CONSULTER, DEPOSER]}
   ConfidentialiteVue.motif: {description: "Raison de la décision.", exemple: "Déposant du document"}
   RechercheRequest.archives: {description: "Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6).", exemple: INCLURE}
+  RechercheContratRequest.size: {description: "Taille de page (nom du §5.3.2, l'emporte sur taille) : 50 par défaut, plafonnée à 200.", exemple: 50}
+  RechercheRequest.size: {description: "Taille de page (nom du §5.3.2, l'emporte sur taille) : 50 par défaut, plafonnée à 200.", exemple: 50}
+  Requete.taille: {description: "Taille de page, alias de size (size l'emporte) : 50 par défaut, plafonnée à 200.", exemple: 50}
   RechercheContratRequest.archives: {description: "Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6).", exemple: INCLURE}
   RechercheContratRequest.echeanceDepassee: {description: "Vrai : seuls les documents dont l'échéance de conservation est atteinte au jour de MMED (filtre « échéance dépassée », §12.9), avec ou sans plein texte ; faux ou absent : aucun filtre.", exemple: true}
   RechercheContratRequest.criteres: {description: "Filtres sur les index (TEXTE, LISTE : valeur ; DATE, NOMBRE : de / a), combinés en ET avec le plein texte.", exemple: null}
@@ -622,6 +627,11 @@ surcharges:
   Export.etat: {description: "État de l'export (EN_ATTENTE, EN_COURS, TERMINE, ECHEC, EXPIRE…).", exemple: TERMINE}
   Job.etat: {description: "État du traitement (EN_ATTENTE, EN_COURS, TERMINE, ANNULE…).", exemple: EN_COURS}
   Info.statut: {description: "Statut de la copie (VALIDE, ECHEC…).", exemple: VALIDE}
+  Texte.texte: {description: "Plage demandée du texte extrait (au plus 1 000 000 caractères) ; nulle si le texte n'est pas interrogeable.", exemple: "MARCHÉ N° 2026-014"}
+  Texte.debut: {description: "Rang (en caractères, à partir de 0) du premier caractère de la plage.", exemple: 0}
+  Texte.longueur: {description: "Nombre de caractères rendus dans la plage.", exemple: 18}
+  Texte.suite: {description: "Vrai s'il reste du texte après la plage : la suivante commence à debut + longueur.", exemple: false}
+  Texte.tailleOctets: {description: "Taille du texte extrait entier, en octets UTF-8.", exemple: 19}
   Texte.provenance: {description: "Origine du texte : COUCHE_TEXTE, OCR ou AUCUNE.", exemple: OCR}
 
 
@@ -678,6 +688,8 @@ parametres:
   dossierId: Identifiant du dossier.
   limite: "Nombre maximal de traitements listés (50 par défaut)."
   original: "Vrai pour télécharger l'original plutôt que la copie de conservation (document archivé)."
+  debut: "Rang (en caractères, à partir de 0) du premier caractère de la plage de texte rendue (0 par défaut)."
+  longueur: "Nombre de caractères de la plage de texte rendue : 1 000 000 par défaut et au plus."
 
 # Corps sans schéma nommé (Map côté contrôleur), reconnus par la fin du chemin.
 corps:

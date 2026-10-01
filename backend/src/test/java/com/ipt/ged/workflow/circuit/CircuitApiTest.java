@@ -221,6 +221,32 @@ class CircuitApiTest {
         assertTrue(actif(doc));
     }
 
+    @Test
+    @DisplayName("« À traiter » paginé comme les autres listes : 50 par défaut, 200 au plus, alias taille (T-050)")
+    void aTraiterPagination() throws Exception {
+        rattacherNoeud(espace, regle("Pagination", nomme(KARIM)));
+        circuitDe(deposer("Pièce paginée"));
+
+        JsonNode defaut = json(mvc.perform(get(WF + "/a-traiter").with(comme(KARIM))));
+        assertEquals(1, defaut.get("total").asInt());
+        assertEquals(50, defaut.get("size").asInt());
+        // Avant : plafond 100 ; désormais 200, comme Tri pour toutes les listes.
+        assertEquals(150, json(mvc.perform(get(WF + "/a-traiter").param("size", "150").with(comme(KARIM))))
+                .get("size").asInt());
+        assertEquals(200, json(mvc.perform(get(WF + "/a-traiter").param("size", "5000").with(comme(KARIM))))
+                .get("size").asInt());
+        assertEquals(120, json(mvc.perform(get(WF + "/a-traiter").param("taille", "120").with(comme(KARIM))))
+                .get("size").asInt());
+        assertEquals(50, json(mvc.perform(get(WF + "/a-traiter").param("size", "0").with(comme(KARIM))))
+                .get("size").asInt());
+        // Page au-delà de la fin : vide, sans erreur ; page négative : 400.
+        JsonNode loin = json(mvc.perform(get(WF + "/a-traiter").param("page", "3").with(comme(KARIM))));
+        assertEquals(0, loin.get("content").size());
+        assertEquals(1, loin.get("total").asInt());
+        mvc.perform(get(WF + "/a-traiter").param("page", "-1").with(comme(KARIM)))
+                .andExpect(status().isBadRequest());
+    }
+
     /* ---------------------------------------------------------------- règle : nœud, type, figée */
 
     @Test

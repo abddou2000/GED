@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { API_BASE } from '../../core/api';
+import { AvecChampsIgnores, avecChampsIgnores } from '../../core/pagination';
 import {
   CriteresRecherche, EtatOcr, OcrJob, PageResultats, ProgressionReindexation, StatutOcr,
 } from './recherche.model';
@@ -13,7 +14,8 @@ import {
 export class RechercheService {
   private http = inject(HttpClient);
 
-  rechercher(c: CriteresRecherche, page: number, taille: number): Observable<PageResultats> {
+  /** Page de résultats, et critères que le serveur n'a pas appliqués (en-tête GED-Champs-Ignores). */
+  rechercher(c: CriteresRecherche, page: number, taille: number): Observable<AvecChampsIgnores<PageResultats>> {
     const params: Record<string, string | number> = { q: c.q, tri: c.tri, page, taille };
     if (c.typeDocumentId) params['typeDocumentId'] = c.typeDocumentId;
     if (c.workspaceId) params['workspaceId'] = c.workspaceId;
@@ -22,7 +24,8 @@ export class RechercheService {
     if (c.archives && c.archives !== 'INCLURE') params['archives'] = c.archives;
     if (c.canal) params['canal'] = c.canal;
     if (c.echeanceDepassee) params['echeanceDepassee'] = 'true';
-    return this.http.get<PageResultats>(`${API_BASE}/recherche/plein-texte`, { params });
+    return this.http.get<PageResultats>(`${API_BASE}/recherche/plein-texte`, { params, observe: 'response' })
+      .pipe(map(avecChampsIgnores));
   }
 
   etat(): Observable<EtatOcr> {

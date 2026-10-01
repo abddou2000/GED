@@ -2,6 +2,7 @@ package com.ipt.ged.documentationapi;
 
 import com.ipt.ged.cleapi.ConfigurationSecuriteApplications;
 import com.ipt.ged.cleapi.FiltreCleApi;
+import com.ipt.ged.common.erreur.ChampsIgnores;
 import com.ipt.ged.common.erreur.Problemes;
 import com.ipt.ged.conventionsapi.ProprietesConventionsApi;
 import com.ipt.ged.idempotence.FiltreIdempotence;
@@ -80,6 +81,10 @@ public class EnrichissementOpenApi implements OpenApiCustomizer {
     private static final String REF_SCHEMAS = "#/components/schemas/";
     private static final DateTimeFormatter RFC_1123 = DateTimeFormatter.RFC_1123_DATE_TIME;
 
+    /** Recherches dont les champs inconnus sont signalés dans {@value ChampsIgnores#ENTETE} (P-08, ANO-F-011). */
+    private static final Set<String> RECHERCHES = Set.of("/api/v1/documents/recherche", "/api/v1/recherches",
+            "/api/v1/recherche/plein-texte", "/api/v1/indexation/recherche");
+
     /**
      * Chemins historiques de l'interface, conservés pour le front, et leur
      * équivalent au contrat d'API (§5.3.1) : les intégrateurs sont orientés vers
@@ -147,7 +152,9 @@ public class EnrichissementOpenApi implements OpenApiCustomizer {
                 - créations soumises à `Idempotency-Key` (UUID, réponse mémorisée 24 h) ;
                 - applications : clé `X-API-Key`, quotas par clé (429 + `Retry-After`) ;
                 - version majeure dans l'URL (`/api/v1`) ; une version retirée l'annonce par `Deprecation` et `Sunset`,
-                  et reste servie au moins 12 mois.
+                  et reste servie au moins 12 mois ;
+                - compatibilité : évolutions additives dans une version majeure ; un champ ou un paramètre inconnu est
+                  ignoré par le serveur ; les recherches le signalent dans l'en-tête `GED-Champs-Ignores`.
                 Documentation fermée en production."""));
         api.servers(List.of(new Server().url("/").description("Même origine que l'application (derrière NGINX)")));
         api.security(List.of(new SecurityRequirement().addList(JETON), new SecurityRequirement().addList(CLE_API)));
@@ -184,6 +191,10 @@ public class EnrichissementOpenApi implements OpenApiCustomizer {
                 .schema(new StringSchema().example("@1798761600")));
         c.addHeaders("Sunset", new Header().description("Date de retrait (RFC 1123), au moins 12 mois après l'annonce.")
                 .schema(new StringSchema().example("Sat, 1 Jan 2028 00:00:00 GMT")));
+        c.addHeaders("ChampsIgnores", new Header().description("Champs du corps ou paramètres inconnus, ignorés "
+                        + "(politique de compatibilité §5.3.2) : chemins séparés par des virgules, encodés en "
+                        + "pourcentage hors ASCII. Absent si tout est connu. Un critère mal nommé n'a pas filtré.")
+                .schema(new StringSchema().example("confidentialit, criteres[0].valeurr")));
         c.addHeaders("Link", new Header().description("Version qui remplace : rel=\"successor-version\".")
                 .schema(new StringSchema().example("</api/v2/>; rel=\"successor-version\"")));
 
@@ -357,6 +368,9 @@ public class EnrichissementOpenApi implements OpenApiCustomizer {
             if (statut.equals("429")) reponse.addHeaderObject("Retry-After", ref("RetryAfter"));
             if (statut.startsWith("2") && idempotente) {
                 reponse.addHeaderObject(FiltreIdempotence.ENTETE_REJEU, ref("IdempotencyReplayed"));
+            }
+            if (statut.startsWith("2") && RECHERCHES.contains(chemin)) {
+                reponse.addHeaderObject(ChampsIgnores.ENTETE, ref("ChampsIgnores"));
             }
         });
         for (ProprietesConventionsApi.Depreciation d : depreciations) {

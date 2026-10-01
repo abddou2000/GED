@@ -94,6 +94,16 @@ public final class Tri {
         return PageRequest.of(numero, taille, Sort.by(ordre));
     }
 
+    /**
+     * Taille de page d'une recherche qui accepte les deux noms du contrat (DAT
+     * §5.3.2, T-050) : {@code size}, ou son alias {@code taille} ; {@code size}
+     * l'emporte si les deux sont donnés. Absente ou inférieure à 1 : 50 ; au plus 200.
+     */
+    public static int taillePage(Integer size, Integer taille) {
+        Integer demandee = size != null ? size : taille;
+        return demandee == null ? TAILLE_DEFAUT : taille(demandee);
+    }
+
     /** Taille demandée, ramenée dans les bornes exploitables. */
     private static int taille(int size) {
         if (size < 1) return TAILLE_DEFAUT;

@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, map, tap } from 'rxjs';
 import { API_BASE } from '../../core/api';
+import { AvecChampsIgnores, avecChampsIgnores } from '../../core/pagination';
 import { DocumentItem, DocumentRequest, PageResult, Ref, RequeteRecherche } from './document.model';
 import { CircuitService } from '../workflow/circuit.service';
 
@@ -274,8 +275,10 @@ export class DocumentService {
    * POST /documents/recherche : critères d'index et socle commun en ET,
    * périmètre autorisé seulement ; tri par `sortBy` (dateDocument, name,
    * createdAt) et `sortDir`. Seuls les critères renseignés sont envoyés.
+   * Rend aussi les champs que le serveur a ignorés (en-tête GED-Champs-Ignores).
    */
-  rechercher(requete: RequeteRecherche, sortBy = 'dateDocument', sortDir = 'desc'): Observable<PageResult<DocumentItem>> {
+  rechercher(requete: RequeteRecherche, sortBy = 'dateDocument', sortDir = 'desc'):
+    Observable<AvecChampsIgnores<PageResult<DocumentItem>>> {
     const corps: Record<string, unknown> = {};
     for (const [cle, valeur] of Object.entries(requete)) {
       if (valeur === null || valeur === undefined || valeur === '' || valeur === false) continue;
@@ -283,7 +286,7 @@ export class DocumentService {
       corps[cle] = valeur;
     }
     return this.http.post<PageResult<DocumentItem>>(`${this.url}/recherche`, corps,
-      { params: { sortBy, sortDir } });
+      { params: { sortBy, sortDir }, observe: 'response' }).pipe(map(avecChampsIgnores));
   }
 
   /* ---------- Emplacements (ANO-F-014) ---------- */

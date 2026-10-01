@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.autorisation.AccessPredicate;
 import com.ipt.ged.autorisation.CodePermission;
 import com.ipt.ged.autorisation.Confidentialite;
-import com.ipt.ged.common.erreur.ChampsInconnusRefuses;
+import com.ipt.ged.common.erreur.ChampsInconnusSignales;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.document.DocumentService;
@@ -15,6 +15,7 @@ import com.ipt.ged.document.dto.DocumentResponse;
 import com.ipt.ged.planindexation.metamodele.ChampPlan;
 import com.ipt.ged.planindexation.metamodele.ValeursMetadonnees;
 import com.ipt.ged.recherche.CriteresDocument;
+import com.ipt.ged.recherche.CriteresMetadonnees;
 import com.ipt.ged.recherche.FragmentSql;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -49,15 +50,16 @@ import java.util.UUID;
  * périmètre n'entre ni dans les résultats ni dans le total. Les documents
  * archivés sont inclus par défaut, avec un filtre pour les inclure ou les
  * exclure (§12.6). Critères imposés du §4.4.3 portés par le document : plage
- * de date du document, confidentialité, déposant ({@link CriteresDocument}).
- * Un champ inconnu du corps est refusé (400 {@code PARAMETRE_INCONNU},
- * ANO-F-011) au lieu d'être ignoré.
+ * de date du document, confidentialité, déposant ({@link CriteresDocument}) ;
+ * plage de date de dépôt, lue comme en recherche plein texte (ANO-F-028).
+ * Un champ inconnu du corps est ignoré (DAT §5.3.2, P-08) et signalé dans
+ * l'en-tête {@code GED-Champs-Ignores} (ANO-F-011).
  */
 @Service
 public class RechercheMetadonnees {
 
     /** Un critère : {@code valeur} (texte, liste, booléen) ou bornes {@code de} / {@code a} (date, nombre). */
-    @ChampsInconnusRefuses
+    @ChampsInconnusSignales
     public record Critere(String code, String valeur, String de, String a) {}
 
     /**
@@ -67,12 +69,21 @@ public class RechercheMetadonnees {
      * @param dateDocumentAu     borne haute incluse de la date du document (§4.4.3)
      * @param confidentialite    PUBLIC, PRIVE ou CONFIDENTIEL (§4.4.3), dans le périmètre autorisé
      * @param deposantUtilisateurId identité GED du déposant (§4.4.3)
+     * @param taille             alias de {@code size} (T-050), qui l'emporte si les deux sont donnés
+     * @param dateDepotDu        borne basse incluse de la date de dépôt (§4.4.3, ANO-F-028)
+     * @param dateDepotAu        borne haute incluse de la date de dépôt (§4.4.3, ANO-F-028)
      */
-    @ChampsInconnusRefuses
+    @ChampsInconnusSignales
     public record Requete(UUID typeDocumentId, UUID noeudId, String texte, List<Critere> criteres,
                           String statutConservation, Integer page, Integer size, Boolean echeanceDepassee,
                           LocalDate dateDocumentDu, LocalDate dateDocumentAu, Confidentialite confidentialite,
-                          UUID deposantUtilisateurId) {}
+                          UUID deposantUtilisateurId, Integer taille, LocalDate dateDepotDu, LocalDate dateDepotAu) {
+
+        /** Taille de page retenue : {@code size}, sinon {@code taille} ; 50 par défaut, 200 au plus. */
+        public int tailleDemandee() {
+            return Tri.taillePage(size, taille);
+        }
+    }
 
     private final NamedParameterJdbcTemplate nomme;
     private final JdbcTemplate jdbc;
@@ -114,7 +125,7 @@ public class RechercheMetadonnees {
     public PageResponse<DocumentResponse> rechercher(Requete r, String sortBy, String sortDir) {
         String ordre = ordre(sortBy, sortDir);
         int page = r.page() == null ? 0 : Math.max(0, r.page());
-        int taille = r.size() == null || r.size() <= 0 ? Tri.TAILLE_DEFAUT : Math.min(r.size(), Tri.TAILLE_MAX);
+        int taille = r.tailleDemandee();
 
         MapSqlParameterSource p = new MapSqlParameterSource();
         FragmentSql perimetre = droits.predicatSql("d.id", SecurityContextHolder.getContext().getAuthentication(),
@@ -149,6 +160,15 @@ public class RechercheMetadonnees {
         }
         for (FragmentSql f : new CriteresDocument(r.dateDocumentDu(), r.dateDocumentAu(), r.confidentialite(),
                 r.deposantUtilisateurId()).fragments()) {
+            ou.append(" AND ").append(f.sql());
+            p.addValues(f.parametres());
+        }
+        // Date de dépôt (ANO-F-028) : même lecture que la recherche plein texte
+        // et POST /recherches (deposeDu, deposeAu), d'où le même fragment.
+        if (r.dateDepotDu() != null && r.dateDepotAu() != null && r.dateDepotDu().isAfter(r.dateDepotAu())) {
+            throw new IllegalArgumentException("Date de dépôt : la date de début est postérieure à la date de fin.");
+        }
+        for (FragmentSql f : new CriteresMetadonnees(null, null, r.dateDepotDu(), r.dateDepotAu()).fragments()) {
             ou.append(" AND ").append(f.sql());
             p.addValues(f.parametres());
         }

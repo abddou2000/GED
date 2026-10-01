@@ -84,6 +84,33 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
+### Mise en conformité, tour 3 (branche `ct/dev1-r3`, depuis `claude/inspiring-lovelace-10bg1c` @ `ff20f21`)
+
+| Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
+|---|---|---|---|
+| ANO-F-026 (Majeure, sécurité ; arbitrage pm : DF §4.3.4, D12) | Corrigé (`327e9b5` serveur, `90379fc` écran liste) | Cause : `WorkSpaceService.update` (`PUT /api/v1/workspaces/{id}`) n'exigeait que **Modifier** sur le nœud, que porte l'Utilisateur standard : un standard changeait nom, code, propriétaire, statut, règle de workflow, parent et **usage** d'un espace métier, et le basculait en espace d'échange pour s'y ouvrir la création de dossiers. Correctif : modifier un espace ou un dossier exige `GERER_ESPACES`, comme la création, quel que soit le champ (le PUT « à l'identique » aussi) ; hors périmètre : 404 tracé `ACCES_HORS_PERIMETRE` ; nœud visible : 403 tracé `ACCES_REFUSE` (gestionnaire d'exceptions, comme les autres refus). Exception D12 inchangée : dans un espace d'échange, le membre qui a Déposer crée dossiers et sous-dossiers (`POST /noeuds/{id}/dossiers`, `POST /workspaces` avec parent). La fiche (`GET /workspaces/{id}`) n'annonce plus `MODIFIER` qu'au gestionnaire des espaces (ajouté pour lui, retiré aux autres) : l'écran de la fiche masque « Modifier » sans changement ; la liste (tableau et menu de l'arborescence) ne propose plus « Modifier » qu'avec `GERER_ESPACES`. Archiver, supprimer, déplacer (`PATCH /archive`, `DELETE`, `PATCH /parent`) : règles inchangées (Archiver, Supprimer, Déplacer + Déposer), hors du périmètre de l'arbitrage. | `ModificationNoeudReserveeApiTest` (5) : `standardRefuse` (espace métier et dossier ; PUT à l'identique, nom, code, propriétaire, statut, usage, règle, parent : 403 `ACCES_REFUSE`, une trace `ACCES_REFUSE`/REFUS par refus, ligne `noeud` inchangée), `basculeVersEchangeRefusee` (scénario de qa2 : bascule refusée, usage resté METIER, puis `POST /noeuds/{id}/dossiers` 403), `administrateurModifie` (chaque champ, 200), `exceptionEchange` (le membre crée un dossier et un sous-dossier, 201 ; ne renomme ni l'espace d'échange ni le dossier qu'il vient de créer, ne rebascule pas l'usage : 403), `permissionsDeLaFiche` (standard : CONSULTER, DEPOSER sans MODIFIER ; administrateur : MODIFIER). Sans le correctif : 4 sur 5 échouent (200 au lieu de 403 ; MODIFIER annoncé). Recette d'autorisation mise à jour : `CheminsAccesApiTest.permissionsSurLaFicheDuNoeud` supposait MODIFIER sur la fiche du standard (échoue sans le correctif). Front : `workspace-list.spec.ts` (4 : tableau et arborescence, standard / gestion des espaces ; les 2 cas « standard » échouent sans le correctif). |
+
+**Choix fait (à confirmer par pm)** : pas d'exception de renommage pour le créateur d'un dossier en
+espace d'échange. Le nœud ne garde pas son créateur (le propriétaire est un champ libre du formulaire
+de création, donc pas une preuve) ; l'ajouter demanderait une colonne `cree_par` (changeset) pour un
+besoin que ni D12 (déposer, télécharger, modifier en local, nouvelle version) ni §4.3.4 ne nomment.
+Un dossier mal nommé se corrige par l'Administrateur.
+
+**Points pour pm** :
+
+1. ANO-F-026 : statut « Corrigée (327e9b5) » à poser dans `recette/ANOMALIES-FONCTIONNELLES.md` à la
+   fusion de `ct/qa2-r3` (la ligne n'existe que sur cette branche) ; F-35 à rejouer par qa2 (sous
+   nidrissi : PUT de QA2 Projets → 403, bascule d'usage → 403, fiche et liste sans « Modifier »).
+2. ANO-F-018 (dev5) : la liste propose encore « Archiver/Désarchiver », « Supprimer », « Créer un
+   sous-dossier » et « Déplacer sous… » à tout utilisateur (le serveur refuse, 403 tracé) ; seul
+   « Modifier » a été traité ici.
+3. Restent hors arbitrage : `PATCH /workspaces/{id}/parent` (Déplacer + Déposer) et `PATCH /archive`
+   (Archiver), que porte par exemple la Direction générale ; si pm veut que toute restructuration
+   relève de `GERER_ESPACES`, c'est une ligne de plus.
+
+Tests : suite back complète (`327e9b5`, `GED_MANAGEMENT_PORT` et `SERVER_PORT` retirés) — **666 tests, 0 échec**
+(référence 661 ; 5 nouveaux : `ModificationNoeudReserveeApiTest`) ; front : 152 tests verts (148 + 4), `ng build` vert.
+
 ### Mise en conformité, tour 2 (branche `ct/dev1-r2`, depuis `claude/inspiring-lovelace-10bg1c` @ `08c710c`)
 
 | Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |

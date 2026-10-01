@@ -265,7 +265,7 @@ class SearchIndexerPostgresTest {
     }
 
     @Test
-    @DisplayName("ANO-E6-001 : texte extrait de 150 Mo, la recherche répond (extrait sur les 32 768 premiers caractères)")
+    @DisplayName("ANO-E6-001 : texte extrait de 150 Mo, la recherche répond (extrait sur les 32 768 premiers caractères) ; texte lu par plage")
     void texteDe150Mo() {
         // Recette qa : .txt de 150 Mo déposé → toute recherche qui le rencontrait
         // échouait (« invalid memory alloc request size 1610612736 », ts_headline
@@ -282,7 +282,41 @@ class SearchIndexerPostgresTest {
         String extrait = p.resultats().get(0).extrait().stream().map(PageResultats.Segment::texte)
                 .collect(Collectors.joining());
         assertTrue(extrait.contains("recette") && extrait.length() < 2_000, extrait);
+
+        // Lecture du texte par plage : seule la plage est lue, jamais les 150 Mo.
+        long t0 = System.nanoTime();
+        SearchIndexer.TexteIndexe debut = indexer.texte(doc, 0, 1_000).orElseThrow();
+        assertEquals(1_000, debut.texte().length());
+        assertTrue(debut.texte().startsWith(phrase));
+        assertTrue(debut.suite());
+        assertEquals(157_286_388L, debut.tailleOctets());
+        SearchIndexer.TexteIndexe fin = indexer.texte(doc, 157_286_388 - 10, 1_000).orElseThrow();
+        assertEquals("e recette ", fin.texte());
+        assertFalse(fin.suite());
+        SearchIndexer.TexteIndexe exacte = indexer.texte(doc, 157_286_388 - 10, 10).orElseThrow();
+        assertEquals("e recette ", exacte.texte());
+        assertFalse(exacte.suite(), "la plage finit exactement à la fin du texte");
+        SearchIndexer.TexteIndexe audela = indexer.texte(doc, 200_000_000, 1_000).orElseThrow();
+        assertEquals("", audela.texte());
+        assertFalse(audela.suite());
+        assertTrue(Duration.ofNanos(System.nanoTime() - t0).toSeconds() < 30);
         jdbc.update("DELETE FROM document_texte WHERE document_id = ?", doc);
+    }
+
+    @Test
+    @DisplayName("Texte par plage : rangs en caractères (arabe, hors plan de base), taille en octets, document non indexé")
+    void texteParPlage() {
+        UUID doc = indexer("أحمد 😀 fin");
+        SearchIndexer.TexteIndexe t = indexer.texte(doc, 5, 1).orElseThrow();
+        assertEquals("😀", t.texte());
+        assertEquals(5, t.debut());
+        assertTrue(t.suite());
+        assertEquals("أحمد 😀 fin".getBytes(java.nio.charset.StandardCharsets.UTF_8).length, t.tailleOctets());
+        assertEquals(" fin", indexer.texte(doc, 6, 100).orElseThrow().texte());
+        assertFalse(indexer.texte(doc, 6, 100).orElseThrow().suite());
+        assertTrue(indexer.texte(UUID.randomUUID(), 0, 10).isEmpty());
+        assertThrows(IllegalArgumentException.class, () -> indexer.texte(doc, -1, 10));
+        assertThrows(IllegalArgumentException.class, () -> indexer.texte(doc, 0, 0));
     }
 
     @Test

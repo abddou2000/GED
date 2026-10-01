@@ -72,3 +72,23 @@ export interface SelectOption {
   id: string;
   name: string;
 }
+
+/**
+ * Dossiers de l'espace qui contient `noeudId` : l'espace et tous ses
+ * descendants, sauf les nœuds de passage (non couverts), libellés par leur
+ * chemin (« Partage / Contrats / 2026 »). Liste vide si le nœud n'est pas dans
+ * l'arbre. Sert à ranger un document dans un espace d'échange (D12,
+ * ANO-F-016, ANO-F-027).
+ */
+export function dossiersDeLEspace(arbre: TreeNode[], noeudId: string): SelectOption[] {
+  const contient = (n: TreeNode): boolean => n.id === noeudId || (n.children ?? []).some(contient);
+  const racine = arbre.find(contient);
+  const liste: SelectOption[] = [];
+  const parcourir = (n: TreeNode, prefixe: string) => {
+    const nom = prefixe ? `${prefixe} / ${n.name}` : n.name;
+    if (!n.passage) liste.push({ id: n.id, name: nom });
+    for (const e of n.children ?? []) parcourir(e, nom);
+  };
+  if (racine) parcourir(racine, '');
+  return liste;
+}

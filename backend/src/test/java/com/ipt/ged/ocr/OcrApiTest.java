@@ -69,6 +69,7 @@ class OcrApiTest {
     @Autowired private TypeDocumentRepository typeRepository;
     @Autowired private PlanIndexationRepository planRepository;
     @Autowired private IndexRepository indexRepository;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private UUID typeId;
 
@@ -258,6 +259,40 @@ class OcrApiTest {
         mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte"))
                 .andExpect(jsonPath("$.interrogeable", is(true)))
                 .andExpect(jsonPath("$.texte", containsString("<b>clause</b>")));
+    }
+
+    @Test
+    @DisplayName("8. Texte extrait servi par plage : 1 000 000 caractères au plus par réponse, suite et taille annoncées")
+    void texteParPlage() throws Exception {
+        UUID doc = depose("gros.pdf", pdfAvecTexte("Gros texte"));
+        UUID version = versionCourante(doc);
+        indexer.indexer(new com.ipt.ged.recherche.SearchIndexer.TexteAIndexer(doc, version, "fra", "x",
+                "COUCHE_TEXTE", 1));
+        // 3 000 000 de caractères écrits par la base : la réponse n'en rend qu'une plage.
+        jdbc.update("UPDATE document_texte SET texte = repeat('abcdefghij', 300000) WHERE document_id = ?", doc);
+
+        mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.interrogeable", is(true)))
+                .andExpect(jsonPath("$.texte", hasLength(1_000_000)))
+                .andExpect(jsonPath("$.debut", is(0)))
+                .andExpect(jsonPath("$.longueur", is(1_000_000)))
+                .andExpect(jsonPath("$.suite", is(true)))
+                .andExpect(jsonPath("$.tailleOctets", is(3_000_000)));
+        mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte").param("debut", "1000000").param("longueur", "12"))
+                .andExpect(jsonPath("$.texte", is("abcdefghijab")))
+                .andExpect(jsonPath("$.suite", is(true)));
+        mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte").param("debut", "2999995").param("longueur", "100"))
+                .andExpect(jsonPath("$.texte", is("fghij")))
+                .andExpect(jsonPath("$.longueur", is(5)))
+                .andExpect(jsonPath("$.suite", is(false)));
+        mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte").param("longueur", "5000000"))
+                .andExpect(jsonPath("$.longueur", is(1_000_000)));
+        mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte").param("debut", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PARAMETRE_INVALIDE")));
+        mvc.perform(get("/api/v1/ocr/documents/" + doc + "/texte").param("longueur", "0"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

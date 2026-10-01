@@ -32,6 +32,12 @@
           <label>au
             <input type="date" name="dateDocumentAu" [(ngModel)]="socle.dateDocumentAu" />
           </label>
+          <label>Déposé du
+            <input type="date" name="dateDepotDu" [(ngModel)]="socle.dateDepotDu" />
+          </label>
+          <label>au
+            <input type="date" name="dateDepotAu" [(ngModel)]="socle.dateDepotAu" />
+          </label>
           <label>Confidentialité
             <select name="confidentialite" [(ngModel)]="socle.confidentialite">
               <option [ngValue]="null">Tous niveaux</option>
@@ -122,6 +128,14 @@
     @if (erreur(); as e) { <p class="erreur">{{ e }}</p> }
 
     @if (resultat(); as r) {
+      @if (champsIgnores().length) {
+        <!-- DAT §5.3.2 : le serveur a ignoré ces critères ; les résultats n'en tiennent pas compte. -->
+        <p class="champs-ignores" role="status">
+          <mat-icon svgIcon="alert" aria-hidden="true"></mat-icon>
+          {{ champsIgnores().length > 1 ? 'Critères non appliqués' : 'Critère non appliqué' }} :
+          {{ champsIgnores().join(', ') }}
+        </p>
+      }
       <p class="total">{{ r.total }} document(s) trouvé(s)</p>
       <div class="table-wrap">
         <table mat-table [dataSource]="r.content" matSort [matSortActive]="triChamp" [matSortDirection]="triSens"
@@ -166,7 +180,7 @@
           </tr>
         </table>
       </div>
-      <mat-paginator [length]="r.total" [pageIndex]="page" [pageSize]="taille" [pageSizeOptions]="[10, 20, 50]"
+      <mat-paginator [length]="r.total" [pageIndex]="page" [pageSize]="taille" [pageSizeOptions]="taillesPage"
                      (page)="pagination($event)" showFirstLastButtons></mat-paginator>
     } @else {
       <p class="aide">

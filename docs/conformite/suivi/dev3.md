@@ -625,3 +625,36 @@ Suite back complète (`0ab45de`, `mvn -B -q test`, sans `GED_MANAGEMENT_PORT` ni
 avait relevé 6 échecs dans `IndexationApiTest` et `IndexationAutomatiqueApiTest` (lecture de
 l'ancienne forme de réponse de `POST /indexation/recherche`), corrigés par `e21b86e`.
 `promtool check rules` et `promtool test rules` : SUCCESS. Front non modifié (pas de build).
+
+## Tour 3 de la mise en conformité (`ct/dev3-r3`, depuis `claude/inspiring-lovelace-10bg1c` @ `ff20f21`)
+
+Même poste (conteneur Linux partagé, bases `ged_dev3` / `ged_dev3_test`).
+
+| Id | État | Commit | Cause, correctif, preuve |
+|---|---|---|---|
+| P-08 (contrat d'API) | Aligné sur le §5.3.2 | `d47c3de` | Cause : le tour 2 (`552fdf0`, ANO-F-011) refusait tout champ ou paramètre inconnu des quatre recherches (400 `PARAMETRE_INCONNU`), contre la politique de compatibilité du dossier (évolutions additives, champs inconnus ignorés par le serveur) recettée en vague 8. **Décision** : le dossier prime ; le champ inconnu est **ignoré** (la recherche répond 200 comme sans lui) et **signalé** dans l'en-tête de réponse `GED-Champs-Ignores` (chemins séparés par des virgules, `criteres[0].valeurr` pour un critère imbriqué ; encodage en pourcentage hors ASCII ; 20 noms au plus). Le besoin d'ANO-F-011 (« ignoré en silence ») reste couvert sans casser un client plus récent. Mise en œuvre : `@ChampsInconnusSignales` (ex-`ChampsInconnusRefuses`) sur les corps de `POST /documents/recherche`, `POST /recherches`, `POST /indexation/recherche` et leurs critères ; `ParametresConnus.signaler` pour `GET /recherche/plein-texte`. `PARAMETRE_INCONNU` n'est plus émis (gardé au catalogue). Une valeur invalide (`confidentialite: SECRET`, bornes inversées) reste en 400 : ce n'est pas un champ inconnu. OpenAPI : politique de compatibilité écrite dans la description générale, en-tête `ChampsIgnores` documenté sur les recherches. Tests : `CriteresImposesApiTest.parametreInconnuIgnoreEtSignale` (200, total non filtré de 3, en-tête attendu, absent quand tout est connu ; rouge par construction sur `ff20f21` : 400 au lieu de 200), `ChampsIgnoresTest` (encodage, dédoublonnage, borne), `SpecificationOpenApiTest.compatibilite`. |
+| T-050 | Harmonisé | `4bc6f47` | Cause : `GET /recherche/plein-texte` lisait `taille` avec un défaut de 20 et ignorait `size` (que `FiltreConventionsApi` pose pourtant sur tout GET) ; chaque corps de recherche n'acceptait qu'un des deux noms. Correctif : `Tri.taillePage(size, taille)` — `size`, sinon son alias `taille` ; absent ou < 1 : 50 ; au plus 200 — utilisé par les quatre recherches. Ajouts sans casse : `size` dans `POST /recherches` et `POST /indexation/recherche`, `taille` dans `POST /documents/recherche` ; `size` l'emporte si les deux sont donnés ; la page plein texte (`PageResultats`, aussi rendue par `POST /recherches`) rend `size` en plus de `taille`. Test : `CriteresImposesApiTest.paginationHomogene` (défaut 50, `size` et `taille` lus avec `page`, plafond 200, priorité de `size` ; rouge par construction sur `ff20f21` : taille 20, `size` ignoré). |
+| `GET /ocr/documents/{id}/texte` (point 5 du tour 2) | Borné par plage | `c8ae886` | Cause : le texte extrait était lu entier (`SELECT texte`) et rendu entier en JSON (157 Mo pour le fichier d'ANO-E6-001). Correctif : lecture par plage en base, `substr(texte, debut + 1, longueur + 1)` (PostgreSQL ne lit et ne décompresse que le début du texte jusqu'à la fin de la plage ; le caractère de plus dit s'il y a une suite) et `octet_length(texte)` (taille stockée, sans détoaster). Paramètres `debut` (0 par défaut) et `longueur` (1 000 000 de caractères par défaut et au plus) ; hors bornes : 400 `PARAMETRE_INVALIDE`. Réponse : mêmes champs, `texte` = la plage, plus `debut`, `longueur`, `suite`, `tailleOctets`. Rangs en caractères (points de code, arabe et hors plan de base compris). **Droits et audit inchangés** : même chemin, donc même garde (`GardeDroitsRequetes` : document lisible, sinon 404 ; `CheminsAccesApiTest` vert) ; aucune trace de lecture n'existait pour ce point d'entrée, il n'en a pas davantage. Tests : `OcrApiTest.texteParPlage` (texte de 3 000 000 de caractères écrit par la base : 1 000 000 rendus et `suite`, plage du milieu, fin, plafond, 400 ; rouge par construction sur `ff20f21` : 3 000 000 rendus), `SearchIndexerPostgresTest.texteDe150Mo` (plages au début, à la fin et au-delà du texte de 157 286 388 caractères) et `texteParPlage`. |
+
+### Points pour pm
+
+1. **P-08 / ANO-F-011** : le comportement de la recherche face à un champ inconnu change à nouveau
+   (400 → 200 avec en-tête `GED-Champs-Ignores`). À recetter par qa (P-08 : « champs inconnus
+   ignorés ») et par qa2 (ANO-F-011 : l'appelant voit le champ ignoré). SUIVI.md (P-08, ligne 23
+   « paramètre inconnu → 400 `PARAMETRE_INCONNU` ») est à mettre à jour par pm.
+2. **dev5** : l'écran de recherche plein texte envoie lui-même `taille=20` (`recherche-plein-texte.ts`,
+   `taille = 20`) ; le serveur applique désormais 50 par défaut, mais l'écran garde sa taille. À
+   aligner sur 50 si pm le juge utile. Le front peut lire `GED-Champs-Ignores` (même origine) pour
+   avertir l'utilisateur d'un critère non appliqué.
+3. **T-050** : reste hors de mes tâches `GET /workflow/a-traiter` (20 par défaut, plafond 100),
+   relevé par pm.
+4. `GET /ocr/documents/{id}/texte` : changement de contrat **additif** (champs ajoutés) mais un
+   texte de plus de 1 000 000 de caractères n'est plus rendu entier ; aucun appel du front.
+
+### Tests du tour 3
+
+Suite back complète (`c8ae886`, `mvn -B -q test`, sans `GED_MANAGEMENT_PORT` ni `SERVER_PORT`) :
+**668 tests, 0 échec, 0 erreur** (référence : 661 ; +7 : `ChampsIgnoresTest` ×3,
+`SpecificationOpenApiTest.compatibilite`, `CriteresImposesApiTest.paginationHomogene`,
+`OcrApiTest.texteParPlage`, `SearchIndexerPostgresTest.texteParPlage` ;
+`parametreInconnuRefuse` devient `parametreInconnuIgnoreEtSignale`). Front non modifié (pas de build).

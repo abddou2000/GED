@@ -18,6 +18,7 @@ import { WorkspaceService } from '../../workspace/workspace.service';
 import { EmployeService, Personne } from '../../../core/employe.service';
 import { NotifyService } from '../../../core/notify.service';
 import { formaterDate } from '../../../core/dates';
+import { TAILLES_PAGE, TAILLE_PAGE_DEFAUT } from '../../../core/pagination';
 
 /** Saisie d'un critère d'index : valeur (texte, liste, booléen) ou bornes (date, nombre). */
 interface SaisieIndex { valeur: string; de: string; a: string; }
@@ -31,13 +32,17 @@ interface Socle {
   echeanceDepassee: boolean;
   dateDocumentDu: string;
   dateDocumentAu: string;
+  /** Plage de date de dépôt (ANO-F-028). */
+  dateDepotDu: string;
+  dateDepotAu: string;
   confidentialite: Confidentialite | null;
   deposantUtilisateurId: string | null;
 }
 
 const SOCLE_VIDE: Socle = {
   texte: '', typeDocumentId: null, noeudId: null, statutConservation: '', echeanceDepassee: false,
-  dateDocumentDu: '', dateDocumentAu: '', confidentialite: null, deposantUtilisateurId: null,
+  dateDocumentDu: '', dateDocumentAu: '', dateDepotDu: '', dateDepotAu: '', confidentialite: null,
+  deposantUtilisateurId: null,
 };
 
 /**
@@ -48,7 +53,8 @@ const SOCLE_VIDE: Socle = {
  * de plus, un critère de plus. Chaque nature a son contrôle : texte
  * (contient), liste et booléen (valeur exacte), date et nombre (plage). S'y
  * ajoutent les critères imposés du socle : type, emplacement, nom ou objet,
- * plage de date du document, confidentialité et déposant (ANO-F-011).
+ * plage de date du document, confidentialité et déposant (ANO-F-011), plage
+ * de date de dépôt (ANO-F-028).
  * Tous les critères renseignés se combinent en ET ; les vides ne filtrent pas.</p>
  *
  * <p>Appelle POST /documents/recherche : le serveur n'y renvoie que le
@@ -89,8 +95,11 @@ export class RechercheIndex implements OnInit {
   resultat = signal<PageResult<DocumentItem> | null>(null);
   chargement = signal(false);
   erreur = signal<string | null>(null);
+  /** Critères que le serveur a ignorés (en-tête GED-Champs-Ignores) : signalés, jamais tus. */
+  champsIgnores = signal<string[]>([]);
+  readonly taillesPage = TAILLES_PAGE;
   page = 0;
-  taille = 20;
+  taille = TAILLE_PAGE_DEFAUT;
   triChamp = 'dateDocument';
   triSens: 'asc' | 'desc' = 'desc';
 
@@ -122,6 +131,7 @@ export class RechercheIndex implements OnInit {
     for (const code of Object.keys(this.saisies)) this.saisies[code] = { valeur: '', de: '', a: '' };
     this.erreur.set(null);
     this.resultat.set(null);
+    this.champsIgnores.set([]);
   }
 
   trier(s: Sort): void {
@@ -143,6 +153,10 @@ export class RechercheIndex implements OnInit {
     const s = this.socle;
     if (s.dateDocumentDu && s.dateDocumentAu && s.dateDocumentDu > s.dateDocumentAu) {
       this.erreur.set('Date du document : la date de début doit précéder la date de fin.');
+      return null;
+    }
+    if (s.dateDepotDu && s.dateDepotAu && s.dateDepotDu > s.dateDepotAu) {
+      this.erreur.set('Date de dépôt : la date de début doit précéder la date de fin.');
       return null;
     }
     const criteres: CritereIndexRecherche[] = [];
@@ -171,6 +185,8 @@ export class RechercheIndex implements OnInit {
       echeanceDepassee: s.echeanceDepassee || null,
       dateDocumentDu: s.dateDocumentDu || null,
       dateDocumentAu: s.dateDocumentAu || null,
+      dateDepotDu: s.dateDepotDu || null,
+      dateDepotAu: s.dateDepotAu || null,
       confidentialite: s.confidentialite,
       deposantUtilisateurId: s.deposantUtilisateurId,
       page: this.page,
@@ -183,9 +199,14 @@ export class RechercheIndex implements OnInit {
     if (!r) return;
     this.chargement.set(true);
     this.documents.rechercher(r, this.triChamp, this.triSens).subscribe({
-      next: p => { this.resultat.set(p); this.chargement.set(false); },
+      next: r => {
+        this.resultat.set(r.corps);
+        this.champsIgnores.set(r.champsIgnores);
+        this.chargement.set(false);
+      },
       error: e => {
         this.chargement.set(false);
+        this.champsIgnores.set([]);
         const msg = e?.error?.detail ?? e?.error?.message ?? 'La recherche a échoué.';
         this.erreur.set(msg);
         this.notify.error(msg);

@@ -23,9 +23,11 @@ public final class CodesErreur {
     /** 400 — identifiant ou paramètre de mauvais type (UUID attendu…). */
     public static final String PARAMETRE_INVALIDE = "PARAMETRE_INVALIDE";
     /**
-     * 400 — paramètre de requête ou champ du corps inconnu de ce point d'entrée
-     * (propriété {@code parametre}) : refusé plutôt qu'ignoré, pour qu'un critère
-     * mal orthographié ne rende pas en silence un résultat non filtré.
+     * 400 — paramètre de requête ou champ du corps inconnu (propriété
+     * {@code parametre}). <b>N'est plus émis</b> depuis le tour 3 : la politique
+     * de compatibilité du DAT §5.3.2 (P-08) veut qu'un champ inconnu soit ignoré ;
+     * il est désormais signalé par l'en-tête {@value ChampsIgnores#ENTETE}. Gardé
+     * au catalogue, un code publié ne changeant jamais de sens.
      */
     public static final String PARAMETRE_INCONNU = "PARAMETRE_INCONNU";
     /** 400 — donnée refusée par une contrainte du schéma (longueur, unicité, obligation). */

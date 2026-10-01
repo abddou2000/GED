@@ -1,6 +1,7 @@
 package com.ipt.ged.workflow.circuit;
 
 import com.ipt.ged.common.PageResponse;
+import com.ipt.ged.common.Tri;
 import com.ipt.ged.workflow.api.AccesApiWorkflow;
 import com.ipt.ged.workflow.api.ActeurWorkflow;
 import com.ipt.ged.workflow.api.OperationWorkflow;
@@ -8,6 +9,7 @@ import com.ipt.ged.workflow.circuit.dto.CircuitResponse;
 import com.ipt.ged.workflow.circuit.dto.VuesWorkflow;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -117,14 +120,20 @@ public class CircuitController {
 
     /* ---------------- listes de l'acteur */
 
+    /**
+     * Étapes en attente de l'acteur, paginées comme les autres listes (DAT
+     * §5.3.2, T-050) : {@code size} ou son alias {@code taille}, 50 par défaut,
+     * 200 au plus ; numéro de page négatif refusé en 400 ({@link Tri}).
+     */
     @GetMapping("/a-traiter")
     public PageResponse<VuesWorkflow.ATraiter> aTraiter(@RequestParam(defaultValue = "0") int page,
-                                                        @RequestParam(defaultValue = "20") int size,
+                                                        @RequestParam(defaultValue = "" + Tri.TAILLE_DEFAUT) int size,
                                                         Authentication auth, HttpServletRequest requete) {
+        Pageable pagination = Tri.pageable(page, size, null, null, Set.of());
         List<VuesWorkflow.ATraiter> tout = service.aTraiter(acces.acteur(auth, requete));
-        int taille = Math.max(1, Math.min(size, 100));
-        int p = Math.max(0, page);
-        int debut = Math.min(p * taille, tout.size());
+        int taille = pagination.getPageSize();
+        int p = pagination.getPageNumber();
+        int debut = (int) Math.min((long) p * taille, tout.size());
         int fin = Math.min(debut + taille, tout.size());
         return new PageResponse<>(tout.subList(debut, fin), tout.size(), p, taille,
                 (tout.size() + taille - 1) / taille);
