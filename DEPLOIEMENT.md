@@ -139,6 +139,15 @@ mvn -DskipTests package
 java -jar target/ged-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
 ```
 
+**Construction et SBOM** : `mvn package` produit le SBOM (`target/bom.json`,
+`target/bom.xml`, complété de Tesseract et de ses modèles par
+`outils/completer-sbom.mjs`) et exige pour cela un accès **en ligne** au dépôt
+Maven. Hors ligne (`mvn -o package`, poste isolé, forge sans accès), la
+construction échoue (« SBOM JSON absent ») ; passer alors
+`-Dged.sbom.completer.skip=true` : le JAR est produit, mais le **SBOM est
+incomplet** et ne vaut pas registre des dépendances (T-085) — le régénérer en
+ligne avant toute livraison.
+
 En `uat` et en `prod`, **Liquibase ne tourne pas au démarrage**
 (`spring.liquibase.enabled=false`) : le script de déploiement applique d'abord
 les migrations avec `ged_owner` (`liquibase validate` puis `update`, §8), puis
