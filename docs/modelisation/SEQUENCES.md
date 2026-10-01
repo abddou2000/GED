@@ -19,7 +19,8 @@ Relu contre le code le 01/10/2026 (intégration `ff20f21`, après le tour 2) :
 - recherche du contrat d'API : critères traduits en SQL (R32, plus de passage
   par `IndexationService`), ensemble classé et total plafonnés, critères
   imposés du §4.4.3 (date du document, confidentialité, déposant),
-  paramètre inconnu refusé (`PARAMETRE_INCONNU`) ;
+  champ inconnu ignoré et signalé par l'en-tête `GED-Champs-Ignores` (P-08,
+  tour 3 ; le 400 `PARAMETRE_INCONNU` du tour 2 n'est plus émis) ;
 - recherche par index : flux nouveau (§4 ci-dessous, ANO-F-010) ;
 - délégation : D15 livrée (T-055), bascule d'un contrôleur de domaine muet
   sur le suivant (ANO-E2-002), annuaire injoignable = 503 ;
@@ -146,7 +147,7 @@ sequenceDiagram
   participant R as SearchIndexerPostgres
   participant B as PostgreSQL
   C->>K: POST /api/v1/recherches {texte, criteres, noeudId, typeDocumentId, canal, deposeDu, deposeAu, archives, echeanceDepassee, dateDocumentDu, dateDocumentAu, confidentialite, deposantUtilisateurId, tri, page, taille}
-  K->>K: champ inconnu du corps : 400 PARAMETRE_INCONNU (ChampsInconnusRefuses)
+  K->>K: champ inconnu du corps : ignoré, signalé par l'en-tête GED-Champs-Ignores (ChampsInconnusSignales, P-08)
   K->>Q: fragments SQL combinés en ET : nœud (principal ou rattachement), type, canal, dates de dépôt, archives, échéance (T-112), date du document, confidentialité, déposant (§4.4.3), critères d'index
   alt texte présent
     K->>R: rechercher(texte, fragments, tri, page, taille)
@@ -178,7 +179,7 @@ sequenceDiagram
   U->>IC: GET /api/v1/indexation/criteres
   IC-->>U: index cochés « recherche » (code, nature, valeurs d'une liste)
   U->>DC: POST /api/v1/documents/recherche?sortBy&sortDir {texte, typeDocumentId, noeudId, criteres[code, valeur | de, a], statutConservation, echeanceDepassee, dateDocumentDu, dateDocumentAu, confidentialite, deposantUtilisateurId, page, size}
-  DC->>DC: champ inconnu du corps : 400 PARAMETRE_INCONNU (ChampsInconnusRefuses)
+  DC->>DC: champ inconnu du corps : ignoré, signalé par l'en-tête GED-Champs-Ignores (ChampsInconnusSignales, P-08)
   DC->>RM: rechercher(requête, tri)
   RM->>RM: tri en liste blanche (dateDocument par défaut, name, createdAt), sinon 400
   RM->>P: predicatSql(CONSULTER) : périmètre de l'utilisateur, confidentialité comprise
