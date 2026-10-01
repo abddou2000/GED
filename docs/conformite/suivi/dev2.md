@@ -24,8 +24,8 @@ la JVM s'arrêtait déjà avec le code 1 (uat 19 s, prod 42 s). Seul le profil d
 sur 127.0.0.1:18782, rôles créés par `creer-roles.sql`) : **43 contrôles verts**
 (E0 à E8), instance arrêtée en fin de script ; l'instance partagée n'a pas été touchée.
 Second passage avec la version commitée (`00d487e`) : 43 contrôles verts, code de
-sortie 0, instance arrêtée et son répertoire supprimé ; journaux laissés dans
-`/tmp/ged-demo-dev2r3` pour examen.
+sortie 0, instance arrêtée et son répertoire supprimé ; répertoire de travail
+`/tmp/ged-demo-dev2r3` supprimé après examen des journaux.
 
 **Tests** : suite back complète sur PostgreSQL (`ged_dev2_test`) : **667 tests, 0 échec, 0 erreur** (référence 661 : +2 `SequencesDocumenteesTest`, +2 `AnnuaireEmbarqueTest`, +1 `DemarrageRefuseTest`, +1 `ScriptsExploitationTest`). Front non modifié (paquet construit pour la démonstration O3 : `ng build` vert).
 
