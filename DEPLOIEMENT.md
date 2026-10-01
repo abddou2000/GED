@@ -407,6 +407,12 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
   La recherche (`POST /api/v1/documents/recherche`) emploie ces mêmes
   expressions : l'index sert sans autre changement. Les critères liste et
   booléen passent par l'index GIN existant (`idx_document_metadonnees`).
+  Depuis `202610051000` (ANO-E7-007), `meta_date` et `meta_nombre` n'ont plus
+  de bloc `EXCEPTION` ni d'erreur de conversion possible : elles sont
+  réellement `PARALLEL SAFE`, l'index se construit en parallèle et la
+  recherche tient dans un plan parallèle. Sémantique inchangée (valeur absente
+  ou mal formée → `NULL`) : un index d'expression déjà construit reste valide,
+  sans reconstruction.
 - **Retour arrière** avec la Liquibase CLI 4.29 (compte `ged_owner`), depuis le
   dossier `backend/src/main/resources` ou le contenu `BOOT-INF/classes` du JAR :
   ```bash

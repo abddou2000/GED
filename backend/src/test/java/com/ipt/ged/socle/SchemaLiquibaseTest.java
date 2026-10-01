@@ -608,6 +608,42 @@ class SchemaLiquibaseTest {
         }
     }
 
+    @Test
+    @DisplayName("ANO-E7-007 : meta_date sans bloc EXCEPTION ; retour arrière vers les corps d'origine, index d'expression conservé")
+    void metaDateSansSousTransaction() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                liquibase.update(new Contexts(), new LabelExpression());
+                String s = schema + ".";
+                String corps = "SELECT string_agg(proname || '=' || (prosrc ~* '\\mexception\\s+when\\M')::text, ' '"
+                        + " ORDER BY proname) FROM pg_proc WHERE pronamespace = '" + schema + "'::regnamespace"
+                        + " AND proname IN ('meta_date', 'meta_nombre')";
+                assertEquals("meta_date=false meta_nombre=false", texte(c, corps));
+                // Un index d'expression posé par l'exploitation (DEPLOIEMENT.md §8) dépend de la fonction.
+                executer(c, "CREATE INDEX idx_verif_meta_date ON " + s + "document (" + s
+                        + "meta_date(metadonnees, 'DATE_FACTURE'))");
+                if (!c.getAutoCommit()) c.commit();
+
+                int apres = compter(c, "SELECT count(*) FROM " + s + "databasechangelog WHERE orderexecuted >="
+                        + " (SELECT orderexecuted FROM " + s + "databasechangelog WHERE id = '202610051000-1')");
+                liquibase.rollback(apres, (String) null);
+                assertEquals("meta_date=true meta_nombre=false", texte(c, corps), "corps d'origine rétablis");
+                assertEquals(1, compter(c, "SELECT count(*) FROM pg_indexes WHERE schemaname = '" + schema
+                        + "' AND indexname = 'idx_verif_meta_date'"), "l'index d'expression survit au retour arrière");
+
+                liquibase.update(new Contexts(), new LabelExpression());
+                assertEquals("meta_date=false meta_nombre=false", texte(c, corps));
+                assertEquals("2024-02-29 null", texte(c, "SELECT " + s + "meta_date('{\"d\":\"2024-02-29\"}', 'd') || ' '"
+                        + " || coalesce(" + s + "meta_date('{\"d\":\"2023-02-29\"}', 'd')::text, 'null')"));
+            } finally {
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
     private static String causes(Throwable t) {
         StringBuilder b = new StringBuilder();
         for (Throwable x = t; x != null; x = x.getCause()) b.append(x.getMessage()).append(" | ");

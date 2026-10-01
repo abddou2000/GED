@@ -163,4 +163,7 @@
     <!-- R32 (P-14) : statistiques de document_texte tenues à jour pendant les chargements de masse. -->
     <include file="changesets/202610041320_statistiques_document_texte.xml" relativeToChangelogFile="true"/>
 
+    <!-- ANO-E7-007 (T-104, §12.7) : meta_date sans bloc EXCEPTION, meta_nombre sans débordement : sûres en plan parallèle. -->
+    <include file="changesets/202610051000_meta_date_sans_sous_transaction.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>
