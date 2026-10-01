@@ -11,7 +11,15 @@
  * d'origine non consignée (outils/composants-hors-gestionnaire.mjs) est ajouté
  * avec la version « inconnue » et fait échouer la commande (code 1).
  *
+ * Construction hors ligne (`mvn -o package`) : cyclonedx-maven-plugin exige le
+ * mode en ligne et ne produit alors aucun SBOM. Maven passe --maven-hors-ligne=true
+ * (${settings.offline}) ; SBOM absent et hors ligne hors CI → avertissement
+ * « SBOM INCOMPLET » et code 0, pour que le JAR se construise. En CI (variable CI
+ * positionnée, comme sur GitHub Actions) ou en ligne, un SBOM absent reste une
+ * erreur (code 2) : le contrôle T-085 n'est pas affaibli.
+ *
  * Usage : node outils/completer-sbom.mjs <bom.json> [<bom.xml>] [--tessdata DIR]
+ *                                         [--maven-hors-ligne=true|false]
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -97,16 +105,45 @@ export function completerXml(texte, liste, racine) {
   return t;
 }
 
+/** Vrai en intégration continue : variable CI positionnée (GitHub Actions : CI=true). */
+export function enCi(env = process.env) {
+  const v = String(env.CI ?? '').trim().toLowerCase();
+  return v !== '' && v !== 'false' && v !== '0';
+}
+
+/**
+ * Décision quand le SBOM JSON produit par CycloneDX est absent :
+ * 'avertir' (construction hors ligne hors CI) ou 'erreur' (CI, ou Maven en ligne).
+ */
+export function siSbomAbsent({ horsLigne, ci }) {
+  return horsLigne && !ci ? 'avertir' : 'erreur';
+}
+
 // --- Ligne de commande -------------------------------------------------------
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const args = process.argv.slice(2);
   const i = args.indexOf('--tessdata');
   const tessdata = i >= 0 ? args.splice(i, 2)[1]
     : join(dirname(fileURLToPath(import.meta.url)), '..', 'backend', 'tessdata');
+  const h = args.findIndex(a => a.startsWith('--maven-hors-ligne'));
+  const horsLigne = h >= 0 && ['', 'true'].includes(args.splice(h, 1)[0].split('=')[1] ?? '');
   const [json, xml] = args;
   if (!json || !existsSync(json)) {
-    console.error(`SBOM JSON absent : ${json || '(non précisé)'}`);
+    const ci = enCi();
+    if (siSbomAbsent({ horsLigne, ci }) === 'avertir') {
+      console.warn(`[AVERTISSEMENT] SBOM INCOMPLET : ${json || 'bom.json'} absent, Maven hors ligne `
+        + '(cyclonedx-maven-plugin exige le mode en ligne). Tesseract et ses modèles ne sont pas ajoutés ; '
+        + 'le JAR est construit SANS SBOM, à ne pas livrer tel quel : reconstruire en ligne (mvn package) '
+        + 'ou prendre le JAR et le SBOM produits par la CI (T-085, DEPLOIEMENT.md §3.1).');
+      process.exit(0);
+    }
+    console.error(`SBOM JSON absent : ${json || '(non précisé)'}`
+      + (horsLigne ? ' (Maven hors ligne, mais en CI : le SBOM est exigé)' : ''));
     process.exit(2);
+  }
+  if (horsLigne) {
+    console.warn(`[AVERTISSEMENT] Maven hors ligne : ${json} n'a pas été régénéré par CycloneDX `
+      + '(SBOM d\'une construction précédente, peut-être périmé) ; il est complété tel quel.');
   }
   const { liste, inconnus } = composants(tessdata);
   const bom = completerJson(JSON.parse(readFileSync(json, 'utf-8')), liste);

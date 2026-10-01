@@ -7,12 +7,12 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, copyFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, copyFileSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { composants, completerJson, completerXml } from '../completer-sbom.mjs';
+import { composants, completerJson, completerXml, enCi, siSbomAbsent } from '../completer-sbom.mjs';
 
 const OUTILS = join(dirname(fileURLToPath(import.meta.url)), '..');
 const TESSDATA = join(OUTILS, '..', 'backend', 'tessdata');
@@ -101,4 +101,43 @@ test('Licences : GPL et AGPL non arbitrées refusées ; composants hors gestionn
   assert.equal(verifier(bomMaven(), bomMaven(comp('', 'agpl', 'AGPL-3.0-only'))).code, 1);
   const { liste } = composants(TESSDATA);
   assert.equal(verifier(completerJson(bomMaven(comp('org.x', 'y', 'MIT')), liste)).code, 0);
+});
+
+/** Lance completer-sbom.mjs sur un target/ vide (SBOM absent), avec ou sans CI. */
+function completerSansSbom(options, ci) {
+  const r = mkdtempSync(join(tmpdir(), 'ged-sbom-absent-'));
+  try {
+    const { CI: _ignore, ...env } = process.env;
+    if (ci !== undefined) env.CI = ci;
+    const p = spawnSync(process.execPath, [join(OUTILS, 'completer-sbom.mjs'), join(r, 'bom.json'), join(r, 'bom.xml'),
+      '--tessdata', TESSDATA, ...options], { encoding: 'utf-8', env });
+    return { code: p.status, sortie: p.stdout + p.stderr };
+  } finally {
+    rmSync(r, { recursive: true, force: true });
+  }
+}
+
+test('SBOM absent, Maven hors ligne, hors CI : avertissement « SBOM INCOMPLET », construction non bloquée (O1 vague 10)', () => {
+  const r = completerSansSbom(['--maven-hors-ligne=true']);
+  assert.equal(r.code, 0, r.sortie);
+  assert.match(r.sortie, /AVERTISSEMENT\] SBOM INCOMPLET/);
+  assert.match(r.sortie, /SANS SBOM/);
+});
+
+test('SBOM absent : erreur en CI (même hors ligne) et en ligne', () => {
+  assert.equal(completerSansSbom(['--maven-hors-ligne=true'], 'true').code, 2);
+  assert.equal(completerSansSbom(['--maven-hors-ligne=false']).code, 2);
+  assert.equal(completerSansSbom([]).code, 2);
+  assert.equal(siSbomAbsent({ horsLigne: true, ci: false }), 'avertir');
+  assert.equal(siSbomAbsent({ horsLigne: true, ci: true }), 'erreur');
+  assert.equal(siSbomAbsent({ horsLigne: false, ci: false }), 'erreur');
+  assert.equal(enCi({ CI: 'true' }), true);
+  assert.equal(enCi({ CI: '1' }), true);
+  assert.equal(enCi({ CI: 'false' }), false);
+  assert.equal(enCi({}), false);
+});
+
+test('backend/pom.xml transmet le mode hors ligne de Maven à completer-sbom.mjs', () => {
+  const pom = readFileSync(join(OUTILS, '..', 'backend', 'pom.xml'), 'utf-8');
+  assert.match(pom, /completer-sbom\.mjs<\/argument>[\s\S]*?<argument>--maven-hors-ligne=\$\{settings\.offline\}<\/argument>/);
 });
