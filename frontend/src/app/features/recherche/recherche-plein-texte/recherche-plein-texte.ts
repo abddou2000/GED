@@ -10,6 +10,7 @@ import { CriteresRecherche, PageResultats, TriRecherche } from '../recherche.mod
 import { TypeDocumentService } from '../../type-document/type-document.service';
 import { WorkspaceService } from '../../workspace/workspace.service';
 import { NotifyService } from '../../../core/notify.service';
+import { TAILLES_PAGE, TAILLE_PAGE_DEFAUT } from '../../../core/pagination';
 
 /**
  * Recherche plein texte dans le contenu des documents (§4.4) : syntaxe
@@ -43,8 +44,11 @@ export class RecherchePleinTexte implements OnInit {
   listeEspaces = signal<{ id: string; libelle: string }[]>([]);
   resultat = signal<PageResultats | null>(null);
   chargement = signal(false);
+  /** Critères que le serveur a ignorés (en-tête GED-Champs-Ignores) : signalés, jamais tus. */
+  champsIgnores = signal<string[]>([]);
+  readonly taillesPage = TAILLES_PAGE;
   page = 0;
-  taille = 20;
+  taille = TAILLE_PAGE_DEFAUT;
 
   ngOnInit(): void {
     this.types.list(0, 500).subscribe({
@@ -71,13 +75,19 @@ export class RecherchePleinTexte implements OnInit {
   private charger(): void {
     if (!this.criteres.q.trim()) {
       this.resultat.set(null);
+      this.champsIgnores.set([]);
       return;
     }
     this.chargement.set(true);
     this.service.rechercher(this.criteres, this.page, this.taille).subscribe({
-      next: r => { this.resultat.set(r); this.chargement.set(false); },
+      next: r => {
+        this.resultat.set(r.corps);
+        this.champsIgnores.set(r.champsIgnores);
+        this.chargement.set(false);
+      },
       error: e => {
         this.chargement.set(false);
+        this.champsIgnores.set([]);
         this.notify.error(e?.error?.message ?? 'La recherche a échoué.');
       },
     });

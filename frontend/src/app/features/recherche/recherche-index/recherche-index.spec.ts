@@ -119,9 +119,9 @@ describe('RechercheIndex', () => {
       confidentialite: 'PRIVE',
       deposantUtilisateurId: 'u-1',
       page: 0,
-      size: 20,
+      size: 50,
     });
-    req.flush({ content: [DOC], total: 1, page: 0, size: 20, totalPages: 1 });
+    req.flush({ content: [DOC], total: 1, page: 0, size: 50, totalPages: 1 });
     f.detectChanges();
     expect(el.querySelector('.total')?.textContent).toContain('1 document');
     expect((el.querySelector('a.nom') as HTMLAnchorElement).getAttribute('href')).toBe('/televerser/d1');
@@ -151,6 +151,38 @@ describe('RechercheIndex', () => {
     expect(page.request.body.page).toBe(2);
     expect(page.request.params.get('sortBy')).toBe('name');
     page.flush({ content: [], total: 45, page: 2, size: 20, totalPages: 3 });
+  });
+
+  it('T-050 : 50 résultats par page par défaut, sélecteur plafonné à 200', async () => {
+    const f = await ouvrir();
+    lancer(f);
+    const req = serveur.expectOne(r => r.url === `${API_BASE}/documents/recherche`);
+    expect(req.request.body.size).toBe(50);
+    req.flush({ content: [DOC], total: 300, page: 0, size: 50, totalPages: 6 });
+    f.detectChanges();
+    expect(Math.max(...f.componentInstance.taillesPage)).toBe(200);
+    f.componentInstance.pagination({ pageIndex: 0, pageSize: 200, length: 300 });
+    const grande = serveur.expectOne(r => r.url === `${API_BASE}/documents/recherche`);
+    expect(grande.request.body.size).toBe(200);
+    grande.flush({ content: [DOC], total: 300, page: 0, size: 200, totalPages: 2 });
+  });
+
+  it('signale discrètement un critère que le serveur a ignoré (GED-Champs-Ignores)', async () => {
+    const f = await ouvrir();
+    lancer(f);
+    serveur.expectOne(r => r.url === `${API_BASE}/documents/recherche`).flush(
+      { content: [DOC], total: 1, page: 0, size: 50, totalPages: 1 },
+      { headers: { 'GED-Champs-Ignores': 'criteres[0].valeurr' } });
+    f.detectChanges();
+    const el: HTMLElement = f.nativeElement;
+    expect(el.querySelector('.champs-ignores')?.textContent).toContain('Critère non appliqué : criteres[0].valeurr');
+    expect(el.querySelector('a.nom')).toBeTruthy();
+
+    lancer(f);
+    serveur.expectOne(r => r.url === `${API_BASE}/documents/recherche`)
+      .flush({ content: [DOC], total: 1, page: 0, size: 50, totalPages: 1 });
+    f.detectChanges();
+    expect(el.querySelector('.champs-ignores')).toBeNull();
   });
 
   it("refuse une plage incohérente sans appeler l'API", async () => {

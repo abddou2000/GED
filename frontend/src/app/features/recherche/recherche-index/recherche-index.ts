@@ -18,6 +18,7 @@ import { WorkspaceService } from '../../workspace/workspace.service';
 import { EmployeService, Personne } from '../../../core/employe.service';
 import { NotifyService } from '../../../core/notify.service';
 import { formaterDate } from '../../../core/dates';
+import { TAILLES_PAGE, TAILLE_PAGE_DEFAUT } from '../../../core/pagination';
 
 /** Saisie d'un critère d'index : valeur (texte, liste, booléen) ou bornes (date, nombre). */
 interface SaisieIndex { valeur: string; de: string; a: string; }
@@ -89,8 +90,11 @@ export class RechercheIndex implements OnInit {
   resultat = signal<PageResult<DocumentItem> | null>(null);
   chargement = signal(false);
   erreur = signal<string | null>(null);
+  /** Critères que le serveur a ignorés (en-tête GED-Champs-Ignores) : signalés, jamais tus. */
+  champsIgnores = signal<string[]>([]);
+  readonly taillesPage = TAILLES_PAGE;
   page = 0;
-  taille = 20;
+  taille = TAILLE_PAGE_DEFAUT;
   triChamp = 'dateDocument';
   triSens: 'asc' | 'desc' = 'desc';
 
@@ -122,6 +126,7 @@ export class RechercheIndex implements OnInit {
     for (const code of Object.keys(this.saisies)) this.saisies[code] = { valeur: '', de: '', a: '' };
     this.erreur.set(null);
     this.resultat.set(null);
+    this.champsIgnores.set([]);
   }
 
   trier(s: Sort): void {
@@ -183,9 +188,14 @@ export class RechercheIndex implements OnInit {
     if (!r) return;
     this.chargement.set(true);
     this.documents.rechercher(r, this.triChamp, this.triSens).subscribe({
-      next: p => { this.resultat.set(p); this.chargement.set(false); },
+      next: r => {
+        this.resultat.set(r.corps);
+        this.champsIgnores.set(r.champsIgnores);
+        this.chargement.set(false);
+      },
       error: e => {
         this.chargement.set(false);
+        this.champsIgnores.set([]);
         const msg = e?.error?.detail ?? e?.error?.message ?? 'La recherche a échoué.';
         this.erreur.set(msg);
         this.notify.error(msg);

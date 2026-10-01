@@ -1,5 +1,6 @@
 package com.ipt.ged.config;
 
+import com.ipt.ged.common.erreur.ChampsIgnores;
 import com.ipt.ged.identite.Role;
 import com.ipt.ged.security.FiltreJwt;
 import com.ipt.ged.security.UtilisateurConnecte;
@@ -152,6 +153,9 @@ public class SecurityConfig {
         config.setAllowedOriginPatterns(Arrays.stream(origines.split(",")).map(String::trim).toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
+        // Lu par les écrans de recherche (« Critère non appliqué ») : un en-tête
+        // non exposé reste invisible à un frontend d'une autre origine.
+        config.setExposedHeaders(List.of(ChampsIgnores.ENTETE));
         /* Le frontend est servi par la même origine que l'API (NGINX, proxy de
            développement) : le cookie de renouvellement n'a pas à franchir une
            frontière d'origine. On ne l'autorise donc pas. */

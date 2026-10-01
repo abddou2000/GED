@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map, tap } from 'rxjs/operators';
 import { API_BASE } from '../../core/api';
+import { TAILLE_PAGE_MAX } from '../../core/pagination';
 import {
   ATraiter, Anomalie, Circuit, DecisionRendue, PageATraiter, RegleDocument, TypeDecision,
 } from './circuit.model';
@@ -30,9 +31,9 @@ export class CircuitService {
     this._revision.update(n => n + 1);
   }
 
-  /** Tout ce que la personne connectée a à décider (liste complète). */
+  /** Ce que la personne connectée a à décider : une page au plafond du serveur (200, DAT §5.3.2). */
   aTraiter(): Observable<ATraiter[]> {
-    return this.http.get<PageATraiter>(`${this.url}/a-traiter`, { params: { page: 0, size: 100 } })
+    return this.http.get<PageATraiter>(`${this.url}/a-traiter`, { params: { page: 0, size: TAILLE_PAGE_MAX } })
       .pipe(map(p => p.content));
   }
 

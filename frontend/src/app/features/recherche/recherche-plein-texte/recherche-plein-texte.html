@@ -58,6 +58,14 @@
     </form>
 
     @if (resultat(); as r) {
+      @if (champsIgnores().length) {
+        <!-- DAT §5.3.2 : le serveur a ignoré ces critères ; les résultats n'en tiennent pas compte. -->
+        <p class="champs-ignores" role="status">
+          <mat-icon svgIcon="alert" aria-hidden="true"></mat-icon>
+          {{ champsIgnores().length > 1 ? 'Critères non appliqués' : 'Critère non appliqué' }} :
+          {{ champsIgnores().join(', ') }}
+        </p>
+      }
       @if (r.totalPlafonne) {
         <p class="total">Plus de {{ r.total }} documents trouvés : affinez la recherche (critères, expression exacte).</p>
       } @else {
@@ -89,7 +97,7 @@
             <a class="vers-index" routerLink="/recherche-par-index">recherche par index</a>.</li>
         }
       </ul>
-      <mat-paginator [length]="r.total" [pageIndex]="page" [pageSize]="taille" [pageSizeOptions]="[10, 20, 50]"
+      <mat-paginator [length]="r.total" [pageIndex]="page" [pageSize]="taille" [pageSizeOptions]="taillesPage"
                      (page)="pagination($event)"></mat-paginator>
     } @else {
       <p class="aide">

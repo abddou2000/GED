@@ -24,6 +24,12 @@
 .aide-et { margin-right: auto; font-size: 12px; color: var(--ink-soft); }
 
 .total { margin: 4px 16px; font-size: 13px; color: var(--ink-soft); }
+/* Critères ignorés par le serveur (GED-Champs-Ignores) : avertissement discret. */
+.champs-ignores {
+  display: flex; align-items: center; gap: 6px; margin: 4px 16px;
+  font-size: 12px; color: var(--ink-soft);
+  mat-icon { width: 14px; height: 14px; color: var(--ambre); }
+}
 .aide { margin: 12px 16px; color: var(--ink-soft); }
 .erreur { margin: 4px 16px; color: var(--danger); font-size: 13px; }
 
