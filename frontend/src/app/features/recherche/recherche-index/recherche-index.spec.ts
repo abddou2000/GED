@@ -185,6 +185,31 @@ describe('RechercheIndex', () => {
     expect(el.querySelector('.champs-ignores')).toBeNull();
   });
 
+  it('ANO-F-028 : la date de dépôt (plage) est un critère, sans texte, combiné en ET', async () => {
+    const f = await ouvrir();
+    const el: HTMLElement = f.nativeElement;
+    for (const [nom, valeur] of [['dateDepotDu', '2026-03-01'], ['dateDepotAu', '2026-03-31']]) {
+      const champ = el.querySelector(`input[type="date"][name="${nom}"]`) as HTMLInputElement;
+      champ.value = valeur;
+      champ.dispatchEvent(new Event('input'));
+    }
+    f.componentInstance.socle.dateDocumentDu = '2026-09-01';
+    f.detectChanges();
+    lancer(f);
+    const req = serveur.expectOne(r => r.method === 'POST' && r.url === `${API_BASE}/documents/recherche`);
+    expect(req.request.body).toEqual({
+      dateDocumentDu: '2026-09-01', dateDepotDu: '2026-03-01', dateDepotAu: '2026-03-31', page: 0, size: 50,
+    });
+    req.flush({ content: [DOC], total: 1, page: 0, size: 50, totalPages: 1 });
+    f.detectChanges();
+
+    // Plage inversée : refusée à l'écran, sans appel.
+    f.componentInstance.socle.dateDepotDu = '2026-04-01';
+    lancer(f);
+    serveur.expectNone(r => r.url === `${API_BASE}/documents/recherche`);
+    expect(el.querySelector('.erreur')?.textContent).toContain('Date de dépôt');
+  });
+
   it("refuse une plage incohérente sans appeler l'API", async () => {
     const f = await ouvrir();
     f.componentInstance.saisie('MONTANT').de = '500';

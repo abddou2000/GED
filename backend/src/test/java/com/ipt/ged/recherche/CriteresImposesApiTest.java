@@ -140,6 +140,33 @@ class CriteresImposesApiTest {
     }
 
     @Test
+    @DisplayName("ANO-F-028 : POST /documents/recherche filtre sur la date de dépôt (plage), comme POST /recherches")
+    void dateDeDepot() throws Exception {
+        jdbc.update("UPDATE document SET created_at = TIMESTAMPTZ '2026-03-10 09:00:00+00' WHERE id = ?", a);
+        jdbc.update("UPDATE document SET created_at = TIMESTAMPTZ '2026-03-31 23:30:00+00' WHERE id = ?", b);
+        jdbc.update("UPDATE document SET created_at = TIMESTAMPTZ '2026-04-01 00:00:00+00' WHERE id = ?", c);
+
+        // Bornes incluses, au jour près : le 31 mars à 23 h 30 est dans « au 31 mars ».
+        assertThat(metadonnees("\"dateDepotDu\":\"2026-03-01\",\"dateDepotAu\":\"2026-03-31\""))
+                .containsExactlyInAnyOrder(a.toString(), b.toString());
+        assertThat(metadonnees("\"dateDepotDu\":\"2026-04-01\"")).containsExactly(c.toString());
+        assertThat(metadonnees("\"dateDepotAu\":\"2026-03-10\"")).containsExactly(a.toString());
+        // Combinée en ET avec la date du document (b : août ; a : septembre).
+        assertThat(metadonnees("\"dateDepotAu\":\"2026-03-31\"," + SEPTEMBRE)).containsExactly(a.toString());
+        // Même lecture que deposeDu / deposeAu de POST /recherches.
+        assertThat(contrat("\"deposeDu\":\"2026-03-01\",\"deposeAu\":\"2026-03-31\"", false))
+                .containsExactlyInAnyOrder(a.toString(), b.toString());
+        // Reconnue : non signalée comme champ ignoré ; plage inversée refusée.
+        mvc.perform(post("/api/v1/documents/recherche").contentType(APPLICATION_JSON)
+                        .content("{\"dateDepotDu\":\"2026-03-01\"}"))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("GED-Champs-Ignores"));
+        mvc.perform(post("/api/v1/documents/recherche").contentType(APPLICATION_JSON)
+                        .content("{\"dateDepotDu\":\"2026-04-01\",\"dateDepotAu\":\"2026-03-01\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("Déposant d'un document antérieur à l'identité du déposant : l'employé auteur du dépôt fait foi")
     void deposantDUnDocumentAncien() throws Exception {
         jdbc.update("UPDATE document SET deposant_utilisateur_id = NULL, created_by_employe_id = ? WHERE id = ?",

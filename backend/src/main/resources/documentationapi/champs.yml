@@ -140,6 +140,8 @@ champs:
   deposeAu: {description: "Date de dépôt maximale (incluse, AAAA-MM-JJ).", exemple: "2026-12-31"}
   dateDocumentDu: {description: "Date du document minimale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3.", exemple: "2026-09-01"}
   dateDocumentAu: {description: "Date du document maximale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3.", exemple: "2026-09-30"}
+  dateDepotDu: {description: "Date de dépôt minimale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3 ; même lecture que deposeDu.", exemple: "2026-01-01"}
+  dateDepotAu: {description: "Date de dépôt maximale (incluse, AAAA-MM-JJ), critère imposé du §4.4.3 ; même lecture que deposeAu.", exemple: "2026-12-31"}
   taille: {description: "Taille de page : 50 par défaut, plafonnée à 200.", exemple: 50}
   tri: {description: "Tri en liste blanche : PERTINENCE (défaut avec texte), DATE_DOCUMENT (date du document décroissante, défaut sans texte, §12.7), DATE_DEPOT, NOM, TYPE, INDEXATION_RECENTE.", exemple: PERTINENCE}
   pertinence: {description: "Score de pertinence plein texte (0 sans texte).", exemple: 0.42}

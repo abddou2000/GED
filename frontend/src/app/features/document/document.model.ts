@@ -164,6 +164,9 @@ export interface RequeteRecherche {
   echeanceDepassee?: boolean | null;
   dateDocumentDu?: string | null;
   dateDocumentAu?: string | null;
+  /** Plage de date de dépôt, bornes incluses (ANO-F-028). */
+  dateDepotDu?: string | null;
+  dateDepotAu?: string | null;
   confidentialite?: Confidentialite | null;
   deposantUtilisateurId?: string | null;
   page?: number;
