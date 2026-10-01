@@ -1,8 +1,56 @@
 # Suivi — dev2 (qualité, exploitation, traçabilité, API)
 
-Branche `ct/dev2`. Mise à jour : 30/09/2026.
+Branche `ct/dev2`. Mise à jour : 01/10/2026.
 
-## Tour 2 de mise en conformité (30/09/2026) — branche `ct/dev2-r2`
+## Tour 3 de mise en conformité (01/10/2026) — branche `ct/dev2-r3`
+
+Base : `claude/inspiring-lovelace-10bg1c` (`ff20f21`). Référence : 661 tests back, 0 échec.
+
+| Ligne / observation | Commit | Cause | Correctif | Preuve (échoue sans le correctif) |
+|---|---|---|---|---|
+| P-05 (réserve qa vague 9) | `3adbf0b` | `SEQUENCES.md` relu au tour 1 sur `71bdc1d` ; note du flux de délégation restée « D15 à livrer par dev1 » ; le code du tour 1 et du tour 2 avait changé quatre flux | document relu contre `ff20f21`, **six flux** : délégation (D15 livrée, `EtatCompteEnCache`, bascule `ControleursAnnuaire` avec mise à l'écart, **503 `ANNUAIRE_INDISPONIBLE`** représenté, refus de la clé détaillés, métrique par clé) ; dépôt (emplacement dans un espace d'échange, 422 `EMPLACEMENT_HORS_ESPACE_ECHANGE`, désignation du déposant d'un Confidentiel, aucun circuit si le module workflow est inactif) ; OCR (toute erreur reprise, file par priorité, clôture d'un bail expiré) ; recherche du contrat (fragments SQL R32, plus de passage par `IndexationService`, plafonds, critères §4.4.3, `PARAMETRE_INCONNU`) ; **flux nouveau** : recherche par index (`POST /documents/recherche`) ; archivage (empreinte recalculée, restauration sous dossier archivé) | `SequencesDocumenteesTest` étendu : tout code cité (MAJUSCULES_SOULIGNÉES) existe dans le code, aucune mention « à livrer » / « à venir » — **en échec sur l'ancien document** |
+| O1 (recette vague 9) | `b18c4bd` | fil d'écoute de l'annuaire embarqué (UnboundID, fil **non démon**), gardé dans une table statique de `AnnuaireEmbarque`, jamais arrêté à la fermeture du contexte | `AnnuaireEmbarque` rend l'annuaire à la fermeture du contexte (compte des contextes qui le partagent, le dernier l'arrête) ; `GedApplication.main` sort avec le code 1 sur tout démarrage refusé, quel que soit le fil survivant ; `EXPLOITATION.md` §2 | `AnnuaireEmbarqueTest` (contexte refusé : port fermé, fil arrêté ; partage entre contextes) ; `DemarrageRefuseTest` (vraie application, JVM fille, profil dev, cache D15 à 6 min : arrêt et code non nul) — **les deux en échec sans le correctif** (JVM vivante après 240 s) |
+| O3 (recette vague 9) | `00d487e` | hôte, port et superutilisateur PostgreSQL écrits en dur dans `demontrer-deploiement.sh` (`localhost:5432`, `runuser -u postgres`) | variables `DEMO_PGHOST`, `DEMO_PGPORT`, `DEMO_PGSUPER`, `DEMO_PGSUPER_COMPTE`, `DEMO_PGSUPER_HOTE`, `DEMO_CREER_ROLES` ; mode `DEMO_INSTANCE_JETABLE=oui` (instance créée, utilisée et supprimée par le script) ; défauts inchangés ; `DEPLOIEMENT.md` §10.5 | `ScriptsExploitationTest.demonstrationSansServeurPostgresEnDur` (**en échec sur l'ancien script**) ; démonstration rejouée sur instance jetable (ci-dessous) |
+
+**O1 sous les profils uat et prod** (vérifié, pas supposé) : même refus (cache à 6 min) en
+lançant `GedApplication` avec la configuration d'exploitation minimale (base en
+`verify-full` sur le certificat du serveur local, LDAPS, keystore JWT et KEK jetables) :
+la JVM s'arrêtait déjà avec le code 1 (uat 19 s, prod 42 s). Seul le profil dev
+(annuaire embarqué) restait vivant ; le profil test n'est concerné qu'en théorie
+(surefire termine sa JVM). Après correctif, profil dev : arrêt en 14 s, code 1.
+
+**O3 rejoué** : `DEMO_INSTANCE_JETABLE=oui deploiement/uat/demontrer-deploiement.sh`
+(JAR et paquet front construits depuis la branche, instance PostgreSQL 16 jetable
+sur 127.0.0.1:18782, rôles créés par `creer-roles.sql`) : **43 contrôles verts**
+(E0 à E8), instance arrêtée en fin de script ; l'instance partagée n'a pas été touchée.
+Second passage avec la version commitée (`00d487e`) : 43 contrôles verts, code de
+sortie 0, instance arrêtée et son répertoire supprimé ; journaux laissés dans
+`/tmp/ged-demo-dev2r3` pour examen.
+
+**Tests** : suite back complète sur PostgreSQL (`ged_dev2_test`) : **667 tests, 0 échec, 0 erreur** (référence 661 : +2 `SequencesDocumenteesTest`, +2 `AnnuaireEmbarqueTest`, +1 `DemarrageRefuseTest`, +1 `ScriptsExploitationTest`). Front non modifié (paquet construit pour la démonstration O3 : `ng build` vert).
+
+**Reste** :
+- O3 : rejeu par qa (commande dans `DEPLOIEMENT.md` §10.5) ; sous systemd réel en UAT,
+  inchangé.
+- O1 : `DemarrageRefuseTest` lance une JVM fille (environ 20 à 30 s ajoutés à la suite) ;
+  il lit `DB_NAME_TEST` (ou `DB_NAME` + `_test`) comme `application-test.yml`.
+- Reliquats du tour 2 inchangés (échéance du secret de l'annuaire : livrée par dev1
+  `d7efa55` ; IPv6 de NGINX à constater sur un hôte IPv6).
+
+**Points pour pm** :
+- `GedApplication.main` appelle désormais `System.exit(1)` sur un démarrage refusé :
+  aucun effet sur les tests (le `main` n'y est pas appelé, sauf par la JVM fille de
+  `DemarrageRefuseTest`) ; sous systemd, `Restart=on-failure` relance (5 essais en
+  10 min) — `EXPLOITATION.md` §2.
+- SUIVI.md, P-05 : la réserve de forme de qa (note D15 du flux 4, 503 non représenté)
+  est levée sur `3adbf0b` ; six flux au lieu de cinq (recherche par index ajoutée).
+- **qa** : O3 se rejoue sans l'instance partagée (`DEMO_INSTANCE_JETABLE=oui`, ports
+  propres : `SERVER_PORT`, `GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT`) ; O1 : relancer avec
+  `GED_DELEGATION_CACHE_ETAT_COMPTE=6m` en profil dev, la JVM doit s'arrêter (code 1).
+- Poste : mon lancement en profil dev a créé `~/.ged-dev/cles/ged-kek.p12` (chemin par
+  défaut du profil dev, hors dépôt) ; laissé en place car d'autres membres peuvent
+  s'en servir.
+ (30/09/2026) — branche `ct/dev2-r2`
 
 Base : `claude/inspiring-lovelace-10bg1c` (`08c710c`). Référence : 630 tests back, 0 échec.
 
