@@ -17,3 +17,14 @@ describe('Index booléen (ANO-F-020)', () => {
     expect(afficherValeurIndex('BOOLEEN', null)).toBe('');
   });
 });
+
+/** ANO-F-025 : une valeur d'index de type date s'affiche en jj/mm/aaaa, comme les autres dates. */
+describe('Index date (ANO-F-025)', () => {
+  it('affiche jj/mm/aaaa, sans décalage de fuseau ; une valeur illisible reste telle quelle', () => {
+    expect(afficherValeurIndex('DATE', '2026-11-15')).toBe('15/11/2026');
+    expect(afficherValeurIndex('DATE', '2026-01-01')).toBe('01/01/2026');
+    expect(afficherValeurIndex('DATE', 'bientôt')).toBe('bientôt');
+    expect(afficherValeurIndex('TEXTE', '2026-11-15')).toBe('2026-11-15');
+    expect(afficherValeurIndex('DATE', null)).toBe('');
+  });
+});

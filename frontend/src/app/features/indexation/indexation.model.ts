@@ -1,3 +1,5 @@
+import { formaterDate, versDate } from '../../core/dates';
+
 /** Type d'un index — détermine le contrôle affiché dans la recherche. */
 export type TypeIndex = 'TEXTE' | 'NOMBRE' | 'DATE' | 'LISTE' | 'BOOLEEN';
 
@@ -98,13 +100,18 @@ export function lireBooleen(valeur: unknown): boolean | null {
 
 /**
  * Valeur d'index telle qu'on l'affiche : « Oui » / « Non » pour un booléen
- * (le serveur renvoie `true` / `false`), la valeur telle quelle sinon.
+ * (le serveur renvoie `true` / `false`, ANO-F-020), jj/mm/aaaa pour une date
+ * (le serveur renvoie aaaa-mm-jj, ANO-F-025), la valeur telle quelle sinon —
+ * y compris une date illisible, plutôt qu'un tiret qui la ferait disparaître.
  */
 export function afficherValeurIndex(fieldType: TypeIndex | null | undefined, valeur: unknown): string {
   if (valeur == null) return '';
   if (fieldType === 'BOOLEEN') {
     const b = lireBooleen(valeur);
     if (b !== null) return b ? 'Oui' : 'Non';
+  }
+  if (fieldType === 'DATE' && typeof valeur === 'string' && versDate(valeur)) {
+    return formaterDate(valeur);
   }
   return String(valeur);
 }
