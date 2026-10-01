@@ -140,7 +140,8 @@ export class Shell implements AfterViewInit {
     destroyRef.onDestroy(() => clearInterval(releve));
 
     // État des modules métier (une fois) : les menus d'un module inactif se masquent.
-    this.modules.charger().subscribe();
+    // Sans rôle, aucun menu de module n'est proposé et le serveur répondrait 403 (P-04).
+    if (!this.auth.sansRole()) this.modules.charger().subscribe();
 
     // Identité + compteur « à traiter » (badge du menu)
     this.session.ensureUser();
@@ -172,6 +173,7 @@ export class Shell implements AfterViewInit {
 
   /** Pastille des notifications, sauf module désactivé (T-088). */
   private rafraichirNotifications(): void {
+    if (this.auth.sansRole()) return;   // écran fermé sans rôle : le serveur répondrait 403 (P-04)
     if (this.modules.actif('notifications')) this.notifications.rafraichirCompteur();
   }
 
