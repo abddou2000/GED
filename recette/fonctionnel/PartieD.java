@@ -240,11 +240,23 @@ public class PartieD extends PartieC {
             Rep range = depN.code() / 100 == 2 && sd.code() / 100 == 2
                     ? J(AUTRE, "PATCH", "/api/v1/documents/" + depN.json().path("id").asText() + "/emplacement", Map.of("noeudId", sd.json().path("id").asText()))
                     : null;
-            verif("F-62", !avant && depK.code() / 100 == 2 && depN.code() / 100 == 2 && vK.size() == 2 && vN.size() == 2 && arbre && horsGroupe,
-                    "Dossier partagé pour un groupe : ses membres y déposent et voient les documents des autres ; hors groupe, rien",
+            // Tour 3 (ANO-F-016 corrigée, D12) : le membre range son document dans le sous-dossier
+            // (Déposer suffit dans un même espace d'échange) et y dépose directement (noeudId) ;
+            // hors de l'espace d'échange du type, l'emplacement est refusé.
+            String sdId = sd.code() / 100 == 2 ? sd.json().path("id").asText() : null;
+            boolean rangeOk = range != null && range.code() / 100 == 2
+                    && sdId.equals(fiche(AUTRE, depN.json().path("id").asText()).path("workspace").path("id").asText(""));
+            Rep depSd = sdId == null ? null : deposer(AUTRE, "pdf_texte_fr_facture.pdf", "qa2-d-partage-sd-" + M, t, Map.of("noeudId", sdId), null);
+            String ouSd = depSd != null && depSd.code() / 100 == 2 ? fiche(AUTRE, depSd.json().path("id").asText()).path("workspace").path("id").asText("") : "";
+            Rep depHors = deposer(AUTRE, "pdf_texte_fr_facture.pdf", "qa2-d-partage-hors-" + M, t, Map.of("noeudId", PRJ), null);
+            verif("F-62", !avant && depK.code() / 100 == 2 && depN.code() / 100 == 2 && vK.size() == 2 && vN.size() == 2 && arbre && horsGroupe
+                            && rangeOk && sdId != null && sdId.equals(ouSd) && depHors.code() / 100 == 4,
+                    "Dossier partagé pour un groupe : ses membres y déposent, rangent dans leurs sous-dossiers et voient les documents des autres ; hors groupe, rien",
                     "dossier visible de nidrissi avant " + avant + ", après habilitation du groupe " + arbre + " ; dépôts kelfassi " + court(depK) + ", nidrissi "
                             + court(depN) + " ; chacun voit " + vK.size() + "/" + vN.size() + " ; yalaoui (hors groupe) ne voit rien " + horsGroupe
-                            + " ; sous-dossier créé par un membre " + court(sd) + ", rangement d'un document dedans " + (range == null ? "-" : court(range)));
+                            + " ; sous-dossier créé par un membre " + court(sd) + ", rangement d'un document dedans " + (range == null ? "-" : court(range))
+                            + " (dans le sous-dossier " + rangeOk + "), dépôt direct dans le sous-dossier " + (depSd == null ? "-" : court(depSd))
+                            + " (rangé " + (sdId != null && sdId.equals(ouSd)) + "), dépôt vers un dossier hors de l'espace d'échange " + court(depHors));
         });
 
         // F-63 (§4.6.5) : prévisualisation en ligne des formats courants.
