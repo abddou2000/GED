@@ -1,6 +1,5 @@
 package com.ipt.ged.common;
 
-import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.ipt.ged.audit.ActionAudit;
 import com.ipt.ged.audit.AuditService;
 import com.ipt.ged.audit.EntreeAudit;
@@ -26,7 +25,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.security.access.AccessDeniedException;
@@ -232,31 +230,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         tracer(HttpStatus.BAD_REQUEST, CodesErreur.PARAMETRE_INVALIDE, ex);
         return ResponseEntity.badRequest().headers(headers)
                 .body(probleme(HttpStatus.BAD_REQUEST, CodesErreur.PARAMETRE_INVALIDE, detail, servlet(request)));
-    }
-
-    /**
-     * Corps illisible. Cas particulier : champ inconnu d'un corps marqué
-     * {@link com.ipt.ged.common.erreur.ChampsInconnusRefuses} → 400
-     * {@code PARAMETRE_INCONNU}, avec le chemin du champ (ANO-F-011) ; les autres
-     * cas suivent le traitement commun.
-     */
-    @Override
-    protected ResponseEntity<Object> handleHttpMessageNotReadable(@NonNull HttpMessageNotReadableException ex,
-                                                                  @NonNull HttpHeaders headers,
-                                                                  @NonNull HttpStatusCode status,
-                                                                  @NonNull WebRequest request) {
-        if (ex.getCause() instanceof UnrecognizedPropertyException inconnu) {
-            String chemin = inconnu.getPath().stream()
-                    .map(r -> r.getFieldName() != null ? "." + r.getFieldName() : "[" + r.getIndex() + "]")
-                    .collect(java.util.stream.Collectors.joining()).replaceFirst("^\\.", "");
-            String parametre = chemin.isEmpty() ? inconnu.getPropertyName() : chemin;
-            ProblemDetail probleme = probleme(HttpStatus.BAD_REQUEST, CodesErreur.PARAMETRE_INCONNU,
-                    "Paramètre inconnu : « " + parametre + " ».", servlet(request));
-            probleme.setProperty("parametre", parametre);
-            tracer(HttpStatus.BAD_REQUEST, CodesErreur.PARAMETRE_INCONNU, ex);
-            return ResponseEntity.badRequest().headers(headers).body(probleme);
-        }
-        return super.handleHttpMessageNotReadable(ex, headers, status, request);
     }
 
     /** Requête multipart au-delà du plafond de la plateforme → 413, code du lot stockage. */

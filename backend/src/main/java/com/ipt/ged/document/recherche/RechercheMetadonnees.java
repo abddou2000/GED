@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ipt.ged.autorisation.AccessPredicate;
 import com.ipt.ged.autorisation.CodePermission;
 import com.ipt.ged.autorisation.Confidentialite;
-import com.ipt.ged.common.erreur.ChampsInconnusRefuses;
+import com.ipt.ged.common.erreur.ChampsInconnusSignales;
 import com.ipt.ged.common.PageResponse;
 import com.ipt.ged.common.Tri;
 import com.ipt.ged.document.DocumentService;
@@ -50,14 +50,14 @@ import java.util.UUID;
  * archivés sont inclus par défaut, avec un filtre pour les inclure ou les
  * exclure (§12.6). Critères imposés du §4.4.3 portés par le document : plage
  * de date du document, confidentialité, déposant ({@link CriteresDocument}).
- * Un champ inconnu du corps est refusé (400 {@code PARAMETRE_INCONNU},
- * ANO-F-011) au lieu d'être ignoré.
+ * Un champ inconnu du corps est ignoré (DAT §5.3.2, P-08) et signalé dans
+ * l'en-tête {@code GED-Champs-Ignores} (ANO-F-011).
  */
 @Service
 public class RechercheMetadonnees {
 
     /** Un critère : {@code valeur} (texte, liste, booléen) ou bornes {@code de} / {@code a} (date, nombre). */
-    @ChampsInconnusRefuses
+    @ChampsInconnusSignales
     public record Critere(String code, String valeur, String de, String a) {}
 
     /**
@@ -68,7 +68,7 @@ public class RechercheMetadonnees {
      * @param confidentialite    PUBLIC, PRIVE ou CONFIDENTIEL (§4.4.3), dans le périmètre autorisé
      * @param deposantUtilisateurId identité GED du déposant (§4.4.3)
      */
-    @ChampsInconnusRefuses
+    @ChampsInconnusSignales
     public record Requete(UUID typeDocumentId, UUID noeudId, String texte, List<Critere> criteres,
                           String statutConservation, Integer page, Integer size, Boolean echeanceDepassee,
                           LocalDate dateDocumentDu, LocalDate dateDocumentAu, Confidentialite confidentialite,

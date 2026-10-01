@@ -3,6 +3,7 @@ package com.ipt.ged.recherche;
 import com.ipt.ged.autorisation.Confidentialite;
 import com.ipt.ged.common.erreur.ParametresConnus;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
@@ -23,8 +24,8 @@ import java.util.UUID;
  * (type, espace, période de dépôt, plage de date du document, confidentialité,
  * déposant), filtrée par droits à la source, triée (pertinence, date, nom,
  * type) et paginée. Les extraits sont rendus en segments (texte et
- * surlignage), jamais en HTML. Un paramètre inconnu est refusé (400
- * {@code PARAMETRE_INCONNU}) au lieu d'être ignoré (ANO-F-011).
+ * surlignage), jamais en HTML. Un paramètre inconnu est ignoré (DAT §5.3.2,
+ * P-08) et signalé dans l'en-tête {@code GED-Champs-Ignores} (ANO-F-011).
  */
 @RestController
 @RequestMapping("/api/v1/recherche")
@@ -32,7 +33,7 @@ import java.util.UUID;
 public class RechercheController {
 
     /**
-     * Paramètres acceptés ; tout autre est refusé. {@code size} est l'alias de
+     * Paramètres connus ; tout autre est ignoré et signalé. {@code size} est l'alias de
      * {@code taille} posé par les conventions de l'API (FiltreConventionsApi).
      */
     static final Set<String> PARAMETRES = Set.of("q", "page", "taille", "size", "tri", "typeDocumentId", "workspaceId",
@@ -61,8 +62,9 @@ public class RechercheController {
                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateDocumentAu,
                                     @RequestParam(required = false) Confidentialite confidentialite,
                                     @RequestParam(required = false) UUID deposantUtilisateurId,
-                                    Authentication utilisateur, HttpServletRequest requete) {
-        ParametresConnus.exiger(requete, PARAMETRES);
+                                    Authentication utilisateur, HttpServletRequest requete,
+                                    HttpServletResponse reponse) {
+        ParametresConnus.signaler(requete, reponse, PARAMETRES);
         if (q.length() > 500) {
             throw new IllegalArgumentException("La recherche ne peut pas dépasser 500 caractères.");
         }

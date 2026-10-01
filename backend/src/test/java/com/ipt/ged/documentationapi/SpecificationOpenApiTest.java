@@ -219,6 +219,19 @@ class SpecificationOpenApiTest {
     }
 
     @Test
+    @DisplayName("Compatibilité (P-08) : champs inconnus ignorés, politique écrite, en-tête GED-Champs-Ignores sur les recherches")
+    void compatibilite() {
+        assertThat(spec.get("info").get("description").asText())
+                .contains("évolutions additives").contains("ignoré par le serveur").contains("GED-Champs-Ignores");
+        for (String chemin : List.of("/api/v1/recherches", "/api/v1/documents/recherche", "/api/v1/indexation/recherche")) {
+            assertThat(operation("POST", chemin).get("responses").get("200").get("headers").has("GED-Champs-Ignores"))
+                    .as(chemin).isTrue();
+        }
+        assertThat(spec.get("components").get("headers").get("ChampsIgnores").get("description").asText())
+                .contains("ignorés");
+    }
+
+    @Test
     @DisplayName("Documentation fermée en production : springdoc désactivé par le profil prod")
     void fermeeEnProduction() throws Exception {
         boolean trouve = false;

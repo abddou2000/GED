@@ -1,7 +1,7 @@
 package com.ipt.ged.contratapi.dto;
 
 import com.ipt.ged.autorisation.Confidentialite;
-import com.ipt.ged.common.erreur.ChampsInconnusRefuses;
+import com.ipt.ged.common.erreur.ChampsInconnusSignales;
 import com.ipt.ged.indexation.dto.RechercheRequest;
 import com.ipt.ged.recherche.RequeteRecherche;
 import jakarta.validation.Valid;
@@ -45,9 +45,10 @@ public final class DtoContratApi {
      * @param confidentialite niveau de confidentialité : PUBLIC, PRIVE ou CONFIDENTIEL (§4.4.3)
      * @param deposantUtilisateurId identité GED du déposant (§4.4.3)
      *
-     * <p>Un champ inconnu est refusé (400 {@code PARAMETRE_INCONNU}, ANO-F-011).
+     * <p>Un champ inconnu est ignoré (P-08) et signalé dans l'en-tête
+     * {@code GED-Champs-Ignores} (ANO-F-011).
      */
-    @ChampsInconnusRefuses
+    @ChampsInconnusSignales
     public record RechercheContratRequest(
             @Size(max = 500, message = "La recherche ne peut pas dépasser 500 caractères.") String texte,
             @Size(max = 50) @Valid List<RechercheRequest.FiltreIndex> criteres,

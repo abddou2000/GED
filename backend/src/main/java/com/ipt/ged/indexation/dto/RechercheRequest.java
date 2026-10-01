@@ -1,13 +1,13 @@
 package com.ipt.ged.indexation.dto;
 
-import com.ipt.ged.common.erreur.ChampsInconnusRefuses;
+import com.ipt.ged.common.erreur.ChampsInconnusSignales;
 
 import java.util.List;
 import java.util.UUID;
 
 /**
  * Corps d'une recherche multi-critères ({@code POST /indexation/recherche}).
- * Un champ inconnu est refusé (400 {@code PARAMETRE_INCONNU}).
+ * Un champ inconnu est ignoré et signalé (en-tête {@code GED-Champs-Ignores}, P-08).
  *
  * @param workspaceId    restreindre à un espace (facultatif)
  * @param typeDocumentId restreindre à un type de document (facultatif)
@@ -16,7 +16,7 @@ import java.util.UUID;
  * @param page           rang de page, à partir de 0
  * @param taille         documents par page : 50 par défaut, plafonnée à 200 (DAT §5.3.2)
  */
-@ChampsInconnusRefuses
+@ChampsInconnusSignales
 public record RechercheRequest(
     UUID workspaceId,
     UUID typeDocumentId,
@@ -40,6 +40,6 @@ public record RechercheRequest(
      * <p>TEXTE : {@code valeur} (contient) — LISTE : {@code valeur} (égal)
      * <br>DATE / NOMBRE : {@code de} et/ou {@code a} (bornes incluses)
      */
-    @ChampsInconnusRefuses
+    @ChampsInconnusSignales
     public record FiltreIndex(UUID indexFieldId, String valeur, String de, String a) {}
 }
