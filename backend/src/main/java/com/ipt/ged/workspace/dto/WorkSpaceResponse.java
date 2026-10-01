@@ -36,6 +36,9 @@ public record WorkSpaceResponse(
          * Permissions effectives de l'appelant sur ce nœud (fiche seulement,
          * {@code null} dans les listes) : l'interface masque les actions qu'il
          * ne peut pas exercer (ANO-F-018). Confort : le serveur décide.
+         * {@code MODIFIER} y désigne la modification du nœud lui-même, réservée
+         * à la gestion des espaces (ANO-F-026) ; les documents portent leurs
+         * propres permissions.
          */
         List<String> permissions
 ) {
