@@ -101,7 +101,7 @@ export class WorkspaceList implements OnInit {
   // ---- Vue Tableau ----
   dataSource = new MatTableDataSource<WorkSpace>([]);
   selection = new SelectionModel<WorkSpace>(true, []);
-  archiveView = signal(false);
+  corbeilleView = signal(false);
   loading = signal(true);
   /** Colonnes de l'original : identifiant, code, nom, parent, circuit, description, propriétaire, statut. */
   /** Identifiant d'écran : clé des préférences de colonnes et de pagination. */
@@ -150,17 +150,17 @@ export class WorkspaceList implements OnInit {
   docsEnCours = signal<Set<string>>(new Set());
 
   ngOnInit(): void {
-    // L'archive vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
+    // La corbeille vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
     // ailleurs ramenait aux dossiers actifs sans prévenir.
     this.route.queryParamMap.subscribe(q => {
-      const archive = q.get('trashed') === '1';
-      if (archive !== this.archiveView()) {
-        this.archiveView.set(archive);
+      const corbeille = q.get('trashed') === '1';
+      if (corbeille !== this.corbeilleView()) {
+        this.corbeilleView.set(corbeille);
         this.pageCourante.set(0);
       }
       // L'arborescence ne connaît que les dossiers actifs : y rester en mode
-      // archive afficherait exactement la même chose qu'avant le clic.
-      if (archive) this.view.set('table');
+      // corbeille afficherait exactement la même chose qu'avant le clic.
+      if (corbeille) this.view.set('table');
       this.load();
     });
   }
@@ -170,7 +170,7 @@ export class WorkspaceList implements OnInit {
     if (this.view() === 'tree') { this.loadTree(); return; }
     this.selection.clear();
     this.loading.set(true);
-    const source = this.archiveView() ? this.service.trashed : this.service.list;
+    const source = this.corbeilleView() ? this.service.trashed : this.service.list;
     source.call(this.service, this.pageCourante(), this.taillePage(), this.recherche(),
                 this.triChamp(), this.triSens()).subscribe({
       next: res => {
@@ -216,10 +216,10 @@ export class WorkspaceList implements OnInit {
     this.load();
   }
 
-  toggleArchive(): void {
+  basculerCorbeille(): void {
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: this.archiveView() ? {} : { trashed: 1 },
+      queryParams: this.corbeilleView() ? {} : { trashed: 1 },
     });
   }
 
@@ -239,7 +239,7 @@ export class WorkspaceList implements OnInit {
   bulk(): void {
     const ids = this.selection.selected.map(w => w.id);
     if (!ids.length) return;
-    const restoring = this.archiveView();
+    const restoring = this.corbeilleView();
     this.confirm.ask({
       title: restoring ? 'Restaurer la sélection' : 'Supprimer la sélection',
       message: `Voulez-vous ${restoring ? 'restaurer' : 'supprimer'} ${ids.length} dossier(s) ?`,

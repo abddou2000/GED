@@ -53,7 +53,7 @@ export class PlanIndexationList implements OnInit {
 
   dataSource = new MatTableDataSource<PlanIndexation>([]);
   selection = new SelectionModel<PlanIndexation>(true, []);
-  archiveView = signal(false);
+  corbeilleView = signal(false);
   loading = signal(true);
   /** Identifiant d'écran : clé des préférences de colonnes et de pagination. */
   static readonly NOM_ECRAN = 'plan_d_indexations';
@@ -88,12 +88,12 @@ export class PlanIndexationList implements OnInit {
     this.triChamp() ? this.triSens() : '');
 
   ngOnInit(): void {
-    // L'archive vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
+    // La corbeille vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
     // ailleurs ramenait aux plans actifs sans prévenir.
     this.route.queryParamMap.subscribe(q => {
-      const archive = q.get('trashed') === '1';
-      if (archive !== this.archiveView()) {
-        this.archiveView.set(archive);
+      const corbeille = q.get('trashed') === '1';
+      if (corbeille !== this.corbeilleView()) {
+        this.corbeilleView.set(corbeille);
         this.pageCourante.set(0);
       }
       this.load();
@@ -105,7 +105,7 @@ export class PlanIndexationList implements OnInit {
   load(): void {
     this.selection.clear();
     this.loading.set(true);
-    const source = this.archiveView() ? this.service.trashed : this.service.list;
+    const source = this.corbeilleView() ? this.service.trashed : this.service.list;
     source.call(this.service, this.pageCourante(), this.taillePage(), this.recherche(),
                 this.triChamp(), this.triSens()).subscribe({
       next: res => {
@@ -139,10 +139,10 @@ export class PlanIndexationList implements OnInit {
     this.load();
   }
 
-  toggleArchive(): void {
+  basculerCorbeille(): void {
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: this.archiveView() ? {} : { trashed: 1 },
+      queryParams: this.corbeilleView() ? {} : { trashed: 1 },
     });
   }
 
@@ -157,7 +157,7 @@ export class PlanIndexationList implements OnInit {
   bulk(): void {
     const ids = this.selection.selected.map(p => p.id);
     if (!ids.length) return;
-    const restoring = this.archiveView();
+    const restoring = this.corbeilleView();
     this.confirm.ask({
       title: restoring ? 'Restaurer la sélection' : 'Supprimer la sélection',
       message: `Voulez-vous ${restoring ? 'restaurer' : 'supprimer'} ${ids.length} plan(s) ?`,

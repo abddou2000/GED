@@ -63,7 +63,7 @@ export class IndexList implements OnInit {
 
   dataSource = new MatTableDataSource<IndexField>([]);
   selection = new SelectionModel<IndexField>(true, []);
-  archiveView = signal(false);
+  corbeilleView = signal(false);
   loading = signal(true);
   /** Colonnes de l'original : id, code, nom, obligatoire, type, valeurs,
    *  valeur par défaut, indexé pour recherche, index de groupage. */
@@ -95,12 +95,12 @@ export class IndexList implements OnInit {
     this.triChamp() ? this.triSens() : '');
 
   ngOnInit(): void {
-    // L'archive vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
+    // La corbeille vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
     // ailleurs ramenait aux index actifs sans prévenir.
     this.route.queryParamMap.subscribe(q => {
-      const archive = q.get('trashed') === '1';
-      if (archive !== this.archiveView()) {
-        this.archiveView.set(archive);
+      const corbeille = q.get('trashed') === '1';
+      if (corbeille !== this.corbeilleView()) {
+        this.corbeilleView.set(corbeille);
         this.pageCourante.set(0);
       }
       this.load();
@@ -112,7 +112,7 @@ export class IndexList implements OnInit {
   load(): void {
     this.selection.clear();
     this.loading.set(true);
-    const source = this.archiveView() ? this.service.trashed : this.service.list;
+    const source = this.corbeilleView() ? this.service.trashed : this.service.list;
     source.call(this.service, this.pageCourante(), this.taillePage(), this.recherche(),
                 this.triChamp(), this.triSens()).subscribe({
       next: res => {
@@ -146,13 +146,13 @@ export class IndexList implements OnInit {
     this.load();
   }
 
-  toggleArchive(): void {
+  basculerCorbeille(): void {
     // On ne bascule pas l'état ici : la navigation le fait, et l'abonnement
     // aux paramètres recharge. Sinon un retour arrière du navigateur laisserait
     // l'URL et l'écran en désaccord.
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: this.archiveView() ? {} : { trashed: 1 },
+      queryParams: this.corbeilleView() ? {} : { trashed: 1 },
     });
   }
 
@@ -167,7 +167,7 @@ export class IndexList implements OnInit {
   bulk(): void {
     const ids = this.selection.selected.map(x => x.id);
     if (!ids.length) return;
-    const restoring = this.archiveView();
+    const restoring = this.corbeilleView();
     this.confirm.ask({
       title: restoring ? 'Restaurer la sélection' : 'Supprimer la sélection',
       message: `Voulez-vous ${restoring ? 'restaurer' : 'supprimer'} ${ids.length} index ?`,
