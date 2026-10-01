@@ -93,3 +93,43 @@ Aucun changeset Liquibase : pas d'évolution de schéma.
    navigateur (format local du poste), comme la recherche plein texte.
 5. `GET /employes` expose désormais `utilisateurId` à tout utilisateur doté d'un rôle (la
    liste des noms l'était déjà) : nécessaire pour désigner une personne ou filtrer par déposant.
+
+## Tour 3 — T-050 (écrans et « à traiter »), puis ANO-F-025, 027, 028 (ajoutées par pm)
+
+Branche `ct/dev5-r3`, partie de `claude/inspiring-lovelace-10bg1c` à ff20f21 ; `ct/dev3-r3`
+fusionnée en avance rapide (8ad50bd : page/size homogènes, en-tête `GED-Champs-Ignores`).
+
+| Tâche | Cause | Correctif | Preuve (échoue sans le correctif) | Commit |
+|---|---|---|---|---|
+| T-050 — `GET /workflow/a-traiter` | Pagination propre au contrôleur : 20 par défaut, plafond 100, page négative ramenée à 0. | `Tri.pageable` comme les autres listes : 50 par défaut (et pour une taille < 1), 200 au plus, alias `taille` (filtre de conventions), page négative 400. | `CircuitApiTest.aTraiterPagination` (`size=150` rendait 100 ; `page=-1` rendait 200) | f8b8bfb |
+| T-050 — écrans de recherche | Plein texte et index demandaient 20 par page (sélecteur 10/20/50) ; la liste « à traiter » s'arrêtait à 100. | `core/pagination.ts` : 50 par défaut, sélecteur 25/50/100/200 (jamais au-delà du plafond serveur) ; « à traiter » lue en une page de 200. | `recherche-plein-texte.spec.ts` (nouveau, `taille=50`, 200 au plus), `recherche-index.spec.ts` (`size` 50), `pagination.spec.ts` | db48ff2 |
+| Champs ignorés (DAT §5.3.2, P-08) | Le serveur nomme les champs inconnus ignorés dans `GED-Champs-Ignores` (dev3), aucun écran ne le lisait : un critère mal nommé passait inaperçu. | Les services de recherche rendent le corps et les champs ignorés (`observe: 'response'`) ; avertissement discret « Critère non appliqué : … » (`role=status`, noms décodés) au-dessus du total, sur les deux écrans. En-tête exposé par CORS (frontend d'une autre origine). | `recherche-plein-texte.spec.ts`, `recherche-index.spec.ts` (avertissement présent, puis absent sans en-tête), `pagination.spec.ts` (décodage) | db48ff2 |
+| ANO-F-025 | Fiche : cartouche « Échéance de conservation » en valeur brute ; `afficherValeurIndex` ne traitait que le booléen. | `formaterDate` pour la cartouche ; un index de type date lisible s'affiche jj/mm/aaaa (lecture composant par composant, sans décalage de fuseau) ; valeur illisible ou texte de même forme inchangés. | `document-detail-dates.spec.ts` (2 tests : « 01/10/2036 », « 15/11/2026 »), `indexation.model.spec.ts` | 71ee7ed |
+| ANO-F-027 | Bloc « Emplacements » : « Déplacer » réservé à la permission Déplacer, alors que le serveur accepte Déposer entre dossiers d'un même espace d'échange (D12). | Sans Déplacer mais avec Déposer : lecture de l'usage de l'espace du document (`GET /workspaces/{id}`) ; espace d'échange → « Déplacer » vers les seuls dossiers de cet espace (hors dossier actuel et nœuds de passage) ; espace métier → rien. Parcours de l'arbre mis en commun (`dossiersDeLEspace`) avec « Déposer ici ». | `document-emplacements.spec.ts` (+2 : membre en espace d'échange, destinations et PATCH ; Déposer en espace métier) | a40d37e |
+| ANO-F-028 | `POST /documents/recherche` n'avait pas de critère de date de dépôt ; l'écran index non plus. | Back : `dateDepotDu` / `dateDepotAu` (bornes incluses, au jour), même fragment SQL que `deposeDu` / `deposeAu` (`CriteresMetadonnees`), plage inversée 400, champs décrits dans `champs.yml`. Écran : « Déposé du … au … » dans le socle, plage inversée refusée sans appel. | `CriteresImposesApiTest.dateDeDepot` (champ ignoré et signalé avant : 3 résultats au lieu de 2), `recherche-index.spec.ts` (corps, refus) | 9916bdd |
+
+Aucun changeset Liquibase : pas d'évolution de schéma.
+
+### Vérifications
+
+- Front : `ng build` vert ; `ng test` **38 fichiers, 161 tests verts** (référence 148).
+- Back : ciblés verts (`CircuitApiTest` 14, `CriteresImposesApiTest` 8, `SpecificationOpenApiTest` 10) ;
+  suite complète `mvn test` (environnement dev5, à 9916bdd) : **670 tests, 0 échec, 0 erreur**
+  (référence après le tour 2 : 661).
+
+### Points pour pm
+
+1. **Statuts** : ANO-F-025 (71ee7ed), ANO-F-027 (a40d37e) et ANO-F-028 (9916bdd) n'existent que
+   sur `ct/qa2-r3` : « Corrigée (commit) » à poser à la fusion. ANO-F-028 était attribuée à dev3
+   pour la partie API : faite ici à la demande de pm (bloc distinct de ses changements T-050).
+2. **Ordre de fusion** : `ct/dev5-r3` contient `ct/dev3-r3` (avance rapide) ; l'avertissement
+   suppose l'en-tête `GED-Champs-Ignores` de dev3.
+3. **Autres listes** : les référentiels (types, index, plans, étiquettes, groupes, règles), la
+   liste des documents et « Mes workflows » gardent un sélecteur 10/25/50 et une taille propre
+   à l'écran ; le serveur leur sert déjà 50 par défaut et 200 au plus. Harmonisation possible avec
+   `core/pagination.ts`, hors de ma tâche de ce tour.
+4. **Date de dépôt** : bornes au jour UTC, comme `deposeDu` / `deposeAu` existants ; un dépôt à
+   0 h 30 heure du Maroc (UTC+1) tombe la veille. Écart commun aux trois recherches, à trancher
+   (fuseau de MMED) si qa2 le relève.
+5. **ANO-F-027** : le membre se voit proposer tous les dossiers non « de passage » de l'espace
+   d'échange ; le serveur exige en plus Déposer sur la destination, qu'il revérifie.
