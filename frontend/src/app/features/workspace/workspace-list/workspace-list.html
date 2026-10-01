@@ -44,7 +44,7 @@
         }
         @if (view() === 'table') {
           <app-selection-toggle #selToggle (change)="basculerSelection($event)"></app-selection-toggle>
-        <app-column-picker [titre]="ECRAN" [colonnes]="COLONNES"
+        <app-column-picker [titre]="ECRAN" [colonnes]="colonnesProposees()"
                              (visibles)="colonnesVisibles.set($event)"></app-column-picker>
         }
         <button mat-icon-button (click)="load()" matTooltip="Rafraîchir" aria-label="Rafraîchir">

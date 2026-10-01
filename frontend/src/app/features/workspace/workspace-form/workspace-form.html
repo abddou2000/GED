@@ -29,17 +29,20 @@
 
     <p class="section">Rattachement et accès</p>
     <div class="grille">
-      <mat-form-field appearance="outline">
-        <mat-label>Règle de workflow</mat-label>
-        <!-- Facultative (§12.8) : sans règle, le dossier suit celle de ses
-             ancêtres ; la règle d'un type de document l'emporte. -->
-        <mat-select formControlName="workflowId">
-          <mat-option [value]="null">Héritée du dossier parent</mat-option>
-          @for (wf of workflows(); track wf.id) {
-            <mat-option [value]="wf.id">{{ wf.name }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      @if (workflowActif()) {
+        <mat-form-field appearance="outline" class="champ-workflow">
+          <mat-label>Règle de workflow</mat-label>
+          <!-- Facultative (§12.8) : sans règle, le dossier suit celle de ses
+               ancêtres ; la règle d'un type de document l'emporte. Masquée
+               quand le module workflow est désactivé (T-088). -->
+          <mat-select formControlName="workflowId">
+            <mat-option [value]="null">Héritée du dossier parent</mat-option>
+            @for (wf of workflows(); track wf.id) {
+              <mat-option [value]="wf.id">{{ wf.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
 
       <mat-form-field appearance="outline">
         <mat-label>Utilisateur Propriétaire</mat-label>

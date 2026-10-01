@@ -18,6 +18,7 @@ import { CycleDossier } from '../../cycle-de-vie/cycle-dossier/cycle-dossier';
 import { DossierSimpleForm } from '../dossier-simple-form/dossier-simple-form';
 import { DocumentUpload, DonneesDepot } from '../../document/document-upload/document-upload';
 import { AuthService } from '../../../core/auth.service';
+import { ModulesService } from '../../../core/modules.service';
 
 /**
  * Fiche d'un espace de travail — reprend la page « Overview » de l'application
@@ -44,6 +45,9 @@ export class WorkspaceDetail implements OnInit {
   private confirm = inject(ConfirmService);
   private notify = inject(NotifyService);
   private auth = inject(AuthService);
+  private modules = inject(ModulesService);
+  /** Le circuit de validation relève du module workflow (T-088). */
+  readonly workflowActif = () => this.modules.actif('workflow');
 
   /** Arborescence reçue au chargement : les dossiers de l'espace d'échange en viennent (ANO-F-016). */
   private arbre: TreeNode[] = [];

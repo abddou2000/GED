@@ -1,4 +1,5 @@
 import { AuthService } from '../../../core/auth.service';
+import { ModulesService } from '../../../core/modules.service';
 import { animate, style, transition, trigger } from '@angular/animations';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
@@ -88,6 +89,7 @@ export class WorkspaceList implements OnInit {
     if (!actif) this.selection.clear();
   }
   protected auth = inject(AuthService);
+  private modules = inject(ModulesService);
   private service = inject(WorkspaceService);
   private dialog = inject(MatDialog);
   private confirm = inject(ConfirmService);
@@ -125,6 +127,10 @@ export class WorkspaceList implements OnInit {
     { cle: 'status', libelle: 'Statut' },
     { cle: 'actions', libelle: 'Actions', toujours: true },
   ];
+  /** Colonnes proposées : « Circuit » relève du module workflow (T-088) et
+   *  disparaît, du tableau comme du sélecteur, quand il est désactivé. */
+  readonly colonnesProposees = computed(() =>
+    this.COLONNES.filter(c => c.cle !== 'workflow' || this.modules.actif('workflow')));
   /** Colonnes réellement rendues, pilotées par le sélecteur de colonnes. */
   colonnesVisibles = signal<string[]>(['select', 'id', 'code', 'name', 'parent', 'workflow', 'description', 'owner', 'status', 'actions']);
 

@@ -50,7 +50,9 @@
           <dd><span class="pill" [class]="statutLibelle(w.status).cls"><span class="dot"></span>{{ statutLibelle(w.status).label }}</span></dd>
         </div>
         <div><dt>Propriétaire</dt><dd>{{ w.owner?.label || '—' }}</dd></div>
-        <div><dt>Circuit de validation</dt><dd>{{ w.workflow?.label || '—' }}</dd></div>
+        @if (workflowActif()) {
+          <div class="circuit"><dt>Circuit de validation</dt><dd>{{ w.workflow?.label || '—' }}</dd></div>
+        }
         <div><dt>Dossier parent</dt>
           <dd>
             @if (w.parent) { <a [routerLink]="['/espaces-de-travail', w.parent.id]">{{ w.parent.label }}</a> }

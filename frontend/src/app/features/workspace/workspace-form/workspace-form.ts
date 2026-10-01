@@ -9,6 +9,7 @@ import { WorkspaceService } from '../workspace.service';
 import { SelectOption, WorkSpace, WorkSpaceRequest } from '../workspace.model';
 import { EmployeService, Employe } from '../../../core/employe.service';
 import { WorkflowService } from '../../workflow/workflow.service';
+import { ModulesService } from '../../../core/modules.service';
 import { Workflow } from '../../workflow/workflow.model';
 
 interface DialogData {
@@ -31,6 +32,11 @@ export class WorkspaceForm implements OnInit {
   private service = inject(WorkspaceService);
   private employeService = inject(EmployeService);
   private workflowService = inject(WorkflowService);
+  private modules = inject(ModulesService);
+
+  /** La règle de workflow du dossier relève du module workflow (T-088) :
+   *  champ masqué quand il est désactivé ; la valeur enregistrée est gardée. */
+  workflowActif = () => this.modules.actif('workflow');
   private ref = inject(MatDialogRef<WorkspaceForm>);
   data = inject<DialogData>(MAT_DIALOG_DATA);
 
@@ -60,7 +66,12 @@ export class WorkspaceForm implements OnInit {
 
   ngOnInit(): void {
     this.employeService.listApprovers().subscribe(l => this.employes.set(l));
-    this.workflowService.list(0, 1000, '').subscribe(p => this.workflows.set(p.content));
+    // Module désactivé : ses routes répondent 404, rien à demander (T-088).
+    this.modules.charger().subscribe(() => {
+      if (this.workflowActif()) {
+        this.workflowService.list(0, 1000, '').subscribe(p => this.workflows.set(p.content));
+      }
+    });
     this.service.forSelect().subscribe(list => {
       // à l'édition, on ne peut pas se choisir soi-même comme parent
       const selfId = this.data.workspace?.id;
