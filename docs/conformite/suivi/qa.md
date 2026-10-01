@@ -2,6 +2,14 @@
 
 ## Lot en cours
 
+Vague 10 (tour 3, `ct/qa-r3` depuis `ff20f21`) : revérification des onze anomalies corrigées au tour 2
+(ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002,
+ANO-E10-006, ANO-E7-006 : **toutes vérifiées**) ; T-034 (reprises d'un PDF corrompu), réserve IPv6 de T-006
+(NGINX réel 13/13), T-104 (index d'expression, copie peuplée de 100 000 documents), T-035 (reprise à blanc
+simulée : flux courant servi d'abord), T-038, T-062. Deux anomalies nouvelles : ANO-E7-007 (majeure, dev1 :
+`meta_date` PARALLEL SAFE avec bloc EXCEPTION → recherche par date de métadonnée en 500 sur un plan parallèle) et
+ANO-E10-009 (mineure, dev2 : `test-nginx-ipv6.sh` sort en code 1 sans IPv6). `RESULTATS-VAGUE-10.md`.
+
 Vague 9 (tour 2, `ct/qa-r2` depuis `08c710c`) : revérification des six anomalies corrigées au tour 1
 (ANO-E7-004, ANO-E7-005, ANO-E8-004, ANO-E10-003, ANO-E10-004, ANO-E10-005 : **toutes vérifiées**),
 recette des lignes livrées au tour 1 (T-055/D15, T-025, T-059, T-060, T-064, T-035, P-14, T-070, T-087,
@@ -26,10 +34,11 @@ contrat §5.3.1, E10/E11 sur papier.
 |---|---|---|
 | Ligne de base | `docs/conformite/recette/LIGNE-DE-BASE.md` | 143 tests (H2, avant les vagues) |
 | Plan de recette E0–E11 | `docs/conformite/recette/PLAN-DE-RECETTE.md` | D1–D14 intégrées |
-| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-9.md` | 257 → 360 → 443 → 534 → 552 → 586 → 594 tests verts ; vague 8 : 597 tests, 4 échecs de référence + 1 d'environnement ; vague 9 : 630 tests, 0 échec |
-| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 31 vérifiées (vague 9 : ANO-E7-004, ANO-E7-005, ANO-E8-004, ANO-E10-003, ANO-E10-004, ANO-E10-005) ; ouvertes : ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008 (majeures), ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006, ANO-E7-006 (mineures) |
+| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-10.md` | 257 → 360 → 443 → 534 → 552 → 586 → 594 tests verts ; vague 8 : 597 tests, 4 échecs de référence + 1 d'environnement ; vague 9 : 630 tests, 0 échec ; vague 10 : 661 tests, 0 échec, 0 erreur, 0 ignoré (109 classes, 4 min 30 s) |
+| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 42 vérifiées (vague 10 : ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006, ANO-E7-006) ; ouvertes : ANO-E7-007 (majeure, dev1), ANO-E10-009 (mineure, dev2) |
 | E10 exploitation (vague 8) | `recette/e10/` : `verifier-nginx-reel.sh` (NGINX réel, 10/11), `verifier-front-nginx.sh` (23/23), `verifier-annuaire-bascule.sh` + `AnnuaireAutonome.java` (P-02, P-04), `verifier-modules.sh` (T-088, 5/6), `RecetteExploitation.java` (10/11), `RecetteComplementsV8.java` (7 OK, 1 AVERT), `RecetteRotationJournaux.java` (11/11), `sbom-et-licences-hors-ligne.sh`, `banc-ocr-reduit.sh` | voir `RESULTATS-VAGUE-8.md` |
 | E10 sauvegarde et déploiement | `recette/e10-sauvegarde/` : `recette-t073-p13.sh` (33 OK / 3 ÉCHEC), `recette-t092.sh` (tour 2 : 12/12), `recette-ano-e8-004.sh` (tour 2 : 4/4, retour arrière sur copie peuplée), sur PostgreSQL jetable | portables Linux et Git Bash |
+| Tour 3 (vague 10) | `recette/e10/verifier-index-expression.sh` (T-104, nouveau : 5 OK, 2 ÉCHEC = ANO-E7-007, 1 AVERT) ; scripts adaptés : `sbom-et-licences-hors-ligne.sh` (10/10), `verifier-nginx-reel.sh` (13/13), `verifier-annuaire-bascule.sh` (6/6), `recette-t073-p13.sh` (40 OK, 2 AVERT) | voir `RESULTATS-VAGUE-10.md` |
 | Tour 2 (vague 9) | `recette/e10/RecetteTour2.java` (E7-004, E7-005, T-059, D15 : 13 OK, 1 ÉCHEC = ANO-E7-006), `verifier-executables.sh` (28/28), `verifier-renvois-tests.sh` (37/37) | voir `RESULTATS-VAGUE-9.md` |
 | E4 | `recette/e4/` : `verifier-journal.sh` (12/12), `verifier-scellement.sh` (6/6), `RecetteAudit.java` (29/29) | critère de sortie atteint |
 | E7 modèle | `recette/e7/RecetteModele.java` | 17/17 |
@@ -74,13 +83,16 @@ Non conforme : 4.2.2 montée sur base peuplée (ANO-E1-006), D8 création de rè
 
 ## Ce qui reste
 
-- Tour 3 : revérifier les corrections du tour 2 (ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-002,
-  ANO-E10-006 à 008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E7-006) avec les scripts cités.
-- T-035 : flux courant pendant une reprise, à rejouer à la reprise à blanc de la Phase 7.
-- Rejouer P-10, P-16 et ANO-E11-002 en UAT ; T-070 avec la clé NVD en CI ; P-05 (`SEQUENCES.md`).
+- Tour 4 : revérifier ANO-E7-007 (`verifier-index-expression.sh` sur une copie de 100 000 documents, puis
+  `POST /documents/recherche` avec un critère date large) et ANO-E10-009 (`test-nginx-ipv6.sh; echo $?` sans IPv6).
+- T-035 : reprise réelle depuis MySQL (volume ~150 000 documents) à la reprise à blanc de la Phase 7 ; le
+  mécanisme est éprouvé sur 80 versions (vague 10).
+- Rejouer P-10, P-16 et ANO-E11-002 en UAT ; T-070 avec la clé NVD en CI ; P-05 (note du flux 4 de
+  `SEQUENCES.md`, toujours à corriger à `ff20f21`) ; P-08 (champs inconnus : à concilier dans le contrat).
 - T-079 : cas « ligne scellée modifiée » détecté par la tâche planifiée (non rejoué en vague 8).
-- UAT : AD réel (LDAPS, délai de connexion), signatures ClamAV officielles, certificat MMED, systemd
-  réel, archivage WAL et PITR, rollback sur copie UAT.
+- T-088 : `deploiement/uat/demontrer-deploiement.sh` à paramétrer (hôte et port) ou à rejouer en UAT.
+- UAT : AD réel (LDAPS, bascule, attributs d'échéance du compte de service), signatures ClamAV officielles,
+  certificat MMED et IPv6 éventuel, systemd réel, archivage WAL et PITR, rollback sur copie UAT, blackbox_exporter.
 
 ## Vérifié uniquement par simulateur ou non vérifiable sur ce poste
 

@@ -41,7 +41,8 @@ fi
 node - "$(natif "$T/bom-back.json")" "$(natif "$T/dependances-runtime.txt")" > "$T/comparaison-maven.txt" <<'JS'
 const fs = require('fs');
 const bom = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-const sbom = new Set(bom.components.map(c => `${c.group}:${c.name}:${c.version}`));
+// Composants hors gestionnaire (pkg:generic : Tesseract et modèles, ANO-E0-002) : absents de la résolution Maven par nature.
+const sbom = new Set(bom.components.filter(c => !(c.purl || '').startsWith('pkg:generic/')).map(c => `${c.group}:${c.name}:${c.version}`));
 const liste = new Set(fs.readFileSync(process.argv[3], 'utf8').split(/\r?\n/)
   .map(l => l.trim().match(/^([^:\s]+):([^:]+):[^:]+(?::[^:]+)?:([^:]+):(compile|runtime)/))
   .filter(Boolean).map(m => `${m[1]}:${m[2]}:${m[3]}`));
@@ -81,6 +82,11 @@ console.log(`TOTAL composants=${bom.components.length} sans_version=${sansVersio
 for (const [k, n] of Object.entries(parLicence).sort((a, b) => b[1] - a[1])) console.log(`LICENCE ${n}\t${k}`);
 const t = bom.components.filter(c => /tesseract|tessdata/i.test(c.name + ' ' + (c.group || '')));
 console.log('TESSERACT_DANS_SBOM ' + t.length);
+// T-085 : le moteur ET les quatre modèles livrés (fra, ara, eng, osd), avec version et empreinte pour les modèles.
+const attendus = ['tesseract', 'tessdata-fra', 'tessdata-ara', 'tessdata-eng', 'tessdata-osd'];
+const manquants = attendus.filter(n => !t.some(c => c.name === n && c.version));
+const sansEmpreinte = t.filter(c => c.name.startsWith('tessdata') && !(c.hashes || []).some(h => h.alg === 'SHA-256'));
+console.log('TESSERACT_MANQUANTS ' + (manquants.join(',') || 'aucun') + ' SANS_EMPREINTE ' + sansEmpreinte.length);
 JS
   tot=$(grep '^TOTAL' "$T/$f-licences.txt")
   if grep -q 'sans_version=0 sans_licence=0' <<<"$tot"; then
@@ -89,16 +95,22 @@ JS
     resultat "T-085.$f" AVERT "composants sans version ou sans licence" "$tot"
   fi
   tess=$(grep '^TESSERACT_DANS_SBOM' "$T/$f-licences.txt" | cut -d' ' -f2)
-  [[ "$f" == bom-back ]] && { [[ "$tess" -gt 0 ]] && resultat T-085.tesseract-sbom OK "Tesseract présent dans le SBOM" "" \
+  manq=$(grep '^TESSERACT_MANQUANTS' "$T/$f-licences.txt")
+  [[ "$f" == bom-back ]] && { [[ "$tess" -gt 0 && "$manq" == "TESSERACT_MANQUANTS aucun SANS_EMPREINTE 0" ]] && resultat T-085.tesseract-sbom OK "Tesseract et modèles fra, ara, eng, osd présents dans le SBOM (version, empreinte SHA-256)" "$manq" \
       || resultat T-085.tesseract-sbom AVERT "Tesseract et modèles absents du SBOM CycloneDX (tracés seulement dans docs/DEPENDANCES.md)" ""; }
 done
 
 # --- 4. Contrôle des licences (P-19) sur une copie -------------------------------------
 controle() {  # controle <nom> <bom-back> <bom-front> : code de sortie du --verifier sur une copie
   local R="$T/registre-$1"; rm -rf "$R"; mkdir -p "$R/outils" "$R/backend/target" "$R/frontend/dist" "$R/docs"
-  cp "$DEPOT_RACINE/outils/registre-dependances.mjs" "$R/outils/"; cp "$DEPOT_RACINE/docs/DEPENDANCES.md" "$R/docs/"
+  # Tous les modules de outils/ : registre-dependances.mjs importe composants-hors-gestionnaire.mjs (tour 2).
+  cp "$DEPOT_RACINE"/outils/*.mjs "$R/outils/"; cp "$DEPOT_RACINE/docs/DEPENDANCES.md" "$R/docs/"
+  ln -s "$DEPOT_RACINE/backend/tessdata" "$R/backend/tessdata"   # modèles lus par le registre (empreintes)
   cp "$2" "$R/backend/target/bom.json"; cp "$3" "$R/frontend/dist/bom.json"
   node "$(natif "$R/outils/registre-dependances.mjs")" --verifier > "$R/sortie.txt" 2>&1; echo $?
+}
+refus() {  # refus <nom> <code> <motif> : vrai si le contrôle échoue (1) EN CITANT le composant injecté
+  [[ "$2" == 1 ]] && grep -q -- "$3" "$T/registre-$1/sortie.txt" && ! grep -q 'ERR_MODULE_NOT_FOUND' "$T/registre-$1/sortie.txt"
 }
 injecter() {  # injecter <source> <cible> <group> <name> <licenceSPDX>
   node - "$(natif "$1")" "$(natif "$2")" "$3" "$4" "$5" <<'JS'
@@ -118,21 +130,21 @@ if [[ -f "$T/bom-back.json" && -f "$T/bom-front.json" ]]; then
     || resultat P-19.nominal AVERT "--verifier échoue sur les SBOM actuels (code $c)" "$(tr '\n' ' ' < "$T/registre-nominal/sortie.txt" | cut -c1-300)"
   injecter "$T/bom-back.json" "$T/bom-back-gpl.json" com.exemple.recette bibliotheque-gpl GPL-3.0-only
   c=$(controle gpl-maven "$T/bom-back-gpl.json" "$T/bom-front.json")
-  [[ "$c" == 1 ]] && resultat P-19.gpl-maven OK "composant Maven GPL-3.0-only non arbitré : contrôle en échec (code 1)" "$(grep -m1 'error' "$T/registre-gpl-maven/sortie.txt" | cut -c1-200)" \
+  refus gpl-maven "$c" bibliotheque-gpl && resultat P-19.gpl-maven OK "composant Maven GPL-3.0-only non arbitré : contrôle en échec (code 1)" "$(grep -m1 'error' "$T/registre-gpl-maven/sortie.txt" | cut -c1-200)" \
     || resultat P-19.gpl-maven ECHEC "composant GPL-3.0-only accepté (code $c)" ""
   injecter "$T/bom-front.json" "$T/bom-front-agpl.json" "" paquet-agpl AGPL-3.0-only
   c=$(controle agpl-npm "$T/bom-back.json" "$T/bom-front-agpl.json")
-  [[ "$c" == 1 ]] && resultat P-19.agpl-npm OK "paquet npm AGPL-3.0-only non arbitré : contrôle en échec (code 1)" "" \
+  refus agpl-npm "$c" paquet-agpl && resultat P-19.agpl-npm OK "paquet npm AGPL-3.0-only non arbitré : contrôle en échec (code 1)" "" \
     || resultat P-19.agpl-npm ECHEC "paquet AGPL-3.0-only accepté (code $c)" ""
   # GPL sous un groupe déjà arbitré : le préfixe « org.verapdf: » force MPL-2.0 pour tout le groupe.
   injecter "$T/bom-back.json" "$T/bom-back-verapdf-gpl.json" org.verapdf composant-gpl-seul GPL-3.0-only
   c=$(controle verapdf-gpl "$T/bom-back-verapdf-gpl.json" "$T/bom-front.json")
-  [[ "$c" == 1 ]] && resultat P-19.groupe-arbitre OK "GPL-3.0-only seul dans le groupe org.verapdf : refusé" "" \
+  refus verapdf-gpl "$c" composant-gpl-seul && resultat P-19.groupe-arbitre OK "GPL-3.0-only seul dans le groupe org.verapdf : refusé" "" \
     || resultat P-19.groupe-arbitre AVERT "GPL-3.0-only seul dans le groupe org.verapdf : ACCEPTÉ (code $c) — l'arbitrage par groupe écrase la licence déclarée" ""
   # Composant GPL arbitré par clé exacte (mysql-connector-j, arbitrage « risque réel, ne pas livrer »).
   injecter "$T/bom-back.json" "$T/bom-back-mysql.json" com.mysql mysql-connector-j GPL-2.0-with-universal-foss-exception
   c=$(controle mysql "$T/bom-back-mysql.json" "$T/bom-front.json")
-  [[ "$c" == 1 ]] && resultat P-19.arbitre-risque OK "mysql-connector-j (GPL) refusé" "" \
+  refus mysql "$c" mysql-connector-j && resultat P-19.arbitre-risque OK "mysql-connector-j (GPL) refusé" "" \
     || resultat P-19.arbitre-risque AVERT "mysql-connector-j (GPL, arbitrage « ne pas livrer en production ») ACCEPTÉ par le contrôle (code $c)" ""
 fi
 bilan "T-085 / P-19 SBOM et licences"
