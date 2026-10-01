@@ -8,7 +8,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { forkJoin } from 'rxjs';
 import { WorkspaceService } from '../workspace.service';
-import { TreeNode, WorkSpace } from '../workspace.model';
+import { TreeNode, WorkSpace, dossiersDeLEspace } from '../workspace.model';
 import { WorkspaceForm } from '../workspace-form/workspace-form';
 import { DocumentService, messageErreurTelechargement } from '../../document/document.service';
 import { DocumentItem } from '../../document/document.model';
@@ -205,24 +205,8 @@ export class WorkspaceDetail implements OnInit {
    * document (D12, ANO-F-016).
    */
   dossiersDeLEspace(): { id: string; name: string }[] {
-    const racine = this.chemin()[0];
-    const trouve = (noeuds: TreeNode[]): TreeNode | null => {
-      for (const n of noeuds) {
-        if (n.id === racine?.id) return n;
-        const t = trouve(n.children ?? []);
-        if (t) return t;
-      }
-      return null;
-    };
-    const depart = racine ? trouve(this.arbre) : null;
-    const liste: { id: string; name: string }[] = [];
-    const parcourir = (n: TreeNode, prefixe: string) => {
-      const nom = prefixe ? `${prefixe} / ${n.name}` : n.name;
-      if (!n.passage) liste.push({ id: n.id, name: nom });
-      for (const e of n.children ?? []) parcourir(e, nom);
-    };
-    if (depart) parcourir(depart, '');
-    return liste;
+    const id = this.id();
+    return id == null ? [] : dossiersDeLEspace(this.arbre, id);
   }
 
   /** Dépôt dans ce dossier d'un espace d'échange, avec choix du dossier cible (ANO-F-016). */

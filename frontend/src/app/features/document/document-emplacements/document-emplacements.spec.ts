@@ -100,4 +100,49 @@ describe('DocumentEmplacements', () => {
     expect(fige.nativeElement.querySelector('button.deplacer')).toBeNull();
     expect(fige.nativeElement.querySelector('button.rattacher')).toBeNull();
   });
+
+  /* ANO-F-027 : ranger dans l'espace d'échange avec la seule permission Déposer (D12). */
+
+  const MEMBRE = ['CONSULTER', 'DEPOSER'];
+
+  /** Arbre : un espace d'échange (w1, dossiers w4, w5 ; w6 de passage) et un espace métier (w2, w3). */
+  const ARBRE = [
+    { id: 'w1', name: 'Partage', status: 'ACTIF', parentId: null, children: [
+      { id: 'w4', name: 'Contrats', status: 'ACTIF', parentId: 'w1', children: [
+        { id: 'w5', name: '2026', status: 'ACTIF', parentId: 'w4', children: [] },
+      ] },
+      { id: 'w6', name: 'Réservé', status: null, parentId: 'w1', passage: true, children: [] },
+    ] },
+    { id: 'w2', name: 'Comptabilité', status: 'ACTIF', parentId: null, children: [
+      { id: 'w3', name: 'Archives 2026', status: 'ACTIF', parentId: 'w2', children: [] },
+    ] },
+  ];
+
+  it("membre d'un espace d'échange (Déposer) : « Déplacer » vers les seuls dossiers de cet espace", async () => {
+    const f = await ouvrir(doc({ workspace: { id: 'w4', label: 'Contrats' }, permissions: MEMBRE, rattachements: [] }));
+    serveur.expectOne(`${API_BASE}/workspaces/w4`).flush({ id: 'w4', name: 'Contrats', usageEspace: 'ECHANGE' });
+    serveur.expectOne(`${API_BASE}/workspaces/tree`).flush(ARBRE);
+    f.detectChanges();
+
+    const options = Array.from((f.nativeElement.querySelector('select[name="destination"]') as HTMLSelectElement).options)
+      .map(o => o.textContent?.trim());
+    // Ni le dossier actuel, ni un nœud de passage, ni un dossier d'un autre espace.
+    expect(options).toEqual(['Déplacer vers…', 'Partage', 'Partage / Contrats / 2026']);
+    // Sans Modifier : ni rattachement.
+    expect(f.nativeElement.querySelector('button.rattacher')).toBeNull();
+
+    choisir(f, 'destination', 'Partage / Contrats / 2026');
+    (f.nativeElement.querySelector('button.deplacer') as HTMLButtonElement).click();
+    const req = serveur.expectOne(r => r.method === 'PATCH' && r.url === `${API_BASE}/documents/d1/emplacement`);
+    expect(req.request.body).toEqual({ noeudId: 'w5' });
+    req.flush(doc({ workspace: { id: 'w5', label: '2026' }, permissions: MEMBRE }));
+  });
+
+  it("Déposer dans un espace métier : pas de « Déplacer » (le serveur exige Déplacer)", async () => {
+    const f = await ouvrir(doc({ workspace: { id: 'w3', label: 'Archives 2026' }, permissions: MEMBRE }));
+    serveur.expectOne(`${API_BASE}/workspaces/w3`).flush({ id: 'w3', name: 'Archives 2026', usageEspace: 'METIER' });
+    serveur.expectNone(`${API_BASE}/workspaces/tree`);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('button.deplacer')).toBeNull();
+  });
 });
