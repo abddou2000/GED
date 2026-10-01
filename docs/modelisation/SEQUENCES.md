@@ -1,26 +1,38 @@
 # Diagrammes de séquence des flux principaux (P-05, DAT §4.5)
 
-Cinq flux : dépôt en deux temps, OCR asynchrone, recherche filtrée par les
-droits, appel délégué d'une application, archivage. Les noms sont ceux des
-classes du code (voir `CLASSES.md`) ; les tables, ceux du schéma
-(`SCHEMA-BASE.md`). À tenir à jour à chaque changement de flux :
-`SequencesDocumenteesTest` fait échouer la suite si une classe citée ici
-disparaît ou change de nom.
+Six flux : dépôt en deux temps, OCR asynchrone, recherche filtrée par les
+droits (contrat d'API), recherche par index (écran), appel délégué d'une
+application, archivage. Les noms sont ceux des classes du code (voir
+`CLASSES.md`) ; les tables, ceux du schéma (`SCHEMA-BASE.md`) ; les codes
+d'erreur, ceux que l'API renvoie. À tenir à jour à chaque changement de flux :
+`SequencesDocumenteesTest` fait échouer la suite si une classe ou un code
+d'erreur cité ici disparaît ou change de nom, ou si le document annonce
+comme futur ce que le code fait déjà.
 
-Relu contre le code le 30/09/2026 (intégration `71bdc1d`) : chaîne des filtres
-complétée (modules métier, journalisation) ; dépôt complété (source du dépôt
-T-040, modèle documentaire §12.7, circuit de validation §12.8, dossier archivé) ;
-OCR précisé (bail prolongé par page, reprise et échec définitif) ; recherche
-complétée (canal, archives, échéance dépassée T-112) ; délégation : garde des
-règles de workflow (D8) et décision D15 à venir.
+Relu contre le code le 01/10/2026 (intégration `ff20f21`, après le tour 2) :
+
+- dépôt : emplacement choisi dans un espace d'échange (D12, ANO-F-016),
+  désignation du déposant d'un document Confidentiel, aucun circuit quand le
+  module workflow est inactif (ANO-E10-008) ;
+- OCR : tout échec suit la politique de reprise, fichier corrompu compris
+  (T-034), file servie par priorité ;
+- recherche du contrat d'API : critères traduits en SQL (R32, plus de passage
+  par `IndexationService`), ensemble classé et total plafonnés, critères
+  imposés du §4.4.3 (date du document, confidentialité, déposant),
+  paramètre inconnu refusé (`PARAMETRE_INCONNU`) ;
+- recherche par index : flux nouveau (§4 ci-dessous, ANO-F-010) ;
+- délégation : D15 livrée (T-055), bascule d'un contrôleur de domaine muet
+  sur le suivant (ANO-E2-002), annuaire injoignable = 503 ;
+- archivage : empreinte recalculée avant la conversion (§6.1.4).
 
 Filtres communs à toute requête d'API (ordre d'exécution, `FilterRegistrationBean`) :
 `FiltreContexteRequete` (traceId, adresse de confiance) → filtre des modules
 métier (`ConfigurationModules` : 404 `MODULE_INACTIF` avant toute authentification
 si le module de la route est désactivé, T-088) → chaîne de sécurité (`FiltreCleApi`
 pour une clé d'API, `FiltreJwt` sinon) → `FiltreUtilisateurJournalisation`
-(identité dans le MDC) → `FiltreConventionsApi` (64 Ko, pagination) →
-`FiltreIdempotence` (créations) → contrôleur.
+(identité dans le MDC) → `FiltreConventionsApi` (64 Ko, pagination, plafond
+de taille des fichiers : 413 `FICHIER_TROP_VOLUMINEUX`) → `FiltreIdempotence`
+(créations) → contrôleur.
 
 ## 1. Dépôt en deux temps (§12.11, §5.3.1 `POST /documents`)
 
@@ -35,27 +47,38 @@ sequenceDiagram
   participant O as SourceDepot
   participant K as ControleFichiers + clamd
   participant X as StockageChiffre
-  participant P as AccessPredicate
+  participant P as ControleAcces
   participant W as ServiceCircuits
   participant I as IndexationAuDepot
   participant B as PostgreSQL
   participant A as AuditService
-  C->>F: POST /api/v1/documents (multipart : file, metadonnees) + Idempotency-Key
+  C->>F: POST /api/v1/documents (multipart : file, metadonnees ; typeDocumentId, noeudId facultatif) + Idempotency-Key
   F->>B: réserver idempotence_cle (EN_COURS)
   F->>D: requête
-  D->>D: lire les métadonnées (MetadonneesDepot, 64 Ko)
+  D->>D: lire et valider les métadonnées (MetadonneesDepot, 64 Ko), écrites au temps 2 seulement
   rect rgb(235, 242, 250)
   Note over S,B: Temps 1 : transaction courte, tout ce qui peut échouer est contrôlé avant d'écrire le fichier
-  D->>S: upload(fichier, type, métadonnées, objet, date du document)
-  S->>P: exiger DEPOSER sur l'emplacement du type (404 / 403)
+  D->>S: upload(fichier, type, objet, date du document, emplacement)
+  S->>S: emplacement : dossier du type, ou noeudId du même espace d'échange (D12), sinon 422 EMPLACEMENT_HORS_ESPACE_ECHANGE
+  S->>P: exiger DEPOSER sur cet emplacement (404 / 403)
   S->>S: type vivant, dossier archivé : 409 DOSSIER_ARCHIVE
   S->>M: appliquerAuDepot : version du plan, valeurs par défaut, objet, date (§12.7)
   S->>K: taille, type réel (Tika), liste blanche, antivirus (échec fermé)
   K->>X: écrire le fichier chiffré (AES-256-GCM, cle_fichier)
   S->>O: courante() : canal, application, déposant, dépôt délégué (T-040)
   S->>B: INSERT document (statut_indexation provisoire), version_document n° 1 courante
-  S->>W: ouvrirAuDepot : règle applicable figée dans la transaction (§12.8)
-  S->>B: INSERT ocr_job (si texte à extraire)
+  opt confidentialité CONFIDENTIEL
+    S->>B: désigner le déposant (document_confidentiel_designe)
+  end
+  S->>W: ouvrirAuDepot (§12.8)
+  alt aucune règle applicable
+    W->>W: document actif, sans circuit
+  else règle applicable, module workflow inactif (T-088, ANO-E10-008)
+    W->>W: document actif, sans circuit, avertissement au journal technique
+  else règle applicable
+    W->>B: circuit figé dans la transaction, document inactif jusqu'à la validation
+  end
+  S->>B: INSERT ocr_job (EnfilageOcr, si texte à extraire)
   S->>A: événement DocumentDepose → DOCUMENT_DEPOSE (déposant, application, empreinte), même transaction
   end
   rect rgb(240, 248, 240)
@@ -84,7 +107,8 @@ sequenceDiagram
   participant A as AuditService
   loop tant que la file n'est pas vide
     W->>Q: reserver(1, bail)
-    Q->>B: UPDATE ocr_job … WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED LIMIT 1)
+    Q->>B: bail expiré et tentatives épuisées : OCR_ECHEC (DELAI_DEPASSE)
+    Q->>B: UPDATE ocr_job … WHERE id IN (SELECT … ORDER BY priorite, depose_le FOR UPDATE SKIP LOCKED LIMIT 1)
     Q-->>W: job (document, version, cle_fichier, langue)
     W->>S: ouvrir(fichier) : déchiffrement en flux
     W->>E: extraire(contenu, type, langue ara+fra)
@@ -99,11 +123,11 @@ sequenceDiagram
     alt succès
       W->>R: transaction : indexer (document_texte, tsvector)
       W->>Q: terminer (même transaction, refus = annulation)
-      W->>A: événement ContenuIndexe → CONTENU_INDEXE (délai dépôt → disponibilité)
-      W->>W: MetriquesOcr : délai mesuré contre l'objectif (24 h, D6)
-    else échec transitoire
-      W->>Q: echouer : reprise programmée (3 tentatives : 1, 5 puis 30 min)
-    else échec définitif (fichier corrompu, tentatives épuisées)
+      W->>A: événement ContenuIndexe → CONTENU_INDEXE (délai dépôt → disponibilité), même transaction
+      W->>W: après validation, MetriquesOcr : délai mesuré contre l'objectif (24 h, D6)
+    else échec, quel qu'en soit le motif (fichier corrompu compris, T-034), reprise possible
+      W->>Q: echouer : EN_ATTENTE_OCR, reprise programmée (PolitiqueReprise : 1, 5 puis 30 min), motif conservé
+    else échec, reprises épuisées (quatrième exécution)
       W->>Q: echouer : OCR_ECHEC
       W->>A: événement OcrEnEchec → OCR_ECHEC (document « non interrogeable »)
     end
@@ -117,61 +141,120 @@ sequenceDiagram
   autonumber
   participant C as Client
   participant K as ContratApiController / ServiceContratApi
-  participant I as IndexationService
-  participant P as AccessPredicate
+  participant Q as CriteresMetadonnees, CriteresDocument, CriteresIndexSql
+  participant P as PredicatDroits (AccessPredicate)
   participant R as SearchIndexerPostgres
   participant B as PostgreSQL
-  C->>K: POST /api/v1/recherches {texte, criteres, noeudId, typeDocumentId, canal, deposeDu, deposeAu, archives, echeanceDepassee, page, taille}
-  opt critères d'index
-    K->>I: rechercher(critères)
-    I->>P: spécification « documents consultables » (droits à la source)
-    I->>B: documents candidats et valeurs d'index
-    I-->>K: identifiants retenus
-  end
+  C->>K: POST /api/v1/recherches {texte, criteres, noeudId, typeDocumentId, canal, deposeDu, deposeAu, archives, echeanceDepassee, dateDocumentDu, dateDocumentAu, confidentialite, deposantUtilisateurId, tri, page, taille}
+  K->>K: champ inconnu du corps : 400 PARAMETRE_INCONNU (ChampsInconnusRefuses)
+  K->>Q: fragments SQL combinés en ET : nœud (principal ou rattachement), type, canal, dates de dépôt, archives, échéance (T-112), date du document, confidentialité, déposant (§4.4.3), critères d'index
   alt texte présent
-    K->>R: rechercher(texte, filtres CriteresMetadonnees : nœud, type, canal, dates, archives, échéance, page, taille)
-    R->>P: prédicat SQL des droits (emplacements, confidentialité)
-    R->>B: websearch_to_tsquery, ts_rank_cd, ts_headline, LIMIT / OFFSET, total sur le périmètre
-    R-->>K: page de résultats avec extraits en segments
+    K->>R: rechercher(texte, fragments, tri, page, taille)
+    R->>P: prédicat SQL des droits (emplacements, rattachements, confidentialité)
+    R->>B: correspondances autorisées (websearch_to_tsquery, droits et critères avant classement), bornées à 5 000 candidats (R32)
+    R->>B: ts_rank (pertinence) ou tri demandé, LIMIT / OFFSET, total exact jusqu'au plafond
+    R->>B: ts_headline sur les seules lignes de la page
+    R-->>K: page de résultats avec extraits en segments, total plafonné (« plus de N »)
   else critères seuls
-    K->>K: bornes de dépôt, tri en liste blanche, pagination
+    K->>P: prédicat SQL des droits
+    K->>B: count(*) puis page (tri en liste blanche, date du document par défaut, LIMIT / OFFSET)
   end
   K-->>C: {resultats, total, page, taille} (total limité au périmètre autorisé)
 ```
 
-## 4. Appel d'une application pour le compte d'un utilisateur (§5.4, §5.5)
+## 4. Recherche par index (écran « Rechercher par index », §12.7, §4.4.3, ANO-F-010)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as Utilisateur (écran #/recherche-par-index)
+  participant IC as IndexationController
+  participant DC as DocumentController
+  participant RM as RechercheMetadonnees
+  participant P as AccessPredicate
+  participant CD as CriteresDocument
+  participant S as DocumentService
+  participant B as PostgreSQL
+  U->>IC: GET /api/v1/indexation/criteres
+  IC-->>U: index cochés « recherche » (code, nature, valeurs d'une liste)
+  U->>DC: POST /api/v1/documents/recherche?sortBy&sortDir {texte, typeDocumentId, noeudId, criteres[code, valeur | de, a], statutConservation, echeanceDepassee, dateDocumentDu, dateDocumentAu, confidentialite, deposantUtilisateurId, page, size}
+  DC->>DC: champ inconnu du corps : 400 PARAMETRE_INCONNU (ChampsInconnusRefuses)
+  DC->>RM: rechercher(requête, tri)
+  RM->>RM: tri en liste blanche (dateDocument par défaut, name, createdAt), sinon 400
+  RM->>P: predicatSql(CONSULTER) : périmètre de l'utilisateur, confidentialité comprise
+  RM->>RM: type, nœud (principal ou rattachement), nom ou objet « contient », conservation, échéance
+  RM->>CD: date du document, confidentialité, déposant (identité, à défaut employé auteur du dépôt)
+  loop chaque critère d'index (ET)
+    RM->>B: index_def par code (index inconnu : 400)
+    alt date ou nombre
+      RM->>RM: bornes meta_date / meta_nombre (index d'expression)
+    else liste ou booléen
+      RM->>RM: metadonnees @> {code: valeur} (index GIN)
+    else texte
+      RM->>RM: meta_texte « contient », insensible à la casse
+    end
+  end
+  RM->>B: count(*) sur le périmètre, puis identifiants de la page (ORDER BY tri, id ; LIMIT / OFFSET)
+  RM->>S: pageDe(documents de la page) : fiches, état OCR
+  RM-->>DC: page {content, total, page, size, totalPages}
+  DC-->>U: 200, résultats triés et paginés côté serveur
+```
+
+## 5. Appel d'une application pour le compte d'un utilisateur (§5.4, §5.5)
 
 ```mermaid
 sequenceDiagram
   autonumber
   participant App as Application cliente
   participant F as FiltreCleApi
-  participant Q as QuotasCleApi
+  participant Q as AuthentificationCleApi / QuotasCleApi
   participant D as ResolveurDelegationAnnuaire
-  participant L as Annuaire (LDAPS)
+  participant E as EtatCompteEnCache / EtatCompteAnnuaireLdap
+  participant K as ControleursAnnuaire
+  participant L as Annuaire (contrôleurs de domaine, LDAPS)
   participant P as AccessPredicate
   participant H as SourceHabilitationsApplications
   participant Svc as Service métier
   participant A as AuditService
   App->>F: requête + X-API-Key + X-On-Behalf-Of: identifiant
-  F->>F: format, empreinte SHA-256 (temps constant), environnement, révocation, expiration
-  F->>F: application active, adresse source autorisée
-  F->>Q: consommer (600 / min, 100 000 / jour) — sinon 429 + Retry-After
-  F->>D: clé autorisée à déléguer ? adresses déclarées ?
-  D->>D: identité GED connue ?
+  F->>Q: verifier(clé, adresse source)
+  Q->>Q: format, empreinte SHA-256 (temps constant), environnement, révocation, expiration
+  Q->>Q: application active, adresse source autorisée
+  Q->>Q: consommer (600 / min, 100 000 / jour) — sinon 429 + Retry-After
+  Q-->>F: application authentifiée (refus : 401 / 403 / 429, CLE_API_REFUSEE ou QUOTA_DEPASSE au journal)
+  F->>F: clé autorisée à déléguer ? sinon 403 DELEGATION_NON_AUTORISEE
+  F->>D: resoudre(application, identifiant)
+  D->>D: adresses déclarées pour l'application ? sinon 403 DELEGATION_SANS_ADRESSES
+  D->>D: identité GED connue (identifiant ou objectGUID) ?
   opt identité jamais connectée
-    D->>L: rechercher par identifiant (compte de service)
+    D->>K: rechercher par identifiant ou objectGUID (AnnuaireLdap, compte de service, même bascule)
+    D->>D: absente de l'annuaire, identifiant mal formé ou provisionnement désactivé : 422
   end
-  D->>L: userAccountControl seul, par objectGUID (D15 ; cache court ≤ 5 min)
-  alt compte désactivé (bit 0x2), absent ou état illisible
+  D->>E: etat(objectGUID) (D15 : userAccountControl seul)
+  alt état en cache (≤ 5 min, jamais un état illisible)
+    E-->>D: état mémorisé
+  else
+    E->>K: executer(lecture par objectGUID)
+    loop contrôleurs : disponibles dans l'ordre déclaré, puis ceux mis à l'écart
+      K->>L: recherche (délais de connexion et de lecture)
+      alt réponse (résultat ou refus)
+        L-->>K: userAccountControl
+      else injoignable ou muet (délai de lecture dépassé)
+        K->>K: contrôleur mis à l'écart 30 s, bascule sur le suivant (ANO-E2-002)
+      end
+    end
+    K-->>E: résultat, ou AnnuaireIndisponibleException si aucun ne répond
+  end
+  alt aucun contrôleur ne répond
+    D-->>F: 503 ANNUAIRE_INDISPONIBLE (jamais d'exécution au nom d'une identité non vérifiée)
+  else compte désactivé (bit 0x2), absent ou état illisible
     D-->>F: 422 IDENTITE_DELEGUEE_INVALIDE (motif au journal CLE_API_REFUSEE, rien provisionné)
   else compte actif
     opt identité jamais connectée
       D->>D: provisionner sans rôle (cache_annuaire)
     end
+    D-->>F: principal de l'utilisateur délégué
   end
-  D-->>F: principal de l'utilisateur délégué (sinon 422 IDENTITE_DELEGUEE_INVALIDE)
-  Note over D,L: Décision D15 (30/09) : lecture de userAccountControl, compte désactivé = 422, à livrer par dev1 (T-055)
   F->>F: contexte de sécurité : sujet = la clé, principal = l'utilisateur
   F->>Svc: requête
   Note over F,Svc: Avant le contrôleur, GardeDroitsRequetes (intercepteur), règles de workflow (D8) : GardeReglesWorkflowApplications exige délégation, portée WORKFLOW_PILOTAGE et GERER_REFERENTIELS de la personne
@@ -185,10 +268,11 @@ sequenceDiagram
   Svc->>A: événement : acteur_utilisateur_id = délégué, acteur_application_id = application
   Svc-->>F: réponse
   F->>A: APPEL_API (méthode, chemin, statut, clé)
+  F->>F: métrique ged_api_appels_total (application, clé, résultat, statut)
   F-->>App: réponse
 ```
 
-## 5. Archivage d'un document (§12.6, §6.1.4)
+## 6. Archivage d'un document (§12.6, §6.1.4)
 
 ```mermaid
 sequenceDiagram
@@ -197,6 +281,7 @@ sequenceDiagram
   participant C as CycleDeVieController
   participant S as ArchivageService
   participant P as ControleAcces
+  participant I as VerificationIntegrite
   participant V as CopiesConservation
   participant LO as LibreOffice (processus)
   participant VP as veraPDF
@@ -208,7 +293,8 @@ sequenceDiagram
   S->>P: exiger ARCHIVER sur le document (404 / 403)
   rect rgb(245, 245, 235)
   Note over S,X: Phase 1 hors transaction : contrôles et conversion
-  S->>S: document ni verrouillé, ni en corbeille, ni déjà archivé
+  S->>S: document ni verrouillé, ni en corbeille, ni déjà archivé (409)
+  S->>I: empreinte SHA-256 de la version courante recalculée (divergente : refus INTEGRITE_COMPROMISE)
   S->>V: produire(version courante)
   V->>X: déchiffrer la version (tmpfs)
   alt déjà PDF/A valide
@@ -221,9 +307,15 @@ sequenceDiagram
   end
   rect rgb(235, 242, 250)
   Note over S,B: Phase 2 dans une transaction : état revérifié sous verrou
-  S->>B: document verrouillé (SELECT … FOR UPDATE), statut ARCHIVE, copie_conservation
-  S->>A: DOCUMENT_ARCHIVE (empreinte, copie VALIDE ou ANOMALIE)
+  S->>B: document verrouillé (SELECT … FOR UPDATE), même version courante, copie_conservation
+  S->>B: ArchivageDocuments : statut ARCHIVE, date, archiviste
+  S->>A: événement DocumentArchive → DOCUMENT_ARCHIVE (empreinte, copie VALIDE ou ANOMALIE)
   end
   S-->>C: issue ARCHIVE (copie validée) ou ANOMALIE (original seul, à reprendre)
-  C-->>U: 200
+  C-->>U: 200 (état changé entre les deux phases : copie détruite, 409)
 ```
+
+Restauration depuis la corbeille d'un document dont le dossier a été archivé
+entre-temps (ANO-E7-006) : `DocumentService` l'archive par le même traitement,
+dans la transaction de la restauration (archiviste du dossier) ; s'il ne peut
+pas l'être, la restauration est refusée (409 `DOSSIER_ARCHIVE`).

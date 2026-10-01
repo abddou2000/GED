@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
@@ -21,12 +22,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  * P-05 : les diagrammes de séquence ({@code docs/modelisation/SEQUENCES.md})
  * nomment les classes du code. Une classe renommée ou supprimée sans mise à
  * jour du document ferait mentir la modélisation remise à MMED : la suite
- * échoue alors ici.
+ * échoue alors ici. De même pour un code d'erreur, un statut ou une action
+ * d'audit cités (MOT_EN_MAJUSCULES) : ils doivent figurer dans le code. Et le
+ * document décrit le code tel qu'il est : aucune mention « à livrer » ou
+ * « à venir » (la note du flux de délégation annonçait encore D15 « à livrer »
+ * alors qu'elle l'était, recette qa vague 9).
  */
 class SequencesDocumenteesTest {
 
     private static final Path DOCUMENT = Path.of("../docs/modelisation/SEQUENCES.md");
     private static final Path SOURCES = Path.of("src/main/java");
+    private static final Path RESSOURCES = Path.of("src/main/resources");
 
     /**
      * Noms qui ne sont pas des classes de l'application : produits externes, classe
@@ -37,6 +43,13 @@ class SequencesDocumenteesTest {
 
     /** Mot en casse chameau d'au moins deux segments : forme d'un nom de classe. */
     private static final Pattern NOM_DE_CLASSE = Pattern.compile("\\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\\b");
+
+    /** Code d'erreur, statut ou action d'audit : majuscules, au moins un souligné. */
+    private static final Pattern CODE = Pattern.compile("\\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\\b");
+
+    /** Mentions d'un état futur, sans place dans un document qui décrit le code livré. */
+    private static final List<String> MENTIONS_FUTURES = List.of("à livrer", "à venir", "à implémenter",
+            "pas encore livré");
 
     @Test
     @DisplayName("Chaque classe citée dans les diagrammes de séquence existe dans le code")
@@ -57,5 +70,37 @@ class SequencesDocumenteesTest {
         List<String> absentes = citees.stream().filter(c -> !classes.contains(c)).toList();
         assertThat(citees).as("le document doit citer les classes des flux").hasSizeGreaterThan(20);
         assertThat(absentes).as("classes citées dans SEQUENCES.md et absentes du code").isEmpty();
+    }
+
+    @Test
+    @DisplayName("Chaque code d'erreur, statut ou action cité dans les diagrammes figure dans le code")
+    void codesCitesExistants() throws IOException {
+        Set<String> citees = new TreeSet<>();
+        Matcher m = CODE.matcher(Files.readString(DOCUMENT, StandardCharsets.UTF_8));
+        while (m.find()) citees.add(m.group());
+
+        StringBuilder code = new StringBuilder();
+        for (Path racine : List.of(SOURCES, RESSOURCES)) {
+            try (Stream<Path> fichiers = Files.walk(racine)) {
+                for (Path f : fichiers.filter(Files::isRegularFile)
+                        .filter(p -> p.toString().matches(".*\\.(java|ya?ml|xml|sql)$")).toList()) {
+                    code.append(Files.readString(f, StandardCharsets.UTF_8)).append('\n');
+                }
+            }
+        }
+        String tout = code.toString();
+        List<String> absents = citees.stream()
+                .filter(c -> !Pattern.compile("\\b" + Pattern.quote(c) + "\\b").matcher(tout).find())
+                .toList();
+        assertThat(citees).as("le document doit citer les codes d'erreur des flux").hasSizeGreaterThan(10);
+        assertThat(absents).as("codes cités dans SEQUENCES.md et absents du code").isEmpty();
+    }
+
+    @Test
+    @DisplayName("Le document décrit le code livré : aucune mention « à livrer » ou « à venir »")
+    void aucuneMentionFuture() throws IOException {
+        String texte = Files.readString(DOCUMENT, StandardCharsets.UTF_8).toLowerCase(Locale.ROOT);
+        List<String> trouvees = MENTIONS_FUTURES.stream().filter(texte::contains).toList();
+        assertThat(trouvees).as("mentions d'un état futur dans SEQUENCES.md").isEmpty();
     }
 }

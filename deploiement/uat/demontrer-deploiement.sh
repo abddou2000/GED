@@ -27,7 +27,7 @@
 #    E7  --retour-arriere --base après le retour automatique : changeset de v3 défait
 #    E8  module métier désactivé puis réactivé (--desactiver-module / --activer-module)
 #
-#  Prérequis : root ; PostgreSQL local (compte postgres pour créer la base) ;
+#  Prérequis : root ; un serveur PostgreSQL (voir « Serveur PostgreSQL ») ;
 #  nginx, openssl, jq, zip, unzip, curl, pg_dump ; rôles ged_owner et ged_app
 #  (backend/scripts/db/creer-roles.sql) et leurs mots de passe dans
 #  DB_OWNER_PASSWORD et DB_PASSWORD ; JAR et paquet front construits
@@ -35,8 +35,30 @@
 #  Variables : DEMO_BASE (défaut ged_dev2_deploiement, suffixe _deploiement
 #  obligatoire : la base est SUPPRIMÉE puis recréée), SERVER_PORT,
 #  GED_MANAGEMENT_PORT, GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT, DEMO_PORT_HTTPS,
-#  DEMO_PORT_HTTP, DEMO_REPERTOIRE, GARDER=1 (service, NGINX et répertoire
-#  laissés en place).
+#  DEMO_PORT_HTTP, DEMO_REPERTOIRE, GARDER=1 (service, NGINX, instance jetable
+#  et répertoire laissés en place).
+#
+#  Serveur PostgreSQL (observation O3 de la recette vague 9) : rien n'est écrit
+#  en dur, tout se règle par variables.
+#    DEMO_PGHOST, DEMO_PGPORT    serveur vu par la GED, Liquibase, la sauvegarde
+#                                et les contrôles (TCP ; défaut localhost:5432) ;
+#    DEMO_PGSUPER                rôle superutilisateur qui supprime et recrée la
+#                                base (défaut postgres) ;
+#    DEMO_PGSUPER_COMPTE         compte système sous lequel psql se connecte en
+#                                superutilisateur (défaut postgres : socket et
+#                                authentification peer ; vide = compte courant,
+#                                mot de passe éventuel par PGPASSWORD ou PGPASSFILE) ;
+#    DEMO_PGSUPER_HOTE           hôte ou répertoire de socket de cette connexion
+#                                (défaut : socket par défaut de psql) ;
+#    DEMO_CREER_ROLES=oui        crée ged_owner et ged_app s'ils manquent, avec
+#                                DB_OWNER_PASSWORD et DB_PASSWORD (creer-roles.sql).
+#  DEMO_INSTANCE_JETABLE=oui : le script crée lui-même une instance PostgreSQL
+#  jetable (initdb, compte postgres) dans $DEMO_REPERTOIRE/pg, à l'écoute sur
+#  127.0.0.1:DEMO_PGPORT (défaut SERVER_PORT + 700) et sur une socket de ce
+#  répertoire ; superutilisateur par la socket (trust), ged_owner et ged_app
+#  par TCP avec mot de passe (scram-sha-256), rôles créés ; arrêtée et
+#  supprimée en fin de démonstration. L'instance partagée n'est alors jamais
+#  touchée.
 #  Code de sortie : 0 si tous les contrôles passent. Durée : 10 à 15 min.
 # =====================================================================
 set -uo pipefail
@@ -50,6 +72,19 @@ P_LDAP="${GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT:-33392}"
 P_HTTPS="${DEMO_PORT_HTTPS:-$((P_BACK + 500))}"
 P_HTTP="${DEMO_PORT_HTTP:-$((P_BACK + 600))}"
 URL="https://localhost:$P_HTTPS"
+JETABLE="${DEMO_INSTANCE_JETABLE:-non}"
+PG_HOTE="${DEMO_PGHOST:-localhost}"
+if [[ "$JETABLE" == oui ]]; then
+    PG_HOTE=127.0.0.1
+    PG_PORT="${DEMO_PGPORT:-$((P_BACK + 700))}"
+    PG_SUPER=postgres; PG_SUPER_COMPTE=postgres; PG_SUPER_HOTE="$D/pg"; CREER_ROLES=oui
+else
+    PG_PORT="${DEMO_PGPORT:-5432}"
+    PG_SUPER="${DEMO_PGSUPER:-postgres}"
+    PG_SUPER_COMPTE="${DEMO_PGSUPER_COMPTE-postgres}"
+    PG_SUPER_HOTE="${DEMO_PGSUPER_HOTE:-}"
+    CREER_ROLES="${DEMO_CREER_ROLES:-non}"
+fi
 
 [[ "$(id -u)" == 0 ]] || { echo "à lancer en root (comme deployer.sh)"; exit 2; }
 [[ "$BASE" == *_deploiement ]] || { echo "DEMO_BASE doit finir par _deploiement (base supprimée puis recréée)"; exit 2; }
@@ -71,10 +106,25 @@ export SYSTEMCTL_SIMULE_CHEMINS="/etc/ged=$D/etc-ged:/opt/ged=$D/opt-ged:/var/li
 nettoyer() {
     [[ -x "$D/bin/systemctl" ]] && "$D/bin/systemctl" stop ged-backend > /dev/null 2>&1
     [[ -f "$D/nginx/nginx.pid" ]] && nginx -p "$D/nginx/" -c "$D/nginx/nginx.conf" -s stop > /dev/null 2>&1
+    [[ -f "$D/pg/data/postmaster.pid" ]] && runuser -u postgres -- "$(pg_bin)/pg_ctl" -D "$D/pg/data" -m fast -w stop > /dev/null 2>&1
     sleep 1
 }
+pg_bin() { # binaires du serveur (initdb, pg_ctl) : PG_BIN, pg_config, ou la version la plus récente installée
+    if [[ -n "${PG_BIN:-}" ]]; then echo "$PG_BIN"
+    elif command -v pg_config > /dev/null 2>&1 && [[ -x "$(pg_config --bindir)/initdb" ]]; then pg_config --bindir
+    else ls -d /usr/lib/postgresql/*/bin 2> /dev/null | sort -V | tail -1; fi
+}
+psql_super() { # psql en superutilisateur sur la base postgres du serveur choisi
+    local cnx=(-X -q -v ON_ERROR_STOP=1 -p "$PG_PORT" -U "$PG_SUPER" -d postgres)
+    [[ -n "$PG_SUPER_HOTE" ]] && cnx+=(-h "$PG_SUPER_HOTE")
+    if [[ -n "$PG_SUPER_COMPTE" ]]; then runuser -u "$PG_SUPER_COMPTE" -- psql "${cnx[@]}" "$@"
+    else psql "${cnx[@]}" "$@"; fi
+}
 fin() {
-    if [[ -n "${GARDER:-}" ]]; then echo "conservé : $D (service et NGINX en marche)"; else nettoyer; fi
+    if [[ -n "${GARDER:-}" ]]; then echo "conservé : $D (service, NGINX et instance jetable en marche)"; return; fi
+    nettoyer
+    # Instance jetable supprimée ; journaux et sauvegardes restent dans $D pour examen.
+    if [[ "$JETABLE" == oui ]]; then rm -rf "$D/pg"; fi
 }
 nettoyer; rm -rf "$D"
 trap fin EXIT
@@ -88,11 +138,28 @@ etape "Préparation"
 id ged > /dev/null 2>&1 || useradd --system --home-dir /opt/ged --no-create-home --shell /usr/sbin/nologin ged
 chown ged:ged "$D/var-lib-ged" "$D/var-log-ged"
 
-runuser -u postgres -- psql -X -q -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS $BASE WITH (FORCE)" \
-    && runuser -u postgres -- psql -X -q -v ON_ERROR_STOP=1 -v base="$BASE" \
-        -f "$DEPOT/backend/scripts/db/preparer-base.sql" > "$D/travail/base.log" 2>&1 \
+if [[ "$JETABLE" == oui ]]; then
+    PGB="$(pg_bin)"
+    [[ -x "$PGB/initdb" ]] || { echo "initdb introuvable (PG_BIN)"; exit 2; }
+    mkdir -p "$D/pg" && chown postgres: "$D/pg" && chmod 0700 "$D/pg"
+    runuser -u postgres -- "$PGB/initdb" -D "$D/pg/data" -U postgres --auth-local=trust \
+        --auth-host=scram-sha-256 -E UTF8 --no-instructions > "$D/travail/initdb.log" 2>&1 \
+        && runuser -u postgres -- "$PGB/pg_ctl" -D "$D/pg/data" -l "$D/pg/pg.log" -w \
+            -o "-p $PG_PORT -k $D/pg -c listen_addresses=127.0.0.1" start > /dev/null \
+        || { echo "instance jetable non démarrée (voir $D/travail/initdb.log et $D/pg/pg.log)"; exit 2; }
+    echo "  instance PostgreSQL jetable : 127.0.0.1:$PG_PORT, socket $D/pg ($("$PGB/postgres" --version))"
+fi
+if [[ "$CREER_ROLES" == oui ]]; then
+    roles=(-v mdp_owner="$DB_OWNER_PASSWORD" -v mdp_app="$DB_PASSWORD")
+    [[ -n "${DB_READONLY_PASSWORD:-}" ]] && roles+=(-v mdp_readonly="$DB_READONLY_PASSWORD")
+    psql_super "${roles[@]}" -f "$DEPOT/backend/scripts/db/creer-roles.sql" > "$D/travail/roles.log" 2>&1 \
+        || { echo "rôles non créés sur $PG_HOTE:$PG_PORT (voir $D/travail/roles.log)"; exit 2; }
+    echo "  rôles ged_owner, ged_app, ged_readonly présents (creer-roles.sql)"
+fi
+psql_super -c "DROP DATABASE IF EXISTS $BASE WITH (FORCE)" \
+    && psql_super -v base="$BASE" -f "$DEPOT/backend/scripts/db/preparer-base.sql" > "$D/travail/base.log" 2>&1 \
     || { echo "base $BASE non préparée (voir $D/travail/base.log)"; exit 2; }
-echo "  base $BASE recréée (preparer-base.sql)"
+echo "  base $BASE recréée sur $PG_HOTE:$PG_PORT (preparer-base.sql, superutilisateur $PG_SUPER)"
 
 JAR_SOURCE="$(ls "$DEPOT"/backend/target/ged-*.jar 2> /dev/null | head -1)"
 if [[ "${DEMO_CONSTRUIRE:-non}" == oui || -z "$JAR_SOURCE" ]]; then
@@ -181,8 +248,8 @@ GED_MANAGEMENT_PORT=$P_MGMT
 GED_MANAGEMENT_ADRESSE=127.0.0.1
 GED_PROXYS_DE_CONFIANCE=127.0.0.1
 GED_ORIGINES=$URL
-DB_HOST=localhost
-DB_PORT=5432
+DB_HOST=$PG_HOTE
+DB_PORT=$PG_PORT
 DB_NAME=$BASE
 DB_SCHEMA=ged
 DB_USER=ged_app
@@ -204,8 +271,8 @@ GED_URL_APPLICATION=$URL
 ENV
 mkdir -p "$D/var-lib-ged/audit-scellements" && chown -R ged:ged "$D/var-lib-ged"
 cat > "$C/liquibase.env" <<ENV
-DB_HOST=localhost
-DB_PORT=5432
+DB_HOST=$PG_HOTE
+DB_PORT=$PG_PORT
 DB_NAME=$BASE
 DB_SCHEMA=ged
 DB_SCHEMA_LIQUIBASE=ged_liquibase
@@ -222,10 +289,10 @@ GED_FUMEE_MDP=dev-local-only
 GED_FUMEE_TYPE_DOCUMENT=00000000-0000-0000-0000-000000000000
 LIQUIBASE_CMD=$D/liquibase/liquibase
 ENV
-echo "localhost:5432:$BASE:ged_owner:$DB_OWNER_PASSWORD" > "$C/sauvegarde.pgpass"
+echo "$PG_HOTE:$PG_PORT:$BASE:ged_owner:$DB_OWNER_PASSWORD" > "$C/sauvegarde.pgpass"
 cat > "$C/sauvegarde.env" <<ENV
-PGHOST=localhost
-PGPORT=5432
+PGHOST=$PG_HOTE
+PGPORT=$PG_PORT
 PGDATABASE=$BASE
 PGUSER=ged_owner
 PGPASSFILE=$C/sauvegarde.pgpass
@@ -276,7 +343,7 @@ deployer() { # journal, arguments de deployer.sh
     echo "  \$ deployer.sh $*"
     "$DEPLOYER" "$@" > "$D/journal/$j.log" 2>&1
 }
-psql_base() { PGPASSWORD="$DB_OWNER_PASSWORD" psql -X -h localhost -U ged_owner -d "$BASE" -Atc "$1" 2> /dev/null; }
+psql_base() { PGPASSWORD="$DB_OWNER_PASSWORD" psql -X -h "$PG_HOTE" -p "$PG_PORT" -U ged_owner -d "$BASE" -Atc "$1" 2> /dev/null; }
 table_existe() { [[ "$(psql_base "select to_regclass('ged.demonstration_deploiement') is not null")" == t ]]; }
 colonne_v3() { [[ "$(psql_base "select count(*) from information_schema.columns where table_schema='ged' and table_name='demonstration_deploiement' and column_name='ajout_v3'")" == 1 ]]; }
 jar_actif() { [[ "$(readlink -f "$D/opt-ged/backend/ged.jar")" == "$(cat "$D/etat/versions/$1")" ]]; }
