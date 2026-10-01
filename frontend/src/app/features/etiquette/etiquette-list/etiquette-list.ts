@@ -54,7 +54,7 @@ export class EtiquetteList implements OnInit {
 
   dataSource = new MatTableDataSource<Etiquette>([]);
   selection = new SelectionModel<Etiquette>(true, []);
-  archiveView = signal(false);
+  corbeilleView = signal(false);
   loading = signal(true);
   /**
    * Clé des préférences de colonnes. Reprend le nom d'écran de l'application
@@ -85,12 +85,12 @@ export class EtiquetteList implements OnInit {
     this.triChamp() ? this.triSens() : '');
 
   ngOnInit(): void {
-    // L'archive vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
+    // La corbeille vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
     // ailleurs ramenait aux étiquettes actives sans prévenir.
     this.route.queryParamMap.subscribe(q => {
-      const archive = q.get('trashed') === '1';
-      if (archive !== this.archiveView()) {
-        this.archiveView.set(archive);
+      const corbeille = q.get('trashed') === '1';
+      if (corbeille !== this.corbeilleView()) {
+        this.corbeilleView.set(corbeille);
         this.pageCourante.set(0);
       }
       this.load();
@@ -102,7 +102,7 @@ export class EtiquetteList implements OnInit {
   load(): void {
     this.selection.clear();
     this.loading.set(true);
-    const source = this.archiveView() ? this.service.trashed : this.service.list;
+    const source = this.corbeilleView() ? this.service.trashed : this.service.list;
     source.call(this.service, this.pageCourante(), this.taillePage(), this.recherche(),
                 this.triChamp(), this.triSens()).subscribe({
       next: res => {
@@ -136,10 +136,10 @@ export class EtiquetteList implements OnInit {
     this.load();
   }
 
-  toggleArchive(): void {
+  basculerCorbeille(): void {
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: this.archiveView() ? {} : { trashed: 1 },
+      queryParams: this.corbeilleView() ? {} : { trashed: 1 },
     });
   }
 
@@ -154,7 +154,7 @@ export class EtiquetteList implements OnInit {
   bulk(): void {
     const ids = this.selection.selected.map(e => e.id);
     if (!ids.length) return;
-    const restoring = this.archiveView();
+    const restoring = this.corbeilleView();
     this.confirm.ask({
       title: restoring ? 'Restaurer la sélection' : 'Supprimer la sélection',
       message: `Voulez-vous ${restoring ? 'restaurer' : 'supprimer'} ${ids.length} étiquette(s) ?`,

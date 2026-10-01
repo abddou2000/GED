@@ -76,7 +76,7 @@ export class WorkflowList implements OnInit {
     this.triChamp() ? this.triSens() : '');
   selection = new SelectionModel<Workflow>(true, []);
   loading = signal(true);
-  archiveView = signal(false);
+  corbeilleView = signal(false);
   fullscreen = signal(false);
 
   /** Identifiant d'écran : clé des préférences de colonnes et de pagination. */
@@ -101,12 +101,12 @@ export class WorkflowList implements OnInit {
   colonnesVisibles = signal<string[]>(['select', 'id', 'name', 'steps', 'workspaces', 'actions']);
 
   ngOnInit(): void {
-    // L'archive vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
+    // La corbeille vit dans l'URL : sans cela, recharger la page ou ouvrir le lien
     // ailleurs ramenait aux règles actives sans prévenir.
     this.route.queryParamMap.subscribe(q => {
-      const archive = q.get('trashed') === '1';
-      if (archive !== this.archiveView()) {
-        this.archiveView.set(archive);
+      const corbeille = q.get('trashed') === '1';
+      if (corbeille !== this.corbeilleView()) {
+        this.corbeilleView.set(corbeille);
         this.pageCourante.set(0);
       }
       this.load();
@@ -121,7 +121,7 @@ export class WorkflowList implements OnInit {
   load(): void {
     this.loading.set(true);
     this.selection.clear();
-    const source = this.archiveView() ? this.service.trashed : this.service.list;
+    const source = this.corbeilleView() ? this.service.trashed : this.service.list;
     source.call(this.service, this.pageCourante(), this.taillePage(), this.recherche(),
                 this.triChamp(), this.triSens()).subscribe({
       next: res => {
@@ -160,10 +160,10 @@ export class WorkflowList implements OnInit {
     this.load();
   }
 
-  toggleArchive(): void {
+  basculerCorbeille(): void {
     this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: this.archiveView() ? {} : { trashed: 1 },
+      queryParams: this.corbeilleView() ? {} : { trashed: 1 },
     });
   }
 
@@ -217,7 +217,7 @@ export class WorkflowList implements OnInit {
   bulk(): void {
     const ids = this.selection.selected.map(w => w.id);
     if (!ids.length) return;
-    const restoring = this.archiveView();
+    const restoring = this.corbeilleView();
     this.confirm.ask({
       title: restoring ? 'Restaurer la sélection' : 'Supprimer la sélection',
       message: `Voulez-vous ${restoring ? 'restaurer' : 'supprimer'} ${ids.length} élément(s) ?`,

@@ -77,20 +77,23 @@
           </span>
           <span class="lib">Plan d'indexation</span>
         </div>
-        <!-- Règle de workflow du type (§12.8) : la plus spécifique, elle
-             l'emporte sur celle des dossiers ; effet sur les dépôts futurs. -->
-        <div class="cartouche">
-          @if (gereReferentiels()) {
-            <select class="val" aria-label="Règle de workflow" [value]="t.regleWorkflow?.id ?? ''"
-                    (change)="changerRegle($any($event.target).value)">
-              <option value="">Celle des dossiers</option>
-              @for (r of regles(); track r.id) { <option [value]="r.id">{{ r.name }}</option> }
-            </select>
-          } @else {
-            <span class="val">{{ t.regleWorkflow?.label || 'Celle des dossiers' }}</span>
-          }
-          <span class="lib">Règle de workflow</span>
-        </div>
+        @if (workflowActif()) {
+          <!-- Règle de workflow du type (§12.8) : la plus spécifique, elle
+               l'emporte sur celle des dossiers ; effet sur les dépôts futurs.
+               Masquée quand le module workflow est désactivé (T-088). -->
+          <div class="cartouche c-regle-workflow">
+            @if (gereReferentiels()) {
+              <select class="val" aria-label="Règle de workflow" [value]="t.regleWorkflow?.id ?? ''"
+                      (change)="changerRegle($any($event.target).value)">
+                <option value="">Celle des dossiers</option>
+                @for (r of regles(); track r.id) { <option [value]="r.id">{{ r.name }}</option> }
+              </select>
+            } @else {
+              <span class="val">{{ t.regleWorkflow?.label || 'Celle des dossiers' }}</span>
+            }
+            <span class="lib">Règle de workflow</span>
+          </div>
+        }
         <div class="cartouche large">
           <span class="val">{{ t.description || '—' }}</span>
           <span class="lib">Description</span>

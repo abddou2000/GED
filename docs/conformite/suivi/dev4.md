@@ -86,3 +86,30 @@ ANO-F-018).
 - **T-088, restes hors de mon périmètre** : le profil (`profil.ts`) lit encore l'historique du
   workflow, et la fiche d'un type montre sa règle de workflow, même module désactivé (réponses
   404 absorbées, rien de cassé). À décider si le masquage doit aller jusque-là.
+
+## Tour 3
+
+Branche `ct/dev4-r3`, partie de `claude/inspiring-lovelace-10bg1c` (`ff20f21`). Front seul :
+aucun changement du back ni du schéma, donc aucun changeset Liquibase. Aucun champ date touché.
+
+| Id | Cause | Correctif | Preuve (test qui échoue sans le correctif) | État |
+|---|---|---|---|---|
+| Corbeille (suite d'ANO-F-023) | ANO-F-023 (dev5) n'avait renommé que la liste des documents ; les listes des index, plans d'indexation, types de document, étiquettes, règles de workflow, groupes et espaces de travail appelaient encore « Archive » la vue des éléments supprimés (`?trashed=1`), comme l'archivage (D10) | Bouton « Corbeille » (icône corbeille), retour par le nom de la liste (« Index », « Types de document »…) au lieu de « Actifs » ; état vide « La corbeille est vide » (ajouté à la liste des règles, qui affichait « Aucune règle de workflow ») ; identifiants du code alignés (`corbeilleView`, `basculerCorbeille`). L'action « Archiver / Désarchiver » de la liste des espaces (vrai archivage) est inchangée | `features/corbeille-referentiels.spec.ts` : 7 listes × (vue normale, vue corbeille) ; 14 échecs avant correctif | Fait (`07ef0d7`) |
+| T-088 (restes) | Profil et fiche d'un type ignoraient l'état du module workflow : lecture de `/workflow/historique` et `/workflow/regles` (404 `MODULE_INACTIF`), compteurs « À valider » / « Traitées », carte « Mes dernières décisions » et liens vers « Mes validations » (écran fermé), règle de workflow du type | Profil : compteurs, carte et liens masqués, historique non demandé, grille ramenée à une rangée ; fiche d'un type : règle masquée, règles non lues. Même reste trouvé sur les dossiers : formulaire d'espace (champ « Règle de workflow », lecture des règles), fiche d'un dossier (« Circuit de validation »), liste des espaces (colonne « Circuit », retirée aussi du sélecteur de colonnes). Le formulaire renvoie la règle déjà portée par le dossier | `profil/profil.spec.ts` (2), `type-document-detail.spec.ts` (+1), `workspace/workflow-masque.spec.ts` (5), `workspace-detail.spec.ts` (+1) ; 7 échecs avant correctif (les cas « module inactif », et ceux qui ciblent les nouvelles classes) | Fait (`f2fdfec`, `c3fbb52`) |
+| P-04 | Écran existant (accueil vide `accueil-vide` avec message, `roleGuard` sur toutes les routes sauf l'accueil, menu principal masqué), jamais testé. Partiel : « Mes exports » était rangé hors du bloc « avec rôle » du menu, la cloche et « Mon profil » restaient proposés (trois liens qui ramenaient à l'accueil), et la coque appelait `/modules` et `/notifications/compteur`, refusés sans rôle (403) | Ces trois entrées réservées aux comptes avec rôle ; pas d'appel à `/modules` ni au compteur des notifications sans rôle | `compte-sans-role.spec.ts` : accueil vide (message, `role="status"`, aucun appel), accueil habituel dès qu'un rôle existe, garde vers l'accueil, coque (seul lien : l'accueil ; aucun appel ; carte de compte sans « Mon profil ») ; le test de la coque échoue avant correctif (`/notifications`, `/mes-exports`) | Fait (`33ed47c`) |
+
+Résultats : `ng test` 175 tests verts (148 au départ, +27) ; `ng build` vert (avertissements de
+budget préexistants, dont `profil.scss`). Suite back complète (`mvn -B -q test`, base
+`ged_dev4_test`, `GED_MANAGEMENT_PORT` et `SERVER_PORT` retirés, aucun fichier du back modifié) :
+661 tests, 0 échec, 0 erreur (référence : 661, 0 échec).
+
+### Points pour pm (tour 3)
+- **T-088** : le masquage du module workflow couvre maintenant aussi les dossiers (formulaire,
+  fiche, liste), au-delà des deux restes signalés au tour 2 ; même cause, même traitement.
+- **P-04** : l'écran du compte sans rôle est désormais exercé par un test automatisé (rendu et
+  coque) ; la recette à l'écran avec un compte réel du simulateur reste à faire par qa.
+- **Corbeille** : aucune anomalie du registre ne porte ce reste (ANO-F-023 visait les documents) ;
+  rien n'a été changé dans les registres.
+- **Pastille des notifications et état des modules** : sans rôle, plus aucun appel ; si un rôle
+  est attribué pendant la session, ils reviennent à la reconnexion (le message de l'accueil vide
+  demande justement de se reconnecter).

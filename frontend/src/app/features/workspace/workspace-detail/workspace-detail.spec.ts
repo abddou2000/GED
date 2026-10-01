@@ -75,6 +75,16 @@ describe('WorkspaceDetail', () => {
   const present = (f: ComponentFixture<unknown>, sel: string) =>
     (f.nativeElement as HTMLElement).querySelector(sel) !== null;
 
+  it('T-088 : le circuit de validation du dossier suit le module workflow', () => {
+    identite(['CONSULTER']);
+    const w = espace({ workflow: { id: 'r1', label: 'Visa DAF' } });
+    expect((ouvrir(w).nativeElement as HTMLElement).querySelector('.circuit')?.textContent).toContain('Visa DAF');
+    inactifs.add('workflow');
+    const f = ouvrir(w);
+    expect(present(f, '.circuit')).toBe(false);
+    expect((f.nativeElement as HTMLElement).textContent).not.toContain('Circuit de validation');
+  });
+
   describe('actions selon les droits du nœud (ANO-F-018)', () => {
     it('un simple lecteur ne voit ni Modifier, ni Sous-dossier, ni Archiver le dossier, ni Supprimer', () => {
       identite(['CONSULTER']);

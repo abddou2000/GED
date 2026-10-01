@@ -112,7 +112,7 @@ describe('WorkspaceList — actions selon les permissions', () => {
     corbeille = true;
     identite(['CONSULTER']);
     let f = ouvrir('table');
-    f.componentInstance.archiveView.set(true);
+    f.componentInstance.corbeilleView.set(true);
     f.componentInstance.load();
     f.detectChanges();
     expect(actionsTableau(f)).toEqual([]);
@@ -122,7 +122,7 @@ describe('WorkspaceList — actions selon les permissions', () => {
 
     identite(['SUPPRIMER']);
     f = ouvrir('table');
-    f.componentInstance.archiveView.set(true);
+    f.componentInstance.corbeilleView.set(true);
     f.componentInstance.load();
     f.detectChanges();
     expect(actionsTableau(f)).toEqual(['Restaurer']);

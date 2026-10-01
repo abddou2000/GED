@@ -15,8 +15,9 @@
     <div class="topbar-spacer"></div>
 
     <!-- Pastille des notifications (DAT §12.9) : nombre de non lues.
-         Masquée si le module est désactivé sur l'environnement (T-088). -->
-    @if (modules.actif('notifications')) {
+         Masquée si le module est désactivé sur l'environnement (T-088), et
+         pour une identité sans rôle, à qui l'écran est fermé (P-04). -->
+    @if (!auth.sansRole() && modules.actif('notifications')) {
     <a class="cloche" routerLink="/notifications"
        [attr.aria-label]="notifications.nonLues() > 0 ? 'Notifications, ' + notifications.nonLues() + ' non lues' : 'Notifications'">
       <mat-icon svgIcon="bell"></mat-icon>
@@ -52,9 +53,12 @@
       </div>
 
       <div class="cc-actions">
-        <button mat-menu-item routerLink="/profil">
-          <mat-icon svgIcon="user"></mat-icon><span>Mon profil</span>
-        </button>
+        <!-- Sans rôle, « Mon profil » ramènerait à l'accueil (P-04). -->
+        @if (!auth.sansRole()) {
+          <button mat-menu-item routerLink="/profil">
+            <mat-icon svgIcon="user"></mat-icon><span>Mon profil</span>
+          </button>
+        }
         <button mat-menu-item class="cc-sortie" (click)="signOut()">
           <mat-icon svgIcon="close"></mat-icon><span>Se déconnecter</span>
         </button>
@@ -121,7 +125,8 @@
     </a>
     }
     }
-    @if (modules.actif('export')) {
+    <!-- Hors du bloc « avec rôle » ci-dessus : la condition est explicite (P-04). -->
+    @if (!auth.sansRole() && modules.actif('export')) {
     <a routerLink="/mes-exports" routerLinkActive="active" (click)="closeDrawer()" aria-label="Mes exports">
       <mat-icon svgIcon="download"></mat-icon><span>Mes exports</span>
     </a>
