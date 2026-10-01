@@ -574,6 +574,38 @@ est simulé (`deploiement/uat/systemctl-simule` : fichiers d'environnement,
 `User=ged`, `ExecStartPre`, `ExecStart`, arrêt par `SIGTERM` puis `SIGKILL` ; ni
 durcissement, ni redémarrage automatique).
 
+**Serveur PostgreSQL** : la base `<nom>_deploiement` est supprimée puis recréée
+en superutilisateur. Rien n'est écrit en dur (observation O3 de la recette
+vague 9) :
+
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `DEMO_PGHOST`, `DEMO_PGPORT` | serveur vu par la GED (`ged.env`), Liquibase (`liquibase.env`), la sauvegarde (`sauvegarde.env`, `.pgpass`) et les contrôles | `localhost`, `5432` |
+| `DEMO_PGSUPER` | rôle superutilisateur (suppression et création de la base, `preparer-base.sql`) | `postgres` |
+| `DEMO_PGSUPER_COMPTE` | compte système sous lequel ce `psql` tourne (authentification `peer`) ; vide = compte courant (mot de passe par `PGPASSWORD` ou `PGPASSFILE`) | `postgres` |
+| `DEMO_PGSUPER_HOTE` | hôte ou répertoire de socket de la connexion superutilisateur | socket par défaut de `psql` |
+| `DEMO_CREER_ROLES=oui` | crée `ged_owner` et `ged_app` s'ils manquent (`creer-roles.sql`, mots de passe `DB_OWNER_PASSWORD`, `DB_PASSWORD`) | non |
+| `DEMO_INSTANCE_JETABLE=oui` | le script crée sa propre instance (voir ci-dessous) ; les variables précédentes sont alors ignorées, sauf `DEMO_PGPORT` | non |
+
+Rejouer **sans toucher à l'instance partagée** (recette) :
+
+```bash
+# Instance jetable créée, utilisée puis supprimée par le script : initdb sous le
+# compte postgres dans $DEMO_REPERTOIRE/pg, écoute 127.0.0.1:$DEMO_PGPORT
+# (défaut SERVER_PORT + 700) ; superutilisateur par la socket du répertoire,
+# ged_owner et ged_app par TCP avec mot de passe (scram-sha-256).
+export DB_OWNER_PASSWORD=... DB_PASSWORD=...          # mots de passe choisis pour l'essai
+DEMO_INSTANCE_JETABLE=oui DEMO_REPERTOIRE=/tmp/ged-demo-qa SERVER_PORT=18084 \
+  GED_IDENTITE_ANNUAIRE_EMBARQUE_PORT=33394 deploiement/uat/demontrer-deploiement.sh
+
+# Ou une instance déjà démarrée par ailleurs (ici 127.0.0.1:55432, socket /tmp/pg-qa) :
+DEMO_PGHOST=127.0.0.1 DEMO_PGPORT=55432 DEMO_PGSUPER_HOTE=/tmp/pg-qa DEMO_CREER_ROLES=oui \
+  deploiement/uat/demontrer-deploiement.sh
+```
+
+Sans aucune de ces variables, le comportement est celui d'avant : serveur
+`localhost:5432`, base recréée par le compte système `postgres`.
+
 | Étape | Commande | Ce qui est contrôlé |
 |---|---|---|
 | E1 | `deployer.sh dev --jar v1 --front f1 --sans-retour-auto`, puis `--verifier` | validate, tag, update sur base vierge ; service sous le compte `ged` ; sonde ; test de fumée complet une fois le type documentaire du compte de fumée renseigné |
