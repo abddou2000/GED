@@ -5,7 +5,6 @@ import com.ipt.ged.audit.AuditService;
 import com.ipt.ged.audit.EntreeAudit;
 import com.ipt.ged.common.Limites;
 import com.ipt.ged.common.PageResponse;
-import com.ipt.ged.common.Tri;
 import com.ipt.ged.document.ContraintesDepot;
 import com.ipt.ged.fichier.controle.ControleFichiers;
 import com.ipt.ged.fichier.controle.SourceFichier;
@@ -665,8 +664,7 @@ public class IndexationService {
      */
     public PageResponse<GroupeResponse> rechercher(RechercheRequest requete) {
         int page = requete.page() == null ? 0 : Math.max(0, requete.page());
-        int taille = requete.taille() == null || requete.taille() < 1 ? Tri.TAILLE_DEFAUT
-                : Math.min(requete.taille(), Tri.TAILLE_MAX);
+        int taille = requete.tailleDemandee();
         Map<UUID, IndexField> champs = indexRepository.findBySupprimeFalseOrderByIdAsc().stream()
                 .collect(Collectors.toMap(IndexField::getId, f -> f));
         UUID grouperPar = requete.grouperPar() != null && champs.containsKey(requete.grouperPar())

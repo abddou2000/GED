@@ -1,5 +1,7 @@
 package com.ipt.ged.recherche;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -17,6 +19,15 @@ import java.util.UUID;
  *                      (affiner la recherche) ; faux : total exact.
  */
 public record PageResultats(List<Resultat> resultats, long total, int page, int taille, boolean totalPlafonne) {
+
+    /**
+     * Taille de page appliquée sous son nom du §5.3.2 ({@code size}, comme les
+     * autres pages de l'API) ; même valeur que {@code taille}, gardé (T-050).
+     */
+    @JsonProperty("size")
+    public int size() {
+        return taille;
+    }
 
     /** Page au total exact. */
     public PageResultats(List<Resultat> resultats, long total, int page, int taille) {

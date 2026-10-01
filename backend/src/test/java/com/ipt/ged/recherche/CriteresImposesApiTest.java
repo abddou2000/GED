@@ -214,6 +214,46 @@ class CriteresImposesApiTest {
     }
 
     @Test
+    @DisplayName("T-050 : page et size homogènes (alias taille) sur les quatre recherches ; 50 par défaut, 200 au plus")
+    void paginationHomogene() throws Exception {
+        // GET /recherche/plein-texte : défaut 50 (et non 20), size lu (et non ignoré), taille en alias.
+        JsonNode defaut = json(mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot))
+                .andExpect(status().isOk()));
+        assertThat(defaut.get("taille").asInt()).isEqualTo(50);
+        assertThat(defaut.get("size").asInt()).isEqualTo(50);
+        for (String nom : List.of("size", "taille")) {
+            JsonNode p = json(mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot).param(nom, "2")
+                    .param("page", "1")).andExpect(status().isOk()));
+            assertThat(p.get("size").asInt()).as(nom).isEqualTo(2);
+            assertThat(p.get("page").asInt()).as(nom).isEqualTo(1);
+            assertThat(p.get("total").asLong()).as(nom).isEqualTo(3);
+            assertThat(p.get("resultats")).as(nom).hasSize(1);
+        }
+        assertThat(json(mvc.perform(get("/api/v1/recherche/plein-texte").param("q", mot).param("size", "100000")))
+                .get("size").asInt()).isEqualTo(200);
+
+        // POST /recherches (avec et sans texte) : size accepté, taille gardé ; size l'emporte.
+        for (boolean texte : new boolean[]{false, true}) {
+            assertThat(contrat("\"size\":2", texte)).as("size, texte=" + texte).hasSize(2);
+            assertThat(contrat("\"taille\":2", texte)).as("taille, texte=" + texte).hasSize(2);
+            assertThat(contrat("\"size\":1,\"taille\":2", texte)).as("les deux, texte=" + texte).hasSize(1);
+        }
+        JsonNode contratDefaut = json(mvc.perform(post("/api/v1/recherches").contentType(APPLICATION_JSON)
+                .content("{\"typeDocumentId\":\"" + type + "\"}")).andExpect(status().isOk()));
+        assertThat(contratDefaut.get("size").asInt()).isEqualTo(50);
+
+        // POST /documents/recherche : taille accepté en alias de size.
+        assertThat(metadonnees("\"taille\":2")).hasSize(2);
+        assertThat(metadonnees("\"size\":1,\"taille\":2")).hasSize(1);
+
+        // POST /indexation/recherche : size accepté en plus de taille.
+        JsonNode index = json(mvc.perform(post("/api/v1/indexation/recherche").contentType(APPLICATION_JSON)
+                .content("{\"typeDocumentId\":\"" + type + "\",\"size\":2}")).andExpect(status().isOk())
+                .andExpect(header().doesNotExist(ChampsIgnores.ENTETE)));
+        assertThat(index.get("size").asInt()).isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("POST /indexation/recherche : paginé (taille, plafond 200), total des documents et des groupes")
     void rechercheParIndexPaginee() throws Exception {
         String parType = "\"typeDocumentId\":\"" + type + "\"";

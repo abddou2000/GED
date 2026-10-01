@@ -67,12 +67,19 @@ public class RechercheMetadonnees {
      * @param dateDocumentAu     borne haute incluse de la date du document (§4.4.3)
      * @param confidentialite    PUBLIC, PRIVE ou CONFIDENTIEL (§4.4.3), dans le périmètre autorisé
      * @param deposantUtilisateurId identité GED du déposant (§4.4.3)
+     * @param taille             alias de {@code size} (T-050), qui l'emporte si les deux sont donnés
      */
     @ChampsInconnusSignales
     public record Requete(UUID typeDocumentId, UUID noeudId, String texte, List<Critere> criteres,
                           String statutConservation, Integer page, Integer size, Boolean echeanceDepassee,
                           LocalDate dateDocumentDu, LocalDate dateDocumentAu, Confidentialite confidentialite,
-                          UUID deposantUtilisateurId) {}
+                          UUID deposantUtilisateurId, Integer taille) {
+
+        /** Taille de page retenue : {@code size}, sinon {@code taille} ; 50 par défaut, 200 au plus. */
+        public int tailleDemandee() {
+            return Tri.taillePage(size, taille);
+        }
+    }
 
     private final NamedParameterJdbcTemplate nomme;
     private final JdbcTemplate jdbc;
@@ -114,7 +121,7 @@ public class RechercheMetadonnees {
     public PageResponse<DocumentResponse> rechercher(Requete r, String sortBy, String sortDir) {
         String ordre = ordre(sortBy, sortDir);
         int page = r.page() == null ? 0 : Math.max(0, r.page());
-        int taille = r.size() == null || r.size() <= 0 ? Tri.TAILLE_DEFAUT : Math.min(r.size(), Tri.TAILLE_MAX);
+        int taille = r.tailleDemandee();
 
         MapSqlParameterSource p = new MapSqlParameterSource();
         FragmentSql perimetre = droits.predicatSql("d.id", SecurityContextHolder.getContext().getAuthentication(),

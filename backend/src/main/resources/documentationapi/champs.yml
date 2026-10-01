@@ -604,6 +604,9 @@ surcharges:
   DemandeRole.permissions: {description: "Codes des permissions du rôle.", exemple: [CONSULTER, DEPOSER]}
   ConfidentialiteVue.motif: {description: "Raison de la décision.", exemple: "Déposant du document"}
   RechercheRequest.archives: {description: "Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6).", exemple: INCLURE}
+  RechercheContratRequest.size: {description: "Taille de page (nom du §5.3.2, l'emporte sur taille) : 50 par défaut, plafonnée à 200.", exemple: 50}
+  RechercheRequest.size: {description: "Taille de page (nom du §5.3.2, l'emporte sur taille) : 50 par défaut, plafonnée à 200.", exemple: 50}
+  Requete.taille: {description: "Taille de page, alias de size (size l'emporte) : 50 par défaut, plafonnée à 200.", exemple: 50}
   RechercheContratRequest.archives: {description: "Documents archivés : INCLURE (défaut), EXCLURE ou SEULEMENT (§12.6).", exemple: INCLURE}
   RechercheContratRequest.echeanceDepassee: {description: "Vrai : seuls les documents dont l'échéance de conservation est atteinte au jour de MMED (filtre « échéance dépassée », §12.9), avec ou sans plein texte ; faux ou absent : aucun filtre.", exemple: true}
   RechercheContratRequest.criteres: {description: "Filtres sur les index (TEXTE, LISTE : valeur ; DATE, NOMBRE : de / a), combinés en ET avec le plein texte.", exemple: null}
