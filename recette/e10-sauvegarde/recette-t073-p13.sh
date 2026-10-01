@@ -339,6 +339,10 @@ fi
 # ---------------------------------------------------------------------
 info "7. Rapprochement (P-13)"
 RAPP="$SAUV/rapprocher-orphelins.sh"
+# Tour 3 (ANO-E10-007, a0c7da1) : les fichiers modifiés depuis moins de 60 min ne sont plus déplacés (RECENT).
+# Le jeu synthétique vient d'être créé : les contrôles de quarantaine passent --age-minimal-minutes 0 ;
+# P13-11 et P13-13 gardent le défaut (60 min), qui est justement la protection à éprouver.
+AGE0=(--age-minimal-minutes 0)
 QUAR="$PROD/quarantaine-orphelins"
 avant_rapp="$(empreintes_tables "$BASE" ged | md5sum | cut -d' ' -f1)"
 nb_avant="$(find "$RACINE" -name '*.enc' | wc -l)"
@@ -348,7 +352,7 @@ D_RAPP=$((SECONDS - t))
 [[ "$(find "$RACINE" -name '*.enc' | wc -l)" == "$nb_avant" && ! -d "$QUAR" ]] \
   && resultat P13-01 OK "sans --appliquer : rapport seul, aucun fichier déplacé" "$(grep -E '^(Orphelins|Manquants)' "$W/rapport-seul.txt" | tr -s ' ' | tr '\n' ';')" \
   || resultat P13-01 ECHEC "des fichiers ont bougé sans --appliquer"
-( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --appliquer --rapport "$W/rapport-applique.txt" ) > "$W/rapp-2.log" 2>&1
+( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --appliquer "${AGE0[@]}" --rapport "$W/rapport-applique.txt" ) > "$W/rapp-2.log" 2>&1
 LOT="$(ls -d "$QUAR"/*/ | head -1)"; LOT="${LOT%/}"
 orph="$( (grep '^ORPHELIN ' "$W/rapport-applique.txt" || true) | sed 's#.*/##; s/\.enc$//' | sort | tr '\n' ' ')"
 attendu_orph="$(printf '%s\n%s\n' "$POST1" "$POST2" | sort | tr '\n' ' ')"
@@ -383,7 +387,7 @@ done
   && resultat P13-07 OK "aucun fichier référencé déplacé" "$intacts fichiers intacts dont version non courante ($F1_MULTI), corbeille ($F_CORB), version archivée ($F_ARCH), copie PDF/A ($F_PDFA), archive d'export ($F_EXPORT)" \
   || resultat P13-07 ECHEC "fichiers référencés déplacés :$manque"
 # Réexécution : idempotente.
-( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --appliquer --rapport "$W/rapport-2e.txt" ) > "$W/rapp-3.log" 2>&1
+( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --appliquer "${AGE0[@]}" --rapport "$W/rapport-2e.txt" ) > "$W/rapp-3.log" 2>&1
 [[ "$(grep -c '^ORPHELIN ' "$W/rapport-2e.txt")" == 0 ]] && resultat P13-08 OK "seconde exécution : plus aucun orphelin (idempotent)"
 
 # Purge à 7 jours : l'âge est celui du lot de quarantaine.
@@ -400,15 +404,17 @@ else
 fi
 # Purge sans recontrôle en base : un fichier redevenu référencé est détruit.
 REVENU="$(nouveau_fichier "$RACINE")"
-( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --appliquer --rapport "$W/rapport-revenu.txt" ) > "$W/rapp-6.log" 2>&1
+( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --appliquer "${AGE0[@]}" --rapport "$W/rapport-revenu.txt" ) > "$W/rapp-6.log" 2>&1
 LOT2="$(ls -d "$QUAR"/*/ | head -1)"; LOT2="${LOT2%/}"
 { echo "begin;"; cle_sql "$REVENU"; echo "commit;"; } | "$PSQL" -X -q -v ON_ERROR_STOP=1 -d "$BASE" >/dev/null
 touch -d "9 days ago" "$LOT2"
 ( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --purger-apres-jours 7 --rapport "$W/rapport-revenu-2.txt" ) > "$W/rapp-7.log" 2>&1
-if [[ "$(q "$BASE" "select count(*) from ged.cle_fichier where id = '$REVENU'")" == 1 && ! -e "$LOT2/$(chemin_fichier "$REVENU")" && ! -e "$RACINE/$(chemin_fichier "$REVENU")" ]]; then
+if [[ -z "$LOT2" || ! -d "$LOT2" && ! -f "$RACINE/$(chemin_fichier "$REVENU")" ]]; then
+  resultat P13-10 ECHEC "scénario non joué : le fichier n'a pas été mis en quarantaine" "lot « $LOT2 »"
+elif [[ "$(q "$BASE" "select count(*) from ged.cle_fichier where id = '$REVENU'")" == 1 && ! -e "$RACINE/$(chemin_fichier "$REVENU")" ]]; then
   resultat P13-10 ECHEC "la purge détruit un fichier de quarantaine redevenu RÉFÉRENCÉ en base (aucun recontrôle avant suppression)" "fichier $REVENU : ligne cle_fichier présente, fichier détruit ; $(grep -c 'A_REIMPORTER' "$W/rapport-revenu-2.txt") ligne(s) A_REIMPORTER au rapport suivant"
 else
-  resultat P13-10 OK "fichier redevenu référencé épargné par la purge"
+  resultat P13-10 OK "fichier redevenu référencé remis à sa place par la purge (recontrôle en base), lot purgé" "$(grep -a -m1 -o 'Quarantaine : .*remis en place' "$W/rapp-7.log" | cut -c1-160)"
 fi
 # Fichier créé PENDANT le rapprochement (application en marche) : publication
 # du fichier puis insertion de sa clé dans une transaction encore ouverte
@@ -428,15 +434,41 @@ fi
 mkdir -p "$RACINE/zz/zz"
 MAL="$(uuid_aleatoire)"; head -c 1024 /dev/urandom > "$RACINE/zz/zz/$MAL.enc"
 set +e
-( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --appliquer --rapport "$W/rapport-malrange.txt" ) > "$W/rapp-9.log" 2>&1
+( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --appliquer "${AGE0[@]}" --rapport "$W/rapport-malrange.txt" ) > "$W/rapp-9.log" 2>&1
 code=$?
 set -e
 if [[ $code -ne 0 ]]; then
   resultat P13-12 AVERT "un .enc mal rangé fait échouer --appliquer (mv vers aa/bb recalculé), sans message explicite" "code $code ; $(grep -a -m1 -o 'mv: .*' "$W/rapp-9.log" || tail -1 "$W/rapp-9.log")"
+elif grep -q "^MAL_RANGE zz/zz/$MAL.enc$" "$W/rapport-malrange.txt" && [[ ! -f "$RACINE/zz/zz/$MAL.enc" ]]; then
+  resultat P13-12 OK "fichier mal rangé signalé MAL_RANGE et, orphelin, mis en quarantaine" "code $code"
 else
-  resultat P13-12 OK "fichier mal rangé traité" "code $code"
+  resultat P13-12 ECHEC "fichier mal rangé : ni signalé ni traité" "code $code ; $(grep -c MAL_RANGE "$W/rapport-malrange.txt") ligne(s) MAL_RANGE"
 fi
 rm -rf "$RACINE/zz"
+
+# P13-13 : orphelin récent (défaut 60 min) laissé en place et signalé RECENT.
+RECENT_F="$(nouveau_fichier "$RACINE")"
+( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --appliquer --rapport "$W/rapport-recent.txt" ) > "$W/rapp-10.log" 2>&1 || true
+[[ -f "$RACINE/$(chemin_fichier "$RECENT_F")" ]] && grep -q "^RECENT .*$RECENT_F.enc$" "$W/rapport-recent.txt" \
+  && resultat P13-13 OK "orphelin de moins de 60 min laissé en place et signalé RECENT (défaut --age-minimal-minutes 60)" "" \
+  || resultat P13-13 ECHEC "orphelin récent déplacé ou non signalé" "$(grep -c '^RECENT' "$W/rapport-recent.txt") ligne(s) RECENT"
+
+# P13-14 : application en marche (session du rôle applicatif sur la base) → --appliquer refusé.
+( "$PSQL" -X -q -U ged_app -d "$BASE" -c "select pg_sleep(10)" > "$W/session-app.log" 2>&1 ) &
+PID_APP=$!
+sleep 2
+if grep -q . "$W/session-app.log" 2>/dev/null; then
+  resultat P13-14 NA "garde « application arrêtée » : session ged_app impossible sur cette instance" "$(head -c 160 "$W/session-app.log")"
+else
+  set +e
+  ( cd "$W" && "$RAPP" --base "$BASE" --racine "$RACINE" --appliquer "${AGE0[@]}" --rapport "$W/rapport-garde.txt" ) > "$W/rapp-11.log" 2>&1
+  code=$?
+  set -e
+  [[ $code -ne 0 && -f "$RACINE/$(chemin_fichier "$RECENT_F")" ]] \
+    && resultat P13-14 OK "session ouverte par ged_app : --appliquer refusé, rien n'est déplacé (RESTAURATION.md étape 5)" "code $code ; $(grep -a -m1 -i 'refus\|tourne\|session' "$W/rapp-11.log" | cut -c1-160)" \
+    || resultat P13-14 ECHEC "rapprochement appliqué pendant qu'une session ged_app est ouverte" "code $code"
+fi
+wait "$PID_APP" 2>/dev/null || true
 
 # ---------------------------------------------------------------------
 # 8. Rétention (appliquer_retention) sur des répertoires datés simulés

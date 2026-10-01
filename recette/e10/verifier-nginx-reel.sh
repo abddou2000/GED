@@ -49,11 +49,16 @@ sed -e "s#server ged-app.marchica.local:8080;#server $hote_back;#" \
     -e "s#listen 443 ssl http2;#listen $HS ssl http2;#" -e "s#listen \[::\]:443 ssl http2;#listen [::]:$HS ssl http2;#" \
     -e "s#/etc/nginx/tls/#$T/tls/#g" -e "s#root /opt/ged/front/courant;#root $PAQUET;#" \
     -e "s#alias /etc/ged/front/config.json;#alias $T/etc/config.json;#" \
+    -e "s#/etc/nginx/ged/#$T/ged/#g" \
     -e "s#/var/log/nginx/#$T/logs/#g" "$CONF" > "$T/ged.conf"
-# Hôte sans IPv6 (noyau sans famille AF_INET6) : NGINX refuse « listen [::]:… » (errno 97).
-if [[ ! -e /proc/net/if_inet6 ]]; then
-  sed -i '/listen \[::\]:/d' "$T/ged.conf"
-  resultat N00 AVERT "Hôte sans IPv6 : les deux « listen [::]:… » de ged.conf empêchent NGINX de démarrer (errno 97) ; retirés pour l'essai" "à signaler dans EXPLOITATION.md §3 si les serveurs de MMED désactivent IPv6"
+# Tour 3 (réserve IPv6 de T-006, 4caa7a0) : ged.conf ne doit plus écouter en IPv6 que par les fichiers
+# facultatifs ecoute-ipv6-*.conf (inclus par motif depuis /etc/nginx/ged/, ici $T/ged/). Plus aucune
+# ligne n'est retirée de la configuration livrée.
+rm -rf "$T/ged"; mkdir -p "$T/ged"
+if grep -Eq '^[[:space:]]*listen[[:space:]]+\[::' "$T/ged.conf"; then
+  resultat N00 ECHEC "ged.conf écoute encore en IPv6 sans condition" "$(grep -E '^[[:space:]]*listen[[:space:]]+\[::' "$T/ged.conf" | tr '\n' ' ')"
+else
+  resultat N00 OK "ged.conf livré sans écoute IPv6 inconditionnelle (écoutes [::] dans les fichiers facultatifs ecoute-ipv6-*.conf) [2.2]" "IPv6 sur ce poste : $([[ -e /proc/net/if_inet6 ]] && echo oui || echo non)"
 fi
 diff "$CONF" "$T/ged.conf" > "$T/adaptations.diff"
 cat > "$T/nginx.conf" <<EOF
@@ -72,6 +77,22 @@ http {
 }
 EOF
 info "adaptations de ged.conf (seules les valeurs « À ADAPTER » et les ports) :"; sed 's/^/#   /' "$T/adaptations.diff"
+# Variante « IPv6 » : fichiers facultatifs installés (ports adaptés). nginx -t ouvre les sockets :
+# sur un hôte sans IPv6, la syntaxe est acceptée et l'ouverture refusée (errno 97), comme le démarrage.
+for f in ecoute-ipv6-http.conf ecoute-ipv6-https.conf; do
+  sed -e "s#listen \[::\]:80;#listen [::]:$HP;#" -e "s#listen \[::\]:443 ssl http2;#listen [::]:$HS ssl http2;#" \
+      "$DEPOT_RACINE/deploiement/nginx/$f" > "$T/ged/$f"
+done
+$N -t > "$T/nginx-t-ipv6.log" 2>&1; c6=$?
+if [[ -e /proc/net/if_inet6 ]]; then
+  [[ $c6 == 0 ]] && resultat N01b OK "nginx -t avec les écoutes IPv6 facultatives (hôte IPv6)" "$(tr '\n' ' ' < "$T/nginx-t-ipv6.log" | cut -c1-200)" \
+    || resultat N01b ECHEC "nginx -t avec les écoutes IPv6 facultatives" "$(tr '\n' ' ' < "$T/nginx-t-ipv6.log" | cut -c1-300)"
+else
+  [[ $c6 != 0 ]] && grep -q "syntax is ok" "$T/nginx-t-ipv6.log" && grep -q "(97" "$T/nginx-t-ipv6.log" \
+    && resultat N01b OK "Avec les écoutes IPv6 facultatives sur un hôte sans IPv6 : syntaxe acceptée, ouverture refusée (errno 97) — ne pas installer ces fichiers (EXPLOITATION.md §3)" "$(grep -o 'listen.*(97[^)]*)' "$T/nginx-t-ipv6.log" | head -1 | cut -c1-160)" \
+    || resultat N01b ECHEC "Écoutes IPv6 facultatives : résultat inattendu de nginx -t" "code $c6 $(tr '\n' ' ' < "$T/nginx-t-ipv6.log" | cut -c1-300)"
+fi
+rm -f "$T/ged"/ecoute-ipv6-*.conf "$T/nginx.pid"   # essai nominal : configuration livrée telle quelle
 if $N -t > "$T/nginx-t.log" 2>&1; then resultat N01 OK "nginx -t : configuration livrée acceptée par NGINX $(nginx -v 2>&1 | cut -d/ -f2)" "$(tr '\n' ' ' < "$T/nginx-t.log" | cut -c1-200)"
 else resultat N01 ECHEC "nginx -t" "$(tr '\n' ' ' < "$T/nginx-t.log" | cut -c1-300)"; bilan "NGINX réel"; exit 1; fi
 $N || fatal "démarrage de NGINX"; sleep 1
