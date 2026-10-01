@@ -97,7 +97,8 @@ Aucun changeset Liquibase : pas d'évolution de schéma.
 ## Tour 3 — T-050 (écrans et « à traiter »), puis ANO-F-025, 027, 028 (ajoutées par pm)
 
 Branche `ct/dev5-r3`, partie de `claude/inspiring-lovelace-10bg1c` à ff20f21 ; `ct/dev3-r3`
-fusionnée en avance rapide (8ad50bd : page/size homogènes, en-tête `GED-Champs-Ignores`).
+fusionnée en avance rapide (8ad50bd : page/size homogènes, en-tête `GED-Champs-Ignores`), puis
+`ct/dev1-r3` (c757f54, fusion 5d06237, sans conflit) avant de toucher la liste des espaces.
 
 | Tâche | Cause | Correctif | Preuve (échoue sans le correctif) | Commit |
 |---|---|---|---|---|
@@ -106,16 +107,19 @@ fusionnée en avance rapide (8ad50bd : page/size homogènes, en-tête `GED-Champ
 | Champs ignorés (DAT §5.3.2, P-08) | Le serveur nomme les champs inconnus ignorés dans `GED-Champs-Ignores` (dev3), aucun écran ne le lisait : un critère mal nommé passait inaperçu. | Les services de recherche rendent le corps et les champs ignorés (`observe: 'response'`) ; avertissement discret « Critère non appliqué : … » (`role=status`, noms décodés) au-dessus du total, sur les deux écrans. En-tête exposé par CORS (frontend d'une autre origine). | `recherche-plein-texte.spec.ts`, `recherche-index.spec.ts` (avertissement présent, puis absent sans en-tête), `pagination.spec.ts` (décodage) | db48ff2 |
 | ANO-F-025 | Fiche : cartouche « Échéance de conservation » en valeur brute ; `afficherValeurIndex` ne traitait que le booléen. | `formaterDate` pour la cartouche ; un index de type date lisible s'affiche jj/mm/aaaa (lecture composant par composant, sans décalage de fuseau) ; valeur illisible ou texte de même forme inchangés. | `document-detail-dates.spec.ts` (2 tests : « 01/10/2036 », « 15/11/2026 »), `indexation.model.spec.ts` | 71ee7ed |
 | ANO-F-027 | Bloc « Emplacements » : « Déplacer » réservé à la permission Déplacer, alors que le serveur accepte Déposer entre dossiers d'un même espace d'échange (D12). | Sans Déplacer mais avec Déposer : lecture de l'usage de l'espace du document (`GET /workspaces/{id}`) ; espace d'échange → « Déplacer » vers les seuls dossiers de cet espace (hors dossier actuel et nœuds de passage) ; espace métier → rien. Parcours de l'arbre mis en commun (`dossiersDeLEspace`) avec « Déposer ici ». | `document-emplacements.spec.ts` (+2 : membre en espace d'échange, destinations et PATCH ; Déposer en espace métier) | a40d37e |
+| Liste des espaces (relais dev1, famille ANO-F-018) | « Archiver/Désarchiver », « Supprimer », « Restaurer », « Créer un sous-dossier » et « Déplacer sous… » proposés à tout utilisateur ; le serveur refuse (403). | Après fusion de `ct/dev1-r3` (« Modifier » réservé à GERER_ESPACES, 90379fc) : Archiver → ARCHIVER ; Supprimer, Restaurer, action par lot → SUPPRIMER ; Déplacer sous… → DEPLACER ou gestion des espaces (racine : gestion des espaces seule) ; Créer un sous-dossier (formulaire d'administration) → gestion des espaces. | `workspace-list-actions.spec.ts` (4 tests, tableau et arborescence) | 4938ed3 |
 | ANO-F-028 | `POST /documents/recherche` n'avait pas de critère de date de dépôt ; l'écran index non plus. | Back : `dateDepotDu` / `dateDepotAu` (bornes incluses, au jour), même fragment SQL que `deposeDu` / `deposeAu` (`CriteresMetadonnees`), plage inversée 400, champs décrits dans `champs.yml`. Écran : « Déposé du … au … » dans le socle, plage inversée refusée sans appel. | `CriteresImposesApiTest.dateDeDepot` (champ ignoré et signalé avant : 3 résultats au lieu de 2), `recherche-index.spec.ts` (corps, refus) | 9916bdd |
 
 Aucun changeset Liquibase : pas d'évolution de schéma.
 
 ### Vérifications
 
-- Front : `ng build` vert ; `ng test` **38 fichiers, 161 tests verts** (référence 148).
+- Front (après fusion de `ct/dev1-r3`) : `ng build` vert ; `ng test` **40 fichiers, 169 tests
+  verts** (référence 148).
 - Back : ciblés verts (`CircuitApiTest` 14, `CriteresImposesApiTest` 8, `SpecificationOpenApiTest` 10) ;
   suite complète `mvn test` (environnement dev5, à 9916bdd) : **670 tests, 0 échec, 0 erreur**
-  (référence après le tour 2 : 661).
+  (référence après le tour 2 : 661) ; après fusion de `ct/dev1-r3` (à 4938ed3) : **675 tests,
+  0 échec, 0 erreur**.
 
 ### Points pour pm
 
@@ -133,3 +137,12 @@ Aucun changeset Liquibase : pas d'évolution de schéma.
    (fuseau de MMED) si qa2 le relève.
 5. **ANO-F-027** : le membre se voit proposer tous les dossiers non « de passage » de l'espace
    d'échange ; le serveur exige en plus Déposer sur la destination, qu'il revérifie.
+6. **Liste des espaces** : la liste et l'arbre (`TreeNode`) ne portent ni les permissions par
+   nœud ni l'usage de l'espace ; une action paraît donc si l'utilisateur exerce la permission
+   **quelque part** (le serveur tranche nœud par nœud). « Créer un sous-dossier » y reste
+   réservé à la gestion des espaces : le membre d'un espace d'échange crée ses dossiers depuis
+   la fiche (« Nouveau dossier », ANO-F-016). Pour un affichage exact par nœud, il faudrait
+   `usageEspace` (et les permissions) dans `TreeNode` / la liste : évolution back (dev1), au
+   tour suivant si pm le souhaite. Le libellé « Archive » de la corbeille de cette liste relève
+   de dev4 (tour 3) : mes changements touchent des lignes voisines, conflit de fusion possible
+   mais trivial.
