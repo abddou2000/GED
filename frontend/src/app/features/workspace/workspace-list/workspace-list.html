@@ -144,7 +144,10 @@
               } @else {
                 <span class="act-row">
                   <button mat-icon-button (click)="ouvrir(w.id)" matTooltip="Ouvrir le dossier" aria-label="Ouvrir le dossier"><mat-icon svgIcon="folder-open"></mat-icon></button>
-                  <button mat-icon-button class="act-edit" (click)="edit(w.id)" matTooltip="Modifier" aria-label="Modifier"><mat-icon svgIcon="edit"></mat-icon></button>
+                  <!-- Modifier un espace ou un dossier : gestion des espaces (ANO-F-026 ; le serveur décide). -->
+                  @if (peutModifier()) {
+                    <button mat-icon-button class="act-edit" (click)="edit(w.id)" matTooltip="Modifier" aria-label="Modifier"><mat-icon svgIcon="edit"></mat-icon></button>
+                  }
                   <button mat-icon-button class="act-accent" (click)="archiveOne(w.id)" matTooltip="Archiver/Désarchiver" aria-label="Archiver/Désarchiver"><mat-icon svgIcon="archive"></mat-icon></button>
                   <button mat-icon-button class="danger" (click)="remove(w.id, w.name)" matTooltip="Supprimer" aria-label="Supprimer"><mat-icon svgIcon="delete"></mat-icon></button>
                 </span>
@@ -226,7 +229,9 @@
         <mat-menu #menu="matMenu">
           <button mat-menu-item (click)="ouvrir(n.id)"><mat-icon svgIcon="folder-open"></mat-icon><span>Ouvrir le dossier</span></button>
           <button mat-menu-item (click)="create(n.id)"><mat-icon svgIcon="folder-plus"></mat-icon><span>Créer un sous-dossier</span></button>
-          <button mat-menu-item class="act-edit" (click)="edit(n.id)"><mat-icon svgIcon="edit"></mat-icon><span>Modifier</span></button>
+          @if (peutModifier()) {
+            <button mat-menu-item class="act-edit" (click)="edit(n.id)"><mat-icon svgIcon="edit"></mat-icon><span>Modifier</span></button>
+          }
           <button mat-menu-item class="act-accent" (click)="archiveOne(n.id)"><mat-icon svgIcon="archive"></mat-icon><span>Archiver / Désarchiver</span></button>
           <button mat-menu-item [matMenuTriggerFor]="moveMenu"><mat-icon svgIcon="folder-move"></mat-icon><span>Déplacer sous…</span></button>
           <button mat-menu-item class="danger" (click)="remove(n.id, n.name)"><mat-icon svgIcon="delete"></mat-icon><span>Supprimer</span></button>
