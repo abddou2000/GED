@@ -1,14 +1,34 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe, JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { AuthService } from '../../../core/auth.service';
+import { EmployeService } from '../../../core/employe.service';
 import { NotifyService } from '../../../core/notify.service';
 import { messageErreur } from '../../../core/probleme';
 import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
+import { DroitsService, IdentiteAdmin } from '../../administration/droits.service';
 import { AuditService, FiltreAudit, LigneAudit } from '../audit.service';
+
+/** Personne proposée par le filtre « Utilisateur » : son identité GED (UUID), son nom, son identifiant de connexion s'il est connu. */
+export interface UtilisateurAudit {
+  id: string;
+  nom: string;
+  identifiant: string | null;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Minuscules sans accents : « Bénnani » se trouve en tapant « benn ». */
+function normaliser(texte: string): string {
+  return texte.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
 
 /**
  * Écran « Journal d'audit » (DAT §7.4.3) : consultation filtrée par période,
@@ -21,14 +41,17 @@ import { AuditService, FiltreAudit, LigneAudit } from '../audit.service';
  */
 @Component({
   selector: 'app-journal-audit',
-  imports: [FormsModule, DatePipe, JsonPipe, MatButtonModule, MatIconModule, MatPaginatorModule,
-    MatTooltipModule, SkeletonTable],
+  imports: [FormsModule, DatePipe, JsonPipe, MatAutocompleteModule, MatButtonModule, MatIconModule,
+    MatPaginatorModule, MatTooltipModule, SkeletonTable],
   templateUrl: './journal-audit.html',
   styleUrl: './journal-audit.scss',
 })
 export class JournalAudit implements OnInit {
   private service = inject(AuditService);
   private notify = inject(NotifyService);
+  private employes = inject(EmployeService);
+  private droits = inject(DroitsService);
+  private auth = inject(AuthService);
 
   readonly RESULTATS = [
     { valeur: '', libelle: 'Tous' },
@@ -47,8 +70,67 @@ export class JournalAudit implements OnInit {
   ouverte = signal<number | null>(null);
   verification = signal<string | null>(null);
 
+  /**
+   * Filtre « Utilisateur » (ANO-F-033) : le serveur attend l'UUID de
+   * l'identité GED. On saisit le nom ou l'identifiant de connexion, on choisit
+   * dans la liste, et c'est l'UUID qui part. Valeur : le texte tapé, ou la
+   * personne choisie (l'autocomplétion pose l'objet).
+   */
+  utilisateurs = signal<UtilisateurAudit[]>([]);
+  saisieUtilisateur = signal<string | UtilisateurAudit>('');
+  suggestions = computed(() => {
+    const v = this.saisieUtilisateur();
+    const texte = normaliser(typeof v === 'string' ? v : v.nom);
+    const liste = this.utilisateurs();
+    if (!texte) return liste.slice(0, 20);
+    return liste.filter(u => normaliser(u.nom).includes(texte) || normaliser(u.identifiant ?? '').includes(texte))
+      .slice(0, 20);
+  });
+  readonly libelleUtilisateur = (u: UtilisateurAudit | string | null): string =>
+    !u ? '' : typeof u === 'string' ? u : u.identifiant ? `${u.nom} (${u.identifiant})` : u.nom;
+
   ngOnInit(): void {
+    this.chargerUtilisateurs();
     this.charger();
+  }
+
+  /**
+   * Personnes dotées d'une identité GED (`GET /employes?has_user=1`, ouvert à
+   * tout utilisateur : nom et UUID) ; pour l'Administrateur, l'identifiant de
+   * connexion s'y ajoute (`GET /admin/utilisateurs`, réservé à ce rôle). Un
+   * échec rend la liste plus courte, jamais une erreur.
+   */
+  private chargerUtilisateurs(): void {
+    const identites = this.auth.administrateur()
+      ? this.droits.identites().pipe(catchError(() => of([] as IdentiteAdmin[])))
+      : of([] as IdentiteAdmin[]);
+    forkJoin([this.employes.personnes(), identites]).subscribe(([personnes, comptes]) => {
+      const parId = new Map<string, UtilisateurAudit>();
+      for (const p of personnes) parId.set(p.utilisateurId, { id: p.utilisateurId, nom: p.nom, identifiant: null });
+      for (const c of comptes) {
+        parId.set(c.id, { id: c.id, nom: parId.get(c.id)?.nom ?? c.fullName, identifiant: c.identifiant });
+      }
+      this.utilisateurs.set([...parId.values()].sort((a, b) => a.nom.localeCompare(b.nom, 'fr')));
+    });
+  }
+
+  /**
+   * UUID à transmettre pour la saisie du filtre : la personne choisie, sinon
+   * une correspondance exacte (identifiant, nom) ou un UUID collé tel quel.
+   * `null` si rien n'est saisi ; `undefined` si la saisie ne désigne personne.
+   */
+  private utilisateurChoisi(): string | null | undefined {
+    const v = this.saisieUtilisateur();
+    if (typeof v !== 'string') return v.id;
+    const texte = v.trim();
+    if (!texte) return null;
+    if (UUID.test(texte)) return texte;
+    const cle = normaliser(texte);
+    const exacts = this.utilisateurs().filter(u =>
+      normaliser(u.identifiant ?? '') === cle || normaliser(u.nom) === cle || normaliser(this.libelleUtilisateur(u)) === cle);
+    if (exacts.length === 1) return exacts[0].id;
+    const proches = this.suggestions();
+    return proches.length === 1 ? proches[0].id : undefined;
   }
 
   rechercher(): void {
@@ -58,6 +140,7 @@ export class JournalAudit implements OnInit {
 
   reinitialiser(): void {
     this.criteres = {};
+    this.saisieUtilisateur.set('');
     this.rechercher();
   }
 
@@ -72,8 +155,10 @@ export class JournalAudit implements OnInit {
   }
 
   charger(): void {
+    const filtre = this.filtre();
+    if (!filtre) return;
     this.chargement.set(true);
-    this.service.evenements(this.filtre(), this.page(), this.taille()).subscribe({
+    this.service.evenements(filtre, this.page(), this.taille()).subscribe({
       next: p => {
         this.lignes.set(p.content);
         this.total.set(p.total);
@@ -87,7 +172,9 @@ export class JournalAudit implements OnInit {
   }
 
   exporter(format: 'csv' | 'json'): void {
-    this.service.exporter(this.filtre(), format).subscribe({
+    const filtre = this.filtre();
+    if (!filtre) return;
+    this.service.exporter(filtre, format).subscribe({
       next: rep => {
         const nom = nomDepuisEntete(rep.headers.get('Content-Disposition')) ?? `journal-audit.${format}`;
         if (rep.body) enregistrer(rep.body, nom);
@@ -116,10 +203,20 @@ export class JournalAudit implements OnInit {
     });
   }
 
-  /** Les champs datetime-local sont en heure locale : on les convertit en instants UTC. */
-  private filtre(): FiltreAudit {
+  /**
+   * Les champs datetime-local sont en heure locale : on les convertit en
+   * instants UTC. `null` (et un message) si le filtre « Utilisateur » ne
+   * désigne personne : rien n'est demandé au serveur.
+   */
+  private filtre(): FiltreAudit | null {
+    const utilisateur = this.utilisateurChoisi();
+    if (utilisateur === undefined) {
+      this.notify.error('Utilisateur inconnu : choisissez une personne dans la liste (nom ou identifiant de connexion).');
+      return null;
+    }
     return {
       ...this.criteres,
+      utilisateur: utilisateur ?? undefined,
       du: this.criteres.du ? new Date(this.criteres.du).toISOString() : undefined,
       au: this.criteres.au ? new Date(this.criteres.au).toISOString() : undefined,
     };

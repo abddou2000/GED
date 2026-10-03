@@ -24,7 +24,11 @@
       <label>Action <input name="action" placeholder="DOCUMENT_TELECHARGE" [(ngModel)]="criteres.action" /></label>
       <label>Type d'objet <input name="objetType" placeholder="DOCUMENT" [(ngModel)]="criteres.objetType" /></label>
       <label>Objet <input name="objetId" placeholder="identifiant" [(ngModel)]="criteres.objetId" /></label>
-      <label>Utilisateur <input name="utilisateur" placeholder="identifiant" [(ngModel)]="criteres.utilisateur" /></label>
+      <label>Utilisateur
+        <input name="utilisateur" placeholder="nom ou identifiant de connexion" autocomplete="off"
+               [ngModel]="saisieUtilisateur()" (ngModelChange)="saisieUtilisateur.set($event)"
+               [matAutocomplete]="listeUtilisateurs" />
+      </label>
       <label>Application <input name="application" placeholder="identifiant" [(ngModel)]="criteres.application" /></label>
       <label>Résultat
         <select name="resultat" [(ngModel)]="criteres.resultat">
@@ -36,6 +40,12 @@
         <button mat-button type="button" (click)="reinitialiser()">Réinitialiser</button>
       </div>
     </form>
+    <!-- Hors de la grille des filtres : l'élément vide y prendrait une case. -->
+    <mat-autocomplete #listeUtilisateurs="matAutocomplete" [displayWith]="libelleUtilisateur">
+      @for (u of suggestions(); track u.id) {
+        <mat-option [value]="u">{{ u.nom }}@if (u.identifiant) { <span class="ident"> ({{ u.identifiant }})</span> }</mat-option>
+      }
+    </mat-autocomplete>
 
     <div class="table-wrap">
       @if (chargement() && lignes().length === 0) {
