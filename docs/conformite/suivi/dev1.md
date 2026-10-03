@@ -84,6 +84,28 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
+### Mise en conformité, tour 7 (branche `ct/dev1-r7`, depuis `claude/inspiring-lovelace-10bg1c` @ `dd89445`)
+
+| Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
+|---|---|---|---|
+| ANO-F-030 (Mineure retenue par pm ; F-11, F-65, F-69 ; T-025 ; §4.6.6, §4.9.3) | **Corrigée (`230a28d`)** | Cause : `AppartenancesEnAttente.convertir` insérait les appartenances en SQL et ne renvoyait qu'un nombre ; `ServiceIdentites.creer` se contentait d'un INFO applicatif. Aucun événement de domaine : ni l'écouteur d'audit ni celui des notifications n'étaient sollicités, alors que la personne recevait les droits du groupe (changement de droits non tracé, accès non notifié). Correctif : `convertir` renvoie les appartenances effectivement converties (`INSERT … ON CONFLICT DO NOTHING RETURNING` joint à `groupe_ged` : ligne, groupe, nom, corbeille) ; `ServiceIdentites` publie, dans la transaction de création de l'identité, un événement `AppartenanceActivee` (paquet `accessgroup`, contrat `EvenementAudit`) **par appartenance convertie**. Audit : code `GROUPE_MEMBRE_ACTIVE` (ajouté au catalogue `ActionAudit`, convention `OBJET_OPERATION`), objet `GROUPE` / id du groupe, `avant` = `{membreEnAttente: fiche}`, `apres` = `{groupe, appartenanceId, utilisateurId, identifiant, employeId}`, motif « Première connexion » (« Première connexion par délégation d'une application » pour le provisionnement `X-On-Behalf-Of`), acteur `acteur_nom` = « Système », `acteur_utilisateur_id` vide (la requête de connexion n'est pas authentifiée). Notification : `EcouteurDeclencheurs.surAppartenanceActivee` réutilise le chemin de F-65 (`membresAjoutes`, factorisé en `accesParGroupe`) : un avis `ACCES_ESPACE_ATTRIBUE` par espace du groupe, texte « par votre ajout au groupe « … » » ; aucun avis pour un groupe en corbeille (il n'apporte aucun droit), la trace est écrite quand même. **Pas de changeset** : `ck_journal_audit_action` ne contraint que la forme du code (`^[A-Z][A-Z0-9_]{1,63}$`), pas une liste ; le type de notification `ACCES_ESPACE_ATTRIBUE` existe déjà dans `ck_notification_type`. Front non touché. | `AppartenanceIdentiteApiTest.conversionTraceeEtNotifiee` : fiche jamais connectée préparée dans trois groupes par l'API (deux espaces, aucun espace, un groupe mis en corbeille), première connexion sans contexte de sécurité → 3 traces `GROUPE_MEMBRE_ACTIVE` (objet, motif, acteur « Système », acteur utilisateur nul, identité, fiche, nom du groupe), 2 avis `ACCES_ESPACE_ATTRIBUE` (un par espace, lien, message avec le groupe), aucun pour le groupe en corbeille ; puis provisionnement délégué : motif de délégation et avis. Sans le correctif : échec ligne 178 (aucune trace) ; avec l'audit mais sans l'écouteur de notification : échec ligne 194 (aucun avis) — vérifié les deux. `RepriseDonneesTest` adapté (la conversion renvoie l'appartenance, même identifiant de ligne). |
+
+Documentation : `SEQUENCES.md` (provisionnement délégué : trace et avis), `CLASSES.md` régénéré.
+
+Tests : suite back complète à `230a28d` (`GED_MANAGEMENT_PORT` et `SERVER_PORT` retirés, base `ged_dev1_test`) —
+**697 tests, 0 échec, 0 erreur, 0 ignoré (117 classes)** ; aucun nouvel échec (1 test nouveau,
+`AppartenanceIdentiteApiTest.conversionTraceeEtNotifiee`, `RepriseDonneesTest` adapté). Front non touché : ni build
+ni tests Angular à relancer.
+
+**Points pour pm** :
+
+1. ANO-F-030 : à faire rejouer par qa2 (recette F-11g, `lancer.sh G`) : à la première connexion du compte préparé,
+   `GET /notifications` doit montrer `ACCES_ESPACE_ATTRIBUE` sur l'espace du groupe, et `journal_audit` une ligne
+   `GROUPE_MEMBRE_ACTIVE` sur le groupe (acteur « Système », motif « Première connexion ») avant `CONNEXION_REUSSIE`.
+2. Le code `GROUPE_MEMBRE_ACTIVE` est nouveau : l'écran du journal d'audit l'affiche tel quel (pas de libellé
+   dédié côté front, ce qui vaut pour les autres codes) ; filtre par action utilisable.
+3. Tâche 2 du tour (point d'API des fiches employé sans identité pour dev4) : rien reçu de pm, rien anticipé.
+
 ### Mise en conformité, tour 6 (branche `ct/dev1-r6`, depuis `claude/inspiring-lovelace-10bg1c` @ `a8346ce`)
 
 | Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
