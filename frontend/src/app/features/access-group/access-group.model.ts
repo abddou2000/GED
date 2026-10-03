@@ -12,6 +12,13 @@ export interface AccessGroup {
   users: Ref[];
   workspacesCount: number;
   usersCount: number;
+  /**
+   * Membres en attente de première connexion (T-025) : fiches employé sans
+   * identité GED, présentes aussi dans `users`. Elles n'ont aucun droit tant que
+   * la personne ne s'est pas connectée ; l'écran les renvoie dans `userIds`
+   * pour les conserver.
+   */
+  pendingUserIds?: string[];
 }
 
 /** Corps envoyé pour créer / modifier un groupe. */

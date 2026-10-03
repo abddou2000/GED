@@ -89,7 +89,7 @@
             @if (g.users.length) {
               <div class="avatar-stack">
                 @for (u of g.users.slice(0, 4); track u.id) {
-                  <span class="oav" [style.background]="avatarColor(u.id)" [style.color]="avatarInk(u.id)" [matTooltip]="u.label">{{ initials(u.label) }}</span>
+                  <span class="oav" [class.oav-attente]="enAttente(g, u.id)" [style.background]="avatarColor(u.id)" [style.color]="avatarInk(u.id)" [matTooltip]="enAttente(g, u.id) ? u.label + ' — ' + libelleAttente : u.label">{{ initials(u.label) }}</span>
                 }
                 @if (g.users.length > 4) { <span class="oav more">+{{ g.users.length - 4 }}</span> }
               </div>

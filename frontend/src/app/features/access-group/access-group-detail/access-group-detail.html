@@ -31,7 +31,7 @@
       <dl class="fiche-grille">
         <div><dt>Code</dt><dd class="mono">{{ g.code }}</dd></div>
         <div><dt>Espaces couverts</dt><dd>{{ g.workspacesCount }}</dd></div>
-        <div><dt>Membres</dt><dd>{{ g.usersCount }}</dd></div>
+        <div><dt>Membres</dt><dd>{{ g.usersCount }}@if (nbEnAttente(g); as n) {<span class="note-attente"> (dont {{ n }} {{ libelleAttente }})</span>}</dd></div>
       </dl>
     </div>
 
@@ -45,6 +45,9 @@
               <li>
                 <span class="oav" [style.background]="avatarColor(u.id)" [style.color]="avatarInk(u.id)">{{ initials(u.label) }}</span>
                 <span class="lbl">{{ u.label }}</span>
+                @if (enAttente(g, u.id)) {
+                  <span class="badge-attente" matTooltip="Aucun droit avant la première connexion de la personne">{{ libelleAttente }}</span>
+                }
               </li>
             }
           </ul>

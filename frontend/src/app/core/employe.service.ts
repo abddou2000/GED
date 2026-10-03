@@ -32,6 +32,16 @@ export class EmployeService {
   }
 
   /**
+   * Toutes les fiches employé, avec ou sans identité GED (`utilisateurId`
+   * absent pour une personne qui ne s'est encore jamais connectée). Sert aux
+   * groupes, qui acceptent une fiche sans identité comme membre en attente de
+   * première connexion (T-025, ANO-F-029).
+   */
+  tous(): Observable<Employe[]> {
+    return this.http.get<Employe[]>(`${API_BASE}/employes`);
+  }
+
+  /**
    * Personnes ayant une identité GED, triées par nom. Un échec rend une liste
    * vide (les noms retombent alors sur « — »), jamais une erreur.
    */

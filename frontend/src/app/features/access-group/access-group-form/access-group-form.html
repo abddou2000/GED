@@ -36,12 +36,36 @@
       <mat-form-field appearance="outline" class="grow">
         <mat-label>Liste des utilisateurs</mat-label>
         <mat-select formControlName="userIds" multiple>
-          @for (e of employes(); track e.id) {
-            <mat-option [value]="e.id">{{ e.fullName }}</mat-option>
+          @for (o of options(); track o.id) {
+            <mat-option [value]="o.id">{{ o.nom }}@if (o.enAttente) {<span class="opt-attente"> — {{ libelleAttente }}</span>}</mat-option>
           }
         </mat-select>
+        <mat-hint>Une personne jamais connectée devient membre à sa première connexion.</mat-hint>
       </mat-form-field>
     </div>
+
+    <!-- Membres en attente : aucun droit avant la première connexion (T-025) -->
+    @if (membresEnAttente().length) {
+      <div class="membres-attente" role="group" aria-labelledby="titre-attente">
+        <p id="titre-attente" class="attente-titre">
+          {{ membresEnAttente().length }} membre(s) {{ libelleAttente }}
+        </p>
+        <p class="attente-aide">
+          Ces personnes n'ont pas encore de compte GED : elles recevront les droits du groupe
+          à leur première connexion. Elles sont conservées à l'enregistrement.
+        </p>
+        <ul>
+          @for (m of membresEnAttente(); track m.id) {
+            <li>
+              <span class="nom">{{ m.nom }}</span>
+              <button mat-button type="button" class="retirer"
+                      [attr.aria-label]="'Retirer ' + m.nom + ' du groupe'"
+                      (click)="retirer(m.id)">Retirer</button>
+            </li>
+          }
+        </ul>
+      </div>
+    }
 
     @if (serverError()) {
       <div class="server-error">{{ serverError() }}</div>

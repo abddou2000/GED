@@ -6,16 +6,16 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { AccessGroupService } from '../access-group.service';
 import { AccessGroup } from '../access-group.model';
-import { AccessGroupForm } from '../access-group-form/access-group-form';
+import { AccessGroupForm, LIBELLE_ATTENTE } from '../access-group-form/access-group-form';
 import { NotifyService } from '../../../core/notify.service';
 import { teinteAvatar, encreAvatar } from '../../../core/avatar';
 
 /**
  * Fiche d'un groupe d'accès : ses membres et les espaces qu'il couvre.
  *
- * <p>Le groupe ne porte aucune autorisation — l'application n'a qu'un utilisateur,
- * l'administrateur, à qui tout est déjà ouvert. La fiche sert donc uniquement à
- * lire, d'un coup d'œil, qui est rattaché à quoi.
+ * <p>Un membre en attente (fiche employé sans identité GED, T-025) n'a aucun
+ * droit tant que la personne ne s'est pas connectée : il est signalé comme tel
+ * et décompté à part (ANO-F-029).
  */
 @Component({
   selector: 'app-access-group-detail',
@@ -70,6 +70,16 @@ export class AccessGroupDetail implements OnInit {
       this.charger();
       this.notify.success("Groupe d'accès modifié.");
     });
+  }
+
+  readonly libelleAttente = LIBELLE_ATTENTE;
+
+  enAttente(g: AccessGroup, id: string): boolean {
+    return (g.pendingUserIds ?? []).includes(id);
+  }
+
+  nbEnAttente(g: AccessGroup): number {
+    return (g.pendingUserIds ?? []).length;
   }
 
   initials(fullName: string): string {
