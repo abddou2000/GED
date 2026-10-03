@@ -47,7 +47,7 @@ OSS Index est déjà coupé dans le pom (compte obligatoire).
 `mvn verify -DautoUpdate=false -DdataDirectory=/srv/odc`. Une base de plus de 7 jours ne doit pas
 servir à une livraison.
 
-## 3. Preuve sur le poste de l'équipe (30/09/2026)
+## 3. Preuve sur le poste de l'équipe (30/09/2026 ; front-end mis à jour le 03/10/2026)
 
 Le poste sort par un mandataire filtrant : `services.nvd.nist.gov`, `nvd.nist.gov`, `www.cisa.gov`
 et `github.com` (miroirs publics de la NVD) y sont **refusés** ; Maven Central est ouvert.
@@ -68,18 +68,43 @@ Cet essai tourne aussi dans le job CI « OWASP Dependency-Check (CVSS >= 7) », 
 réelle : une régression de la configuration (seuil, rapports, suppressions) y est donc détectée même
 sans données NVD.
 
-**Front-end, analyse réelle** — `npm audit --omit=dev` (registre npm joignable), rapport brut :
-[`rapports/npm-audit-2026-09-30.json`](rapports/npm-audit-2026-09-30.json). 580 paquets dans l'arbre,
-20 livrés ; **0 critique, 0 haute**, 7 paquets en sévérité **moyenne** issus de deux avis :
+**Front-end, analyse réelle (03/10/2026, après montée d'Angular en 22.2.1)** — `npm audit
+--omit=dev --audit-level=high` (registre npm joignable, Node 24.21.0, npm 11) : **code 0, « found 0
+vulnerabilities »** ; rapport brut : [`rapports/npm-audit-2026-10-03.json`](rapports/npm-audit-2026-10-03.json)
+(414 paquets dans l'arbre, 20 livrés ; 0 critique, 0 haute, 0 moyenne, 0 basse).
 
-| Avis | Paquets | CVSS | Corrigé en | Exposition de la GED |
+Historique de l'écart (ANO-E0-004) :
+
+| Date | Angular livré | Résultat de l'audit des paquets livrés | Rapport |
+|---|---|---|---|
+| 30/09 | 22.0.8 (cdk, material 22.0.6) | 0 haute, 7 moyennes ; job front vert | [`npm-audit-2026-09-30.json`](rapports/npm-audit-2026-09-30.json) |
+| 01/10 – 03/10 | 22.0.8 | **1 haute** + 6 moyennes, code 1 : l'avis GHSA-ff3f-86qr-9cv3 fait échouer depuis le 01/10 l'étape « Audit des dépendances livrées » du job front | [`npm-audit-2026-10-03-avant-montee.json`](rapports/npm-audit-2026-10-03-avant-montee.json) |
+| 03/10 | **22.2.1** (tous les paquets `@angular/*`, y compris cdk, material, build, cli, compiler-cli) | **0 vulnérabilité**, code 0 | [`npm-audit-2026-10-03.json`](rapports/npm-audit-2026-10-03.json) |
+
+Avis corrigés par la montée :
+
+| Avis | Paquets | Sévérité | Corrigé en | Exposition de la GED avant correction |
 |---|---|---|---|---|
-| [GHSA-p297-fm68-3q8c](https://github.com/advisories/GHSA-p297-fm68-3q8c) — fuite d'information par contournement de `HttpTransferCache` avec `withRequestsMadeViaParent` | `@angular/common` 22.0.8 (et forms, router, platform-browser qui en dépendent) | 4,0 | 22.1.1 | **aucune** : pas de rendu serveur, ni `HttpTransferCache`, ni `provideClientHydration` dans `frontend/src` |
-| [GHSA-hh8m-fm6v-7cvg](https://github.com/advisories/GHSA-hh8m-fm6v-7cvg) — contournement de l'assainissement par les liaisons d'hôte des directives | `@angular/core`, `@angular/compiler` 22.0.8 (et animations) | non noté | 22.1.0 | **aucune constatée** : aucune liaison `host:` ni `@HostBinding` dans `frontend/src` |
+| [GHSA-ff3f-86qr-9cv3](https://github.com/advisories/GHSA-ff3f-86qr-9cv3) — déni de service du rendu serveur | `@angular/router` 22.0.8 | **haute** | 22.2.0 | **aucune** : pas de rendu serveur (`@angular/ssr` absent) |
+| [GHSA-p297-fm68-3q8c](https://github.com/advisories/GHSA-p297-fm68-3q8c) — fuite d'information par contournement de `HttpTransferCache` avec `withRequestsMadeViaParent` | `@angular/common` 22.0.8 (et forms, router, platform-browser qui en dépendent) | moyenne (CVSS 4,0) | 22.1.1 | **aucune** : ni `HttpTransferCache`, ni `provideClientHydration` dans `frontend/src` |
+| [GHSA-hh8m-fm6v-7cvg](https://github.com/advisories/GHSA-hh8m-fm6v-7cvg) — contournement de l'assainissement par les liaisons d'hôte des directives | `@angular/core`, `@angular/compiler` 22.0.8 (et animations) | moyenne | 22.1.0 | **aucune constatée** : aucune liaison `host:` ni `@HostBinding` dans `frontend/src` |
 
-Seuil de la CI non atteint (le job front est vert sur GitHub). Correction : montée d'Angular en
-22.1.1 ou plus (22.2.0 publiée) à la prochaine livraison du front (dev4), `package-lock.json`
-régénéré ; aucune urgence au sens du §1.
+Vérifications de la montée : `package-lock.json` régénéré par npm (`npm uninstall` puis `npm install`
+des paquets Angular, la résolution incrémentale refusant les pairs exacts d'Angular), `npm ci` sans
+erreur, `npx ng test --watch=false` (196 tests verts), `npx ng build` vert (avertissements de budget
+préexistants ; nouvel avertissement de dépréciation de Sass sur l'`@import` que la CLI 22.2 génère
+elle-même pour les styles globaux, sans effet sur le paquet). SBOM front régénéré (`npm run sbom`) et
+registre `docs/DEPENDANCES.md` mis à jour (Angular 22.2.1 ; nouvelle transitive `entities` 8.1.0,
+BSD-2-Clause, compatible). Garde hors ligne : `outils/tests/versions-angular.test.mjs` (lancé par le
+job « Registre des dépendances et licences ») échoue si un paquet Angular revient sous la version qui
+corrige un avis du tableau ci-dessus, ou si une famille `@angular/*` est montée partiellement ; il
+échoue sur le verrouillage d'avant la montée (`@angular/router 22.0.8 est visé par GHSA-ff3f-86qr-9cv3`).
+
+**Outillage de développement (non livré, hors seuil de la CI)** — `npm audit` sans `--omit=dev`
+signale 3 paquets, inchangés par la montée : `undici` 7.28.0 (haute, dépendance de `jsdom`, 15 avis
+dont GHSA-8xcm-r25x-g524), `vitest` et `@vitest/mocker` 4.1.10 (moyenne, GHSA-82fw-gwwq-j7x9). Ils ne
+servent qu'aux tests unitaires sur le poste et en CI ; aucun n'entre dans le paquet livré. À monter à
+la montée de version planifiée suivante de l'outillage de test.
 
 ## 4. Intégration continue sur GitHub (`abddou2000/GED`)
 
@@ -87,6 +112,12 @@ Exécution n° 4 du 30/09/2026 (commit `71bdc1d`, branche `claude/inspiring-love
 back-end (tests sur PostgreSQL 16, JAR, SBOM) **vert**, front-end (tests, paquet, SBOM, audit npm)
 **vert**, registre des dépendances et licences **vert** ; OWASP Dependency-Check **en échec
 volontaire** : « Secret NVD_API_KEY absent » (aucune analyse, aucun rapport).
+
+Du 01/10 au 03/10, le job front échoue à l'étape « Audit des dépendances livrées » (vulnérabilité
+haute dans `@angular/router`, ANO-E0-004) : ni le paquet ni le SBOM du front ne sont archivés. La
+montée d'Angular en 22.2.1 (branche `ct/dev4-r5`) remet l'audit à 0 sur le poste ; le retour au vert
+du job sur GitHub reste à constater à la première exécution qui suit la fusion (non poussé depuis le
+poste).
 
 Pour lever la réserve, l'administrateur du dépôt crée le secret `NVD_API_KEY` (*Settings → Secrets
 and variables → Actions*) ou la variable `NVD_DATAFEED_URL` vers un miroir ; le premier passage

@@ -12,9 +12,9 @@ DAT 11.2 / Article 45 (licence compatible avec la cession de propriété à MMED
 | | Nombre |
 |---|---|
 | Dépendances back-end (Maven, portée d'exécution) | 140 |
-| Dépendances front-end livrées (npm, hors outillage de développement) | 18 |
+| Dépendances front-end livrées (npm, hors outillage de développement) | 19 |
 | Composants hors gestionnaire de paquets | 6 |
-| Licence permissive — compatible | 148 |
+| Licence permissive — compatible | 149 |
 | Copyleft faible — compatible sous condition de non-modification | 15 |
 | Hors des classes ci-dessus, compatible par arbitrage écrit | 1 |
 | **À examiner** (sans arbitrage) | 0 |
@@ -97,15 +97,15 @@ Tesseract et ses modèles figurent aussi dans le SBOM CycloneDX du back-end (pro
 
 | Nom | Version | Licence | Compatibilité | Usage |
 |---|---|---|---|---|
-| @angular/animations | 22.0.8 | MIT | Compatible | Animations Angular |
-| @angular/cdk | 22.0.6 | MIT | Compatible | Composants de base Angular (CDK) |
-| @angular/common | 22.0.8 | MIT | Compatible | Socle Angular |
-| @angular/compiler | 22.0.8 | MIT | Compatible | Socle Angular |
-| @angular/core | 22.0.8 | MIT | Compatible | Socle Angular |
-| @angular/forms | 22.0.8 | MIT | Compatible | Formulaires réactifs et validation (DAT 6.3) |
-| @angular/material | 22.0.6 | MIT | Compatible | Composants graphiques Material |
-| @angular/platform-browser | 22.0.8 | MIT | Compatible | Socle Angular (navigateur) |
-| @angular/router | 22.0.8 | MIT | Compatible | Routage de l'application |
+| @angular/animations | 22.2.1 | MIT | Compatible | Animations Angular |
+| @angular/cdk | 22.2.1 | MIT | Compatible | Composants de base Angular (CDK) |
+| @angular/common | 22.2.1 | MIT | Compatible | Socle Angular |
+| @angular/compiler | 22.2.1 | MIT | Compatible | Socle Angular |
+| @angular/core | 22.2.1 | MIT | Compatible | Socle Angular |
+| @angular/forms | 22.2.1 | MIT | Compatible | Formulaires réactifs et validation (DAT 6.3) |
+| @angular/material | 22.2.1 | MIT | Compatible | Composants graphiques Material |
+| @angular/platform-browser | 22.2.1 | MIT | Compatible | Socle Angular (navigateur) |
+| @angular/router | 22.2.1 | MIT | Compatible | Routage de l'application |
 | @fontsource-variable/fraunces | 5.3.0 | OFL-1.1 | Compatible | Police de titres, servie localement |
 | @fontsource-variable/inter | 5.3.0 | OFL-1.1 | Compatible | Police de texte, servie localement |
 | @fontsource-variable/nunito | 5.3.0 | OFL-1.1 | Compatible | Police de texte, servie localement |
@@ -241,5 +241,6 @@ Tesseract et ses modèles figurent aussi dans le SBOM CycloneDX du back-end (pro
 | Nom | Version | Licence | Compatibilité | Usage |
 |---|---|---|---|---|
 | @standard-schema/spec | 1.1.0 | MIT | Compatible | transitive de @angular:forms |
+| entities | 8.1.0 | BSD-2-Clause | Compatible | transitive de @angular:cdk |
 | parse5 | 8.0.1 | MIT | Compatible | transitive de @angular:cdk |
-| zod | 4.4.2 | MIT | Compatible | transitive de @angular:forms |
+| zod | 4.6.5 | MIT | Compatible | transitive de @angular:forms |
