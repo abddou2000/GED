@@ -146,3 +146,30 @@ vers celui de `/home/user/GED/frontend`, resté en 22.0.8, pour ne pas le modifi
   sur les mêmes versions.
 - **dev2 (T-070)** : document de vulnérabilités mis à jour ici ; à relire par dev2, propriétaire de
   la ligne.
+
+## Tour 7
+
+Branche `ct/dev4-r7`, partie de `claude/inspiring-lovelace-10bg1c` (`dd89445`). Front seul : aucun
+fichier du back ni de Liquibase modifié, donc aucun changeset.
+
+| Id | Cause | Correctif | Preuve (test qui échoue sans le correctif) | État |
+|---|---|---|---|---|
+| ANO-F-029 (F-06, T-025) | Le formulaire des groupes lisait `/employes?has_user=1` : seules les personnes ayant une identité GED avaient une option. Le `mat-select` multiple ne renvoie que les valeurs qui ont une option : le membre en attente (fiche sans identité, `pendingUserIds`) chargé dans `userIds` était effacé dès que l'Administrateur cochait ou décochait quelqu'un (le renommage seul ne touchait pas au champ, d'où l'attente conservée). La fiche et la liste ignoraient `pendingUserIds` | Source de données : `GET /api/v1/employes` sans filtre (API existante, renvoie toutes les fiches avec `utilisateurId` nul sans identité) ; aucun point d'API nouveau n'a été nécessaire. Formulaire : options = toutes les fiches, celles sans identité suffixées « en attente de première connexion », plus une option pour chaque membre actuel absent de la liste (filet si la liste est incomplète ou indisponible) ; bloc « N membre(s) en attente de première connexion » sous le sélecteur, avec un bouton « Retirer » par personne ; aide « Une personne jamais connectée devient membre à sa première connexion ». Fiche : badge « en attente de première connexion » sur la ligne du membre, « Membres : 2 (dont 1 en attente de première connexion) ». Liste : avatar en pointillé et infobulle suffixée. Le corps envoyé reste `userIds` = identifiants de fiche (contrat T-025) | `features/access-group/access-group-membres-attente.spec.ts`, 7 cas : ajouter un membre conserve l'attente, retirer un membre réel la conserve, attente conservée même absente de la liste des fiches, personne jamais connectée proposée avec le libellé, création avec une personne jamais connectée, retrait explicite d'un membre en attente, fiche (badge et décompte). 7 échecs sur le code d'avant (sélecteur sur `?has_user=1`, fiche sans mention) ; 7 verts après | Corrigée (`4c58b57`) |
+
+Résultats : `ng test` 203 tests verts (45 fichiers) ; `ng build` vert (avertissements de budget
+préexistants). Suite back complète (`mvn -B -q test`, base `ged_dev4_test`, `GED_MANAGEMENT_PORT` et
+`SERVER_PORT` retirés, aucun fichier du back modifié) : 696 tests, 0 échec, 0 erreur, code 0
+(référence annoncée : 661, 0 échec ; la suite a grandi depuis).
+
+
+### Points pour pm (tour 7)
+
+- **Recette à l'écran (qa2)** : rejouer le cas de reproduction d'ANO-F-029 (groupe préparé par
+  l'API avec un membre réel et une fiche reprise sans identité) : la fiche doit montrer le badge,
+  « Modifier » doit proposer la fiche reprise (cochée, suffixée), cocher un autre membre puis
+  « Mettre à jour » doit garder `pendingUserIds` = [la fiche].
+- **Volume (dev1, pour information)** : le sélecteur charge toutes les fiches employé en une fois
+  (`GET /employes`, non paginé, qui parcourt aussi toutes les identités). Suffisant pour la base
+  actuelle ; si la reprise amène plusieurs milliers de fiches, un point de recherche paginé
+  (`/employes?search=…&size=…`) serait préférable. Aucun point d'API n'a été inventé.
+- **ANO-F-030** : non traitée ici (pm pour arbitrage, dev1 ensuite).
