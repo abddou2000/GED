@@ -30,8 +30,9 @@ class ResolveurDroitsTest {
     private static final Set<CodePermission> AGENT = EnumSet.of(CONSULTER, DEPOSER, MODIFIER, DEPLACER, ARCHIVER,
             SUPPRIMER, VOIR_PRIVE);
     private static final Set<CodePermission> ADMIN = EnumSet.allOf(CodePermission.class);
+    /** Composition livrée (ANO-F-002 : sans Déplacer, Archiver ni Supprimer). */
     private static final Set<CodePermission> DG = EnumSet.of(CONSULTER, DEPOSER, MODIFIER, VALIDER, DIFFUSER,
-            DEPLACER, ARCHIVER, SUPPRIMER, VOIR_PRIVE, VOIR_CONFIDENTIEL, CONSULTER_AUDIT);
+            VOIR_PRIVE, VOIR_CONFIDENTIEL, CONSULTER_AUDIT);
 
     private final UUID e = UUID.randomUUID(), d1 = UUID.randomUUID(), d11 = UUID.randomUUID(),
             d2 = UUID.randomUUID(), f = UUID.randomUUID(), g = UUID.randomUUID();
@@ -150,6 +151,8 @@ class ResolveurDroitsTest {
         assertTrue(d.partout(CONSULTER));
         assertTrue(d.peutSurNoeud(MODIFIER, d11));
         assertFalse(d.peutSurNoeud(PURGER, e));
+        assertTrue(d.peutSurNoeud(DEPOSER, d11));
+        for (CodePermission p : EnumSet.of(DEPLACER, ARCHIVER, SUPPRIMER)) assertFalse(d.peutSurNoeud(p, d11), p.name());
         assertTrue(d.voirPrive());
         assertTrue(d.voirConfidentiel());
         assertEquals(Set.of(CONSULTER_AUDIT), d.administration());

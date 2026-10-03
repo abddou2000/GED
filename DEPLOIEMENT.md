@@ -274,6 +274,18 @@ en dessous, ce que la portée globale donnait. Menus **Rôles** (composition) et
 **Droits effectifs** (permissions d'une personne sur un objet, avec leur
 origine). Toute modification est effective immédiatement, sans reconnexion.
 
+Composition livrée des rôles système (modifiable depuis le menu **Rôles**) :
+
+| Rôle | Permissions élémentaires | Autres permissions |
+|---|---|---|
+| Utilisateur standard | Consulter, Déposer, Modifier, Valider, Diffuser | — |
+| Agent d'archive | les neuf : Consulter, Déposer, Modifier, Valider, Diffuser, Déplacer, Archiver, Supprimer, Purger | Voir privé |
+| Direction Générale (accès global : sur tout nœud sans habilitation par espace) | Consulter, Déposer, Modifier, Valider, Diffuser — **sans** Déplacer, Archiver, Supprimer ni Purger (dossier fonctionnel §3.2 : « sans les permissions de structuration », décision du client du 03/10, ANO-F-002) | Voir privé, Voir confidentiel, Consulter l'audit |
+| Administrateur | les neuf | toutes les permissions d'administration, Voir privé, Voir confidentiel |
+
+Créer, renommer ou réorganiser les dossiers d'un espace métier relève de la
+gestion des espaces (Administrateur) ; la Direction Générale ne la détient pas.
+
 ---
 
 ## 6. Ce qu'il faut surveiller
@@ -483,6 +495,18 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
   (`rollback-count --count=2` s'ils sont les derniers) : `employe_id` est
   reconstitué, les appartenances en attente reviennent dans `groupe_membre`
   avec leur identifiant ; rien n'est perdu.
+- **Direction Générale sans permissions de structuration (ANO-F-002, décision
+  du client du 03/10)** : `202610071000` retire au rôle `DIRECTION_GENERALE`
+  Déplacer, Archiver et Supprimer (§3.2 du dossier fonctionnel : « Consulter et
+  Déposer sur l'intégralité des espaces, sans les permissions de
+  structuration »). Effet immédiat, sans reconnexion : les boutons
+  correspondants disparaissent des écrans de la DG et l'API répond 403. Un
+  Administrateur qui voudrait s'en écarter compose le rôle depuis le menu
+  **Rôles**. Contrôle après montée : `SELECT p.code FROM ged.role_permission rp
+  JOIN ged.permission p ON p.id = rp.permission_id WHERE rp.role_id =
+  '0192a000-0000-7000-8000-000000000003' ORDER BY 1` → CONSULTER,
+  CONSULTER_AUDIT, DEPOSER, DIFFUSER, MODIFIER, VALIDER, VOIR_CONFIDENTIEL,
+  VOIR_PRIVE. Retour arrière sans perte : les trois permissions sont remises.
 - **Index d'expression d'une métadonnée fréquente** (§12.7) : un changeset par
   champ, sur les fonctions immuables de la base, par exemple :
   ```sql
@@ -523,7 +547,7 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
 
   Les changesets défaits avant le refus (bascule du gel des versions
   `202609301049` / `202609301051`, verrou des tâches planifiées `verrou_tache`,
-  composition des rôles `202610041000`, droits hérités des groupes
+  composition des rôles `202610041000` et `202610071000`, droits hérités des groupes
   `202610041010`, colonnes `nom` `202610041020`, membres des groupes
   `202610061010` / `202610061000`) ne perdent rien : la base reste
   cohérente et une nouvelle montée (`update`) la ramène à son état de départ.

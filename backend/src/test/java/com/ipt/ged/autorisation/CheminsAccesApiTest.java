@@ -490,6 +490,55 @@ class CheminsAccesApiTest {
                 .content("{\"tag\":\"x\",\"couleur\":\"#000000\"}")).andExpect(status().isForbidden());
     }
 
+    @Test
+    @DisplayName("ANO-F-002 : la Direction Générale consulte et dépose partout, sans Déplacer, Archiver ni Supprimer")
+    void directionGeneraleSansStructuration() throws Exception {
+        jeu.habiliter(U, Role.DIRECTION_GENERALE, null, null);
+        List<String> structuration = List.of("DEPLACER", "ARCHIVER", "SUPPRIMER");
+
+        // Consultation et dépôt, partout (accès global).
+        mvc.perform(get("/api/v1/documents/" + dA1).with(comme(U))).andExpect(status().isOk());
+        String cree = mvc.perform(multipart("/api/v1/documents")
+                        .file(new MockMultipartFile("file", "dg.pdf", "application/pdf", com.ipt.ged.support.Pdfs.pdf()))
+                        .param("typeDocumentId", tB.toString())
+                        .with(comme(U)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        UUID depose = UUID.fromString(om.readTree(cree).get("id").asText());
+        mvc.perform(get("/api/v1/documents/" + depose).with(comme(U))).andExpect(status().isOk());
+
+        // Ce que l'interface lit pour afficher les boutons : ni l'identité, ni la fiche du document,
+        // ni celle du nœud ne portent une permission de structuration.
+        JsonNode moi = json(mvc.perform(get("/api/v1/auth/me").with(comme(U))).andExpect(status().isOk()));
+        Set<String> exercees = new HashSet<>();
+        moi.get("permissions").forEach(p -> exercees.add(p.asText()));
+        assertTrue(exercees.containsAll(List.of("CONSULTER", "DEPOSER", "CONSULTER_AUDIT")), exercees.toString());
+        JsonNode fiche = json(mvc.perform(get("/api/v1/documents/" + dA).with(comme(U))).andExpect(status().isOk()));
+        JsonNode noeud = json(mvc.perform(get("/api/v1/workspaces/" + a1).with(comme(U))).andExpect(status().isOk()));
+        for (String p : structuration) {
+            assertFalse(exercees.contains(p), p);
+            fiche.get("permissions").forEach(n -> assertNotEquals(p, n.asText()));
+            noeud.get("permissions").forEach(n -> assertNotEquals(p, n.asText()));
+        }
+
+        // Documents : déplacer, archiver, supprimer, restaurer → 403.
+        mvc.perform(patch("/api/v1/documents/" + dA + "/emplacement").with(comme(U)).contentType(APPLICATION_JSON)
+                .content("{\"noeudId\":\"" + a1 + "\"}")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/documents/" + dA + "/archivage").with(comme(U))).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/documents/" + dA).with(comme(U))).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/documents/" + depose).with(comme(U))).andExpect(status().isForbidden());
+        // Nœuds : déplacer, archiver, supprimer, créer un dossier dans un espace métier → 403.
+        mvc.perform(patch("/api/v1/workspaces/" + a1 + "/parent").with(comme(U)).contentType(APPLICATION_JSON)
+                .content("{\"parentId\":\"" + b + "\"}")).andExpect(status().isForbidden());
+        mvc.perform(patch("/api/v1/workspaces/" + a1 + "/archive").with(comme(U))).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/workspaces/" + a1).with(comme(U))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/workspaces").with(comme(U)).contentType(APPLICATION_JSON)
+                .content("{\"name\":\"Sous-dossier DG\",\"code\":\"DG-1\",\"parentId\":\"" + a + "\",\"employeId\":\""
+                        + jeu.employeId(U) + "\",\"workflowId\":\"" + UUID.randomUUID() + "\"}"))
+                .andExpect(status().isForbidden());
+        assertFalse(documents.findById(dA).orElseThrow().isSupprime());
+        assertFalse(noeuds.findById(a1).orElseThrow().isSupprime());
+    }
+
     /* ---------------------------------------------------------------- administration */
 
     @Test

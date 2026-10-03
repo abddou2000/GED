@@ -57,10 +57,13 @@ class PermissionsLivreesTest {
         assertEquals(agent, composition(Role.AGENT_ARCHIVE));
         assertTrue(composition(Role.AGENT_ARCHIVE).containsAll(EnumSet.of(VALIDER, DIFFUSER, PURGER)));
         Set<CodePermission> dg = composition(Role.DIRECTION_GENERALE);
-        // Lecture et écriture sur tout nœud, pas de purge, pas d'administration technique.
-        assertTrue(dg.containsAll(EnumSet.of(CONSULTER, DEPOSER, MODIFIER, VALIDER, DIFFUSER, DEPLACER, ARCHIVER,
-                SUPPRIMER)));
-        assertFalse(dg.contains(PURGER));
+        // ANO-F-002 (§3.2 p. 7, décision du client du 03/10) : consulter et déposer sur tout nœud, sans les
+        // permissions de structuration (Déplacer, Archiver, Supprimer), sans purge ni administration technique.
+        assertEquals(EnumSet.of(CONSULTER, DEPOSER, MODIFIER, VALIDER, DIFFUSER, VOIR_PRIVE, VOIR_CONFIDENTIEL,
+                CONSULTER_AUDIT), dg);
+        for (CodePermission p : EnumSet.of(DEPLACER, ARCHIVER, SUPPRIMER, PURGER, GERER_ESPACES)) {
+            assertFalse(dg.contains(p), p.name());
+        }
         assertEquals(EnumSet.of(CONSULTER_AUDIT), dg.stream().filter(p -> p.categorie() == Categorie.ADMINISTRATION)
                 .collect(Collectors.toCollection(() -> EnumSet.noneOf(CodePermission.class))));
         assertTrue(roles.findByCode(Role.DIRECTION_GENERALE).orElseThrow().isAccesGlobal());

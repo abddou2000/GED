@@ -26,7 +26,9 @@ import java.util.UUID;
  * Rôle GED (dossier technique §12.2.1) : un ensemble nommé de permissions,
  * composé depuis l'interface. Les quatre rôles système sont livrés par le
  * changeset {@code data-initial} 202609271000-2, leur composition par
- * 202609281015-2 ; leurs codes sont stables.
+ * 202609281015-2, corrigée par 202610041000 (Agent d'archive, ANO-F-001) et
+ * 202610071000 (Direction Générale sans Déplacer, Archiver ni Supprimer,
+ * ANO-F-002) ; leurs codes sont stables.
  */
 @Entity
 @Table(name = "role")
@@ -53,7 +55,11 @@ public class Role extends Auditable {
     @Column(nullable = false)
     private boolean systeme;
 
-    /** Direction Générale : lecture et écriture sur tout nœud, traitées par le code (E3). */
+    /**
+     * Direction Générale : les permissions élémentaires de sa composition valent
+     * sur tout nœud, traitées par le code (E3) — consulter, déposer, modifier,
+     * valider, diffuser ; aucune permission de structuration (ANO-F-002).
+     */
     @Column(name = "acces_global", nullable = false)
     private boolean accesGlobal;
 
