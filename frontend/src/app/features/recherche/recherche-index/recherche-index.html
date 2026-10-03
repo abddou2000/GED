@@ -173,7 +173,7 @@
             <td mat-cell *matCellDef="let d">{{ d.createdBy || '—' }}</td>
           </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="colonnes"></tr>
+          <tr mat-header-row *matHeaderRowDef="colonnes; sticky: true"></tr>
           <tr mat-row *matRowDef="let row; columns: colonnes"></tr>
           <tr class="no-data-row" *matNoDataRow>
             <td class="vide" [attr.colspan]="colonnes.length">Aucun document ne répond à ces critères dans votre périmètre.</td>

@@ -17,6 +17,13 @@ interface DialogData {
   parentId?: string | null;
 }
 
+/**
+ * Options d'ouverture du formulaire, communes à tous les écrans qui l'ouvrent
+ * (liste des espaces, fiche d'un dossier) : sa grille demande 640 px au moins
+ * (`.ws-form`) ; ouvert plus étroit, il était coupé à droite (ANO-F-032).
+ */
+export const DIALOGUE_FORMULAIRE_ESPACE = { width: '760px', maxWidth: '95vw', autoFocus: false } as const;
+
 /** Formulaire créer / éditer un espace de travail — boîte de dialogue Material. */
 @Component({
   selector: 'app-workspace-form',

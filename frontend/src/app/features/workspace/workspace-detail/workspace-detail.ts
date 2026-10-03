@@ -9,7 +9,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { forkJoin } from 'rxjs';
 import { WorkspaceService } from '../workspace.service';
 import { TreeNode, WorkSpace, dossiersDeLEspace } from '../workspace.model';
-import { WorkspaceForm } from '../workspace-form/workspace-form';
+import { DIALOGUE_FORMULAIRE_ESPACE, WorkspaceForm } from '../workspace-form/workspace-form';
 import { DocumentService, messageErreurTelechargement } from '../../document/document.service';
 import { DocumentItem } from '../../document/document.model';
 import { ConfirmService } from '../../../core/confirm.service';
@@ -162,7 +162,7 @@ export class WorkspaceDetail implements OnInit {
     const w = this.espace();
     if (!w) return;
     this.dialog.open(WorkspaceForm, {
-      data: { workspace: w, parentId: null }, width: '540px', maxWidth: '95vw', autoFocus: false,
+      ...DIALOGUE_FORMULAIRE_ESPACE, data: { workspace: w, parentId: null },
     }).afterClosed().subscribe(ok => {
       if (!ok) return;
       this.charger();
@@ -180,7 +180,7 @@ export class WorkspaceDetail implements OnInit {
     if (id == null) return;
     if (this.echange()) { this.creerDossierEchange(id); return; }
     this.dialog.open(WorkspaceForm, {
-      data: { workspace: null, parentId: id }, width: '540px', maxWidth: '95vw', autoFocus: false,
+      ...DIALOGUE_FORMULAIRE_ESPACE, data: { workspace: null, parentId: id },
     }).afterClosed().subscribe(ok => {
       if (!ok) return;
       this.charger();

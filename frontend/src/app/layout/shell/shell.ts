@@ -9,6 +9,7 @@ import { ModulesService } from '../../core/modules.service';
 import { BrandLogo } from '../../core/brand-logo/brand-logo';
 import { CircuitService } from '../../features/workflow/circuit.service';
 import { NotificationsService } from '../../features/notifications/notifications.service';
+import { titrePage } from './titres';
 
 /**
  * Coque applicative — disposition « topnav » (style UBold) :
@@ -82,32 +83,11 @@ export class Shell implements AfterViewInit {
     nav.style.setProperty('--jauge-o', '1');
   }
 
-  /** Libellé de la page courante, par 1er segment d'URL. */
-  private readonly titles: Record<string, string> = {
-    'accueil': 'Accueil',
-    'televerser': 'Documents déposés',
-    'mes-workflow': 'Mes validations',
-    'espaces-de-travail': 'Espaces de travail',
-    'regles-de-workflow': 'Règles de Workflow',
-    'groupe-d-acces': "Groupe d'accès",
-    'index': 'Index',
-    'plan-indexation': "Plan d'indexation",
-    'type-de-document': 'Type de document',
-    'etiquette': 'Étiquette',
-    'journal-audit': "Journal d'audit",
-    'cles-api': "Clés d'API",
-    'notifications': 'Notifications',
-    'profil': 'Mon profil',
-  };
-
   constructor() {
     const destroyRef = inject(DestroyRef);
     this.ecouterRedimensionnement(destroyRef);
 
-    const syncTitle = () => {
-      const seg = this.router.url.split(/[/?#]/).filter(Boolean)[0] ?? 'accueil';
-      this.pageTitle.set(this.titles[seg] ?? 'Accueil');
-    };
+    const syncTitle = () => this.pageTitle.set(titrePage(this.router.url));
     syncTitle();
 
     const sub = this.router.events

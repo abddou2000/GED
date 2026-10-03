@@ -146,3 +146,50 @@ Aucun changeset Liquibase : pas d'évolution de schéma.
    tour suivant si pm le souhaite. Le libellé « Archive » de la corbeille de cette liste relève
    de dev4 (tour 3) : mes changements touchent des lignes voisines, conflit de fusion possible
    mais trivial.
+
+## Tour 8 — ANO-F-031 à ANO-F-035 (défauts relevés en tournant la démonstration)
+
+Branche `ct/dev5-r8`, partie de `claude/inspiring-lovelace-10bg1c` à 085ac42. Front seul : aucun
+fichier du back modifié, aucun changeset Liquibase. Lignes ouvertes dans
+`recette/ANOMALIES-FONCTIONNELLES.md` (716d8ff), statuts posés en fin de tour.
+
+| Anomalie | Cause | Correctif | Preuve (échoue sans le correctif) | Commit |
+|---|---|---|---|---|
+| ANO-F-031 — « Ouvrir » d'une notification | Le back désigne le document par `documents/<id>` (`ServiceCircuits.lien` : `CIRCUIT_OUVERT`, `CIRCUIT_DECISION`, `CIRCUIT_ANNULE` ; `EcheanceConservationAtteinte` : `ECHEANCE_CONSERVATION`) ; la fiche est à `televerser/:id` → route `**` → accueil. `ACCES_ESPACE_ATTRIBUE` (`espaces-de-travail/<id>`) était correct ; il n'existe pas d'avis de « partage » (trois familles seulement, `TypeNotification`). | Route `documents/:id` → `redirectTo: 'televerser/:id'` : les avis déjà en base et les courriels déjà envoyés (`<url>/#/documents/<id>`) restent valables, sans toucher au back ni aux données. | `notifications-liens.spec.ts` (configuration réelle des routes, sans gardes : chaque forme de lien du back) — sans la route : « expected '/accueil' to be '/televerser/…' ». Chromium : « Ouvrir » sur un avis de circuit → `#/televerser/<id>`, fiche « Contrat maintenance 28 ». | a785d0b |
+| ANO-F-032 — formulaire d'espace coupé | `workspace-detail.ts` ouvrait `WorkspaceForm` en 540 px ; le formulaire impose 640 px (`.ws-form`) ; la liste l'ouvre en 760 px. | Options d'ouverture communes exportées par le formulaire (`DIALOGUE_FORMULAIRE_ESPACE`, 760 px, 95vw au plus), utilisées par la fiche (Modifier, Créer un sous-dossier) et la liste. | `workspace-detail.spec.ts` (+1) — sans le correctif : « expected '540px' to be '760px' ». Chromium 1440×808 : boîte 760 px, contenu 758/758 (aucun débordement), pour les deux actions. | 78e9879 |
+| ANO-F-033 — filtre « Utilisateur » du journal | Saisie libre envoyée telle quelle à `GET /audit/evenements?utilisateur=`, qui attend l'UUID de l'identité (400 « attend un UUID », vérifié sur l'API). | Autocomplétion (nom ou identifiant de connexion, sans accent ni casse) ; l'UUID part. Sources existantes, back inchangé : `GET /employes?has_user=1` (tout utilisateur : nom + `utilisateurId`) et, pour l'Administrateur, `GET /admin/utilisateurs` (ajoute l'identifiant). Saisie exacte sans choisir acceptée ; saisie qui ne désigne personne signalée sans appel ; UUID collé accepté ; export soumis à la même règle. | `journal-audit.spec.ts` (5 tests : identifiant → UUID, nom → UUID, choix dans la liste, saisie inconnue, Direction Générale sans appel `/admin`). Chromium : sbennani « benn » → « Sara Bennani (sbennani) » → `utilisateur=<uuid>`, 50 lignes ; nidrissi (Direction Générale, CONSULTER_AUDIT sans administration) « sara » → « Sara Bennani » → même UUID. | 9c2139b |
+| ANO-F-034 — résultats de la recherche par index écrasés | La carte porte un paginateur : `.card:has(> .mat-mdc-paginator)` (_ui.scss) la borne à la hauteur de l'écran ; le tableau, servi après les critères, reçoit le reste (98 px pour 30 lignes à 1440×808 sur ma base ; 28 px en démonstration avec plus de critères). | Carte à hauteur naturelle (`flex: 1 0 auto`), la zone `.page` défile ; tableau défilant en interne, plafonné à `max(320px, 100vh − 300px)` pour garder en-tête et paginateur visibles ensemble ; en-tête de colonnes fixe (`sticky`) ; une nouvelle recherche amène le total et le tableau à l'écran (pas la pagination). | `recherche-index.spec.ts` (+1 : défilement vers `.total` à la recherche, pas à la pagination ; en-tête fixe) — sans le correctif : « expected [] to deeply equal ['total'] ». Mesures Chromium (30 résultats) : `.table-wrap` 357 px (1366×657), 468 px (1366×768), 508 px (1440×808), 600 px (1440×900), paginateur visible après défilement ; à 1366×657 la vue arrive directement sur le total et le tableau. | b8ed843 |
+| ANO-F-035 — titres de la barre supérieure | Table des titres de `shell.ts` indexée par le premier segment d'URL, incomplète (`administration/*`, recherches, exports, OCR → « Accueil »). | `layout/shell/titres.ts` : table par chemin, préfixe le plus long (`type-de-document/retypage` → « Re-typologie en lot »). | `titres.spec.ts` (3 tests, dont : chaque route de `app.routes` a un titre) ; `shell.spec.ts` (+1, titre affiché après navigation) — sans le correctif : « expected 'Accueil' to be 'Habilitations' ». Chromium : les 23 écrans du menu affichent leur titre. | bd01ce4 |
+| ANO-F-035 — ligne d'état des traitements OCR | `.etat` placé dans la carte avant `.toolbar`, en-tête de carte à marges négatives (`margin: -24px -26px 16px`) qui le recouvrait. | Ligne d'état sortie au-dessus de la carte (`role="status"`, masquée si vide) ; la barre d'onglets redevient le premier élément de la carte. | `supervision-ocr.spec.ts` (nouveau) — sans le correctif : « expected null to be 'status' ». Chromium : état 211–247 px, barre d'onglets à 259 px (plus de recouvrement), toutes tailles. | 6c77166 |
+| ANO-F-035 — « Dernière connexion » du profil | Sous 860 px de haut, la première rangée de la grille était bornée à 220 px ; la carte d'identité en demande 278 ; sa dernière ligne passait sous le bord (défilement interne invisible). | Rangée à la hauteur de la carte d'identité (`auto`, carte sans défilement) ; la carte des rattachements s'y aligne sans la pousser (`height: 0; min-height: 100%`, listes défilantes) ; la grille défile si la fenêtre est trop courte ; en pile (≤ 1100 px) trois rangées explicites. | Mise en page seule, non testable sous jsdom (pas de calcul de disposition) : mesures Chromium — carte 278/278 px, « Dernière connexion » visible à 1440×808, 1366×657, 1366×768, 1440×900 et 1024×700 (avant : 230/278 à 1440×808, 79/278 à 1366×657). | 5583b42 |
+
+### Vérifications
+
+- Front : `ng test` **49 fichiers, 218 tests verts** (203 avant ce tour, +15) ; `ng build` vert (mêmes
+  avertissements de budget qu'avant : bundle initial, police, `profil.scss`).
+- Contrôle visuel : instance propre (back 18087 sur `ged_dev5`, front `ng serve` 4387, annuaire
+  embarqué 33398, SMTP simulé 3038), Chromium `/opt/pw-browsers`, 30 contrats déposés par l'API ;
+  scripts et captures dans le répertoire de travail de la session (`dev5-r8-vis/`), non versionnés.
+- Back (non modifié, contrôle de non-régression) : suite complète `mvn test` (environnement dev5,
+  instance de contrôle arrêtée avant, ports partagés) : **711 tests, 0 échec, 0 erreur**
+  (3 ignorés), comptés sur `target/surefire-reports`.
+
+### Points pour pm
+
+1. **ANO-F-031, lien du back** : je n'ai pas aligné le back (`documents/<id>` reste le lien émis) :
+   la route du front couvre les avis existants et futurs, et un changement du back laisserait les
+   avis déjà en base sur l'ancien chemin. Si l'on préfère un lien canonique `televerser/<id>`
+   côté serveur, la route `documents/:id` doit rester pour l'historique.
+2. **ANO-F-033, identifiant de connexion pour la Direction Générale** : aucune API ouverte à
+   CONSULTER_AUDIT ne rend l'identifiant de connexion (`/employes` : nom et UUID ;
+   `/admin/utilisateurs` : réservé au rôle Administrateur). La Direction Générale filtre donc
+   par le **nom** ; l'Administrateur par le nom ou l'identifiant. Pour l'identifiant partout, il
+   faudrait l'exposer dans `/employes` (évolution back, dev1/dev3) — je n'ai pas modifié le back.
+   La garde front de l'appel `/admin/utilisateurs` est `auth.administrateur()` (permission
+   GERER_ROLES_HABILITATIONS, comme les écrans d'administration) ; un refus éventuel rend la liste
+   plus courte, sans erreur.
+3. **ANO-F-034** : même règle commune (`.card:has(> .mat-mdc-paginator)`) sur d'autres écrans à
+   critères dans la carte (journal d'audit : 8 lignes visibles à 1440×808, défilement interne,
+   acceptable) ; non relevés en démonstration, laissés en l'état.
+4. **ANO-F-035, profil** : à 1366×768 la carte des dernières décisions passe sous le pli (la grille
+   défile) : choix assumé, une carte d'identité coupée en silence étant pire.

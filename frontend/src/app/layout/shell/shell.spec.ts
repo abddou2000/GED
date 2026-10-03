@@ -1,7 +1,8 @@
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -64,5 +65,38 @@ describe('Menus des modules métier (T-088)', () => {
     expect(liens).not.toContain('/mes-exports');
     expect(liens).toContain('/mes-workflow');
     expect(liens).toContain('/recherche');
+  });
+});
+
+@Component({ template: '' })
+class Vide {}
+
+/** ANO-F-035 : le titre de la barre supérieure suit l'écran, y compris hors du premier segment. */
+describe('Titre de la barre supérieure (ANO-F-035)', () => {
+  it('affiche le titre de l\'écran ouvert, et non « Accueil »', async () => {
+    TestBed.configureTestingModule({
+      imports: [Shell],
+      providers: [
+        provideRouter(['administration/habilitations', 'recherche', 'traitements-ocr', 'accueil']
+          .map(path => ({ path, component: Vide }))),
+        provideHttpClient(), provideHttpClientTesting(), provideNoopAnimations(),
+        { provide: ModulesService, useValue: { charger: () => of(undefined), actif: () => true } },
+      ],
+    });
+    const icones = TestBed.inject(MatIconRegistry);
+    const assainisseur = TestBed.inject(DomSanitizer);
+    for (const { name, svg } of GED_ICONS) icones.addSvgIconLiteral(name, assainisseur.bypassSecurityTrustHtml(svg));
+    const f = TestBed.createComponent(Shell);
+    f.detectChanges();
+    const router = TestBed.inject(Router);
+    const titre = () => (f.nativeElement as HTMLElement).querySelector('.topbar-title')?.textContent?.trim();
+    for (const [url, attendu] of [['/administration/habilitations', 'Habilitations'],
+                                  ['/recherche', 'Recherche plein texte'],
+                                  ['/traitements-ocr', 'Traitements OCR'],
+                                  ['/accueil', 'Accueil']]) {
+      await router.navigateByUrl(url);
+      f.detectChanges();
+      expect(titre()).toBe(attendu);
+    }
   });
 });
