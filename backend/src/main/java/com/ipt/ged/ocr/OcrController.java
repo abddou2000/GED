@@ -7,6 +7,7 @@ import com.ipt.ged.ocr.file.EnfilageOcr;
 import com.ipt.ged.ocr.file.StatutOcr;
 import com.ipt.ged.ocr.moteur.LanguesOcr;
 import com.ipt.ged.ocr.moteur.OcrEngine;
+import com.ipt.ged.ocr.moteur.ReglageOcr;
 import com.ipt.ged.recherche.SearchIndexer;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,7 @@ import java.util.UUID;
  *
  * <ul>
  *   <li>{@code GET /etat} — la chaîne asynchrone est-elle active, le moteur
- *       répond-il, avec quelles langues ;</li>
+ *       répond-il, avec quelles langues, quels modèles et quelle résolution ;</li>
  *   <li>{@code GET /documents/{id}/texte} — texte extrait de la version
  *       courante et état de son traitement (« non interrogeable » tant qu'il
  *       n'est pas {@code OCR_TERMINE}). Le texte est servi <b>par plage</b> :
@@ -52,19 +53,22 @@ public class OcrController {
     private final LanguesOcr langues;
     private final SearchIndexer indexer;
     private final DocumentVersionRepository versions;
+    private final ReglageOcr reglage;
 
     public OcrController(EnfilageOcr enfilage, OcrEngine moteur, LanguesOcr langues, SearchIndexer indexer,
-                         DocumentVersionRepository versions) {
+                         DocumentVersionRepository versions, ReglageOcr reglage) {
         this.enfilage = enfilage;
         this.moteur = moteur;
         this.langues = langues;
         this.indexer = indexer;
         this.versions = versions;
+        this.reglage = reglage;
     }
 
     @GetMapping("/etat")
     public Etat etat() {
-        return new Etat(enfilage.actif(), moteur.disponible(), moteur.languesInstallees(), langues.defaut());
+        return new Etat(enfilage.actif(), moteur.disponible(), moteur.languesInstallees(), langues.defaut(),
+                reglage.modeles(), reglage.dpi());
     }
 
     @GetMapping("/documents/{id}/texte")
@@ -95,9 +99,12 @@ public class OcrController {
 
     /**
      * @param actif            chaîne asynchrone active (workers, enfilage au dépôt) ;
-     * @param moteurDisponible le binaire Tesseract répond.
+     * @param moteurDisponible le binaire Tesseract répond ;
+     * @param modeles          modèles employés : entiers, precis, repli ou installation ({@link ReglageOcr}) ;
+     * @param dpi              résolution du rendu des pages PDF scannées.
      */
-    public record Etat(boolean actif, boolean moteurDisponible, Set<String> languesInstallees, String langueDefaut) {}
+    public record Etat(boolean actif, boolean moteurDisponible, Set<String> languesInstallees, String langueDefaut,
+                       String modeles, int dpi) {}
 
     /**
      * @param interrogeable le texte de la version courante est dans l'index plein texte ;

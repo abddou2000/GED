@@ -205,9 +205,13 @@ Réglage par défaut retenu après mesure (`docs/exploitation/ESSAIS-DE-CHARGE.m
 | `ged.ocr.chaine.dpi` | `GED_OCR_DPI` | `200` | Résolution du rendu des pages PDF scannées (300 auparavant). Revenir à `300` si l'échantillon de MMED montre des corps de 8 pt ou moins mal lus (+14 % de CPU). |
 
 Vérification au démarrage, dans le journal : « Modèles OCR compactés en entiers dans … :
-[ara, eng, fra] ». **Sans `combine_tessdata`** (ou répertoire non inscriptible), l'application
-démarre quand même avec les modèles précis et l'écrit en avertissement (« Aucun modèle OCR
-compacté en entiers … débit réduit ») : l'OCR fonctionne, au débit d'avant (~5,4 s par page).
+[ara, eng, fra] » puis « Réglage OCR : modèles entiers (…), pages PDF rendues à 200 dpi » ; le
+même réglage est rendu par `GET /api/v1/ocr/etat` (champs `modeles` et `dpi`). **Sans
+`combine_tessdata`** (ou répertoire non inscriptible), l'application démarre quand même avec
+les modèles précis et l'écrit en avertissement (« Aucun modèle OCR compacté en entiers (…
+indisponible) … débit réduit », réglage `repli`) : l'OCR fonctionne, au débit d'avant (~5,4 s
+par page). Une fois l'outil installé, un simple redémarrage refait la conversion (ANO-E6-003) :
+inutile de vider le répertoire de travail.
 Les modèles inscrits au registre des dépendances et au SBOM restent ceux de `backend/tessdata`
 (la copie en est dérivée, rien n'est ajouté au paquet). Inchangés : `--psm 3`, `--oem 1`,
 langue `ara+fra`, `OMP_THREAD_LIMIT=1`, un worker OCR par cœur (`GED_OCR_CHAINE_WORKERS`).
