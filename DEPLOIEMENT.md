@@ -211,7 +211,9 @@ même réglage est rendu par `GET /api/v1/ocr/etat` (champs `modeles` et `dpi`).
 les modèles précis et l'écrit en avertissement (« Aucun modèle OCR compacté en entiers (…
 indisponible) … débit réduit », réglage `repli`) : l'OCR fonctionne, au débit d'avant (~5,4 s
 par page). Une fois l'outil installé, un simple redémarrage refait la conversion (ANO-E6-003) :
-inutile de vider le répertoire de travail.
+inutile de vider le répertoire de travail. Exception : si un `combine_tessdata` **présent mais défectueux**
+a tourné (modèles marqués `non-convertible`, avertissement « aucun modèle convertible »), vider le répertoire de travail
+(`GED_OCR_MODELES_ENTIERS_REPERTOIRE`) après réparation de l'outil, puis redémarrer.
 Les modèles inscrits au registre des dépendances et au SBOM restent ceux de `backend/tessdata`
 (la copie en est dérivée, rien n'est ajouté au paquet). Inchangés : `--psm 3`, `--oem 1`,
 langue `ara+fra`, `OMP_THREAD_LIMIT=1`, un worker OCR par cœur (`GED_OCR_CHAINE_WORKERS`).
