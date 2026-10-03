@@ -20,7 +20,7 @@ import { ColumnPicker } from '../../../core/column-picker/column-picker';
 import { ColonneDef } from '../../../core/column-prefs.service';
 import { WorkspaceService } from '../workspace.service';
 import { SelectOption, TreeNode, WorkSpace } from '../workspace.model';
-import { WorkspaceForm } from '../workspace-form/workspace-form';
+import { DIALOGUE_FORMULAIRE_ESPACE, WorkspaceForm } from '../workspace-form/workspace-form';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
@@ -361,7 +361,7 @@ export class WorkspaceList implements OnInit {
   }
   private openDialog(w: WorkSpace | null, parentId: string | null): void {
     const ref = this.dialog.open(WorkspaceForm, {
-      data: { workspace: w, parentId }, width: '760px', maxWidth: '95vw', autoFocus: false,
+      ...DIALOGUE_FORMULAIRE_ESPACE, data: { workspace: w, parentId },
     });
     ref.afterClosed().subscribe(saved => {
       if (!saved) return;

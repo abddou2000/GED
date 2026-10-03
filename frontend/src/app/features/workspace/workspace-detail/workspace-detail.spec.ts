@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -11,6 +12,7 @@ import { AuthService } from '../../../core/auth.service';
 import { GED_ICONS } from '../../../core/ged-icons';
 import { CodeModule, ModulesService } from '../../../core/modules.service';
 import { WorkSpace } from '../workspace.model';
+import { WorkspaceForm } from '../workspace-form/workspace-form';
 import { WorkspaceDetail } from './workspace-detail';
 
 /**
@@ -115,5 +117,34 @@ describe('WorkspaceDetail', () => {
       identite(['GERER_ESPACES']);
       expect(present(ouvrir(espace({ permissions: ['CONSULTER'] })), '.act-sous-dossier')).toBe(true);
     });
+  });
+
+  /**
+   * ANO-F-032 : le formulaire d'espace demande 640 px au moins ; ouvert en
+   * 540 px depuis la fiche, il était coupé à droite. Même largeur que depuis
+   * la liste des espaces (760 px).
+   */
+  it('ANO-F-032 : Modifier et Créer un sous-dossier ouvrent le formulaire d\'espace en 760 px', () => {
+    const ouvertures: { composant: unknown; config?: MatDialogConfig }[] = [];
+    const avant = MatDialog.prototype.open;
+    MatDialog.prototype.open = function (composant: unknown, config?: MatDialogConfig) {
+      ouvertures.push({ composant, config });
+      return { afterClosed: () => of(false) } as never;
+    } as typeof MatDialog.prototype.open;
+    try {
+      identite(['GERER_ESPACES']);
+      const f = ouvrir(espace({ permissions: ['CONSULTER', 'MODIFIER'] }));
+      (f.nativeElement.querySelector('.act-modifier') as HTMLButtonElement).click();
+      (f.nativeElement.querySelector('.act-sous-dossier') as HTMLButtonElement).click();
+      expect(ouvertures.map(o => o.composant)).toEqual([WorkspaceForm, WorkspaceForm]);
+      for (const o of ouvertures) {
+        expect(o.config?.width).toBe('760px');
+        expect(o.config?.maxWidth).toBe('95vw');
+      }
+      expect(ouvertures[0].config?.data).toEqual({ workspace: expect.objectContaining({ id: 'w1' }), parentId: null });
+      expect(ouvertures[1].config?.data).toEqual({ workspace: null, parentId: 'w1' });
+    } finally {
+      MatDialog.prototype.open = avant;
+    }
   });
 });
