@@ -116,7 +116,8 @@ export class JournalAudit implements OnInit {
 
   /**
    * UUID à transmettre pour la saisie du filtre : la personne choisie, sinon
-   * une correspondance exacte (identifiant, nom) ou un UUID collé tel quel.
+   * un UUID collé tel quel, une correspondance exacte (identifiant, nom), ou
+   * la seule personne que la saisie partielle désigne (« Sara »).
    * `null` si rien n'est saisi ; `undefined` si la saisie ne désigne personne.
    */
   private utilisateurChoisi(): string | null | undefined {
