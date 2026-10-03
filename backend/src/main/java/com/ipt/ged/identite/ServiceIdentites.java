@@ -1,5 +1,6 @@
 package com.ipt.ged.identite;
 
+import com.ipt.ged.accessgroup.AppartenanceActivee;
 import com.ipt.ged.accessgroup.AppartenancesEnAttente;
 import com.ipt.ged.autorisation.Habilitation;
 import com.ipt.ged.autorisation.HabilitationRepository;
@@ -12,6 +13,7 @@ import com.ipt.ged.identite.annuaire.FicheAnnuaire;
 import com.ipt.ged.security.UtilisateurConnecte;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +51,9 @@ import java.util.UUID;
  * reprises ou préparées pour la fiche avant que la personne ait une identité
  * attendent dans {@code groupe_membre_attente} ; elles deviennent des
  * appartenances réelles à la création de l'identité, dans la même transaction,
- * sans action de l'Administrateur ({@link AppartenancesEnAttente}).
+ * sans action de l'Administrateur ({@link AppartenancesEnAttente}). Chacune est
+ * tracée au journal d'audit ({@code GROUPE_MEMBRE_ACTIVE}, acteur système) et
+ * notifiée à la personne comme un ajout au groupe ({@link AppartenanceActivee}).
  *
  * <h2>Renommage</h2>
  * <p>Un changement de {@code sAMAccountName} met à jour l'identifiant : la clé
@@ -71,11 +75,13 @@ public class ServiceIdentites {
     private final HabilitationRepository habilitations;
     private final ServiceHabilitations serviceHabilitations;
     private final AppartenancesEnAttente appartenancesEnAttente;
+    private final ApplicationEventPublisher evenements;
 
     public ServiceIdentites(UtilisateurRepository utilisateurs, EmployeRepository employes, RoleRepository roles,
                             ServiceCacheAnnuaire cache, ProprietesIdentite proprietes,
                             HabilitationRepository habilitations, ServiceHabilitations serviceHabilitations,
-                            AppartenancesEnAttente appartenancesEnAttente) {
+                            AppartenancesEnAttente appartenancesEnAttente, ApplicationEventPublisher evenements) {
+        this.evenements = evenements;
         this.utilisateurs = utilisateurs;
         this.employes = employes;
         this.roles = roles;
@@ -96,7 +102,7 @@ public class ServiceIdentites {
     @Transactional
     public Provisionnement provisionner(FicheAnnuaire fiche, boolean connexion) {
         Optional<Utilisateur> existante = utilisateurs.findByObjectGuid(fiche.objectGuid());
-        Utilisateur u = existante.orElseGet(() -> creer(fiche));
+        Utilisateur u = existante.orElseGet(() -> creer(fiche, connexion));
         if (!u.getIdentifiant().equals(fiche.identifiant())) {
             log.info("Identifiant d'annuaire modifié : {} devient {} (même objectGUID).",
                     u.getIdentifiant(), fiche.identifiant());
@@ -145,18 +151,14 @@ public class ServiceIdentites {
         return UtilisateurConnecte.depuis(u, r.get(0), r.get(1), sessionId);
     }
 
-    private Utilisateur creer(FicheAnnuaire fiche) {
+    private Utilisateur creer(FicheAnnuaire fiche, boolean connexion) {
         Employe employe = employeRattache(fiche).orElseGet(() -> employes.save(nouvelEmploye(fiche)));
         if (!employe.isHasUser()) {
             employe.setHasUser(true);
         }
         // Écrite tout de suite : les appartenances en attente vont la référencer.
         Utilisateur u = utilisateurs.saveAndFlush(new Utilisateur(fiche.objectGuid(), fiche.identifiant(), employe));
-        int groupes = appartenancesEnAttente.convertir(u.getId(), employe.getId());
-        if (groupes > 0) {
-            log.info("{} appartenance(s) à des groupes GED préparée(s) pour {} appliquée(s) à sa première connexion.",
-                    groupes, fiche.identifiant());
-        }
+        activerAppartenancesEnAttente(u, fiche.identifiant(), employe.getId(), connexion);
         boolean administrateurInitial = proprietes.getAmorcage().getAdministrateurs().stream()
                 .anyMatch(a -> a != null && a.trim().equalsIgnoreCase(fiche.identifiant()));
         if (administrateurInitial) {
@@ -168,6 +170,26 @@ public class ServiceIdentites {
         log.info("Identité GED provisionnée pour {}{}.", fiche.identifiant(),
                 administrateurInitial ? " (Administrateur d'amorçage)" : ", sans rôle");
         return u;
+    }
+
+    /**
+     * Appartenances préparées pour la fiche, devenues réelles : chacune est un
+     * changement de droits, tracé au journal d'audit et notifié à la personne
+     * comme un ajout au groupe (ANO-F-030, {@link AppartenanceActivee}), dans
+     * la transaction de la création de l'identité.
+     */
+    private void activerAppartenancesEnAttente(Utilisateur u, String identifiant, UUID employeId, boolean connexion) {
+        List<AppartenancesEnAttente.AppartenanceConvertie> converties =
+                appartenancesEnAttente.convertir(u.getId(), employeId);
+        if (converties.isEmpty()) return;
+        String motif = connexion ? AppartenanceActivee.MOTIF_CONNEXION : AppartenanceActivee.MOTIF_DELEGATION;
+        Instant maintenant = Instant.now();
+        for (AppartenancesEnAttente.AppartenanceConvertie c : converties) {
+            evenements.publishEvent(new AppartenanceActivee(c.appartenanceId(), c.groupeId(), c.groupe(),
+                    c.groupeSupprime(), u.getId(), identifiant, employeId, motif, maintenant));
+        }
+        log.info("{} appartenance(s) à des groupes GED préparée(s) pour {} appliquée(s) à sa première connexion.",
+                converties.size(), identifiant);
     }
 
     /** Fiche employé reprise de l'ancienne base, sans identité, au courriel dérivé identique. */

@@ -3,6 +3,7 @@ package com.ipt.ged.accessgroup;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -32,20 +33,35 @@ public class AppartenancesEnAttente {
         this.jdbc = jdbc;
     }
 
+    /** Appartenance devenue réelle : ligne (même identifiant), groupe, et si le groupe est en corbeille. */
+    public record AppartenanceConvertie(UUID appartenanceId, UUID groupeId, String groupe, boolean groupeSupprime) {}
+
     /**
      * Convertit les appartenances en attente de la fiche {@code employeId} en
      * appartenances de l'identité {@code utilisateurId}, qui doit déjà exister
      * en base (insertion validée ou écrite par flush).
      *
-     * @return nombre de groupes rejoints
+     * <p>Rien n'est publié ici (la reprise rejoue cette requête hors contexte
+     * Spring) : l'appelant trace et notifie chaque appartenance renvoyée
+     * (ANO-F-030, {@link AppartenanceActivee}).
+     *
+     * @return les appartenances devenues réelles, par nom de groupe
      */
-    public int convertir(UUID utilisateurId, UUID employeId) {
-        int rejoints = jdbc.update("""
-                INSERT INTO groupe_membre (id, groupe_ged_id, utilisateur_id)
-                SELECT a.id, a.groupe_ged_id, ? FROM groupe_membre_attente a
-                 WHERE a.employe_id = ?
-                ON CONFLICT DO NOTHING""", utilisateurId, employeId);
+    public List<AppartenanceConvertie> convertir(UUID utilisateurId, UUID employeId) {
+        List<AppartenanceConvertie> converties = jdbc.query("""
+                WITH convertie AS (
+                    INSERT INTO groupe_membre (id, groupe_ged_id, utilisateur_id)
+                    SELECT a.id, a.groupe_ged_id, ? FROM groupe_membre_attente a
+                     WHERE a.employe_id = ?
+                    ON CONFLICT DO NOTHING
+                    RETURNING id, groupe_ged_id)
+                SELECT c.id, c.groupe_ged_id, g.nom, g.supprime
+                  FROM convertie c JOIN groupe_ged g ON g.id = c.groupe_ged_id
+                 ORDER BY g.nom, c.id""",
+                (rs, i) -> new AppartenanceConvertie(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
+                        rs.getString(3), rs.getBoolean(4)),
+                utilisateurId, employeId);
         jdbc.update("DELETE FROM groupe_membre_attente WHERE employe_id = ?", employeId);
-        return rejoints;
+        return converties;
     }
 }

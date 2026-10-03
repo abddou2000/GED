@@ -1,5 +1,6 @@
 package com.ipt.ged.notification;
 
+import com.ipt.ged.accessgroup.AppartenanceActivee;
 import com.ipt.ged.autorisation.evenement.HabilitationModifiee;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -28,7 +29,8 @@ import java.util.UUID;
  *       autorisation (E3). Seules les attributions sont notifiées : ajout d'une
  *       habilitation avec rôle sur un nœud (à l'utilisateur, ou aux membres du
  *       groupe), ajout d'un membre à un groupe qui porte des accès (un avis par
- *       espace du groupe). Jamais un retrait, ni une habilitation sur un
+ *       espace du groupe), y compris une appartenance préparée devenue réelle
+ *       à la première connexion ({@link AppartenanceActivee}). Jamais un retrait, ni une habilitation sur un
  *       document (la diffusion n'est pas un des trois cas), ni une rupture
  *       d'héritage seule.</li>
  * </ul>
@@ -97,7 +99,8 @@ public class EcouteurDeclencheurs {
      * Membres ajoutés à un groupe : ils reçoivent l'accès aux espaces du groupe.
      * Les membres d'un groupe GED sont des identités GED (T-025) : l'avis leur va
      * directement. Une appartenance en attente (personne jamais connectée) ne
-     * figure pas dans {@code membres} et n'est pas notifiée.
+     * figure pas dans {@code membres} : elle est notifiée quand elle devient
+     * réelle ({@link #surAppartenanceActivee}).
      */
     private void membresAjoutes(UUID groupe, Map<String, Object> avant, Map<String, Object> apres, UUID auteur) {
         if (Boolean.TRUE.equals(apres.get("supprime"))) return;
@@ -106,11 +109,29 @@ public class EcouteurDeclencheurs {
         if (groupe == null || ajoutes.isEmpty()) return;
         Set<UUID> destinataires = new LinkedHashSet<>(ajoutes);
         destinataires.remove(auteur);
-        if (destinataires.isEmpty()) return;
+        accesParGroupe(groupe, apres.get("nom"), destinataires);
+    }
+
+    /**
+     * Appartenance en attente devenue réelle à la première connexion (ANO-F-030) :
+     * même avis qu'un ajout au groupe par l'Administrateur. Pas d'auteur à
+     * exclure (acteur système) ; rien pour un groupe en corbeille, qui
+     * n'apporte aucun droit.
+     */
+    @EventListener
+    public void surAppartenanceActivee(AppartenanceActivee evenement) {
+        if (evenement.groupeSupprime() || evenement.utilisateurId() == null) return;
+        synchroniser();
+        accesParGroupe(evenement.groupeId(), evenement.groupe(), Set.of(evenement.utilisateurId()));
+    }
+
+    /** Un avis {@code ACCES_ESPACE_ATTRIBUE} par espace du groupe, aux nouveaux membres. */
+    private void accesParGroupe(UUID groupe, Object nomGroupe, Set<UUID> destinataires) {
+        if (groupe == null || destinataires.isEmpty()) return;
         for (Map.Entry<UUID, String> espace : annuaire.espacesDuGroupe(groupe).entrySet()) {
             Map<String, Object> variables = new HashMap<>();
             variables.put("espace", espace.getValue());
-            variables.put("groupe", apres.get("nom"));
+            variables.put("groupe", nomGroupe);
             notifications.envoyer(DemandeNotification.a(TypeNotification.ACCES_ESPACE_ATTRIBUE, destinataires,
                     "ESPACE", espace.getKey(), variables, "espaces-de-travail/" + espace.getKey()));
         }

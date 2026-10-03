@@ -194,7 +194,9 @@ class RepriseDonneesTest {
                 + "', '" + UUID.randomUUID() + "', 'sbennani', '" + sara + "')");
         var jdbc = new org.springframework.jdbc.core.JdbcTemplate(
                 new org.springframework.jdbc.datasource.SingleConnectionDataSource(c, true));
-        assertEquals(1, new com.ipt.ged.accessgroup.AppartenancesEnAttente(jdbc).convertir(identite, UUID.fromString(sara)));
+        var converties = new com.ipt.ged.accessgroup.AppartenancesEnAttente(jdbc).convertir(identite, UUID.fromString(sara));
+        assertEquals(1, converties.size());
+        assertEquals(ligne, converties.get(0).appartenanceId().toString(), "appartenance renvoyée pour l'audit");
         assertEquals("AG-ADMIN", texte(c, "SELECT g.code FROM groupe_membre m JOIN groupe_ged g"
                 + " ON g.id = m.groupe_ged_id WHERE m.utilisateur_id = '" + identite + "'"));
         assertEquals(ligne, texte(c, "SELECT id::text FROM groupe_membre"), "la ligne garde son identifiant");

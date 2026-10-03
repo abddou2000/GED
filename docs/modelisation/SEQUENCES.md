@@ -252,7 +252,7 @@ sequenceDiagram
     D-->>F: 422 IDENTITE_DELEGUEE_INVALIDE (motif au journal CLE_API_REFUSEE, rien provisionné)
   else compte actif
     opt identité jamais connectée
-      D->>D: provisionner sans rôle (cache_annuaire) ; appartenances en attente converties (groupe_membre_attente → groupe_membre, T-025)
+      D->>D: provisionner sans rôle (cache_annuaire) ; appartenances en attente converties (groupe_membre_attente → groupe_membre, T-025), chacune tracée GROUPE_MEMBRE_ACTIVE (acteur système) et notifiée ACCES_ESPACE_ATTRIBUE (ANO-F-030)
     end
     D-->>F: principal de l'utilisateur délégué
   end
