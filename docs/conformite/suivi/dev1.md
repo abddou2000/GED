@@ -84,6 +84,36 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
+### Mise en conformité, tour 4 (branche `ct/dev1-r4`, depuis `ct/qa-r3` @ `8e38249`, base `ff20f21`)
+
+| Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
+|---|---|---|---|
+| ANO-E7-007 (Majeure, T-104, §12.7) | Corrigé (`e16eb01`) | Cause : `meta_date` (changeset `202609301020-1`) était déclarée `PARALLEL SAFE` alors que son corps PL/pgSQL avait un bloc `EXCEPTION WHEN others` ; un tel bloc ouvre une sous-transaction **à chaque appel** (à l'entrée du bloc, quelle que soit la valeur), interdite en mode parallèle. Toute lecture parallèle d'un critère date (leader compris) échouait, et la construction parallèle de l'index d'expression §8 aussi. Correctif : changeset `202610051000_meta_date_sans_sous_transaction.xml` (`CREATE OR REPLACE`, retour arrière explicite vers les corps d'origine, sans perte : aucune donnée en jeu, les index d'expression existants restent valides). `meta_date` : plus de bloc `EXCEPTION`, validité vérifiée par calcul avant `make_date` (an ≥ 1, mois 1–12, jours du mois, bissextiles grégoriennes). Vérification des autres fonctions : seules `meta_date` avait un bloc `EXCEPTION` parmi les fonctions `PARALLEL SAFE` du schéma (`meta_texte`, `ged_*` du plein texte, `uuid_v7` sont en SQL pur). `meta_nombre` n'ouvrait pas de sous-transaction mais levait « value overflows numeric format » sur une chaîne de forme numérique hors limites (`"1e1000000"`, possible en reprise ou après changement de nature d'un index) : une seule ligne faisait échouer la recherche et la création de l'index, en série comme en parallèle. Limites de `numeric` vérifiées avant la conversion (131 072 chiffres avant la virgule, 16 383 après, exposant ≤ 1 073 741 823). Les deux restent `IMMUTABLE PARALLEL SAFE`, ce qui est maintenant vrai ; même sémantique (absente ou mal formée → `NULL`). Note `DEPLOIEMENT.md` §8 ajoutée. | `MetadonneesPlanParalleleTest` (4) : `rechercheEnPlanParallele` (plan forcé : `max_parallel_workers_per_gather = 2`, `parallel_setup_cost = 0`, `parallel_tuple_cost = 0`, `min_parallel_table_scan_size = 0`, `Gather` vérifié par `EXPLAIN` ; `POST /documents/recherche` plage large, étroite, « renseignée », nombre → 200 et bons totaux) ; `indexDeDeploiementSeCree` (index §8 date et nombre construits avec `max_parallel_maintenance_workers = 2`, puis employés en plan parallèle) ; `fonctionsSuresEnParallele` (aucune fonction `PARALLEL SAFE` du schéma avec bloc `EXCEPTION`) ; `memeSemantique` (corps d'origine en référence : 5 556 chaînes de date, 0 écart, 4 019 dates lues ; 42 nombres aux bornes de `numeric`, 0 écart, 18 lus). Sans le correctif (include retiré) : les 4 échouent — 500 sur la plage large, `cannot start subtransactions during a parallel operation` au `CREATE INDEX`, `meta_date` signalée, `value overflows numeric format`. `SchemaLiquibaseTest.metaDateSansSousTransaction` : retour arrière (corps d'origine rétablis, index d'expression conservé) puis remontée. |
+
+**Recette rejouée** : `recette/e10/verifier-index-expression.sh` sur une instance PostgreSQL 16 privée et
+jetable (127.0.0.1:55491, arrêtée et supprimée ensuite), copie de `ged_dev1_test` migrée à `e16eb01`,
+100 000 documents clonés. Corps d'origine reposés : **5 OK / 2 ÉCHEC** (I02, I08 : même message que qa).
+Corps corrigés : **7 OK / 0 ÉCHEC / 1 AVERT** (I06, plan générique forcé, observation O3 connue) ;
+index §8 construits en 6 s ; I08 compte 54 568 en plan parallèle ; I07 mêmes comptes (389 / 52) avec et
+sans index, 0,98 ms contre 247 ms. Hors script, avec l'index, plage large (`>= 2021-01-01`, forme de
+`RechercheMetadonnees`) en `Gather` + `Parallel Bitmap Heap Scan` : 85 278 ; « renseignée » : 99 800.
+
+**Points pour pm** :
+
+1. ANO-E7-007 : à revérifier par qa (`verifier-index-expression.sh` sur sa copie de 100 000 documents, puis
+   `POST /documents/recherche` de bout en bout, que je n'ai pas relancé sur l'application démarrée : le
+   test d'intégration passe par MockMvc dans la même transaction que le plan forcé). T-104 peut alors
+   quitter « Vérifié ».
+2. Exploitation : aucun index d'expression déjà construit n'est à reconstruire (valeurs identiques) ;
+   le contournement `max_parallel_maintenance_workers = 0` n'est plus nécessaire après `202610051000`.
+3. Hors périmètre, non corrigé et non vérifié de bout en bout : `ValeursMetadonnees.nombre` accepte
+   `1e1000000` (`BigDecimal` Java), que `jsonb` refuse (« value overflows numeric format », constaté en
+   SQL) ; le dépôt répondrait donc probablement 500 au lieu de 400 `METADONNEES_INVALIDES`. Mineur ; à
+   faire vérifier si pm le juge utile.
+
+Tests : suite back complète (`e16eb01`) — **666 tests, 0 échec, 0 erreur, 0 ignoré (110 classes)**
+(référence 661 ; 5 nouveaux), lancée avec `GED_MANAGEMENT_PORT` et `SERVER_PORT` retirés. Front non touché.
+
 ### Mise en conformité, tour 2 (branche `ct/dev1-r2`, depuis `claude/inspiring-lovelace-10bg1c` @ `08c710c`)
 
 | Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
