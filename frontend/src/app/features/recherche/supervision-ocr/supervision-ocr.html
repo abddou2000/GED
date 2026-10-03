@@ -10,24 +10,27 @@
     </button>
   </div>
 
-  <div class="card">
-    <div class="etat">
-      @if (etat(); as e) {
-        <span>Chaîne {{ e.actif ? 'active' : 'désactivée' }}</span>
-        <span>Moteur {{ e.moteurDisponible ? 'disponible' : 'indisponible' }}</span>
-        <span>Langues : {{ e.languesInstallees.join(', ') }} (défaut {{ e.langueDefaut }})</span>
+  <!-- ANO-F-035 : l'état de la chaîne se lit hors de la carte. Placé dans la
+       carte avant la barre d'onglets, il était recouvert par celle-ci, en-tête
+       de carte à marges négatives (.toolbar, _ui.scss). -->
+  <div class="etat" role="status">
+    @if (etat(); as e) {
+      <span>Chaîne {{ e.actif ? 'active' : 'désactivée' }}</span>
+      <span>Moteur {{ e.moteurDisponible ? 'disponible' : 'indisponible' }}</span>
+      <span>Langues : {{ e.languesInstallees.join(', ') }} (défaut {{ e.langueDefaut }})</span>
+    }
+    @if (reindexation(); as p) {
+      @if (p.etat !== 'INACTIVE') {
+        <span class="reindex">
+          Réindexation {{ p.etat === 'EN_COURS' ? 'en cours' : p.etat === 'TERMINEE' ? 'terminée' : 'échouée' }} :
+          {{ p.traites }} / {{ p.total }} ({{ pourcentage(p) }} %)
+          @if (p.erreur) { — {{ p.erreur }} }
+        </span>
       }
-      @if (reindexation(); as p) {
-        @if (p.etat !== 'INACTIVE') {
-          <span class="reindex">
-            Réindexation {{ p.etat === 'EN_COURS' ? 'en cours' : p.etat === 'TERMINEE' ? 'terminée' : 'échouée' }} :
-            {{ p.traites }} / {{ p.total }} ({{ pourcentage(p) }} %)
-            @if (p.erreur) { — {{ p.erreur }} }
-          </span>
-        }
-      }
-    </div>
+    }
+  </div>
 
+  <div class="card">
     <div class="toolbar">
       <div class="left onglets" role="tablist">
         @for (s of STATUTS; track s.valeur) {
