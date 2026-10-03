@@ -658,3 +658,29 @@ Suite back complète (`c8ae886`, `mvn -B -q test`, sans `GED_MANAGEMENT_PORT` ni
 `SpecificationOpenApiTest.compatibilite`, `CriteresImposesApiTest.paginationHomogene`,
 `OcrApiTest.texteParPlage`, `SearchIndexerPostgresTest.texteParPlage` ;
 `parametreInconnuRefuse` devient `parametreInconnuIgnoreEtSignale`). Front non modifié (pas de build).
+
+## Tour 5 de la mise en conformité (`ct/dev3-r5`, depuis `claude/inspiring-lovelace-10bg1c` @ `4090da3`)
+
+Même poste (conteneur Linux partagé, bases `ged_dev3` / `ged_dev3_test`).
+
+| Id | État | Commit | Cause, correctif, preuve |
+|---|---|---|---|
+| ANO-E6-002 (T-115) | Corrigée | `cf1261f` | **Cause** : sous une charte **manuelle**, `IndexationService.recomposerReference` enregistrait la référence composée (`document.reference`, `varchar(255)`) sans contrôle de longueur — le contrôle `Limites.controler` n'existait qu'en charte automatique. Une valeur d'index texte de 300 caractères n'était donc refusée que par la base. Par le PUT, le filet `DataIntegrityViolationException` du gestionnaire commun répondait proprement 400 `DONNEE_REFUSEE` ; au dépôt, `DepotService` attrapait l'échec du temps 2 et recopiait `e.getMessage()` dans `motifIndexation`, c'est-à-dire le texte JDBC complet (requête `update document set …`, colonnes de la table). **Correctif** : (1) en charte manuelle, la référence composée est contrôlée avant écriture et refusée en 400 `DONNEE_REFUSEE` (code que le PUT renvoyait déjà, donc inchangé pour l'appelant) avec un message qui nomme le champ et sa limite : « Le champ « référence composée du document » ne peut pas dépasser 255 caractères (reçu : 300) : raccourcissez les valeurs d'index qui la composent. » Même règle pour le dépôt et pour la saisie, puisque les deux passent par `IndexationService.enregistrer`. (2) `DepotService.motif` : `motifIndexation` ne recopie que les refus métier (`ExceptionMetier`, `IllegalArgumentException`, déjà rendus tels quels par l'API) ; un refus du schéma reçoit le même libellé que par l'API (`GlobalExceptionHandler.causeLisible`, rendue publique) ; toute autre panne, un libellé générique (« incident technique lors de l'enregistrement ; reprenez l'indexation depuis l'écran d'indexation. ») ; le détail technique (pile comprise) va au journal seulement (`log.warn` avec l'exception). Le dépôt reste conforme au §12.11 : 201/202, temps 1 acquis, issue `A_INDEXER`, reprise par l'écran d'indexation. Charte automatique inchangée (message « nom composé du document », 400 `REQUETE_INVALIDE` par le PUT). Aucun changement de schéma, donc aucun changeset Liquibase. **Tests** : `DepotDeuxTempsApiTest.planManuelValeurTropLongue` (plan manuel, 300 caractères → `A_INDEXER`, motif métier sans « SQL », « update document », « could not execute » ni « varying », aucune valeur écrite ; même valeur par PUT → 400 `DONNEE_REFUSEE` avec le même libellé ; 200 caractères → 200, `INDEXE`, nom saisi intact) et `DepotServiceMotifTest` ×3 (refus du schéma, panne technique, refus métier, par `DepotService.deposer` avec collaborateurs simulés). **Rouges sans le correctif** (vérifié en retirant le code de `cf1261f` : 3 échecs, le motif renvoyé contenait le texte SQL brut), verts avec. |
+
+### Points pour pm
+
+1. **ANO-E6-002** à revérifier par qa (`qa/r4/ref-longue.sh`) : le dépôt en plan manuel répond désormais
+   `A_INDEXER` avec le motif « Métadonnées non enregistrées : Le champ « référence composée du document » ne
+   peut pas dépasser 255 caractères (reçu : 300) : … » ; le PUT garde 400 `DONNEE_REFUSEE`, mais son `detail`
+   devient ce même message (il disait « Donnée refusée par la base : une valeur dépasse la longueur autorisée… »).
+   T-115 peut remonter si qa confirme.
+2. Hors périmètre, non traité : le refus n'est pas avancé au temps 1 (le dépôt n'est pas refusé en 400) ;
+   la référence dépend des jetons système de la charte (date, heure) et du document, que seul le temps 2
+   connaît. Le §12.11 admet `A_INDEXER` avec reprise ; c'est l'issue retenue, comme en charte automatique.
+
+### Tests du tour 5
+
+Suite back complète (`cf1261f`, `mvn -B -q -o test` sur `ged_dev3_test`, sans `GED_MANAGEMENT_PORT` ni
+`SERVER_PORT`) : **691 tests, 0 échec, 0 erreur, 0 ignoré (115 classes)** (référence après le tour 4, vague 11 de
+qa : 687 ; +4 : `DepotDeuxTempsApiTest.planManuelValeurTropLongue`, `DepotServiceMotifTest` ×3). Front non
+modifié (pas de build).
