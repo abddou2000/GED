@@ -49,7 +49,7 @@ public class SourceHabilitationsUtilisateurs implements SourceHabilitations {
             return habilitations.findByApplicationId(sujet.id()).stream()
                     .map(h -> Attribution.depuis(h, sujet.libelle())).toList();
         }
-        List<Habilitation> lignes = habilitations.applicablesA(sujet.id(), sujet.employeId());
+        List<Habilitation> lignes = habilitations.applicablesA(sujet.id());
         List<UUID> idsGroupes = lignes.stream().map(Habilitation::getGroupeGedId).filter(Objects::nonNull)
                 .distinct().toList();
         Map<UUID, String> noms = idsGroupes.isEmpty() ? Map.of() : groupes.findAllById(idsGroupes).stream()

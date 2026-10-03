@@ -291,10 +291,11 @@ champs:
   employeFullName: {description: "Nom complet du validateur.", exemple: "Sara Bennani"}
   workspaces: {description: "Espaces concernés.", exemple: null}
   workspaceIds: {description: "Identifiants des espaces couverts par le groupe.", exemple: [0192f0a6-4444-7d1e-9f20-3a4b5c6d7e8f]}
-  userIds: {description: "Identifiants des employés membres du groupe.", exemple: [0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f]}
-  users: {description: "Membres du groupe.", exemple: null}
+  userIds: {description: "Membres du groupe : identifiants de fiche employé (ceux de users) ou d'identité GED. Une personne qui ne s'est jamais connectée devient membre en attente de sa première connexion.", exemple: [0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f]}
+  users: {description: "Membres du groupe, désignés par leur fiche employé, y compris ceux en attente de leur première connexion.", exemple: null}
+  pendingUserIds: {description: "Fiches employé des membres en attente de leur première connexion : appartenance préparée, sans aucun droit jusqu'à la création de leur identité GED (T-025).", exemple: [0192f0a6-1111-7d1e-9f20-3a4b5c6d7e8f]}
   workspacesCount: {description: "Nombre d'espaces couverts.", exemple: 3}
-  usersCount: {description: "Nombre de membres.", exemple: 8}
+  usersCount: {description: "Nombre de membres, en attente compris.", exemple: 8}
 
   # --- Types de document, plans et index ------------------------------------
   typeDeDocument: {description: "Nom du type de document.", exemple: "Marché public"}

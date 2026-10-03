@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610061000_groupe_membre_utilisateur.xml">
+
+    <!--
+        T-025, écart 2 (décision du client du 03/10 : alignement strict sur le
+        §12.1 / §12.2.1) : un groupe GED réunit des IDENTITÉS GED. Phase
+        « expand » : groupe_membre reçoit utilisateur_id (clé étrangère vers
+        utilisateur), rempli par utilisateur.employe_id (unique et non nul : une
+        identité = une fiche employé, résolution déterministe).
+
+        Une appartenance d'employé SANS identité (reprise : aucune identité
+        n'existe avant la première connexion ; préparation des droits avant
+        l'ouverture) ne peut pas désigner d'utilisateur : elle passe dans la
+        table d'attente groupe_membre_attente, avec le même identifiant de
+        ligne. L'application la convertit en appartenance réelle à la première
+        connexion de la personne (ServiceIdentites), sans action de
+        l'Administrateur. Une appartenance en attente n'apporte aucun droit :
+        sans identité, personne ne peut s'en prévaloir.
+
+        Retour arrière sans perte (P-17, GARANTIE.md) : les appartenances en
+        attente reviennent dans groupe_membre avec leur identifiant d'origine,
+        puis utilisateur_id et la table d'attente disparaissent. La table
+        d'attente ne porte rien de plus que groupe_membre d'origine (identifiant,
+        groupe, employé) : l'aller-retour est exact. Il suppose
+        employe_id présent, ce que rétablit le retour arrière du changeset
+        « contract » 202610061010, qui le précède dans l'ordre inverse.
+    -->
+    <changeSet id="202610061000-1" author="ged">
+        <comment>Groupes GED : membre désigné par son identité GED (utilisateur_id) ; appartenances sans identité en attente.</comment>
+        <createTable tableName="groupe_membre_attente">
+            <column name="id" type="UUID" defaultValueComputed="${database.defaultSchemaName}.uuid_v7()"><constraints primaryKey="true" primaryKeyName="pk_groupe_membre_attente" nullable="false"/></column>
+            <column name="groupe_ged_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="employe_id" type="UUID"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint constraintName="uk_groupe_membre_attente_groupe_ged_id_employe_id" tableName="groupe_membre_attente"
+                             columnNames="groupe_ged_id, employe_id"/>
+        <addForeignKeyConstraint constraintName="fk_groupe_membre_attente_groupe_ged" baseTableName="groupe_membre_attente" baseColumnNames="groupe_ged_id"
+                                 referencedTableName="groupe_ged" referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint constraintName="fk_groupe_membre_attente_employe" baseTableName="groupe_membre_attente" baseColumnNames="employe_id"
+                                 referencedTableName="employe" referencedColumnNames="id" onDelete="CASCADE"/>
+        <!-- Lue à chaque première connexion : appartenances en attente d'une fiche employé. -->
+        <createIndex indexName="idx_groupe_membre_attente_employe_id" tableName="groupe_membre_attente">
+            <column name="employe_id"/>
+        </createIndex>
+
+        <addColumn tableName="groupe_membre">
+            <column name="utilisateur_id" type="UUID"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_groupe_membre_utilisateur" baseTableName="groupe_membre" baseColumnNames="utilisateur_id"
+                                 referencedTableName="utilisateur" referencedColumnNames="id" onDelete="CASCADE"/>
+        <sql>UPDATE ${database.defaultSchemaName}.groupe_membre gm
+                SET utilisateur_id = u.id
+               FROM ${database.defaultSchemaName}.utilisateur u
+              WHERE u.employe_id = gm.employe_id</sql>
+        <sql>INSERT INTO ${database.defaultSchemaName}.groupe_membre_attente (id, groupe_ged_id, employe_id)
+             SELECT id, groupe_ged_id, employe_id
+               FROM ${database.defaultSchemaName}.groupe_membre
+              WHERE utilisateur_id IS NULL</sql>
+        <sql>DELETE FROM ${database.defaultSchemaName}.groupe_membre WHERE utilisateur_id IS NULL</sql>
+        <rollback>
+            <!-- employe_id est de nouveau présent et rempli (retour arrière de 202610061010). -->
+            <sql>INSERT INTO ${database.defaultSchemaName}.groupe_membre (id, groupe_ged_id, employe_id)
+                 SELECT a.id, a.groupe_ged_id, a.employe_id
+                   FROM ${database.defaultSchemaName}.groupe_membre_attente a
+                 ON CONFLICT DO NOTHING</sql>
+            <dropForeignKeyConstraint baseTableName="groupe_membre" constraintName="fk_groupe_membre_utilisateur"/>
+            <dropColumn tableName="groupe_membre" columnName="utilisateur_id"/>
+            <dropTable tableName="groupe_membre_attente"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

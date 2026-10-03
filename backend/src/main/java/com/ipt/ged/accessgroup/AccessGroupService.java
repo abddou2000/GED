@@ -13,6 +13,8 @@ import com.ipt.ged.common.Tri;
 import com.ipt.ged.common.erreur.RegleMetierException;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
+import com.ipt.ged.identite.Utilisateur;
+import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.workspace.WorkSpace;
 import com.ipt.ged.workspace.WorkSpaceRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -51,6 +54,7 @@ public class AccessGroupService {
     private final AccessGroupRepository repo;
     private final WorkSpaceRepository workspaceRepo;
     private final EmployeRepository employeRepo;
+    private final UtilisateurRepository utilisateurRepo;
     private final AccessGroupTriParTaille triParTaille;
     private final ServiceHabilitations habilitations;
     private final VersionHabilitations version;
@@ -59,12 +63,14 @@ public class AccessGroupService {
     private final JournalAdministration journal;
 
     public AccessGroupService(AccessGroupRepository repo, WorkSpaceRepository workspaceRepo,
-                              EmployeRepository employeRepo, AccessGroupTriParTaille triParTaille,
+                              EmployeRepository employeRepo, UtilisateurRepository utilisateurRepo,
+                              AccessGroupTriParTaille triParTaille,
                               ServiceHabilitations habilitations, VersionHabilitations version,
                               ApplicationEventPublisher evenements, JournalAdministration journal) {
         this.repo = repo;
         this.workspaceRepo = workspaceRepo;
         this.employeRepo = employeRepo;
+        this.utilisateurRepo = utilisateurRepo;
         this.triParTaille = triParTaille;
         this.habilitations = habilitations;
         this.version = version;
@@ -202,12 +208,11 @@ public class AccessGroupService {
      * avec la liste des identifiants inconnus, AVANT toute écriture.
      */
     private void exigerReferencesConnues(AccessGroupRequest req) {
-        List<UUID> membres = inconnus(req.userIds(), ids -> employeRepo.findAllById(ids).stream()
-                .map(Employe::getId).collect(Collectors.toSet()));
+        List<UUID> membres = resoudre(req.userIds()).inconnus();
         if (!membres.isEmpty()) {
             throw new RegleMetierException(CodesErreurGroupe.MEMBRES_INCONNUS,
-                    "Membre(s) inconnu(s) : " + membres.size() + " identifiant(s) ne désignent aucune fiche employé"
-                            + " (userIds attend des identifiants d'employé). Aucune modification enregistrée.")
+                    "Membre(s) inconnu(s) : " + membres.size() + " identifiant(s) ne désignent ni une fiche employé"
+                            + " ni une identité GED. Aucune modification enregistrée.")
                     .avec("identifiantsInconnus", membres);
         }
         List<UUID> espaces = inconnus(req.workspaceIds(), ids -> workspaceRepo.findAllById(ids).stream()
@@ -229,16 +234,56 @@ public class AccessGroupService {
         return uniques.stream().filter(id -> !trouves.contains(id)).toList();
     }
 
+    /**
+     * Membres demandés, traduits pour {@code groupe_membre} (T-025, écart 2) :
+     * {@code userIds} accepte l'identifiant d'une fiche employé (contrat
+     * d'origine, celui de l'écran) ou celui d'une identité GED. Une fiche qui a
+     * une identité devient l'appartenance de cette identité ; une fiche sans
+     * identité (personne jamais connectée) une appartenance en attente.
+     */
+    private Membres resoudre(List<UUID> demandes) {
+        if (demandes == null || demandes.isEmpty()) return new Membres(List.of(), List.of(), List.of());
+        Set<UUID> uniques = new LinkedHashSet<>(demandes);
+        uniques.remove(null);
+        Map<UUID, Employe> employes = employeRepo.findAllById(uniques).stream()
+                .collect(Collectors.toMap(Employe::getId, Function.identity()));
+        Map<UUID, Utilisateur> identitesDesFiches = employes.isEmpty() ? Map.of()
+                : utilisateurRepo.findByEmployeIdIn(employes.keySet()).stream()
+                        .collect(Collectors.toMap(u -> u.getEmploye().getId(), Function.identity()));
+        Set<UUID> autres = uniques.stream().filter(id -> !employes.containsKey(id)).collect(Collectors.toSet());
+        Map<UUID, Utilisateur> identites = autres.isEmpty() ? Map.of()
+                : utilisateurRepo.findAllById(autres).stream()
+                        .collect(Collectors.toMap(Utilisateur::getId, Function.identity()));
+        Map<UUID, Utilisateur> membres = new LinkedHashMap<>();
+        List<Employe> enAttente = new ArrayList<>();
+        List<UUID> inconnus = new ArrayList<>();
+        for (UUID id : uniques) {
+            Employe e = employes.get(id);
+            Utilisateur u = e != null ? identitesDesFiches.get(id) : identites.get(id);
+            if (u != null) membres.putIfAbsent(u.getId(), u);
+            else if (e != null) enAttente.add(e);
+            else inconnus.add(id);
+        }
+        return new Membres(List.copyOf(membres.values()), enAttente, inconnus);
+    }
+
+    private record Membres(List<Utilisateur> identites, List<Employe> enAttente, List<UUID> inconnus) {}
+
     private void apply(AccessGroup g, AccessGroupRequest req) {
         Map<String, Object> avant = instantane(g);
-        // Membres (personnes)
-        List<UUID> userIds = req.userIds() != null ? req.userIds() : List.of();
-        List<Employe> users = userIds.isEmpty() ? List.of() : employeRepo.findAllById(userIds);
-        g.getUsers().clear();
-        g.getUsers().addAll(users);
+        // Membres : identités GED, et appartenances en attente de la première connexion.
+        Membres membres = resoudre(req.userIds());
+        g.getMembres().clear();
+        g.getMembres().addAll(membres.identites());
+        g.getMembresEnAttente().clear();
+        g.getMembresEnAttente().addAll(membres.enAttente());
         repo.save(g);
-        if (!avant.get("membres").equals(instantane(g).get("membres"))) {
+        Map<String, Object> apres = instantane(g);
+        if (!avant.get("membres").equals(apres.get("membres"))) {
             version.incrementer();
+        }
+        if (!avant.get("membres").equals(apres.get("membres"))
+                || !avant.get("membresEnAttente").equals(apres.get("membresEnAttente"))) {
             publier(g, avant);
         }
 
@@ -256,7 +301,8 @@ public class AccessGroupService {
         m.put("code", g.getCode());
         m.put("nom", g.getName());
         m.put("supprime", g.isSupprime());
-        m.put("membres", g.getUsers().stream().map(e -> e.getId().toString()).sorted().toList());
+        m.put("membres", g.getMembres().stream().map(u -> u.getId().toString()).sorted().toList());
+        m.put("membresEnAttente", g.getMembresEnAttente().stream().map(e -> e.getId().toString()).sorted().toList());
         return m;
     }
 

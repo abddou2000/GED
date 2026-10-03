@@ -1,5 +1,6 @@
 package com.ipt.ged.identite;
 
+import com.ipt.ged.accessgroup.AppartenancesEnAttente;
 import com.ipt.ged.autorisation.Habilitation;
 import com.ipt.ged.autorisation.HabilitationRepository;
 import com.ipt.ged.autorisation.TypeSujet;
@@ -43,6 +44,13 @@ import java.util.UUID;
  * suit la personne ; sinon une fiche est créée depuis l'annuaire. Le courriel ne
  * sert qu'à ce rapprochement, jamais à l'authentification (D2).
  *
+ * <h2>Appartenances préparées</h2>
+ * <p>Les groupes GED réunissent des identités (§12.1, T-025). Les appartenances
+ * reprises ou préparées pour la fiche avant que la personne ait une identité
+ * attendent dans {@code groupe_membre_attente} ; elles deviennent des
+ * appartenances réelles à la création de l'identité, dans la même transaction,
+ * sans action de l'Administrateur ({@link AppartenancesEnAttente}).
+ *
  * <h2>Renommage</h2>
  * <p>Un changement de {@code sAMAccountName} met à jour l'identifiant : la clé
  * {@code objectGUID} étant immuable, aucun doublon n'est créé.
@@ -62,10 +70,12 @@ public class ServiceIdentites {
     private final ProprietesIdentite proprietes;
     private final HabilitationRepository habilitations;
     private final ServiceHabilitations serviceHabilitations;
+    private final AppartenancesEnAttente appartenancesEnAttente;
 
     public ServiceIdentites(UtilisateurRepository utilisateurs, EmployeRepository employes, RoleRepository roles,
                             ServiceCacheAnnuaire cache, ProprietesIdentite proprietes,
-                            HabilitationRepository habilitations, ServiceHabilitations serviceHabilitations) {
+                            HabilitationRepository habilitations, ServiceHabilitations serviceHabilitations,
+                            AppartenancesEnAttente appartenancesEnAttente) {
         this.utilisateurs = utilisateurs;
         this.employes = employes;
         this.roles = roles;
@@ -73,6 +83,7 @@ public class ServiceIdentites {
         this.proprietes = proprietes;
         this.habilitations = habilitations;
         this.serviceHabilitations = serviceHabilitations;
+        this.appartenancesEnAttente = appartenancesEnAttente;
     }
 
     /**
@@ -121,7 +132,7 @@ public class ServiceIdentites {
     public List<Set<String>> roles(Utilisateur u) {
         Set<String> globaux = new TreeSet<>();
         Set<String> tous = new TreeSet<>();
-        for (Habilitation h : habilitations.applicablesA(u.getId(), u.getEmploye().getId())) {
+        for (Habilitation h : habilitations.applicablesA(u.getId())) {
             if (h.getRole() == null) continue;
             tous.add(h.getRole().getCode());
             if (h.globale()) globaux.add(h.getRole().getCode());
@@ -139,7 +150,13 @@ public class ServiceIdentites {
         if (!employe.isHasUser()) {
             employe.setHasUser(true);
         }
-        Utilisateur u = utilisateurs.save(new Utilisateur(fiche.objectGuid(), fiche.identifiant(), employe));
+        // Écrite tout de suite : les appartenances en attente vont la référencer.
+        Utilisateur u = utilisateurs.saveAndFlush(new Utilisateur(fiche.objectGuid(), fiche.identifiant(), employe));
+        int groupes = appartenancesEnAttente.convertir(u.getId(), employe.getId());
+        if (groupes > 0) {
+            log.info("{} appartenance(s) à des groupes GED préparée(s) pour {} appliquée(s) à sa première connexion.",
+                    groupes, fiche.identifiant());
+        }
         boolean administrateurInitial = proprietes.getAmorcage().getAdministrateurs().stream()
                 .anyMatch(a -> a != null && a.trim().equalsIgnoreCase(fiche.identifiant()));
         if (administrateurInitial) {

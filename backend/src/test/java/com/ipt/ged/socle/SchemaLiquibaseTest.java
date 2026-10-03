@@ -135,6 +135,8 @@ class SchemaLiquibaseTest {
         t.add("verrou_tache");
         // T-025 : rapport des droits hérités des groupes (colonnes droit_* retirées).
         t.add("reprise_droits_groupe");
+        // T-025, écart 2 : appartenances de personnes sans identité GED, en attente de leur première connexion.
+        t.add("groupe_membre_attente");
         TABLES_ATTENDUES = Set.copyOf(t);
     }
 
@@ -602,6 +604,107 @@ class SchemaLiquibaseTest {
                 liquibase.update(new Contexts(), new LabelExpression());
                 assertEquals("groupe_ged.nom,noeud.nom,regle_workflow.nom", texte(c, colonnes));
                 assertEquals(1, compter(c, "SELECT count(*) FROM " + s + "reprise_droits_groupe"));
+            } finally {
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("T-025 écart 2 : groupe_membre désigne l'identité GED ; sans identité, en attente ; retour arrière et remontée sans perte")
+    void groupeMembreParIdentite() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                List<liquibase.changelog.ChangeSet> aJouer = liquibase.listUnrunChangeSets(new Contexts(),
+                        new LabelExpression());
+                int avant = 0;
+                while (!aJouer.get(avant).getId().equals("202610061000-1")) avant++;
+                liquibase.update(avant, new Contexts(), new LabelExpression());
+                String s = schema + ".";
+                // Sara s'est connectée (identité) ; Karim jamais (fiche reprise seule).
+                executer(c, "INSERT INTO " + s + "employe (id, first_name, last_name) VALUES"
+                        + " ('01920000-0000-7000-8000-0000000fe001', 'Sara', 'Bennani'),"
+                        + " ('01920000-0000-7000-8000-0000000fe002', 'Karim', 'El Fassi')");
+                executer(c, "INSERT INTO " + s + "utilisateur (id, object_guid, identifiant, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-0000000fc001', '01920000-0000-7000-8000-0000000fc0aa', 'sbennani',"
+                        + " '01920000-0000-7000-8000-0000000fe001')");
+                executer(c, "INSERT INTO " + s + "groupe_ged (id, code, nom) VALUES"
+                        + " ('01920000-0000-7000-8000-0000000fa001', 'AG-A', 'Archivistes'),"
+                        + " ('01920000-0000-7000-8000-0000000fa002', 'AG-B', 'Lecteurs')");
+                executer(c, "INSERT INTO " + s + "groupe_membre (id, groupe_ged_id, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-0000000fb001', '01920000-0000-7000-8000-0000000fa001', '01920000-0000-7000-8000-0000000fe001'),"
+                        + " ('01920000-0000-7000-8000-0000000fb002', '01920000-0000-7000-8000-0000000fa001', '01920000-0000-7000-8000-0000000fe002'),"
+                        + " ('01920000-0000-7000-8000-0000000fb003', '01920000-0000-7000-8000-0000000fa002', '01920000-0000-7000-8000-0000000fe002')");
+                if (!c.getAutoCommit()) c.commit();
+                String origine = "SELECT string_agg(id || ':' || groupe_ged_id || ':' || employe_id, ',' ORDER BY id) FROM "
+                        + s + "groupe_membre";
+                String avantMontee = texte(c, origine);
+
+                // 1. Montée : l'identité de Sara est membre, les appartenances de Karim attendent.
+                liquibase.update(new Contexts(), new LabelExpression());
+                String colonnes = "SELECT string_agg(column_name || ':' || is_nullable, ',' ORDER BY column_name)"
+                        + " FROM information_schema.columns WHERE table_schema = '" + schema + "' AND table_name = ?";
+                assertEquals("groupe_ged_id:NO,id:NO,utilisateur_id:NO", texte(c, colonnes, "groupe_membre"));
+                assertEquals("employe_id:NO,groupe_ged_id:NO,id:NO", texte(c, colonnes, "groupe_membre_attente"));
+                String membres = "SELECT string_agg(id || ':' || groupe_ged_id || ':' || utilisateur_id, ',' ORDER BY id) FROM "
+                        + s + "groupe_membre";
+                String attente = "SELECT string_agg(id || ':' || groupe_ged_id || ':' || employe_id, ',' ORDER BY id) FROM "
+                        + s + "groupe_membre_attente";
+                assertEquals("01920000-0000-7000-8000-0000000fb001:01920000-0000-7000-8000-0000000fa001:"
+                        + "01920000-0000-7000-8000-0000000fc001", texte(c, membres));
+                assertEquals("01920000-0000-7000-8000-0000000fb002:01920000-0000-7000-8000-0000000fa001:"
+                        + "01920000-0000-7000-8000-0000000fe002,01920000-0000-7000-8000-0000000fb003:"
+                        + "01920000-0000-7000-8000-0000000fa002:01920000-0000-7000-8000-0000000fe002", texte(c, attente));
+                for (String contrainte : List.of("uk_groupe_membre_groupe_ged_id_utilisateur_id", "fk_groupe_membre_utilisateur",
+                        "uk_groupe_membre_attente_groupe_ged_id_employe_id", "fk_groupe_membre_attente_employe",
+                        "fk_groupe_membre_attente_groupe_ged")) {
+                    assertEquals(1, compter(c, "SELECT count(*) FROM pg_constraint WHERE conname = '" + contrainte
+                            + "' AND connamespace = '" + schema + "'::regnamespace"), contrainte);
+                }
+                verifierConventionsDeNommage(c, schema);
+                // Une personne sans identité ne peut pas être membre directement.
+                Exception refus = org.junit.jupiter.api.Assertions.assertThrows(SQLException.class, () -> executer(c,
+                        "INSERT INTO " + s + "groupe_membre (groupe_ged_id) VALUES ('01920000-0000-7000-8000-0000000fa002')"));
+                assertTrue(causes(refus).contains("utilisateur_id"), causes(refus));
+                if (!c.getAutoCommit()) c.rollback();
+                // Activité après la montée : Sara rejoint AG-B, une appartenance est préparée pour Karim.
+                executer(c, "INSERT INTO " + s + "groupe_ged (id, code, nom) VALUES"
+                        + " ('01920000-0000-7000-8000-0000000fa003', 'AG-C', 'Courrier')");
+                executer(c, "INSERT INTO " + s + "groupe_membre (id, groupe_ged_id, utilisateur_id) VALUES"
+                        + " ('01920000-0000-7000-8000-0000000fb004', '01920000-0000-7000-8000-0000000fa002', '01920000-0000-7000-8000-0000000fc001')");
+                executer(c, "INSERT INTO " + s + "groupe_membre_attente (id, groupe_ged_id, employe_id) VALUES"
+                        + " ('01920000-0000-7000-8000-0000000fb005', '01920000-0000-7000-8000-0000000fa003', '01920000-0000-7000-8000-0000000fe002')");
+                if (!c.getAutoCommit()) c.commit();
+                String membresApres = texte(c, membres);
+                String attenteApres = texte(c, attente);
+
+                // 2. Retour arrière des deux changesets : employe_id reconstitué, attente réintégrée, rien de perdu.
+                int apres = compter(c, "SELECT count(*) FROM " + s + "databasechangelog WHERE orderexecuted >="
+                        + " (SELECT orderexecuted FROM " + s + "databasechangelog WHERE id = '202610061000-1')");
+                assertEquals(2, apres);
+                liquibase.rollback(apres, (String) null);
+                assertEquals("employe_id:NO,groupe_ged_id:NO,id:NO", texte(c, colonnes, "groupe_membre"));
+                assertEquals(0, compter(c, "SELECT count(*) FROM information_schema.tables WHERE table_schema = '"
+                        + schema + "' AND table_name = 'groupe_membre_attente'"));
+                assertEquals(avantMontee + ",01920000-0000-7000-8000-0000000fb004:01920000-0000-7000-8000-0000000fa002:"
+                        + "01920000-0000-7000-8000-0000000fe001,01920000-0000-7000-8000-0000000fb005:"
+                        + "01920000-0000-7000-8000-0000000fa003:01920000-0000-7000-8000-0000000fe002", texte(c, origine));
+                for (String contrainte : List.of("uk_groupe_membre_groupe_ged_id_employe_id", "fk_groupe_membre_employe")) {
+                    assertEquals(1, compter(c, "SELECT count(*) FROM pg_constraint WHERE conname = '" + contrainte
+                            + "' AND connamespace = '" + schema + "'::regnamespace"), contrainte);
+                }
+                assertEquals(1, compter(c, "SELECT count(*) FROM pg_indexes WHERE schemaname = '" + schema
+                        + "' AND indexname = 'idx_groupe_membre_employe_id'"));
+                verifierConventionsDeNommage(c, schema);
+
+                // 3. Remontée sur la base peuplée : exactement le même état qu'avant le retour arrière.
+                liquibase.update(new Contexts(), new LabelExpression());
+                assertEquals(membresApres, texte(c, membres));
+                assertEquals(attenteApres, texte(c, attente));
+                assertEquals("groupe_ged_id:NO,id:NO,utilisateur_id:NO", texte(c, colonnes, "groupe_membre"));
             } finally {
                 supprimerSchema(c, schema);
             }

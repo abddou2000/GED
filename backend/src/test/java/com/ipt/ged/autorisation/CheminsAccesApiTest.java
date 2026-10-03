@@ -585,7 +585,7 @@ class CheminsAccesApiTest {
     @DisplayName("Point 9 (E7) : un Administrateur global membre d'un groupe repris garde ses droits ; le lien est au rapport")
     void administrateurMembreDUnGroupeRepris() throws Exception {
         var groupe = new com.ipt.ged.accessgroup.AccessGroup("AG-REPRIS", "Groupe repris");
-        groupe.getUsers().add(em.find(com.ipt.ged.employe.Employe.class, jeu.employeId(Comptes.ADMIN)));
+        groupe.getMembres().add(em.find(com.ipt.ged.identite.Utilisateur.class, jeu.utilisateurId(Comptes.ADMIN)));
         em.persist(groupe);
         em.flush();
         // Ce que la reprise écrit désormais : un lien au rapport, aucune habilitation.

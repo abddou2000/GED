@@ -95,7 +95,7 @@ public class StatsController {
                 .filter(w -> !w.isSupprime()).count();
         long groupes = controle.administre(CodePermission.GERER_ROLES_HABILITATIONS)
                 ? accessGroups.countBySupprimeFalse()
-                : principal == null ? 0 : accessGroups.compterPourMembre(principal.getEmployeId());
+                : principal == null ? 0 : accessGroups.compterPourMembre(principal.getUtilisateurId());
         return new Overview(espaces, documents.documents(), enAttente, groupes);
     }
 

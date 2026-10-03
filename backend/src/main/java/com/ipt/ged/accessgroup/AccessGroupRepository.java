@@ -20,8 +20,8 @@ public interface AccessGroupRepository extends JpaRepository<AccessGroup, UUID> 
 
     Page<AccessGroup> findBySupprimeTrueAndNameContainingIgnoreCase(String search, Pageable pageable);
 
-    /** Charge le groupe avec ses membres (pour le détail / l'édition). */
-    @EntityGraph(attributePaths = {"users"})
+    /** Charge le groupe avec ses membres et ses appartenances en attente (détail / édition). */
+    @EntityGraph(attributePaths = {"membres", "membresEnAttente"})
     Optional<AccessGroup> findWithRefsById(UUID id);
 
     List<AccessGroup> findByIdInAndSupprimeFalse(List<UUID> ids);
@@ -40,7 +40,7 @@ public interface AccessGroupRepository extends JpaRepository<AccessGroup, UUID> 
 
     long countBySupprimeFalse();
 
-    /** Groupes vivants dont la personne est membre (tuile du tableau de bord). */
-    @Query("select count(g) from AccessGroup g join g.users m where m.id = :employeId and g.supprime = false")
-    long compterPourMembre(@Param("employeId") UUID employeId);
+    /** Groupes vivants dont l'identité GED est membre (tuile du tableau de bord). */
+    @Query("select count(g) from AccessGroup g join g.membres m where m.id = :utilisateurId and g.supprime = false")
+    long compterPourMembre(@Param("utilisateurId") UUID utilisateurId);
 }

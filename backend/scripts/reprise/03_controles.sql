@@ -21,7 +21,9 @@ WITH controles(ordre, controle, attendu, obtenu) AS (
                                                                 OR s.droit_supprimer OR s.droit_deplacer OR s.droit_ajouter_version
                                                                 OR s.droit_verrouiller_deverrouiller),
                                                           (SELECT count(*) FROM reprise_droits_groupe)
-    UNION ALL SELECT 8, 'lignes groupe_membre',           (SELECT count(*) FROM reprise_source.pivot_employe_groups),   (SELECT count(*) FROM groupe_membre)
+    -- Appartenances : en attente de la première connexion (aucune identité à la reprise, T-025).
+    UNION ALL SELECT 8, 'appartenances groupe (membres + attente)', (SELECT count(*) FROM reprise_source.pivot_employe_groups),
+                                                          (SELECT count(*) FROM groupe_membre) + (SELECT count(*) FROM groupe_membre_attente)
     UNION ALL SELECT 9, 'lignes etiquette',               (SELECT count(*) FROM reprise_source.etiquettes),             (SELECT count(*) FROM etiquette)
     UNION ALL SELECT 10, 'lignes index_def',              (SELECT count(*) FROM reprise_source.indices),                (SELECT count(*) FROM index_def)
     UNION ALL SELECT 11, 'lignes plan_indexation',        (SELECT count(*) FROM reprise_source.plan_d_indexations),     (SELECT count(*) FROM plan_indexation)

@@ -46,7 +46,8 @@ public class AccessGroupTriParTaille {
         String taille = "workspaces".equals(collection)
                 ? "(select count(distinct h.noeudId) from Habilitation h"
                   + " where h.groupeGedId = g.id and h.noeudId is not null and h.role is not null)"
-                : "size(g.users)";
+                // Membres : identités GED et appartenances en attente (T-025), comme usersCount.
+                : "(size(g.membres) + size(g.membresEnAttente))";
         TypedQuery<AccessGroup> q = em.createQuery(
                 "select g" + ou + " order by " + taille + " " + sens.name()
                         // Départage les ex æquo : sans second critère, deux groupes

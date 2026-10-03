@@ -106,10 +106,15 @@ public class ProfilService {
                 dossiers, mesGroupes, deposes, enAttente, traitees);
     }
 
-    /** Les membres sont chargés paresseusement : hors session, on ne conclut pas. */
+    /**
+     * Membre par son identité GED, ou appartenance en attente de sa première
+     * connexion (T-025). Les membres sont chargés paresseusement : hors
+     * session, on ne conclut pas.
+     */
     private boolean membre(AccessGroup g, UUID employeId) {
         try {
-            return g.getUsers().stream().anyMatch(u -> u.getId().equals(employeId));
+            return g.getMembres().stream().anyMatch(u -> u.getEmploye().getId().equals(employeId))
+                    || g.getMembresEnAttente().stream().anyMatch(e -> e.getId().equals(employeId));
         } catch (RuntimeException ex) {
             return false;
         }

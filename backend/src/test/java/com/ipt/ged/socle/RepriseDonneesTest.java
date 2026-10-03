@@ -106,6 +106,7 @@ class RepriseDonneesTest {
                 verifierFidelite(c);
                 verifierOrdre(c);
                 verifierCharte(c);
+                verifierAppartenancesEnAttente(c);
 
                 // Rejouer sur une cible déjà remplie est refusé, sans rien écrire.
                 SQLException refus = assertThrows(SQLException.class, () -> transferer(c, cible));
@@ -168,6 +169,38 @@ class RepriseDonneesTest {
                 texte(c, "SELECT chemin FROM noeud WHERE code = 'WS-FACT'"));
         assertEquals("Haute", texte(c, "SELECT v.valeur FROM document_index_valeur v JOIN index_def i"
                 + " ON i.id = v.index_def_id WHERE i.code = 'IDX-PRIO'"));
+    }
+
+    /**
+     * T-025, écart 2 : le membre d'un groupe est une identité GED, et la reprise
+     * n'en crée aucune. Les appartenances reprises attendent donc dans
+     * {@code groupe_membre_attente}, puis deviennent réelles à la première
+     * connexion : le code exécuté ici est celui que {@code ServiceIdentites}
+     * appelle à la création de l'identité.
+     */
+    private void verifierAppartenancesEnAttente(Connection c) throws SQLException {
+        assertEquals(0, compter(c, "SELECT count(*) FROM groupe_membre"));
+        assertEquals(3, compter(c, "SELECT count(*) FROM groupe_membre_attente"), "aucune appartenance perdue");
+        String attente = "SELECT string_agg(g.code || ':' || e.first_name, ',' ORDER BY g.code, e.first_name)"
+                + " FROM groupe_membre_attente a JOIN groupe_ged g ON g.id = a.groupe_ged_id"
+                + " JOIN employe e ON e.id = a.employe_id";
+        assertEquals("AG-ADMIN:Sara,AG-LECT:Karim,AG-LECT:عبد الله", texte(c, attente));
+
+        // Première connexion de Sara : son identité est créée, ses appartenances s'appliquent.
+        String sara = texte(c, "SELECT id::text FROM employe WHERE first_name = 'Sara'");
+        String ligne = texte(c, "SELECT a.id::text FROM groupe_membre_attente a WHERE a.employe_id = '" + sara + "'");
+        UUID identite = UUID.randomUUID();
+        executer(c, "INSERT INTO utilisateur (id, object_guid, identifiant, employe_id) VALUES ('" + identite
+                + "', '" + UUID.randomUUID() + "', 'sbennani', '" + sara + "')");
+        var jdbc = new org.springframework.jdbc.core.JdbcTemplate(
+                new org.springframework.jdbc.datasource.SingleConnectionDataSource(c, true));
+        assertEquals(1, new com.ipt.ged.accessgroup.AppartenancesEnAttente(jdbc).convertir(identite, UUID.fromString(sara)));
+        assertEquals("AG-ADMIN", texte(c, "SELECT g.code FROM groupe_membre m JOIN groupe_ged g"
+                + " ON g.id = m.groupe_ged_id WHERE m.utilisateur_id = '" + identite + "'"));
+        assertEquals(ligne, texte(c, "SELECT id::text FROM groupe_membre"), "la ligne garde son identifiant");
+        assertEquals("AG-LECT:Karim,AG-LECT:عبد الله", texte(c, attente), "les autres attendent leur connexion");
+        executer(c, "DELETE FROM groupe_membre");
+        executer(c, "DELETE FROM utilisateur");
     }
 
     /** L'ordre « par id » de l'application reste chronologique après reprise. */

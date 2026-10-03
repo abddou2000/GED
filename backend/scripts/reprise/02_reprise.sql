@@ -35,7 +35,7 @@ DECLARE
     n bigint;
 BEGIN
     FOREACH t IN ARRAY ARRAY['employe', 'utilisateur', 'regle_workflow', 'regle_validateur',
-        'noeud', 'groupe_ged', 'habilitation', 'reprise_lien_groupe_espace', 'reprise_droits_groupe', 'groupe_membre', 'etiquette',
+        'noeud', 'groupe_ged', 'habilitation', 'reprise_lien_groupe_espace', 'reprise_droits_groupe', 'groupe_membre', 'groupe_membre_attente', 'etiquette',
         'index_def', 'plan_indexation', 'plan_index', 'type_document', 'document', 'version_document',
         'document_etiquette', 'document_index_valeur', 'circuit', 'circuit_validateur', 'decision']
     LOOP
@@ -215,7 +215,12 @@ SELECT DISTINCT reprise_source.nouvel_id('access_groups', s.access_group_id),
                 reprise_source.nouvel_id('work_spaces', s.workspace_id)
   FROM reprise_source.pivot_workspace_groups s;
 
-INSERT INTO groupe_membre (groupe_ged_id, employe_id)
+-- Le membre d'un groupe GED est une identité GED (§12.1, T-025). À la reprise
+-- personne n'en a encore (identités créées à la première connexion) : les
+-- appartenances de l'ancienne application, qui désignent des employés, sont
+-- reprises EN ATTENTE. L'application les convertit en appartenances réelles à
+-- la première connexion de chaque personne, sans action de l'Administrateur.
+INSERT INTO groupe_membre_attente (groupe_ged_id, employe_id)
 SELECT reprise_source.nouvel_id('access_groups', s.access_group_id),
        reprise_source.nouvel_id('employes', s.employe_id)
   FROM reprise_source.pivot_employe_groups s;

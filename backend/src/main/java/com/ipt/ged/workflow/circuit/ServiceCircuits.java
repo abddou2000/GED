@@ -727,8 +727,8 @@ public class ServiceCircuits {
         List<UUID> ids = jdbc.queryForList("""
                 SELECT DISTINCT u.id FROM habilitation h
                   JOIN utilisateur u ON u.id = h.utilisateur_id
-                    OR (h.sujet_type = 'GROUPE' AND u.employe_id IN (
-                        SELECT m.employe_id FROM groupe_membre m JOIN groupe_ged g ON g.id = m.groupe_ged_id
+                    OR (h.sujet_type = 'GROUPE' AND u.id IN (
+                        SELECT m.utilisateur_id FROM groupe_membre m JOIN groupe_ged g ON g.id = m.groupe_ged_id
                          WHERE g.id = h.groupe_ged_id AND g.supprime = false))
                  WHERE h.role_id = ?
                    AND ((h.noeud_id IS NULL AND h.document_id IS NULL) OR h.noeud_id IN (%s) OR h.document_id = ?)"""
