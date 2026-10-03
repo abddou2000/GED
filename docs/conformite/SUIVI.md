@@ -35,8 +35,8 @@ recette de la vague 9, `6b61039` recette fonctionnelle, tête `ff20f21`) ; tour 
 `ct/dev3` `74b3a70`, `ct/dev2` `3545b3f`, `ct/qa` `59c615b`, recette de la vague 7) ; `ct/logo` : logo Marchica Med
 retiré provisoirement.
 Critères de sortie **E4, E7 et E8 atteints** (recette de la vague 6).
-Anomalies techniques ouvertes : **ANO-E7-007** (dev1, Majeure : `meta_date` `PARALLEL SAFE` avec bloc `EXCEPTION`,
-T-104), **ANO-E10-009** (dev2, Mineure : `test-nginx-ipv6.sh` sort en code 1, T-006). Vérifiées en vague 10 : ANO-E2-002,
+Anomalies techniques corrigées au tour 4, à revérifier par qa : **ANO-E7-007** (dev1, `e16eb01`, Majeure : `meta_date` `PARALLEL SAFE` avec bloc `EXCEPTION`,
+T-104), **ANO-E10-009** (dev2, `1068003`, Mineure : `test-nginx-ipv6.sh` sort en code 1, T-006). Vérifiées en vague 10 : ANO-E2-002,
 ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006,
 ANO-E7-006.
 Anomalies fonctionnelles : ANO-F-002 ouverte (arbitrage de pm avec MMED) ; ANO-F-025 à ANO-F-028 corrigées au tour 3,
@@ -124,8 +124,8 @@ changement (T-008, T-012, T-026, T-080, T-095, T-099, T-110), 2 renvoient à une
 
 | Responsable | Lignes | À faire | En cours | Livré | Vérifié | Proche | Réserve UAT | Identique | Anomalies qa |
 |---|---|---|---|---|---|---|---|---|---|
-| dev1 | 47 | 0 | 0 | 0 | 7 | 0 | 6 | 34 | **ANO-E7-007 ouverte** (vague 10, T-104) ; ANO-E2-002, ANO-E7-006, ANO-E10-002 (second point) vérifiées (vague 10) ; ANO-F-025 (dev5, `71ee7ed`, P-21), ANO-F-026 (`327e9b5`, `90379fc`), ANO-F-027 (dev5, `a40d37e`, R-03) corrigées au tour 3, à vérifier par qa2 ; ANO-F-016, ANO-F-019 vérifiées (qa2, tour 3) |
-| dev2 | 56 | 0 | 0 | 2 | 5 | 0 | 14 | 35 | **ANO-E10-009 ouverte** (vague 10, T-006) ; ANO-E5-004, ANO-E10-006, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E10-002 (premier point) vérifiées (vague 10) |
+| dev1 | 47 | 0 | 0 | 0 | 7 | 0 | 6 | 34 | **ANO-E7-007 corrigée** (`e16eb01`, tour 4, à revérifier, T-104) ; ANO-E2-002, ANO-E7-006, ANO-E10-002 (second point) vérifiées (vague 10) ; ANO-F-025 (dev5, `71ee7ed`, P-21), ANO-F-026 (`327e9b5`, `90379fc`), ANO-F-027 (dev5, `a40d37e`, R-03) corrigées au tour 3, à vérifier par qa2 ; ANO-F-016, ANO-F-019 vérifiées (qa2, tour 3) |
+| dev2 | 56 | 0 | 0 | 2 | 5 | 0 | 14 | 35 | **ANO-E10-009 corrigée** (`1068003`, tour 4, à revérifier, T-006) ; ANO-E5-004, ANO-E10-006, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E10-002 (premier point) vérifiées (vague 10) |
 | dev3 | 36 | 0 | 0 | 1 | 0 | 0 | 8 | 27 | ANO-E6-001, ANO-E5-005 vérifiées (vague 10) ; ANO-F-011 vérifiée (qa2, tour 3), volet « paramètre inconnu → 400 » modifié par `d47c3de` (P-08), à rejouer ; ANO-F-028 (dev5, `9916bdd`) corrigée au tour 3, à vérifier par qa2 |
 | pm | 2 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | ANO-F-002 à arbitrer avec MMED (rôle Direction Générale) ; P-18 engagement contractuel ; R-04 hors périmètre |
 
