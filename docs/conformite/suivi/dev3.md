@@ -724,3 +724,32 @@ avec `GED_TESSERACT=/usr/bin/tesseract` : verts). Nouveaux : `ReglageDebitOcrTes
 `ModelesEntiersTest` ×4. Une première passe (`1a0de56`) avait relevé 1 échec,
 `AppelsSortantsTest.inventaireFerme` (processus `combine_tessdata` non inscrit), corrigé par `3b03465`.
 Front non modifié (pas de build).
+
+## Tour 7 de la mise en conformité (`ct/dev3-r7`, depuis `claude/inspiring-lovelace-10bg1c` @ `f50dc91`)
+
+| Id | État | Commits | Cause, correctif, preuve |
+|---|---|---|---|
+| ANO-E6-003 (Mineure, P-14) | **Corrigée** | `4fc5b95` | **Cause** : `ModelesEntiers.preparerModele` écrivait la même marque `copie` quand `combine_tessdata` manquait et quand l'outil refusait un modèle (`osd`, sans réseau LSTM), puis réutilisait toute marque d'empreinte inchangée sans nouvel essai : après installation de l'outil, l'application restait sur les modèles précis et répétait l'avertissement « … indisponible ? ». **Correctif** : la marque porte le mode réellement obtenu — `entiers`, `non-convertible` (outil exécuté, modèle refusé : pas réessayé tant que la source ne change pas) ou `repli` (outil indisponible) ; disponibilité de l'outil sondée une fois au démarrage (`outilDisponible` : lancé sans argument, il rend 1 ; introuvable, il ne démarre pas, ou 126/127) ; une marque `repli` — ou `copie`, ancienne marque ambiguë, pour les répertoires de travail persistants déjà touchés — est **refaite dès que l'outil est là** ; avertissement distinct « (… indisponible) … conversion refaite au premier démarrage où l'outil sera présent » / « Aucun modèle OCR convertible en entiers par … ». **Tests** (`ModelesEntiersTest`, outil simulé par un script POSIX qui compacte tout sauf `osd` et note chaque conversion) : `outilRetabli` (démarrage sans outil → `repli` ; même répertoire, outil rétabli → `fra` converti, `osd` `non-convertible` ; 3e démarrage : rien de refait ; outil de nouveau absent : copie compactée conservée), `ancienneMarqueCopie` (marque `copie` d'une version précédente refaite), `disponibilite`. **Rouges sans le correctif** (ancien `ModelesEntiers` remis avec seulement `mode()` et `outilDisponible` ajoutés pour compiler) : `outilRetabli` « expected: <repli> but was: <copie> », `ancienneMarqueCopie` « expected: <[fra]> but was: <[]> ». **Sur le JAR** (phases B puis B3 de `recette/e10/recette-p14-ocr.sh` réduites au démarrage, vrai `/usr/bin/combine_tessdata`, même `GED_OCR_MODELES_ENTIERS_REPERTOIRE`) : B → avertissement « (/inexistant/combine_tessdata indisponible) », marques `ara`, `fra`, `eng`, `osd` à `repli`, réglage `repli` ; B3 → « Modèles OCR compactés en entiers … : [ara, eng, fra] », marques `entiers` (`osd` : `non-convertible`), réglage `entiers` ; 3e démarrage identique sans reconversion. Le script complet de qa (dépôt, OCR, recherche) n'a pas été rejoué ici (compte de recette et annuaire simulé de qa). |
+| Observations qa (P-14) : mode de modèles et dpi | **Fait** | `46171b8` | Au démarrage, une ligne INFO « Réglage OCR : modèles `<entiers|precis|repli|installation>` (`<répertoire>`), pages PDF rendues à `<n>` dpi » (bean `ReglageOcr`, construit par `ConfigurationChaineOcr.reglage`, d'où le moteur tire son répertoire de modèles) ; `GET /api/v1/ocr/etat` rend les mêmes valeurs (nouveaux champs `modeles`, `dpi`, décrits dans `documentationapi/champs.yml`). `installation` = `ged.ocr.tessdata` vide (modèles de l'installation de Tesseract). **Tests** : `ReglageDebitOcrTest.modeEmploye` (precis, repli sans outil, installation), `ReglageDebitOcrTest.journalDuReglage` (ligne exacte au journal, dpi réglé à 300), `OcrApiTest.etat` (champs `modeles` = réglage du contexte, `dpi` = 200). Documentation : `DEPLOIEMENT.md` § 3.2, `EXPLOITATION.md` § 2, `ESSAIS-DE-CHARGE.md` § 2.4 (redémarrage suffisant après installation de l'outil, ligne de réglage, champs de l'état). Front non modifié (champs ajoutés ignorés par `recherche.model.ts`). |
+
+### Points pour pm
+
+1. **qa** : ANO-E6-003 à vérifier avec `recette/e10/recette-p14-ocr.sh` (phases B puis B3) ; attendu en
+   B3 : « Modèles OCR compactés en entiers … » et marques `entiers` (`osd` : `non-convertible`). Les
+   marques `copie` laissées par le JAR précédent sont aussi reprises (pas besoin de vider le répertoire).
+   Le script peut désormais lire le réglage dans `/api/v1/ocr/etat` (`modeles`, `dpi`) plutôt que par l'espion.
+2. Cas résiduel connu, non traité : un `combine_tessdata` présent mais qui refuse tous les modèles pour une
+   autre raison (binaire défectueux qui démarre et rend un code autre que 126/127) les marque
+   `non-convertible` ; l'avertissement le dit alors (« Aucun modèle OCR convertible en entiers par … »)
+   et le contournement reste de vider le répertoire de travail après réparation.
+3. Le test à outil simulé est ignoré sous Windows (script POSIX) ; les cas à Tesseract réel restent
+   ceux du tour 6.
+
+### Tests du tour 7
+
+Suite back complète (`46171b8`, `mvn -B -q -o test` sur `ged_dev3_test`, sans `GED_MANAGEMENT_PORT` ni
+`SERVER_PORT`, sans `GED_TESSERACT`) : **711 tests, 0 échec, 0 erreur, 3 ignorés (119 classes)** ; les 3
+ignorés sont les cas à Tesseract réel (joués à part avec `GED_TESSERACT=/usr/bin/tesseract` :
+`ModelesEntiersTest` 7/7, `ReglageDebitOcrTest` 7/7, `MoteurTesseractTest` 8/8,
+`ExtracteurDocumentOcrTest` 10/10). Nouveaux : `ModelesEntiersTest` ×3, `ReglageDebitOcrTest` ×2,
+`OcrApiTest.etat` étendu. Front non modifié (pas de build).

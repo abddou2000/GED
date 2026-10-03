@@ -1,7 +1,13 @@
 package com.ipt.ged.ocr.file;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.ipt.ged.ocr.moteur.ModelesEntiers;
 import com.ipt.ged.ocr.moteur.MoteurTesseract;
+import com.ipt.ged.ocr.moteur.ReglageOcr;
+import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -13,6 +19,7 @@ import org.springframework.core.io.ClassPathResource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -78,6 +85,41 @@ class ReglageDebitOcrTest {
         // Variable exportée vide : le défaut (entiers), pas un refus de démarrer.
         assertEquals(LIVRES, ConfigurationChaineOcr.moteur(TESSERACT, LIVRES, "1", "3", " ",
                 dir.resolve("entiers").toString(), "combine-inexistant-p14").tessdata());
+    }
+
+    @Test
+    @DisplayName("Mode de modèles réellement employé : precis, repli (sans combine_tessdata), installation")
+    void modeEmploye(@TempDir Path dir) {
+        String rep = dir.resolve("entiers").toString();
+        ReglageOcr r = ConfigurationChaineOcr.reglage(TESSERACT, LIVRES, "precis", rep, "", 200);
+        assertEquals(new ReglageOcr("precis", LIVRES, 200), r);
+        r = ConfigurationChaineOcr.reglage(TESSERACT, LIVRES, "entiers", rep, "combine-inexistant-p14", 300);
+        assertEquals(new ReglageOcr("repli", LIVRES, 300), r);
+        r = ConfigurationChaineOcr.reglage(TESSERACT, "", "entiers", rep, "", 200);
+        assertEquals(new ReglageOcr("installation", "", 200), r);
+    }
+
+    @Test
+    @DisplayName("Démarrage : modèles employés et résolution du rendu journalisés")
+    void journalDuReglage(@TempDir Path dir) {
+        Logger journal = (Logger) LoggerFactory.getLogger(ConfigurationChaineOcr.class);
+        ListAppender<ILoggingEvent> lignes = new ListAppender<>();
+        lignes.start();
+        journal.addAppender(lignes);
+        Level avant = journal.getLevel();
+        journal.setLevel(Level.INFO);
+        try {
+            ProprietesChaineOcr p = new ProprietesChaineOcr();
+            p.setDpi(300);
+            ReglageOcr r = new ConfigurationChaineOcr().reglageOcr(TESSERACT, LIVRES, "entiers",
+                    dir.resolve("entiers").toString(), "combine-inexistant-p14", p);
+            assertEquals("repli", r.modeles());
+            assertEquals(List.of("Réglage OCR : modèles repli (" + LIVRES + "), pages PDF rendues à 300 dpi"),
+                    lignes.list.stream().map(ILoggingEvent::getFormattedMessage).toList());
+        } finally {
+            journal.detachAppender(lignes);
+            journal.setLevel(avant);
+        }
     }
 
     @Test

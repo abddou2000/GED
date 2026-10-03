@@ -70,6 +70,7 @@ class OcrApiTest {
     @Autowired private PlanIndexationRepository planRepository;
     @Autowired private IndexRepository indexRepository;
     @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
+    @Autowired private com.ipt.ged.ocr.moteur.ReglageOcr reglage;
 
     private UUID typeId;
 
@@ -189,13 +190,16 @@ class OcrApiTest {
     }
 
     @Test
-    @DisplayName("3. État de la chaîne : active, modèles fra et ara installés, ara+fra par défaut")
+    @DisplayName("3. État de la chaîne : active, modèles fra et ara installés, ara+fra par défaut, modèles et dpi employés")
     void etat() throws Exception {
         mvc.perform(get("/api/v1/ocr/etat"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.actif", is(true)))
                 .andExpect(jsonPath("$.langueDefaut", is("ara+fra")))
-                .andExpect(jsonPath("$.languesInstallees", hasItems("fra", "ara")));
+                .andExpect(jsonPath("$.languesInstallees", hasItems("fra", "ara")))
+                .andExpect(jsonPath("$.modeles", is(reglage.modeles())))
+                .andExpect(jsonPath("$.modeles", oneOf("entiers", "repli")))
+                .andExpect(jsonPath("$.dpi", is(200)));
     }
 
     @Test

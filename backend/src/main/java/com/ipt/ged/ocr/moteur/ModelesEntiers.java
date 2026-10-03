@@ -37,6 +37,15 @@ import java.util.stream.Stream;
  * inutilisable, les modèles livrés sont employés directement. L'OCR fonctionne
  * donc toujours, au pire au débit des modèles précis (journal en
  * avertissement).
+ *
+ * <p>La marque écrite à côté de chaque copie ({@code <sha256 source> <mode>})
+ * porte le mode réellement obtenu : {@code entiers} (converti),
+ * {@code non-convertible} (l'outil a tourné et refusé le modèle, ex.
+ * {@code osd} : pas réessayé tant que la source ne change pas) ou
+ * {@code repli} (outil indisponible : copie telle quelle, <b>refaite</b> au
+ * premier démarrage où l'outil est là — ANO-E6-003). La marque {@code copie}
+ * des versions précédentes, qui ne distinguait pas ces deux cas, est traitée
+ * comme {@code repli}.
  */
 public final class ModelesEntiers {
 
@@ -48,8 +57,24 @@ public final class ModelesEntiers {
     private ModelesEntiers() {
     }
 
+    /** Mode obtenu pour un modèle, écrit dans sa marque. */
+    enum Obtenu {
+        ENTIERS("entiers"), NON_CONVERTIBLE("non-convertible"), REPLI("repli");
+
+        final String marque;
+
+        Obtenu(String marque) {
+            this.marque = marque;
+        }
+    }
+
     /** Résultat : répertoire à donner à Tesseract, et modèles réellement convertis. */
     public record Preparation(Path tessdata, List<String> convertis) {
+
+        /** {@code entiers} si au moins un modèle est compacté, sinon {@code repli} (modèles précis). */
+        public String mode() {
+            return convertis.isEmpty() ? "repli" : "entiers";
+        }
     }
 
     /**
@@ -70,13 +95,20 @@ public final class ModelesEntiers {
         }
         try {
             Files.createDirectories(cible);
+            boolean outil = outilDisponible(combine);
             List<String> convertis = new java.util.ArrayList<>();
             for (Path m : modeles) {
-                if (preparerModele(m, cible, combine)) convertis.add(langue(m));
+                if (preparerModele(m, cible, combine, outil) == Obtenu.ENTIERS) convertis.add(langue(m));
             }
             if (convertis.isEmpty()) {
-                log.warn("Aucun modèle OCR compacté en entiers ({} indisponible ?) : modèles précis employés, "
-                        + "débit réduit (docs/exploitation/ESSAIS-DE-CHARGE.md § 2.4)", combine);
+                if (outil) {
+                    log.warn("Aucun modèle OCR convertible en entiers par {} : modèles précis employés, "
+                            + "débit réduit (docs/exploitation/ESSAIS-DE-CHARGE.md § 2.4)", combine);
+                } else {
+                    log.warn("Aucun modèle OCR compacté en entiers ({} indisponible) : modèles précis employés, "
+                            + "débit réduit (docs/exploitation/ESSAIS-DE-CHARGE.md § 2.4) ; conversion refaite "
+                            + "au premier démarrage où l'outil sera présent", combine);
+                }
                 return new Preparation(source, List.of());
             }
             log.info("Modèles OCR compactés en entiers dans {} : {}", cible, convertis);
@@ -88,47 +120,81 @@ public final class ModelesEntiers {
         }
     }
 
-    /** @return vrai si le modèle de {@code cible} est la version compactée de {@code modele}. */
-    private static boolean preparerModele(Path modele, Path cible, String combine) throws IOException {
+    /** @return le mode obtenu pour la copie de {@code modele} dans {@code cible}. */
+    private static Obtenu preparerModele(Path modele, Path cible, String combine, boolean outil) throws IOException {
         String nom = modele.getFileName().toString();
         Path sortie = cible.resolve(nom);
         Path empreinte = cible.resolve(nom + EMPREINTE);
         String sha = sha256(modele);
         if (Files.isRegularFile(sortie) && Files.isRegularFile(empreinte)) {
             String[] lu = Files.readString(empreinte, StandardCharsets.US_ASCII).strip().split(" ");
-            if (lu.length == 2 && lu[0].equals(sha)) return "entiers".equals(lu[1]);
+            if (lu.length == 2 && lu[0].equals(sha)) {
+                if (Obtenu.ENTIERS.marque.equals(lu[1])) return Obtenu.ENTIERS;
+                if (Obtenu.NON_CONVERTIBLE.marque.equals(lu[1])) return Obtenu.NON_CONVERTIBLE;
+                // « repli » (ou « copie », ancienne marque ambiguë) : refait dès que l'outil est là.
+                if (!outil) return Obtenu.REPLI;
+            }
         }
         // Conversion sur une copie au nom unique, puis remplacement atomique :
         // deux instances sur le même serveur ne se gênent pas.
         Path travail = Files.createTempFile(cible, langue(modele) + ".", EXTENSION);
         try {
             Files.copy(modele, travail, StandardCopyOption.REPLACE_EXISTING);
-            boolean entiers = compacter(combine, travail);
-            if (!entiers) Files.copy(modele, travail, StandardCopyOption.REPLACE_EXISTING);
+            Obtenu obtenu = outil ? compacter(combine, travail) : Obtenu.REPLI;
+            if (obtenu != Obtenu.ENTIERS) Files.copy(modele, travail, StandardCopyOption.REPLACE_EXISTING);
             deplacer(travail, sortie);
             Path e = Files.createTempFile(cible, langue(modele) + ".", EMPREINTE);
-            Files.writeString(e, sha + " " + (entiers ? "entiers" : "copie") + "\n", StandardCharsets.US_ASCII);
+            Files.writeString(e, sha + " " + obtenu.marque + "\n", StandardCharsets.US_ASCII);
             deplacer(e, empreinte);
-            return entiers;
+            return obtenu;
         } finally {
             Files.deleteIfExists(travail);
         }
     }
 
-    private static boolean compacter(String combine, Path fichier) {
+    /**
+     * L'outil peut-il être exécuté ? Lancé sans argument, {@code combine_tessdata}
+     * affiche son mode d'emploi et rend 1 ; introuvable, il ne démarre pas (ou
+     * rend 126/127 quand le système ne peut pas l'exécuter).
+     */
+    static boolean outilDisponible(String combine) {
         try {
-            Process p = new ProcessBuilder(combine, "-c", fichier.toString()).redirectErrorStream(true)
+            Process p = new ProcessBuilder(combine).redirectErrorStream(true)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
-            if (!p.waitFor(5, TimeUnit.MINUTES)) {
+            if (!p.waitFor(30, TimeUnit.SECONDS)) {
                 p.destroyForcibly();
                 return false;
             }
-            return p.exitValue() == 0 && Files.size(fichier) > 0;
+            return !inexecutable(p.exitValue());
         } catch (IOException e) {
             return false;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return false;
+        }
+    }
+
+    /** Codes de sortie d'un programme que le système n'a pas pu exécuter (POSIX). */
+    private static boolean inexecutable(int code) {
+        return code == 126 || code == 127;
+    }
+
+    /** Outil exécuté mais modèle refusé : {@code NON_CONVERTIBLE} ; outil injoignable : {@code REPLI}. */
+    private static Obtenu compacter(String combine, Path fichier) {
+        try {
+            Process p = new ProcessBuilder(combine, "-c", fichier.toString()).redirectErrorStream(true)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+            if (!p.waitFor(5, TimeUnit.MINUTES)) {
+                p.destroyForcibly();
+                return Obtenu.REPLI;
+            }
+            if (inexecutable(p.exitValue())) return Obtenu.REPLI;
+            return p.exitValue() == 0 && Files.size(fichier) > 0 ? Obtenu.ENTIERS : Obtenu.NON_CONVERTIBLE;
+        } catch (IOException e) {
+            return Obtenu.REPLI;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Obtenu.REPLI;
         }
     }
 

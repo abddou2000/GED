@@ -189,6 +189,8 @@ champs:
   moteurDisponible: {description: "Vrai si le moteur OCR (Tesseract) répond.", exemple: true}
   languesInstallees: {description: "Langues OCR installées.", exemple: [fra, ara]}
   langueDefaut: {description: "Langue OCR par défaut.", exemple: ara+fra}
+  modeles: {description: "Modèles OCR employés par cette instance : entiers (copie compactée), precis (modèles livrés), repli (compactage impossible : modèles livrés, débit réduit) ou installation (modèles de Tesseract).", exemple: entiers}
+  dpi: {description: "Résolution du rendu des pages PDF scannées avant OCR, en points par pouce.", exemple: 200}
   langue: {description: "Langue de reconnaissance appliquée.", exemple: fra}
   indexeLe: {description: "Date d'entrée du texte dans l'index plein texte.", exemple: "2026-09-27T09:31:00Z"}
   interrogeable: {description: "Vrai si le texte de la version courante est dans l'index plein texte.", exemple: true}
