@@ -19,6 +19,9 @@ Partie G : espace propre « QA2 Groupes T-025 » et deux comptes neufs de l'annu
 exécution (`qa2g<marqueur>` membre par identité, `qa2p<marqueur>` membre préparé). F-11g insère
 une fiche employé sans identité (comme la reprise) par JDBC : `GED_RECETTE_JDBC_URL`,
 `GED_RECETTE_JDBC_UTILISATEUR`, `GED_RECETTE_JDBC_MDP` (rôle `ged_app` suffit ; sans elles, NA).
+Depuis le tour 7 (ANO-F-030), F-11g exige aussi, à la conversion, un avis `ACCES_ESPACE_ATTRIBUE`
+et une trace `GROUPE_MEMBRE_ACTIVE` (acteur « Système ») ; elle prépare une seconde fiche dans un
+groupe mis en corbeille avant la 1re connexion de `qa2c<marqueur>` : ni avis ni droit attendus.
 Ne pas enchaîner A et C dans une même exécution : le document de F-20 (échéance au 31/10/2026)
 partage alors le marqueur de F-39 et tombe dans sa plage de dates ; lancer `A B` puis `C D`.
 
