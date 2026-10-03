@@ -684,3 +684,43 @@ Suite back complète (`cf1261f`, `mvn -B -q -o test` sur `ged_dev3_test`, sans `
 `SERVER_PORT`) : **691 tests, 0 échec, 0 erreur, 0 ignoré (115 classes)** (référence après le tour 4, vague 11 de
 qa : 687 ; +4 : `DepotDeuxTempsApiTest.planManuelValeurTropLongue`, `DepotServiceMotifTest` ×3). Front non
 modifié (pas de build).
+
+## Tour 6 de la mise en conformité (`ct/dev3-r6`, depuis `claude/inspiring-lovelace-10bg1c` @ `a8346ce`)
+
+Même poste (conteneur Linux partagé : Xeon 2,1 GHz, 4 cœurs ; Tesseract 5.3.4 du paquet Ubuntu ;
+bases `ged_dev3` / `ged_dev3_test`).
+
+| Id | État | Commits | Cause, correctif, preuve |
+|---|---|---|---|
+| P-14 / R30 (débit OCR) | **Cible §4.3.4 tenue sur le corpus** (2,90 s par page et par cœur) ; à confirmer sur l'échantillon et le serveur de MMED | `5e573d0`, `1a0de56`, `89ec903`, `3b03465` | **Cause** : modèles `tessdata_best` en flottants et rendu à 300 dpi : 5,35 s de CPU par page et par cœur sur ce poste (Tesseract seul 5,07 s ; qa, vague 11 : 5,1 s). **Mesure** (`BancTesseractIT#reglagesDebit`, nouveau : temps CPU exact des processus Tesseract par `/proc/self/stat`, temps CPU Java de la chaîne, CER par cellule ; `openMpTempsCpu`) : pistes une par une — OpenMP libre = double de CPU (un fil par processus conservé) ; `tessdata_fast` −47 % mais arabe dégradé 9,1 à 9,6 % ; **modèles best compactés en entiers** (`combine_tessdata -c`, même réseau) −41 % ; 200 dpi −11 % ; 250 dpi annulé par le rendu Java ; psm 4, binarisation d'Otsu, PGM rejetés (qualité ou pas de gain) ; `tessedit_do_invert=0` −2 à −3 % (bruit) non livré ; saut des pages à couche texte déjà livré. **Correctif** (réglable) : `ged.ocr.modeles=entiers` par défaut (`ModelesEntiers` : copie compactée des modèles livrés au démarrage, refaite si l'empreinte change, repli sur les modèles livrés sans l'outil ; `precis` pour revenir), `ged.ocr.chaine.dpi=200` (300 auparavant) ; variables `GED_OCR_MODELES`, `GED_OCR_MODELES_ENTIERS_REPERTOIRE`, `GED_OCR_COMBINE_TESSDATA`, `GED_OCR_DPI`. **Avant / après** (40 pages, même exécution) : 5,35 → **2,90 s** par page et par cœur, 11,2 → **20,7 p/min/cœur** ; CER français propre 0,86 → 0,77 %, arabe propre 2,65 → 2,90 %, arabe dégradé 7,11 → 8,38 % (seuils 5 et 10 %). Banc réduit de qa rejoué (300 dpi fixé par le banc) : 5,21 → 2,98 s de CPU Tesseract. **Tests** : `ReglageDebitOcrTest` ×5 (défauts livrés — rouge sur `a8346ce` : `ged.ocr.modeles` absent, vérifié en remettant `application.yml` et `ProprietesChaineOcr` de la base —, `precis`, valeur inconnue refusée, valeur vide = défaut, repli sans outil, copie compactée lue par Tesseract) ; `ModelesEntiersTest` ×4 (conversion, `int_mode=1` et même architecture que le modèle livré, réutilisation, refait si la source change, aucun fichier de travail laissé, reconnaissance `ara+fra` réelle). Les cas réels sont ignorés sans `GED_TESSERACT` ; joués ici avec `/usr/bin/tesseract` : 27/27 verts avec `MoteurTesseractTest` et `ExtracteurDocumentOcrTest`. Documentation : `ESSAIS-DE-CHARGE.md` § 2.4 (tableaux, commande, réserves, projection calculée), synthèse et § 6 ; `DEPLOIEMENT.md` § 3.2 ; `EXPLOITATION.md` § 2 ; `.env.example`, `ged.env.exemple`. `combine_tessdata` ajouté à l'inventaire des appels sortants (`REVUE-SSRF.md`, `AppelsSortantsTest`). |
+
+### Points pour pm
+
+1. **R30 / P-14** : l'écart de 3 à 6 fois n'existe plus sur ce poste et ce corpus (2,90 s par page et
+   par cœur, borne haute de la cible « 1 à 3 s »). Restent : le serveur de MMED (fréquence soutenue
+   à mesurer en UAT), l'échantillon de la Phase 7 (Q09 : CER réel, en particulier à 200 dpi sur des
+   corps de 8 pt, tampons, manuscrit). RISQUES.md (R30 : « `tessdata_fast` écarté », « worker à
+   16 vCPU ») et la synthèse de SUIVI.md sont à mettre à jour par pm ; la demande de correction des
+   §4.3.4 / §6.6 à MMED peut être revue. Projection calculée (non mesurée) : 20 000 pages en ~4 h sur
+   4 cœurs de ce poste, contre ~7 h 25 avant.
+2. **qa** : le banc réduit `recette/e10/banc-ocr-reduit.sh` fixe 300 dpi et les modèles du dépôt
+   (`BancOcrReduit` construit lui-même le moteur) ; il ne mesure donc pas le réglage livré. Pour le
+   rejouer avec les modèles compactés : `GED_TESSDATA=<copie compactée>` (2,98 s mesurés ici) ; pour
+   le 200 dpi, `BancTesseractIT#reglagesDebit` (`GED_BANC_REGLAGES=best,best_int_200`). À revérifier.
+3. **dev2** : `combine_tessdata` doit être présent sur le serveur à côté de `tesseract` (paquet
+   `tesseract-ocr` sous Debian/Ubuntu ; à vérifier sur la distribution de MMED) ; sinon l'OCR démarre
+   avec les modèles précis (avertissement au journal). Le registre et le SBOM ne changent pas (la
+   copie compactée est dérivée des modèles inscrits). `deploiement/uat/demontrer-deploiement.sh` non
+   modifié.
+4. Le commit `5e573d0` (banc) référence `ModelesEntiers`, ajouté au commit suivant `1a0de56` : la
+   branche compile à partir de `1a0de56` (historique non réécrit).
+
+### Tests du tour 6
+
+Suite back complète (`3b03465`, `mvn -B -q -o test` sur `ged_dev3_test`, sans `GED_MANAGEMENT_PORT` ni
+`SERVER_PORT`, sans `GED_TESSERACT`) : **703 tests, 0 échec, 0 erreur, 3 ignorés (119 classes)** ; les
+3 ignorés sont les cas à Tesseract réel de `ReglageDebitOcrTest` et `ModelesEntiersTest` (joués à part
+avec `GED_TESSERACT=/usr/bin/tesseract` : verts). Nouveaux : `ReglageDebitOcrTest` ×5,
+`ModelesEntiersTest` ×4. Une première passe (`1a0de56`) avait relevé 1 échec,
+`AppelsSortantsTest.inventaireFerme` (processus `combine_tessdata` non inscrit), corrigé par `3b03465`.
+Front non modifié (pas de build).
