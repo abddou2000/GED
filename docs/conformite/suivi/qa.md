@@ -2,6 +2,16 @@
 
 ## Lot en cours
 
+Vague 11 (tour 4, `ct/qa-r4` depuis `a7343b8`) : vérification finale. ANO-E7-007 (`e16eb01`) et ANO-E10-009
+(`1068003`) **vérifiées** (plans parallèles forcés sur 100 000 documents, bout en bout 14/14 en 200 ; script NGINX
+en code 0 sans IPv6). Lignes rejouées : T-104, T-050, P-08, P-05 → « Identique » proposé ; T-006, T-088
+(démonstration `deployer.sh` 43/43 sur instance jetable), P-04 (écran Angular complet contre l'instance réelle,
+compte réel sans rôle) → « Identique (réserve UAT) » ; P-14 reste « Vérifié » (R30) ; lignes « Livré » : T-028
+« Vérifié » proposé, T-070 et T-089 inchangées. Deux anomalies nouvelles : ANO-E6-002 (mineure, dev3 : motif SQL
+brut renvoyé au dépôt sous plan manuel) et ANO-E0-004 (majeure, dev4/dev2 : vulnérabilité haute npm, job front de
+la CI rouge depuis le 01/10). Observation : job back-end de la CI rouge à `a7343b8`, cause non lisible d'ici
+(suite locale verte, 687 tests). `RESULTATS-VAGUE-11.md`.
+
 Vague 10 (tour 3, `ct/qa-r3` depuis `ff20f21`) : revérification des onze anomalies corrigées au tour 2
 (ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002,
 ANO-E10-006, ANO-E7-006 : **toutes vérifiées**) ; T-034 (reprises d'un PDF corrompu), réserve IPv6 de T-006
@@ -34,10 +44,11 @@ contrat §5.3.1, E10/E11 sur papier.
 |---|---|---|
 | Ligne de base | `docs/conformite/recette/LIGNE-DE-BASE.md` | 143 tests (H2, avant les vagues) |
 | Plan de recette E0–E11 | `docs/conformite/recette/PLAN-DE-RECETTE.md` | D1–D14 intégrées |
-| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-10.md` | 257 → 360 → 443 → 534 → 552 → 586 → 594 tests verts ; vague 8 : 597 tests, 4 échecs de référence + 1 d'environnement ; vague 9 : 630 tests, 0 échec ; vague 10 : 661 tests, 0 échec, 0 erreur, 0 ignoré (109 classes, 4 min 30 s) |
-| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | 42 vérifiées (vague 10 : ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006, ANO-E7-006) ; ouvertes : ANO-E7-007 (majeure, dev1), ANO-E10-009 (mineure, dev2) |
+| Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-11.md` | vague 11 : 687 tests, 0 échec, 0 erreur, 0 ignoré (114 classes, 2 min 43 s), front 196/196 ; 257 → 360 → 443 → 534 → 552 → 586 → 594 tests verts ; vague 8 : 597 tests, 4 échecs de référence + 1 d'environnement ; vague 9 : 630 tests, 0 échec ; vague 10 : 661 tests, 0 échec, 0 erreur, 0 ignoré (109 classes, 4 min 30 s) |
+| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | vague 11 : 44 vérifiées (ANO-E7-007, ANO-E10-009) ; ouvertes : ANO-E6-002 (mineure, dev3), ANO-E0-004 (majeure, dev4/dev2) — avant : 42 vérifiées (vague 10 : ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006, ANO-E7-006) ; ouvertes : ANO-E7-007 (majeure, dev1), ANO-E10-009 (mineure, dev2) |
 | E10 exploitation (vague 8) | `recette/e10/` : `verifier-nginx-reel.sh` (NGINX réel, 10/11), `verifier-front-nginx.sh` (23/23), `verifier-annuaire-bascule.sh` + `AnnuaireAutonome.java` (P-02, P-04), `verifier-modules.sh` (T-088, 5/6), `RecetteExploitation.java` (10/11), `RecetteComplementsV8.java` (7 OK, 1 AVERT), `RecetteRotationJournaux.java` (11/11), `sbom-et-licences-hors-ligne.sh`, `banc-ocr-reduit.sh` | voir `RESULTATS-VAGUE-8.md` |
 | E10 sauvegarde et déploiement | `recette/e10-sauvegarde/` : `recette-t073-p13.sh` (33 OK / 3 ÉCHEC), `recette-t092.sh` (tour 2 : 12/12), `recette-ano-e8-004.sh` (tour 2 : 4/4, retour arrière sur copie peuplée), sur PostgreSQL jetable | portables Linux et Git Bash |
+| Tour 4 (vague 11) | `recette/e10/verifier-index-expression.sh` complété (I09 plan parallèle forcé, I10 sémantique : 9 OK, 1 AVERT), `recette/e10/RecetteTour4.java` (T-050, P-08 : 11/11), `recette/e10/ecran/recette-p04-ecran.spec.ts` (P-04 à l'écran : 1/1) ; rejoués : `verifier-nginx-reel.sh` 13/13, `demontrer-deploiement.sh` 43/43, `RecetteExploitation` 10/11, banc OCR réduit | voir `RESULTATS-VAGUE-11.md` |
 | Tour 3 (vague 10) | `recette/e10/verifier-index-expression.sh` (T-104, nouveau : 5 OK, 2 ÉCHEC = ANO-E7-007, 1 AVERT) ; scripts adaptés : `sbom-et-licences-hors-ligne.sh` (10/10), `verifier-nginx-reel.sh` (13/13), `verifier-annuaire-bascule.sh` (6/6), `recette-t073-p13.sh` (40 OK, 2 AVERT) | voir `RESULTATS-VAGUE-10.md` |
 | Tour 2 (vague 9) | `recette/e10/RecetteTour2.java` (E7-004, E7-005, T-059, D15 : 13 OK, 1 ÉCHEC = ANO-E7-006), `verifier-executables.sh` (28/28), `verifier-renvois-tests.sh` (37/37) | voir `RESULTATS-VAGUE-9.md` |
 | E4 | `recette/e4/` : `verifier-journal.sh` (12/12), `verifier-scellement.sh` (6/6), `RecetteAudit.java` (29/29) | critère de sortie atteint |
@@ -83,8 +94,10 @@ Non conforme : 4.2.2 montée sur base peuplée (ANO-E1-006), D8 création de rè
 
 ## Ce qui reste
 
-- Tour 4 : revérifier ANO-E7-007 (`verifier-index-expression.sh` sur une copie de 100 000 documents, puis
-  `POST /documents/recherche` avec un critère date large) et ANO-E10-009 (`test-nginx-ipv6.sh; echo $?` sans IPv6).
+- Tour suivant : revérifier ANO-E6-002 (`qa/r4/ref-longue.sh` : plan manuel, valeur de 300 caractères → motif
+  métier, aucun texte SQL) et ANO-E0-004 (`npm audit --omit=dev --audit-level=high` code 0, job front de la CI vert) ;
+  lire la cause de l'échec du job back-end de la CI à `a7343b8` (O1 de la vague 11) ; ANO-F-011 (volet « paramètre
+  inconnu ») à rejouer par qa2 avec le comportement P-08.
 - T-035 : reprise réelle depuis MySQL (volume ~150 000 documents) à la reprise à blanc de la Phase 7 ; le
   mécanisme est éprouvé sur 80 versions (vague 10).
 - Rejouer P-10, P-16 et ANO-E11-002 en UAT ; T-070 avec la clé NVD en CI ; P-05 (note du flux 4 de

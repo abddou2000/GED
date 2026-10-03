@@ -17,6 +17,13 @@
 #       paramètre) — limite documentée, sans effet en mode auto ;
 #   I07 résultats identiques avec et sans index ; valeurs mal formées jamais retenues ; gain mesuré ;
 #   I08 critère date lu par un plan PARALLÈLE (fonds assez grand, pas d'index) : la requête doit aboutir.
+#   I09 (tour 4, ANO-E7-007) plan parallèle FORCÉ (parallel_setup_cost = 0, parallel_tuple_cost = 0,
+#       min_parallel_table_scan_size = 0, max_parallel_workers_per_gather = 2), avec et sans index : date en plage
+#       large, étroite, « renseignée », nombre ; une ligne « 1e1000000 » / « 0000-01-01 » ajoutée : mêmes comptes
+#       qu'en série, aucune erreur ;
+#   I10 (tour 4) sémantique inchangée : meta_date et meta_nombre comparées, en série, aux corps d'origine
+#       (202609301020-1) sur toutes les dates AAAA-MM-JJ de 11 années limites (mois 00 à 13, jours 00 à 32) et des
+#       nombres limites ; seule différence admise : NULL là où l'ancien corps levait une erreur (débordement).
 #
 # Usage : verifier-index-expression.sh BASE [N]   (variables libpq : PGHOST, PGPORT, PGUSER ; base jetable :
 #         le nom doit contenir « qa » ou « recette ») — les documents clonés et les index restent dans la copie.
@@ -113,4 +120,70 @@ ts=$(q "${SERIE[@]}" -c "EXPLAIN (ANALYZE) $DATE_C" | grep -o 'Execution Time: [
 [[ "$avec" == "$sans" && "$mal" == "0 0 " ]] \
   && resultat I07 OK "Mêmes résultats avec et sans index (lecture en série) ; valeurs mal formées jamais retenues ; plage de 10 jours : ${ta} ms avec index, ${ts} ms sans" "comptes $avec" \
   || resultat I07 ECHEC "Résultats avec et sans index, valeurs mal formées" "avec $avec / sans $sans / mal formées retenues $mal"
+# --- I09 plan parallèle forcé, avec et sans index (ANO-E7-007) ------------------------------------
+q -c "INSERT INTO document (id, name, noeud_principal_id, type_document_id, size_ko, metadonnees, confidentialite, date_document, statut_indexation, created_at)
+      SELECT gen_random_uuid(), 'qa-t104-limite', noeud_principal_id, type_document_id, 1,
+             '{\"QA_T104_DATE\":\"0000-01-01\",\"QA_T104_MONTANT\":\"1e1000000\"}'::jsonb, 'PUBLIC', CURRENT_DATE, 'INDEXE', now()
+      FROM document WHERE NOT supprime AND name <> 'qa-t104-limite' ORDER BY created_at LIMIT 1" > /dev/null
+PARA=(-c "SET parallel_setup_cost = 0" -c "SET parallel_tuple_cost = 0" -c "SET min_parallel_table_scan_size = 0"
+      -c "SET min_parallel_index_scan_size = 0" -c "SET max_parallel_workers_per_gather = 2")
+SANS_IDX=(-c "SET enable_indexscan = off" -c "SET enable_bitmapscan = off")
+DROITS="EXISTS (SELECT 1 FROM document droits_d WHERE droits_d.id = d.id AND droits_d.supprime = false)"
+declare -A REQ=(
+  [date_large]="SELECT count(*) FROM document d WHERE $DROITS AND meta_date(d.metadonnees, 'QA_T104_DATE') >= DATE '2020-01-01'"
+  [date_etroite]="SELECT count(*) FROM document d WHERE $DROITS AND meta_date(d.metadonnees, 'QA_T104_DATE') >= DATE '2023-03-01' AND meta_date(d.metadonnees, 'QA_T104_DATE') <= DATE '2023-03-10'"
+  [date_renseignee]="SELECT count(*) FROM document d WHERE $DROITS AND meta_date(d.metadonnees, 'QA_T104_DATE') IS NOT NULL"
+  [nombre]="SELECT count(*) FROM document d WHERE $DROITS AND meta_nombre(d.metadonnees, 'QA_T104_MONTANT') >= 1000 AND meta_nombre(d.metadonnees, 'QA_T104_MONTANT') <= 1500"
+  [nombre_renseigne]="SELECT count(*) FROM document d WHERE $DROITS AND meta_nombre(d.metadonnees, 'QA_T104_MONTANT') IS NOT NULL")
+ok9=0; ko9=""; det9=""
+for k in date_large date_etroite date_renseignee nombre nombre_renseigne; do
+  ref=$(q -c "SET max_parallel_workers_per_gather = 0" "${SANS_IDX[@]}" -c "${REQ[$k]}")
+  for mode in avec_index sans_index; do
+    X=("${PARA[@]}"); [[ $mode == sans_index ]] && X+=("${SANS_IDX[@]}")
+    npar=$(q "${X[@]}" -c "EXPLAIN ${REQ[$k]}" | grep -c 'Parallel\|Gather')
+    r=$(q "${X[@]}" -c "${REQ[$k]}")
+    if [[ "$r" =~ ^[0-9]+$ && "$r" == "$ref" && $npar -gt 0 ]]; then ok9=$((ok9 + 1))
+    else ko9="$ko9 $k/$mode(plan parallèle : $npar ; série $ref ; parallèle $(tr '\n' ' ' <<<"$r" | cut -c1-120))"; fi
+    det9="$det9 $k/$mode=$r"
+  done
+done
+q -c "DELETE FROM document WHERE name = 'qa-t104-limite'" > /dev/null
+[[ -z "$ko9" ]] \
+  && resultat I09 OK "Plan parallèle forcé (coûts à 0, 2 workers), avec et sans index : date large, étroite, renseignée, nombre ; ligne « 0000-01-01 » / « 1e1000000 » présente : $ok9 requêtes en plan parallèle, mêmes comptes qu'en série [12.7]" "$det9" \
+  || resultat I09 ECHEC "Plan parallèle forcé : requête en erreur, sans plan parallèle ou compte différent de la lecture en série [12.7]" "$ko9"
+
+# --- I10 sémantique identique aux corps d'origine (202609301020-1), en série ----------------------
+V0="CREATE FUNCTION pg_temp.meta_date_v0(m jsonb, code text) RETURNS date LANGUAGE plpgsql IMMUTABLE AS \$f\$
+DECLARE v text := m ->> code;
+BEGIN
+    IF v IS NULL OR v !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}\$' THEN RETURN NULL; END IF;
+    RETURN make_date(substr(v, 1, 4)::int, substr(v, 6, 2)::int, substr(v, 9, 2)::int);
+EXCEPTION WHEN others THEN RETURN NULL;
+END \$f\$;
+CREATE FUNCTION pg_temp.meta_nombre_v0(m jsonb, code text) RETURNS numeric LANGUAGE plpgsql IMMUTABLE AS \$f\$
+DECLARE v text := m ->> code;
+BEGIN
+    IF v IS NULL OR v !~ '^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?\$' THEN RETURN NULL; END IF;
+    RETURN v::numeric;
+EXCEPTION WHEN others THEN RETURN 'NaN'::numeric;  -- l'ancien corps levait ici une erreur (débordement)
+END \$f\$;"
+DATES="SELECT to_char(a, 'FM0000') || '-' || to_char(mo, 'FM00') || '-' || to_char(j, 'FM00') AS v
+       FROM unnest(ARRAY[0, 1, 4, 100, 1582, 1900, 2000, 2023, 2024, 2100, 9999]) a, generate_series(0, 13) mo, generate_series(0, 32) j
+       UNION ALL SELECT unnest(ARRAY['2024-2-29', '20240229', '2024-02-29T00:00', ' 2024-02-29', '2024-02-29 ', '31/12/2026', '', 'abcd-ef-gh', E'2024-02-29\n'])"
+NOMBRES="SELECT unnest(ARRAY['0', '-0', '12', '-12.50', '0.000', '00012.3400', '1e3', '1E-3', '-2.5e+10', '12 500,00', '1,5', '.5', '5.', '+5',
+          '1e1000000', '1e-1000000', '1e131071', '1e131072', '9e131071', '1e-16383', '1e-16384', '0e1073741823', '0.0e2000000000',
+          '1' || repeat('0', 131071), '1' || repeat('0', 131072), '0.' || repeat('0', 16382) || '1', '0.' || repeat('0', 16383) || '1',
+          '1e99999999999', 'NaN', 'Infinity', '1e', 'e5', '--1', '']) AS v"
+CMP_D="SELECT count(*) || ' dates, ' || count(*) FILTER (WHERE meta_date(jsonb_build_object('c', v), 'c') IS DISTINCT FROM pg_temp.meta_date_v0(jsonb_build_object('c', v), 'c')) || ' écart(s), '
+              || count(*) FILTER (WHERE meta_date(jsonb_build_object('c', v), 'c') IS NOT NULL) || ' valides'
+       FROM ($DATES) s"
+CMP_N="SELECT count(*) || ' nombres, ' || count(*) FILTER (WHERE n0 IS DISTINCT FROM 'NaN' AND n1 IS DISTINCT FROM n0) || ' écart(s), '
+              || count(*) FILTER (WHERE n0 = 'NaN') || ' débordement(s) de l''ancien corps (nouveau : '
+              || coalesce(string_agg(DISTINCT coalesce(n1::text, 'NULL'), ',') FILTER (WHERE n0 = 'NaN'), '-') || ')'
+       FROM (SELECT meta_nombre(jsonb_build_object('c', v), 'c') n1, pg_temp.meta_nombre_v0(jsonb_build_object('c', v), 'c') n0 FROM ($NOMBRES) s0) s"
+r10=$(q -c "SET max_parallel_workers_per_gather = 0" -c "$V0" -c "$CMP_D" -c "$CMP_N" | tr '\n' ';')
+[[ "$r10" =~ ^[0-9]+\ dates,\ 0\ écart.*\;[0-9]+\ nombres,\ 0\ écart ]] && ! grep -q 'nouveau : [^)]*[0-9]' <<<"$r10" \
+  && resultat I10 OK "Sémantique de meta_date et meta_nombre identique aux corps d'origine (valeurs mal formées ou impossibles → NULL) ; débordements de numeric → NULL au lieu d'une erreur" "$r10" \
+  || resultat I10 ECHEC "Sémantique de meta_date / meta_nombre différente des corps d'origine" "$r10"
+
 bilan "T-104 index d'expression des métadonnées ($B, $N documents)"
