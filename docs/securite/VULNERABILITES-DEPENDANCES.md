@@ -81,12 +81,27 @@ Seuil de la CI non atteint (le job front est vert sur GitHub). Correction : mont
 22.1.1 ou plus (22.2.0 publiée) à la prochaine livraison du front (dev4), `package-lock.json`
 régénéré ; aucune urgence au sens du §1.
 
+**Back-end (dépendances Java) : état des vulnérabilités inconnu.** L'analyse réelle n'a encore
+jamais tourné, ni sur ce poste (NVD refusée par le mandataire, de même que `api.osv.dev` le
+03/10/2026), ni dans la CI (§4). Les « 0 critique, 0 haute » ci-dessus ne valent que pour le
+front-end à la date du rapport ; aucune affirmation de ce document ne porte sur l'absence de
+vulnérabilité haute ou critique dans les dépendances Java.
+
 ## 4. Intégration continue sur GitHub (`abddou2000/GED`)
 
 Exécution n° 4 du 30/09/2026 (commit `71bdc1d`, branche `claude/inspiring-lovelace-10bg1c`) :
 back-end (tests sur PostgreSQL 16, JAR, SBOM) **vert**, front-end (tests, paquet, SBOM, audit npm)
 **vert**, registre des dépendances et licences **vert** ; OWASP Dependency-Check **en échec
 volontaire** : « Secret NVD_API_KEY absent » (aucune analyse, aucun rapport).
+
+**État au 03/10/2026** (exécutions 37124893548 sur `a7343b8`, 37126190497 sur `65b1002`,
+37126645378 sur `4090da3`, lues par l'API GitHub) :
+
+| Job | État | Cause |
+|---|---|---|
+| Back-end (tests, JAR, SBOM) | **rouge** depuis `a7343b8` (vert du 30/09 au 01/10, `66af618` compris) | un test, `MetadonneesPlanParalleleTest.indexDeDeploiementSeCree:154` (687 tests, 1 échec) : il attendait un plan parallèle que PostgreSQL ne choisit pas dès que la table `document` dépasse quelques pages ; sa taille au moment du test dépend de l'ordre des classes. Les « remaining connection slots are reserved for roles with the SUPERUSER attribute » du journal du service, déjà présents dans les exécutions vertes, viennent d'un autre défaut, latent : dix pools Hikari de dix connexions pour 97 places. Correctifs de dev2 (tour 5, `c0c51f9` et `fc97877`), à confirmer par la prochaine exécution après intégration : `docs/conformite/suivi/dev2.md` |
+| OWASP Dependency-Check (CVSS >= 7) | **rouge, échec volontaire** | étape « Contrôler la chaîne d'analyse (miroir synthétique) » verte ; étape « Analyser les dépendances » : « Ni variable NVD_DATAFEED_URL ni secret NVD_API_KEY » (T-070 : secret attendu de l'administrateur du dépôt pour MMED). Aucune vulnérabilité Java n'est en cause : aucune analyse n'a eu lieu |
+| Front-end (tests, paquet, SBOM, audit) | rouge à l'étape « Audit des dépendances livrées » | ANO-E0-004, montée d'Angular et mise à jour du §3 tenues par dev4 |
 
 Pour lever la réserve, l'administrateur du dépôt crée le secret `NVD_API_KEY` (*Settings → Secrets
 and variables → Actions*) ou la variable `NVD_DATAFEED_URL` vers un miroir ; le premier passage
