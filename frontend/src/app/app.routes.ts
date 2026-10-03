@@ -136,6 +136,14 @@ export const routes: Routes = [
         loadComponent: () => import('./features/document/document-detail/document-detail').then(m => m.DocumentDetail),
       },
       {
+        // Lien des notifications et de leurs courriels (ANO-F-031) : le serveur
+        // désigne un document par `documents/<id>` (circuit, échéance de
+        // conservation). Les avis déjà émis et les courriels déjà envoyés
+        // portent ce chemin : il mène à la fiche plutôt qu'à l'accueil.
+        path: 'documents/:id',
+        redirectTo: 'televerser/:id',
+      },
+      {
         // Recherche dans le contenu des documents (§4.4).
         path: 'recherche',
         canActivate: [moduleGuard('ocr')],
