@@ -13,6 +13,7 @@ code de sortie 0 si aucun `ECHEC`. Connexion par les variables libpq (`PGHOST`,
 | `AnalyseurChangelogs.java` (`java -Dfile.encoding=UTF-8 AnalyseurChangelogs.java --backend backend`) | Revue statique : nom des fichiers `AAAAMMJJHHmm_objet.xml`, `<rollback>` sur tout changeset non auto-réversible, données étiquetées `data-initial`, aucun référentiel métier amorcé, `ddl-auto` validate/none, pas de Flyway/MySQL/H2, pas d'amorçage Java | Non |
 | `autotest/lancer-autotest.sh` | Les contrôles eux-mêmes : schéma conforme → 0 écart ; schéma non conforme → 36 écarts volontaires détectés ; changelogs conformes/non conformes → 16 écarts détectés | Base `ged_qa_test` (schémas `recette_ok`, `recette_ko`, rôles `qa_ged_*`) |
 | `autotest/lancer-autotest-liquibase.sh BACKEND` | `verifier-rollback.sh` détecte un changeset sans rollback et un faux rollback | Base jetable `ged_qa_recette_e1_at`, supprimée à la fin |
+| `recette-t025-ecart2.sh <phase>` (tour 6) | T-025 écart 2 sur base **peuplée** : `preparer` (appartenances dans l'ancien schéma), `monter` (membres + attente = lignes d'avant, identifiants conservés), `aller-retour` (retour arrière des deux changesets puis remontée, contenu comparé), `connexion` (première connexion, appartenance convertie, droit du groupe appliqué ; `GED_URL`), `retour-apres-service` | Oui : `T025_BASE` (préfixe `ged_qa`, à sauvegarder avant) |
 
 `exceptions.txt` liste les seuls écarts aux conventions **imposés par le DAT lui-même**
 (identifiant séquentiel et clé composite du journal d'audit partitionné, §7.4.1 et §7.4.3 ;
