@@ -22,3 +22,6 @@ Thumbs.db
 
 # ===== Logs =====
 *.log
+
+# ===== Corpus volumiques générés (corpus/generer.sh) =====
+corpus/sortie/
