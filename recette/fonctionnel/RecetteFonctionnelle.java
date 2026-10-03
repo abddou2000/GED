@@ -530,21 +530,34 @@ public class RecetteFonctionnelle extends ClientGed {
 
         // F-11 (§3.3, §3.3.1) : pas de création manuelle ; identité créée sans rôle à la 1re connexion ; rôle attribué ensuite.
         Rep creation = J(ADM, "POST", "/api/v1/admin/utilisateurs", Map.of("identifiant", "fantome", "fullName", "Fantôme"));
+        // Tour 4 : qa2neuf1 est connu (et habilité) depuis la première exécution ; chaque exécution
+        // ajoute à l'annuaire simulé un compte neuf (qa2n<marqueur>) pour rejouer la 1re connexion.
+        String cptNeuf = NEUF1;
+        try {
+            LdapSimule.ajouter("qa2n" + M, "Nouveau", "Compte " + M);
+            cptNeuf = "qa2n" + M;
+        } catch (Exception e) {
+            info("F-11 : compte neuf non ajouté à l'annuaire simulé (" + e.getMessage() + "), repli sur " + NEUF1);
+        }
         boolean dejaConnu = false;
-        for (JsonNode u : G(ADM, "/api/v1/admin/utilisateurs").json()) dejaConnu |= NEUF1.equalsIgnoreCase(u.path("identifiant").asText());
-        JsonNode m0 = me(NEUF1);
+        for (JsonNode u : G(ADM, "/api/v1/admin/utilisateurs").json()) dejaConnu |= cptNeuf.equalsIgnoreCase(u.path("identifiant").asText());
+        JsonNode m0 = me(cptNeuf);
         boolean connuApres = false;
-        for (JsonNode u : G(ADM, "/api/v1/admin/utilisateurs").json()) connuApres |= NEUF1.equalsIgnoreCase(u.path("identifiant").asText());
+        for (JsonNode u : G(ADM, "/api/v1/admin/utilisateurs").json()) connuApres |= cptNeuf.equalsIgnoreCase(u.path("identifiant").asText());
         boolean sansRole = m0.path("roles").size() == 0 && m0.path("permissions").size() == 0;
-        Rep listeSansRole = G(NEUF1, "/api/v1/documents?size=5");
+        Rep listeSansRole = G(cptNeuf, "/api/v1/documents?size=5");
         habiliter("UTILISATEUR", m0.path("id").asText(), "UTILISATEUR_STANDARD", PRJ, null, false);
-        moi.remove(NEUF1);
-        JsonNode m1b = me(NEUF1);
-        verif("F-11", creation.code() / 100 != 2 && connuApres && (dejaConnu || sansRole) && m1b.path("roles").toString().contains("UTILISATEUR_STANDARD"),
+        moi.remove(cptNeuf);
+        JsonNode m1b = me(cptNeuf);
+        Rep listeApres = G(cptNeuf, "/api/v1/documents?size=5");
+        boolean cptNeufVrai = !cptNeuf.equals(NEUF1);
+        verif("F-11", creation.code() / 100 != 2 && connuApres && (dejaConnu || sansRole)
+                        && (!cptNeufVrai || (!dejaConnu && sansRole && listeSansRole.code() == 403 && listeApres.code() == 200))
+                        && m1b.path("roles").toString().contains("UTILISATEUR_STANDARD"),
                 "Aucun écran ni API de création de compte ; identité créée à la première connexion, sans rôle ; rôle attribué manuellement, effet immédiat",
-                "POST /admin/utilisateurs " + creation.code() + ", connu avant 1re connexion " + dejaConnu + ", après " + connuApres
-                        + ", sans rôle à la création " + sansRole + " (liste des documents " + listeSansRole.code() + " total "
-                        + listeSansRole.json().path("total") + "), rôles après attribution " + m1b.path("roles"));
+                "POST /admin/utilisateurs " + creation.code() + ", compte " + cptNeuf + " connu avant 1re connexion " + dejaConnu + ", après " + connuApres
+                        + ", sans rôle à la création " + sansRole + " (liste des documents " + court(listeSansRole) + "), rôles après attribution "
+                        + m1b.path("roles") + " (liste des documents " + listeApres.code() + ")");
 
         // F-12 (§3.3.1, D1) : désactivation d'un compte AD.
         f12();
