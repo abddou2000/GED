@@ -29,6 +29,14 @@ public final class LdapSimule {
      * l'instance (annuaire en mémoire) ; même mot de passe que les personas.
      */
     public static void ajouter(String sam, String prenom, String nom) throws Exception {
+        ajouter(sam, prenom, nom, sam + "@marchica.ma");
+    }
+
+    /**
+     * Variante à courriel imposé (tour 6, T-025) : le courriel « prénom.nom@marchica.ma » rattache
+     * l'identité créée à la première connexion à une fiche employé reprise sans identité.
+     */
+    public static void ajouter(String sam, String prenom, String nom, String courriel) throws Exception {
         int port = Integer.parseInt(ClientGed.env("GED_LDAP_PORT", "33399"));
         String mdp = ClientGed.env("GED_RECETTE_MOT_DE_PASSE", "dev-local-only");
         String cn = prenom + " " + nom;
@@ -42,7 +50,7 @@ public final class LdapSimule {
                     new com.unboundid.ldap.sdk.Attribute("givenName", prenom),
                     new com.unboundid.ldap.sdk.Attribute("sn", nom),
                     new com.unboundid.ldap.sdk.Attribute("displayName", cn),
-                    new com.unboundid.ldap.sdk.Attribute("mail", sam + "@marchica.ma"),
+                    new com.unboundid.ldap.sdk.Attribute("mail", courriel),
                     new com.unboundid.ldap.sdk.Attribute("department", "Direction Technique"),
                     new com.unboundid.ldap.sdk.Attribute("userAccountControl", "512"),
                     new com.unboundid.ldap.sdk.Attribute("userPassword", mdp)));

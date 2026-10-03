@@ -29,7 +29,7 @@ import com.fasterxml.jackson.databind.JsonNode;
  * de données de recette).
  *
  * <p>Usage : {@code bash recette/lib/lancer-java.sh recette/fonctionnel/RecetteFonctionnelle.java
- * RecetteFonctionnelle [A] [B] [C] [D]} (défaut : toutes les parties). Variables : GED_URL
+ * RecetteFonctionnelle [A] [B] [C] [D] [G]} (défaut : A à D ; G, groupes par identité, sur demande). Variables : GED_URL
  * (défaut http://localhost:18088), GED_RECETTE_MOT_DE_PASSE (défaut : celui de l'annuaire
  * simulé du profil dev), GED_LDAP_PORT (annuaire simulé, pour F-12).
  * Java 17 + Jackson du classpath du backend (décision D5 : aucun Python).
@@ -823,6 +823,7 @@ public class RecetteFonctionnelle extends ClientGed {
         if (parties.contains("B")) PartieB.executer();
         if (parties.contains("C")) PartieC.executer();
         if (parties.contains("D")) PartieD.executer();
+        if (parties.contains("G")) PartieG.executer(); // tour 6 : groupes par identité (T-025), sur demande
         System.exit(bilan("recette fonctionnelle " + parties));
     }
 }
