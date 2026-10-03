@@ -360,19 +360,36 @@ a.stat:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   .stats { gap: 10px; }
   .page { gap: 12px; }
 
+  /* ANO-F-035 : la premiere rangee etait bornee a 220px et la carte
+     d'identite, contenu fixe plus haut que cela, perdait sa derniere ligne
+     (« Derniere connexion ») sous son bord. La rangee prend desormais la
+     hauteur de cette carte ; si la fenetre est trop courte, c'est la grille
+     qui defile. */
   .grille-profil {
-    grid-template-rows: minmax(0, 220px) minmax(190px, 1fr);
+    grid-template-rows: auto minmax(190px, 1fr);
     align-content: start;
   }
 
   /* Selecteur enfant OBLIGATOIRE : `.grille-profil > .card` pose
      `min-height: 0` et l'emporterait sur un simple `.c-infos`, a specificite
-     plus faible — le plancher serait ignore et les cartes rognees a nouveau. */
-  .grille-profil > .c-infos,
+     plus faible. La carte d'identite garde sa hauteur de contenu (rien n'y
+     defile) ; celle des rattachements, dont les listes grandissent, defile. */
+  .grille-profil > .c-infos { min-height: auto; }
   .grille-profil > .c-rattachements { min-height: 0; overflow-y: auto; }
 
   .grille-profil .liste,
   .grille-profil .decisions { flex: 1; min-height: 0; overflow-y: auto; }
+}
+
+/* Fenetre courte, deux cartes cote a cote : celle des rattachements s'aligne
+   sur la carte d'identite sans pousser la rangee (hauteur nulle, etiree a la
+   rangee) ; ses listes defilent. En pile (<= 1100px), chaque carte a sa
+   propre rangee et garde sa hauteur ; la grille defile. */
+@media (max-height: 860px) and (min-width: 1101px) {
+  .grille-profil > .c-rattachements { height: 0; min-height: 100%; }
+}
+@media (max-height: 860px) and (max-width: 1100px) {
+  .grille-profil { grid-template-rows: auto minmax(160px, auto) minmax(190px, 1fr); }
 }
 
 /* Module workflow désactivé (T-088) : pas de carte des décisions, donc une
