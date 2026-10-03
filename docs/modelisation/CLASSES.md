@@ -18,17 +18,19 @@ classDiagram
     <<interface>>
   }
   class AnnuaireEmbarque {
+    int port
     SimulateurAnnuaire simulateur
+    boolean rendu
   }
   class AnnuaireIndisponibleException {
   }
   class AnnuaireLdap {
-    LdapContextSource source
+    ControleursAnnuaire controleurs
     String base
     String[] attributs
     int delaiLectureMs
-    BindAuthenticator authentificateur
-    LdapTemplate modele
+    BindAuthenticator[] authentificateurs
+    LdapTemplate[] modeles
   }
   class AuthController {
     ServiceConnexion connexion
@@ -59,6 +61,22 @@ classDiagram
     boolean premiereConnexion
     Instant instant
   }
+  class ControleursAnnuaire {
+    List~Controleur~ controleurs
+    Duration miseALEcart
+    Clock horloge
+    Map~String, Instant~ ecartes
+  }
+  class EcheanceSecretAnnuaire {
+    ControleursAnnuaire controleurs
+    LdapTemplate[] modeles
+    String compteService
+    LocalDate echeanceDeclaree
+    Clock horloge
+    volatile Optional~Instant~ echeance
+    volatile boolean jamais
+    volatile Instant luLe
+  }
   class EnteteCsrfManquantException {
   }
   class EntreeCacheAnnuaire {
@@ -80,7 +98,8 @@ classDiagram
     <<interface>>
   }
   class EtatCompteAnnuaireLdap {
-    LdapTemplate modele
+    ControleursAnnuaire controleurs
+    LdapTemplate[] modeles
     String base
     int delaiLectureMs
   }
@@ -170,6 +189,7 @@ classDiagram
     ProprietesIdentite proprietes
     HabilitationRepository habilitations
     ServiceHabilitations serviceHabilitations
+    AppartenancesEnAttente appartenancesEnAttente
   }
   class ServiceSessions {
     SessionRepository sessions
@@ -234,6 +254,7 @@ classDiagram
   AnnuaireEmbarque --> SimulateurAnnuaire
   ErreurIdentite <|-- AnnuaireIndisponibleException
   Annuaire <|.. AnnuaireLdap
+  AnnuaireLdap --> ControleursAnnuaire
   AuthController --> ServiceConnexion
   AuthController --> ServiceSessions
   AuthController --> ServiceCacheAnnuaire
@@ -241,8 +262,10 @@ classDiagram
   EvenementAudit <|.. ConnexionEchouee
   ConnexionEchouee --> MotifEchecConnexion
   EvenementAudit <|.. ConnexionReussie
+  EcheanceSecretAnnuaire --> ControleursAnnuaire
   ErreurIdentite <|-- EnteteCsrfManquantException
   EtatCompteAnnuaire <|.. EtatCompteAnnuaireLdap
+  EtatCompteAnnuaireLdap --> ControleursAnnuaire
   EtatCompteAnnuaire <|.. EtatCompteEnCache
   EtatCompteEnCache --> EtatCompteAnnuaire
   ErreurIdentite <|-- IdentifiantsRefusesException
@@ -509,7 +532,8 @@ classDiagram
     UUID id
     String code
     String name
-    Set~Employe~ users
+    Set~Utilisateur~ membres
+    Set~Employe~ membresEnAttente
   }
   class AccessGroupController {
     AccessGroupService service
@@ -523,11 +547,13 @@ classDiagram
     EmployeRepository employes
     ServiceHabilitations habilitations
     RoleRepository roles
+    UtilisateurRepository utilisateurs
   }
   class AccessGroupService {
     AccessGroupRepository repo
     WorkSpaceRepository workspaceRepo
     EmployeRepository employeRepo
+    UtilisateurRepository utilisateurRepo
     AccessGroupTriParTaille triParTaille
     ServiceHabilitations habilitations
     VersionHabilitations version
@@ -536,6 +562,9 @@ classDiagram
   }
   class AccessGroupTriParTaille {
     EntityManager em
+  }
+  class AppartenancesEnAttente {
+    JdbcTemplate jdbc
   }
   class CodesErreurGroupe {
   }
@@ -775,7 +804,7 @@ classDiagram
     ApplicationEventPublisher evenements
     ArchivageNoeuds archivageNoeuds
     CopiesConservation copies
-    … 11 autres
+    … 12 autres
   }
   class DocumentSupprime {
     <<record>>
@@ -1122,6 +1151,10 @@ classDiagram
   }
   class FormatsReconnus {
   }
+  class IntegriteController {
+    VerificationALaDemande verification
+    ControleAcces controle
+  }
   class KeyProvider {
     <<interface>>
   }
@@ -1140,9 +1173,19 @@ classDiagram
     AnalyseurAntivirus antivirus
     EnfilageOcr ocr
   }
+  class LanceurRotationKek {
+    KeyProvider keyProvider
+    RotationKek rotation
+    boolean retirerAncienne
+  }
   class LectureControlee {
     StockageChiffre stockage
     ApplicationEventPublisher evenements
+  }
+  class MetriquesIntegrite {
+    Map~VerificationIntegriteStatut, Counter~ compteurs
+    VerificationPeriodique fonds
+    AtomicReference~Double~ derniere
   }
   class PrevisualisationController {
     ResolveurFichierVersion resolveur
@@ -1214,6 +1257,12 @@ classDiagram
     int tailleSegment
     SecureRandom aleatoire
   }
+  class VerificationALaDemande {
+    JdbcTemplate jdbc
+    VerificationIntegrite verification
+    VerificationPeriodique fonds
+    ApplicationEventPublisher evenements
+  }
   class VerificationIntegrite {
     StockageChiffre stockage
     ApplicationEventPublisher evenements
@@ -1222,6 +1271,7 @@ classDiagram
     VerificationIntegrite verification
     SourceEmpreintes source
     AtomicBoolean enCours
+    volatile Etat etat
   }
   AnalyseurAntivirus <|.. AntivirusDesactive
   AnalyseurAntivirus <|.. ClientClamd
@@ -1231,12 +1281,16 @@ classDiagram
   ConvertisseurBureautique <|.. ConvertisseurLibreOffice
   DepotClesFichier <|.. DepotClesFichierJdbc
   FileStore <|.. FileStoreDisque
+  IntegriteController --> VerificationALaDemande
   KeyProvider <|.. KeystoreKeyProvider
   LanceurReprise --> ProprietesFichiers
   LanceurReprise --> StockageChiffre
   LanceurReprise --> DetecteurTypeReel
   LanceurReprise --> AnalyseurAntivirus
+  LanceurRotationKek --> KeyProvider
+  LanceurRotationKek --> RotationKek
   LectureControlee --> StockageChiffre
+  MetriquesIntegrite --> VerificationPeriodique
   PrevisualisationController --> ResolveurFichierVersion
   PrevisualisationController --> ControleAccesPrevisualisation
   PrevisualisationController --> ServicePrevisualisation
@@ -1253,6 +1307,8 @@ classDiagram
   StockageChiffre --> FileStore
   StockageChiffre --> KeyProvider
   StockageChiffre --> DepotClesFichier
+  VerificationALaDemande --> VerificationIntegrite
+  VerificationALaDemande --> VerificationPeriodique
   VerificationIntegrite --> StockageChiffre
   VerificationPeriodique --> VerificationIntegrite
   VerificationPeriodique --> SourceEmpreintes
@@ -1350,6 +1406,10 @@ classDiagram
     ExecutorService executeur
     volatile boolean actif
   }
+  class PrioriteOcr {
+    <<enumeration>>
+    int code
+  }
   class ProprietesChaineOcr {
     boolean actif
     int workers
@@ -1420,6 +1480,13 @@ classDiagram
 
 ```mermaid
 classDiagram
+  class CriteresDocument {
+    <<record>>
+    LocalDate dateDocumentDu
+    LocalDate dateDocumentAu
+    Confidentialite confidentialite
+    UUID deposantUtilisateurId
+  }
   class CriteresMetadonnees {
     <<record>>
     UUID typeDocumentId
@@ -1441,6 +1508,7 @@ classDiagram
     long total
     int page
     int taille
+    boolean totalPlafonne
   }
   class PredicatDroits {
     <<interface>>
@@ -1471,6 +1539,7 @@ classDiagram
     JdbcTemplate jdbc
     NamedParameterJdbcTemplate nomme
     PredicatDroits droits
+    int plafond
   }
   RechercheController --> SearchIndexer
   ReindexationComplete --> SearchIndexer
@@ -1483,6 +1552,9 @@ classDiagram
 
 ```mermaid
 classDiagram
+  class CriteresIndexSql {
+    JdbcTemplate jdbc
+  }
   class DocumentIndex {
     <<entity>>
     UUID id
@@ -1511,12 +1583,15 @@ classDiagram
     AuditService audit
     ControleFichiers controleFichiers
     comiptgedautorisationAccessPredicate droits
+    CriteresIndexSql criteresIndex
+    orgspringframeworkjdbccoreJdbcTemplate jdbc
   }
   class ValidationPlan {
   }
   IndexationController --> IndexationService
   IndexationSeeder --> DocumentIndexRepository
   IndexationService --> DocumentIndexRepository
+  IndexationService --> CriteresIndexSql
 ```
 
 DTO : `AnalyseResponse`, `ApercuResponse`, `CritereResponse`, `GroupeResponse`, `RechercheRequest`, `ResultatResponse`, `ValeurRequest`.
@@ -1755,7 +1830,7 @@ classDiagram
     AccessPredicate predicat
     ReglesApplicables regles
     comiptgedautorisationControleAcces controle
-    … 3 autres
+    … 4 autres
   }
   class WorkflowController {
     WorkflowService service
@@ -2133,6 +2208,7 @@ classDiagram
     ResolveurIdentiteDeleguee delegation
     ReponsesSecuriteProblem reponses
     AuditService audit
+    MeterRegistry metriques
   }
   class FormatCleApi {
   }
@@ -2303,12 +2379,13 @@ classDiagram
   class ServiceContratApi {
     WorkSpaceService espaces
     WorkSpaceRepository noeuds
-    IndexationService indexation
+    CriteresIndexSql criteresIndex
+    PredicatDroits perimetre
     SearchIndexer pleinTexte
     ServiceDroitsEffectifs droits
     ControleAcces controle
     UtilisateurRepository utilisateurs
-    JdbcTemplate jdbc
+    NamedParameterJdbcTemplate jdbc
   }
   ContratApiController --> ServiceContratApi
 ```

@@ -327,6 +327,12 @@ Ce que fait la conversion :
 - les comptes locaux et leurs empreintes de mot de passe ne sont **ni exportés
   ni repris** (lot E2 : authentification par l'annuaire) ; chaque personne
   retrouve sa fiche employé à sa première connexion ;
+- les appartenances aux groupes sont reprises **en attente**
+  (`groupe_membre_attente`) : le membre d'un groupe GED est une identité GED
+  (T-025), et aucune n'existe avant la première connexion. Elles deviennent
+  des appartenances réelles (`groupe_membre`) à la première connexion de chaque
+  personne, sans action de l'Administrateur ; d'ici là elles n'apportent aucun
+  droit (contrôle 8 : membres et attente réunis) ;
 - `supprime_par` et `supprime_le` restent vides pour les éléments déjà en
   corbeille : l'ancien modèle ne savait ni qui ni quand.
 
@@ -433,6 +439,24 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
   `name`). **Toute requête SQL externe** (rapport, export, supervision) qui lit
   ces colonnes est à adapter avant la montée. Retour arrière sans perte :
   colonnes et valeurs d'origine recréées depuis le rapport.
+- **Membres des groupes GED = identités GED (T-025, écart 2, décision du client
+  du 03/10)** : `202610061000` (expand) ajoute `groupe_membre.utilisateur_id`,
+  rempli par `utilisateur.employe_id`, et déplace les appartenances des
+  employés **sans identité** (jamais connectés : cas de toute la reprise) dans
+  `groupe_membre_attente`, avec le même identifiant de ligne ; `202610061010`
+  (contract) retire `groupe_membre.employe_id`. Les appartenances en attente
+  n'apportent aucun droit ; elles deviennent réelles à la **première
+  connexion** de la personne, sans action de l'Administrateur. L'API des
+  groupes ne change pas (`userIds` = fiches employé, ou identités ; nouveau
+  champ `pendingUserIds`). **Toute requête SQL externe** qui lit
+  `groupe_membre.employe_id` est à adapter (jointure par `utilisateur_id`, et
+  `groupe_membre_attente` pour les personnes jamais connectées). Contrôle après
+  montée : `SELECT (SELECT count(*) FROM ged.groupe_membre) + (SELECT count(*)
+  FROM ged.groupe_membre_attente)` = nombre de lignes de `groupe_membre` avant
+  la montée. Retour arrière **des deux changesets ensemble**
+  (`rollback-count --count=2` s'ils sont les derniers) : `employe_id` est
+  reconstitué, les appartenances en attente reviennent dans `groupe_membre`
+  avec leur identifiant ; rien n'est perdu.
 - **Index d'expression d'une métadonnée fréquente** (§12.7) : un changeset par
   champ, sur les fonctions immuables de la base, par exemple :
   ```sql
@@ -474,7 +498,8 @@ n'a **pas** pu être exécuté : aucun serveur MySQL n'était disponible.
   Les changesets défaits avant le refus (bascule du gel des versions
   `202609301049` / `202609301051`, verrou des tâches planifiées `verrou_tache`,
   composition des rôles `202610041000`, droits hérités des groupes
-  `202610041010`, colonnes `nom` `202610041020`) ne perdent rien : la base reste
+  `202610041010`, colonnes `nom` `202610041020`, membres des groupes
+  `202610061010` / `202610061000`) ne perdent rien : la base reste
   cohérente et une nouvelle montée (`update`) la ramène à son état de départ.
   Poursuivre malgré la perte annoncée est une décision explicite
   (`ged.retour_arriere_avec_perte = oui`, ci-dessus), après export des données

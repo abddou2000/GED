@@ -1,6 +1,6 @@
 # Schéma de la base de données (P-05, DAT §4.5, §12.1)
 
-> Généré par `node outils/schema-base.mjs` depuis la base `ged_dev1_test`, schéma `ged`, migrée par Liquibase (106 changesets ; jalons : `socle-e1`, `identite-e2`, `autorisation-e3`, `audit-e4`, `api-e9-v3`, `notification-e8`, `api-e9-v4`, `fichiers-ocr-e5-e6`, `modele-e7`, `workflow-e8`). Ne pas modifier à la main : régénérer après chaque changeset.
+> Généré par `node outils/schema-base.mjs` depuis la base `ged_dev1_test`, schéma `ged`, migrée par Liquibase (111 changesets ; jalons : `socle-e1`, `identite-e2`, `autorisation-e3`, `audit-e4`, `api-e9-v3`, `notification-e8`, `api-e9-v4`, `fichiers-ocr-e5-e6`, `modele-e7`, `workflow-e8`). Ne pas modifier à la main : régénérer après chaque changeset.
 
 Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'audit : `bigint` séquentiel, ordre du scellement chaîné), clés étrangères `<table>_id`, préfixes `pk_`, `uk_`, `fk_`, `ck_`, `idx_`. Les partitions mensuelles `journal_audit_AAAAMM` ne sont pas listées.
 
@@ -15,6 +15,7 @@ Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'a
 | Circuits de validation | `regle_workflow` | 7 | référentiel (< 10 000) | < 10 Mo | — |
 | Habilitations | `groupe_ged` | 8 | référentiel (< 10 000) | < 10 Mo | — |
 | Habilitations | `groupe_membre` | 3 | référentiel (< 10 000) | < 10 Mo | — |
+| Habilitations | `groupe_membre_attente` | 3 | référentiel (< 10 000) | < 10 Mo | — |
 | Habilitations | `habilitation` | 11 | 20 000 | 3.3 Mo | attributions |
 | Habilitations | `permission` | 4 | référentiel (< 10 000) | < 10 Mo | — |
 | Habilitations | `role` | 7 | référentiel (< 10 000) | < 10 Mo | — |
@@ -50,7 +51,7 @@ Conventions (§4.2.2) : snake_case, clé primaire `id` UUID (sauf le journal d'a
 | Versions et contenu | `cle_fichier` | 6 | 635 000 | 182.9 Mo | une par version, plus copies PDF/A et aperçus |
 | Versions et contenu | `copie_conservation` | 11 | 135 000 | 46.8 Mo | documents archivés (hypothèse 30 %) |
 | Versions et contenu | `document_texte` | 9 | 450 000 | 22.1 Go | texte de la version courante (8 pages × 3 Ko) et son vecteur tsv |
-| Versions et contenu | `ocr_job` | 18 | 585 000 | 260.3 Mo | un par version à OCRiser |
+| Versions et contenu | `ocr_job` | 19 | 585 000 | 261.5 Mo | un par version à OCRiser |
 | Versions et contenu | `version_document` | 16 | 585 000 | 368.0 Mo | facteur 1,3 de versions |
 | Autres (historique) | `job_retypage` | 15 | référentiel (< 10 000) | < 10 Mo | — |
 | Autres (historique) | `plan_indexation_version` | 6 | référentiel (< 10 000) | < 10 Mo | — |
@@ -170,8 +171,13 @@ erDiagram
   }
   groupe_membre {
     uuid groupe_ged_id FK
-    uuid employe_id FK
     uuid id PK
+    uuid utilisateur_id FK
+  }
+  groupe_membre_attente {
+    uuid id PK
+    uuid groupe_ged_id FK
+    uuid employe_id FK
   }
   habilitation {
     uuid id PK
@@ -211,8 +217,10 @@ erDiagram
     bigint valeur
   }
   employe ||--o{ groupe_ged : "supprime_par"
-  employe ||--o{ groupe_membre : "employe_id"
   groupe_ged ||--o{ groupe_membre : "groupe_ged_id"
+  utilisateur ||--o{ groupe_membre : "utilisateur_id"
+  employe ||--o{ groupe_membre_attente : "employe_id"
+  groupe_ged ||--o{ groupe_membre_attente : "groupe_ged_id"
   application ||--o{ habilitation : "application_id"
   utilisateur ||--o{ habilitation : "cree_par"
   document ||--o{ habilitation : "document_id"
@@ -224,7 +232,7 @@ erDiagram
   role ||--o{ role_permission : "role_id"
 ```
 
-Tables d'autres groupes référencées : `employe`, `application`, `utilisateur`, `document`, `noeud`.
+Tables d'autres groupes référencées : `employe`, `utilisateur`, `application`, `document`, `noeud`.
 
 ### Organisation documentaire
 
@@ -484,6 +492,7 @@ erDiagram
     timestamp_with_time_zone demarre_le
     timestamp_with_time_zone termine_le
     timestamp_with_time_zone modifie_le
+    smallint priorite
   }
   version_document {
     uuid id PK
@@ -1246,19 +1255,38 @@ Index :
 | Colonne | Type | Nul | Défaut |
 |---|---|---|---|
 | `groupe_ged_id` | uuid | non |  |
-| `employe_id` | uuid | non |  |
 | `id` | uuid | non | `ged.uuid_v7()` |
+| `utilisateur_id` | uuid | non |  |
 
 Contraintes :
 
-- `fk_groupe_membre_employe` (clé étrangère) : `FOREIGN KEY (employe_id) REFERENCES ged.employe(id) ON DELETE CASCADE`
 - `fk_groupe_membre_groupe_ged` (clé étrangère) : `FOREIGN KEY (groupe_ged_id) REFERENCES ged.groupe_ged(id) ON DELETE CASCADE`
+- `fk_groupe_membre_utilisateur` (clé étrangère) : `FOREIGN KEY (utilisateur_id) REFERENCES ged.utilisateur(id) ON DELETE CASCADE`
 - `pk_groupe_membre` (clé primaire) : `PRIMARY KEY (id)`
-- `uk_groupe_membre_groupe_ged_id_employe_id` (unicité) : `UNIQUE (groupe_ged_id, employe_id)`
+- `uk_groupe_membre_groupe_ged_id_utilisateur_id` (unicité) : `UNIQUE (groupe_ged_id, utilisateur_id)`
 
 Index :
 
-- `idx_groupe_membre_employe_id` : `USING btree (employe_id)`
+- `idx_groupe_membre_utilisateur_id` : `USING btree (utilisateur_id)`
+
+### `groupe_membre_attente`
+
+| Colonne | Type | Nul | Défaut |
+|---|---|---|---|
+| `id` | uuid | non | `ged.uuid_v7()` |
+| `groupe_ged_id` | uuid | non |  |
+| `employe_id` | uuid | non |  |
+
+Contraintes :
+
+- `fk_groupe_membre_attente_employe` (clé étrangère) : `FOREIGN KEY (employe_id) REFERENCES ged.employe(id) ON DELETE CASCADE`
+- `fk_groupe_membre_attente_groupe_ged` (clé étrangère) : `FOREIGN KEY (groupe_ged_id) REFERENCES ged.groupe_ged(id) ON DELETE CASCADE`
+- `pk_groupe_membre_attente` (clé primaire) : `PRIMARY KEY (id)`
+- `uk_groupe_membre_attente_groupe_ged_id_employe_id` (unicité) : `UNIQUE (groupe_ged_id, employe_id)`
+
+Index :
+
+- `idx_groupe_membre_attente_employe_id` : `USING btree (employe_id)`
 
 ### `habilitation`
 
@@ -1673,11 +1701,13 @@ Index :
 | `demarre_le` | timestamp with time zone | oui |  |
 | `termine_le` | timestamp with time zone | oui |  |
 | `modifie_le` | timestamp with time zone | oui |  |
+| `priorite` | smallint | non | `0` |
 
 Contraintes :
 
 - `ck_ocr_job_bail` (vérification) : `CHECK ((((statut)::text <> 'EN_COURS_OCR'::text) OR ((verrouille_par IS NOT NULL) AND (verrouille_jusqu_a IS NOT NULL))))`
 - `ck_ocr_job_langue` (vérification) : `CHECK (((langue)::text ~ '^(fra|ara)([+](fra|ara))*$'::text))`
+- `ck_ocr_job_priorite` (vérification) : `CHECK ((priorite = ANY (ARRAY[0, 1])))`
 - `ck_ocr_job_statut` (vérification) : `CHECK (((statut)::text = ANY ((ARRAY['EN_ATTENTE_OCR'::character varying, 'EN_COURS_OCR'::character varying, 'OCR_TERMINE'::character varying, 'OCR_ECHEC'::character varying])::text[])))`
 - `ck_ocr_job_tentatives` (vérification) : `CHECK ((tentatives >= 0))`
 - `fk_ocr_job_cle_fichier` (clé étrangère) : `FOREIGN KEY (cle_fichier_id) REFERENCES ged.cle_fichier(id) ON DELETE CASCADE`
@@ -1688,8 +1718,8 @@ Contraintes :
 Index :
 
 - `idx_ocr_job_cle_fichier_id` : `USING btree (cle_fichier_id)`
-- `idx_ocr_job_depose_le_attente` : `USING btree (depose_le, prochaine_tentative_le) WHERE ((statut)::text = 'EN_ATTENTE_OCR'::text)`
 - `idx_ocr_job_document_id` : `USING btree (document_id)`
+- `idx_ocr_job_priorite_depose_le_attente` : `USING btree (priorite, depose_le, prochaine_tentative_le) WHERE ((statut)::text = 'EN_ATTENTE_OCR'::text)`
 - `idx_ocr_job_statut_depose_le` : `USING btree (statut, depose_le)`
 - `idx_ocr_job_verrouille_jusqu_a` : `USING btree (verrouille_jusqu_a) WHERE ((statut)::text = 'EN_COURS_OCR'::text)`
 - `idx_ocr_job_version_id` : `USING btree (version_id)`
