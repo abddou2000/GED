@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610051000_meta_date_sans_sous_transaction.xml">
+
+    <!--
+        ANO-E7-007 (§12.7, T-104) : lecture typée des métadonnées sans erreur ni
+        sous-transaction, utilisable dans un plan parallèle.
+
+        meta_date (202609301020-1) était déclarée PARALLEL SAFE alors que son
+        corps PL/pgSQL avait un bloc EXCEPTION : un bloc EXCEPTION ouvre une
+        sous-transaction, interdite en mode parallèle (« cannot start
+        subtransactions during a parallel operation »). Dès qu'un fonds est
+        assez grand pour un plan parallèle, une recherche sur une métadonnée
+        date répondait 500 et l'index d'expression de DEPLOIEMENT.md §8 ne se
+        construisait pas (construction parallèle).
+
+        Correction : plus de bloc EXCEPTION. La validité de la date se vérifie
+        par calcul avant make_date (année 0001 à 9999, mois 01 à 12, jour du
+        mois existant, années bissextiles grégoriennes, comme le calendrier de
+        PostgreSQL) ; les fonctions restent IMMUTABLE et PARALLEL SAFE, ce qui
+        est maintenant vrai.
+
+        meta_nombre n'avait pas de bloc EXCEPTION, mais sa conversion pouvait
+        lever « value overflows numeric format » sur une chaîne de forme
+        numérique hors des limites du type numeric (« 1e1000000 ») : une seule
+        ligne de ce genre fait échouer la recherche et la création de l'index.
+        Les limites de numeric sont vérifiées avant la conversion : au plus
+        131 072 chiffres avant la virgule, 16 383 après, exposant d'au plus
+        1 073 741 823 en valeur absolue.
+
+        Même sémantique qu'avant : valeur absente, mal formée ou impossible →
+        NULL ; toute valeur lue auparavant l'est à l'identique (les index
+        d'expression déjà construits restent valides, sans reconstruction).
+
+        Retour arrière sans perte : les corps d'origine de 202609301020-1 sont
+        rétablis (aucune donnée en jeu).
+    -->
+    <changeSet id="202610051000-1" author="ged">
+        <comment>meta_date et meta_nombre sans erreur ni sous-transaction : sûres en plan parallèle (ANO-E7-007).</comment>
+        <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.meta_date(m jsonb, code text) RETURNS date
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $corps$
+DECLARE
+    v text := m ->> code;
+    an int;
+    mois int;
+    jour int;
+BEGIN
+    IF v IS NULL OR v !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
+        RETURN NULL;
+    END IF;
+    an := substr(v, 1, 4)::int;
+    mois := substr(v, 6, 2)::int;
+    jour := substr(v, 9, 2)::int;
+    -- Pas de bloc EXCEPTION (sous-transaction interdite en plan parallèle) :
+    -- an 0000, mois 00 ou 13, 31 avril, 29 février non bissextile → NULL.
+    -- (CASE entre parenthèses : sinon son premier THEN clôt la condition du IF.)
+    IF an < 1 OR mois NOT BETWEEN 1 AND 12 OR jour < 1 OR jour > (CASE
+            WHEN mois = 2 THEN CASE WHEN an % 4 = 0 AND (an % 100 <> 0 OR an % 400 = 0) THEN 29 ELSE 28 END
+            WHEN mois IN (4, 6, 9, 11) THEN 30
+            ELSE 31
+        END) THEN
+        RETURN NULL;
+    END IF;
+    RETURN make_date(an, mois, jour);
+END
+$corps$]]></sql>
+        <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.meta_nombre(m jsonb, code text) RETURNS numeric
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $corps$
+DECLARE
+    v text := m ->> code;
+    p text[];
+    entier text;
+    fraction text;
+    exposant bigint := 0;
+BEGIN
+    p := regexp_match(v, '^-?([0-9]+)(?:\.([0-9]+))?(?:[eE]([-+]?[0-9]+))?$');
+    IF p IS NULL THEN
+        RETURN NULL;
+    END IF;
+    -- Limites du type numeric vérifiées avant la conversion, qui sinon lève
+    -- « value overflows numeric format » (et ferait échouer toute la requête).
+    entier := ltrim(p[1], '0');
+    fraction := coalesce(p[2], '');
+    IF p[3] IS NOT NULL THEN
+        IF length(ltrim(ltrim(p[3], '+-'), '0')) > 10 THEN
+            RETURN NULL;
+        END IF;
+        exposant := coalesce(nullif(ltrim(ltrim(p[3], '+-'), '0'), ''), '0')::bigint;
+        IF exposant > 1073741823 THEN
+            RETURN NULL;
+        END IF;
+        IF left(p[3], 1) = '-' THEN
+            exposant := -exposant;
+        END IF;
+    END IF;
+    -- Échelle : 16 383 chiffres au plus après la virgule.
+    IF length(fraction) - exposant > 16383 THEN
+        RETURN NULL;
+    END IF;
+    -- Poids : 131 072 chiffres au plus avant la virgule (rang du premier chiffre significatif).
+    IF entier <> '' THEN
+        IF length(entier) + exposant > 131072 THEN
+            RETURN NULL;
+        END IF;
+    ELSIF ltrim(fraction, '0') <> '' THEN
+        IF exposant - (length(fraction) - length(ltrim(fraction, '0'))) > 131072 THEN
+            RETURN NULL;
+        END IF;
+    END IF;
+    RETURN v::numeric;
+END
+$corps$]]></sql>
+        <rollback>
+            <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.meta_nombre(m jsonb, code text) RETURNS numeric
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $corps$
+DECLARE
+    v text := m ->> code;
+BEGIN
+    IF v IS NULL OR v !~ '^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$' THEN
+        RETURN NULL;
+    END IF;
+    RETURN v::numeric;
+END
+$corps$]]></sql>
+            <sql splitStatements="false"><![CDATA[CREATE OR REPLACE FUNCTION ${database.defaultSchemaName}.meta_date(m jsonb, code text) RETURNS date
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $corps$
+DECLARE
+    v text := m ->> code;
+BEGIN
+    IF v IS NULL OR v !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
+        RETURN NULL;
+    END IF;
+    RETURN make_date(substr(v, 1, 4)::int, substr(v, 6, 2)::int, substr(v, 9, 2)::int);
+EXCEPTION WHEN others THEN
+    RETURN NULL;
+END
+$corps$]]></sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
