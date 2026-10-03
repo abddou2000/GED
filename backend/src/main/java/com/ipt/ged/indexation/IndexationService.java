@@ -79,6 +79,13 @@ public class IndexationService {
     @org.springframework.beans.factory.annotation.Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
+    /** Horloge des jetons système de la charte (date, heure…) ; fixée par les tests. */
+    private java.time.Clock horloge = java.time.Clock.systemUTC();
+
+    void setHorloge(java.time.Clock horloge) {
+        this.horloge = horloge != null ? horloge : java.time.Clock.systemUTC();
+    }
+
     /* ===================== Critères ===================== */
 
     /** Critères de recherche disponibles, dérivés des index. */
@@ -620,7 +627,8 @@ public class IndexationService {
      * @return la référence, ou {@code null} si aucun jeton n'a de valeur.
      */
     private String composerDepuisCharte(PlanIndexation plan, List<String> jetons, Map<UUID, String> valeurs) {
-        java.time.LocalDateTime maintenant = java.time.LocalDateTime.now();
+        // Heure de Casablanca, pas celle du fuseau du serveur (ANO-F-037).
+        java.time.LocalDateTime maintenant = com.ipt.ged.document.conservation.Echeances.maintenant(horloge);
         List<String> ordonnees = jetons.stream()
                 .map(j -> {
                     String systeme = JetonsSysteme.valeur(j, maintenant);

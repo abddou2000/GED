@@ -123,8 +123,9 @@ public class StatsController {
     @GetMapping("/depots")
     public List<Point> depots(@RequestParam(defaultValue = "30") int jours) {
         int fenetre = Math.min(JOURS_MAX, Math.max(JOURS_MIN, jours));
-        ZoneId zone = ZoneId.systemDefault();
-        LocalDate debut = LocalDate.now(zone).minusDays(fenetre - 1L);
+        // Jours de Casablanca, pas ceux du fuseau du serveur (ANO-F-037).
+        ZoneId zone = com.ipt.ged.document.conservation.Echeances.ZONE;
+        LocalDate debut = com.ipt.ged.document.conservation.Echeances.aujourdhui().minusDays(fenetre - 1L);
 
         Map<LocalDate, Long> parJour = new HashMap<>();
         for (Instant creation : documents.datesDeCreationDepuis(debut.atStartOfDay(zone).toInstant())) {
