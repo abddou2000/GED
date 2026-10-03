@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610071000_composition_direction_generale.xml">
+
+    <!--
+        ANO-F-002 (dossier fonctionnel §3.2 p. 7), décision du client du 03/10 :
+        la Direction Générale peut « Consulter et Déposer sur l'intégralité des
+        espaces, sans les permissions de structuration ». 202609281015-2 l'avait
+        livrée avec Déplacer, Archiver et Supprimer : ce changeset les lui retire.
+
+        Les autres permissions de structuration ne sont pas portées par la DG :
+        créer un dossier dans un espace métier, modifier ou déplacer un nœud à la
+        racine exigent la gestion des espaces (GERER_ESPACES, Administrateur seul).
+        Restent : Consulter, Déposer, Modifier, Valider, Diffuser (lecture et
+        écriture sur les documents, tableau p. 6 ; validation dans les circuits),
+        Voir privé, Voir confidentiel et Consulter l'audit (§7.4.3). L'accès global
+        (role.acces_global) étend à tout nœud les seules permissions élémentaires
+        du rôle (ResolveurDroits) : aucune autre modification n'est nécessaire.
+        version_habilitations est incrémenté par le déclencheur de role_permission
+        (202609281055) : les droits changent immédiatement.
+
+        Retour arrière sans perte (P-17, GARANTIE.md §2) : il rétablit la
+        composition livrée par 202609281015-2 (les trois lignes retirées) ; une
+        ligne remise entre-temps depuis l'écran des rôles est conservée
+        (ON CONFLICT).
+    -->
+    <changeSet id="202610071000-1" author="ged" labels="data-initial">
+        <comment>Direction Générale : retrait de Déplacer, Archiver et Supprimer (ANO-F-002, §3.2 : sans les permissions de structuration).</comment>
+        <sql>DELETE FROM ${database.defaultSchemaName}.role_permission
+              WHERE role_id = '0192a000-0000-7000-8000-000000000003'
+                AND permission_id IN ('0192b000-0000-7000-8000-000000000006', '0192b000-0000-7000-8000-000000000007',
+                                      '0192b000-0000-7000-8000-000000000008')</sql>
+        <rollback>
+            <sql>INSERT INTO ${database.defaultSchemaName}.role_permission (role_id, permission_id) VALUES
+                    ('0192a000-0000-7000-8000-000000000003', '0192b000-0000-7000-8000-000000000006'),
+                    ('0192a000-0000-7000-8000-000000000003', '0192b000-0000-7000-8000-000000000007'),
+                    ('0192a000-0000-7000-8000-000000000003', '0192b000-0000-7000-8000-000000000008')
+                 ON CONFLICT ON CONSTRAINT uk_role_permission_role_id_permission_id DO NOTHING</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

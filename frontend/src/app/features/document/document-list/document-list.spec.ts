@@ -1,11 +1,13 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 import { API_BASE } from '../../../core/api';
+import { AuthService } from '../../../core/auth.service';
 import { GED_ICONS } from '../../../core/ged-icons';
 import { DocumentItem } from '../document.model';
 import { DocumentList } from './document-list';
@@ -81,5 +83,43 @@ describe('DocumentList', () => {
     const req = serveur.expectOne(r => r.url === `${API_BASE}/documents`);
     expect(req.request.params.get('sortBy')).toBe('dateDocument');
     req.flush({ content: [DOC], total: 1, page: 0, size: 10, totalPages: 1 });
+  });
+
+  function connecte(roles: string[], permissions: string[]): void {
+    TestBed.inject(AuthService).utilisateur.set({
+      id: 'u1', identifiant: 'qa2dg', employeId: 'e1', fullName: 'Direction', email: null, direction: null,
+      roles, permissions,
+    });
+  }
+
+  /** Coche le document : la sélection n'est pas un signal, la vue est marquée à revoir. */
+  function selectionner(f: ComponentFixture<DocumentList>): void {
+    f.componentInstance.selection.select(DOC);
+    f.componentRef.injector.get(ChangeDetectorRef).markForCheck();
+    f.detectChanges();
+  }
+
+  function libellesBoutons(el: HTMLElement): string[] {
+    return Array.from(el.querySelectorAll('button')).map(b => b.getAttribute('aria-label') ?? b.textContent?.trim() ?? '');
+  }
+
+  it('ANO-F-002 : la Direction Générale (sans Supprimer) ne voit « Supprimer » ni sur la ligne ni sur la sélection', () => {
+    connecte(['DIRECTION_GENERALE'], ['CONSULTER', 'CONSULTER_AUDIT', 'DEPOSER', 'DIFFUSER', 'MODIFIER', 'VALIDER',
+      'VOIR_CONFIDENTIEL', 'VOIR_PRIVE']);
+    const f = ouvrir();
+    const el: HTMLElement = f.nativeElement;
+    expect(libellesBoutons(el)).not.toContain('Supprimer');
+    expect(libellesBoutons(el)).toContain('Ouvrir la fiche');
+    selectionner(f);
+    expect(el.querySelector('button.bulk')).toBeNull();
+  });
+
+  it('ANO-F-002 : qui détient Supprimer garde « Supprimer », ligne et sélection', () => {
+    connecte(['AGENT_ARCHIVE'], ['CONSULTER', 'DEPOSER', 'SUPPRIMER', 'PURGER']);
+    const f = ouvrir();
+    const el: HTMLElement = f.nativeElement;
+    expect(libellesBoutons(el)).toContain('Supprimer');
+    selectionner(f);
+    expect((el.querySelector('button.bulk') as HTMLButtonElement)?.textContent).toContain('Supprimer (1)');
   });
 });

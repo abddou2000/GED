@@ -53,6 +53,17 @@ export class DocumentList implements OnInit {
     if (!actif) this.selection.clear();
   }
   protected auth = inject(AuthService);
+
+  /**
+   * Supprimer et restaurer exigent la permission Supprimer, purger la
+   * permission Purger (exercées quelque part : la liste ne porte pas les
+   * permissions par document ; le serveur tranche document par document).
+   * Sans elles, les boutons sont masqués (ANO-F-002 : la Direction Générale
+   * n'a plus les permissions de structuration).
+   */
+  peutSupprimer(): boolean { return this.auth.peut('SUPPRIMER'); }
+  peutPurger(): boolean { return this.auth.peut('PURGER'); }
+
   private service = inject(DocumentService);
   private dialog = inject(MatDialog);
   private confirm = inject(ConfirmService);

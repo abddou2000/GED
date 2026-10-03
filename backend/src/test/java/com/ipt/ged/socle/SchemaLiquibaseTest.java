@@ -544,6 +544,57 @@ class SchemaLiquibaseTest {
     }
 
     @Test
+    @DisplayName("ANO-F-002 : Direction Générale sans Déplacer, Archiver ni Supprimer ; retour arrière qui rétablit la composition livrée")
+    void compositionDirectionGenerale() throws Exception {
+        String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        try (Connection c = DriverManager.getConnection(url, proprietaire, motDePasseProprietaire)) {
+            executer(c, "CREATE SCHEMA " + schema);
+            try {
+                Liquibase liquibase = liquibase(c, schema);
+                List<liquibase.changelog.ChangeSet> aJouer = liquibase.listUnrunChangeSets(new Contexts(),
+                        new LabelExpression());
+                int avant = 0;
+                while (!aJouer.get(avant).getId().equals("202610071000-1")) avant++;
+                liquibase.update(avant, new Contexts(), new LabelExpression());
+                String s = schema + ".";
+                String dg = "'0192a000-0000-7000-8000-000000000003'";
+                String composition = "SELECT count(*) FROM " + s + "role_permission rp JOIN " + s
+                        + "permission p ON p.id = rp.permission_id WHERE rp.role_id = " + dg;
+                String structuration = composition + " AND p.code IN ('DEPLACER', 'ARCHIVER', 'SUPPRIMER')";
+                assertEquals(11, compter(c, composition), "composition livrée avant le correctif");
+                assertEquals(3, compter(c, structuration));
+                int version = compter(c, "SELECT valeur::int FROM " + s + "version_habilitations");
+                if (!c.getAutoCommit()) c.commit();
+
+                liquibase.update(new Contexts(), new LabelExpression());
+                assertEquals(0, compter(c, structuration), "plus aucune permission de structuration");
+                assertEquals(8, compter(c, composition));
+                assertEquals(8, compter(c, composition + " AND p.code IN ('CONSULTER', 'DEPOSER', 'MODIFIER',"
+                        + " 'VALIDER', 'DIFFUSER', 'VOIR_PRIVE', 'VOIR_CONFIDENTIEL', 'CONSULTER_AUDIT')"));
+                assertTrue(compter(c, "SELECT valeur::int FROM " + s + "version_habilitations") > version,
+                        "les droits en cache sont invalidés");
+                // Les autres rôles système sont intacts.
+                assertEquals(10, compter(c, "SELECT count(*) FROM " + s + "role_permission WHERE role_id ="
+                        + " '0192a000-0000-7000-8000-000000000002'"));
+
+                // Retour arrière jusqu'à ce changeset inclus : la composition livrée revient.
+                int apres = compter(c, "SELECT count(*) FROM " + s + "databasechangelog WHERE orderexecuted >="
+                        + " (SELECT orderexecuted FROM " + s + "databasechangelog WHERE id = '202610071000-1')");
+                liquibase.rollback(apres, (String) null);
+                assertEquals(11, compter(c, composition));
+                assertEquals(3, compter(c, structuration));
+
+                // Nouvelle montée : de nouveau sans structuration.
+                liquibase.update(new Contexts(), new LabelExpression());
+                assertEquals(0, compter(c, structuration));
+                assertEquals(8, compter(c, composition));
+            } finally {
+                supprimerSchema(c, schema);
+            }
+        }
+    }
+
+    @Test
     @DisplayName("T-025 : droits hérités des groupes au rapport de reprise, colonnes « nom » ; retour arrière sans perte")
     void modeleDeReferenceGroupesEtNoms() throws Exception {
         String schema = "ged_verif_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
@@ -643,8 +694,9 @@ class SchemaLiquibaseTest {
                         + s + "groupe_membre";
                 String avantMontee = texte(c, origine);
 
-                // 1. Montée : l'identité de Sara est membre, les appartenances de Karim attendent.
-                liquibase.update(new Contexts(), new LabelExpression());
+                // 1. Montée des deux changesets seuls (les évolutions suivantes ne sont pas l'objet du test) :
+                // l'identité de Sara est membre, les appartenances de Karim attendent.
+                liquibase.update(2, new Contexts(), new LabelExpression());
                 String colonnes = "SELECT string_agg(column_name || ':' || is_nullable, ',' ORDER BY column_name)"
                         + " FROM information_schema.columns WHERE table_schema = '" + schema + "' AND table_name = ?";
                 assertEquals("groupe_ged_id:NO,id:NO,utilisateur_id:NO", texte(c, colonnes, "groupe_membre"));

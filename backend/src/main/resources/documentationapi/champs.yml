@@ -224,7 +224,7 @@ champs:
   documentLibelle: {description: "Nom du document.", exemple: MAR_2026_014}
   ruptureHeritage: {description: "Rupture d'héritage : sans rôle, le sujet n'a plus de droit hérité sur ce nœud.", exemple: false}
   systeme: {description: "Rôle système (non supprimable).", exemple: true}
-  accesGlobal: {description: "Rôle à accès global (Direction Générale).", exemple: false}
+  accesGlobal: {description: "Rôle à accès global (Direction Générale) : les permissions élémentaires de sa composition valent sur tout nœud, sans habilitation par espace. La Direction Générale livrée consulte, dépose, modifie, valide et diffuse partout, sans Déplacer, Archiver ni Supprimer (ANO-F-002).", exemple: false}
   attribue: {description: "Vrai si le rôle est attribué au moins une fois.", exemple: true}
   categorie: {description: "Catégorie : ELEMENTAIRE, ADMINISTRATION ou CONFIDENTIALITE.", exemple: ELEMENTAIRE}
   cible: {description: "Nature de la cible : GLOBALE, NOEUD ou DOCUMENT.", exemple: NOEUD}

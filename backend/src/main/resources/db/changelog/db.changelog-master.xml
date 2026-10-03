@@ -171,4 +171,8 @@
     <include file="changesets/202610061000_groupe_membre_utilisateur.xml" relativeToChangelogFile="true"/>
     <include file="changesets/202610061010_groupe_membre_retrait_employe.xml" relativeToChangelogFile="true"/>
 
+    <!-- ANO-F-002 (décision du client du 03/10) : la Direction Générale consulte et dépose partout,
+         sans les permissions de structuration (§3.2 p. 7) : Déplacer, Archiver et Supprimer retirées. -->
+    <include file="changesets/202610071000_composition_direction_generale.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>
