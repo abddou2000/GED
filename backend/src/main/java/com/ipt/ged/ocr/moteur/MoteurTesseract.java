@@ -77,6 +77,11 @@ public class MoteurTesseract implements OcrEngine {
         this.options = List.copyOf(options);
     }
 
+    /** Répertoire des modèles passé à Tesseract (vide : celui de l'installation). */
+    public String tessdata() {
+        return tessdata;
+    }
+
     @Override
     public String nom() {
         return "Tesseract (binaire, entrée/sortie standard)";

@@ -41,8 +41,8 @@ import java.util.zip.ZipInputStream;
  * <ol>
  *   <li>le fichier arrive déchiffré, en mémoire (jamais sur disque) ;</li>
  *   <li>PDF : pour chaque page, la couche texte PDFBox est retenue si elle
- *       dépasse un seuil de caractères ; sinon la page est rendue à 300 dpi en
- *       niveaux de gris et reconnue par l'{@link OcrEngine} ;</li>
+ *       dépasse un seuil de caractères ; sinon la page est rendue (200 dpi par défaut,
+ *       {@code ged.ocr.chaine.dpi}) en niveaux de gris et reconnue par l'{@link OcrEngine} ;</li>
  *   <li>image : chaque page (TIFF multi-pages compris) est reconnue ;</li>
  *   <li>bureautique et texte : texte natif, sans OCR ;</li>
  *   <li>le texte est agrégé en une unité documentaire.</li>

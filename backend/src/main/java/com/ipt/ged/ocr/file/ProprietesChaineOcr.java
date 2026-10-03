@@ -35,8 +35,12 @@ public class ProprietesChaineOcr {
     /** Délais des reprises : leur nombre fixe le nombre de reprises (§4.3.4 : 1, 5 puis 30 min). */
     private List<Duration> delaisReprise = new ArrayList<>(List.of(
             Duration.ofMinutes(1), Duration.ofMinutes(5), Duration.ofMinutes(30)));
-    /** Résolution du rendu des pages scannées. */
-    private int dpi = 300;
+    /**
+     * Résolution du rendu des pages PDF scannées. 200 dpi (P-14, R30) : moins de
+     * temps CPU par page qu'à 300 dpi, CER dans les seuils du §4.3.2 sur le corpus
+     * à vérité connue (docs/exploitation/ESSAIS-DE-CHARGE.md § 2.4).
+     */
+    private int dpi = 200;
     /** En deçà, la couche texte d'une page PDF est jugée absente : la page passe à l'OCR. */
     private int seuilCaracteresParPage = 25;
     /** Objectif dépôt → disponibilité en recherche (décision D6 : 24 h). */

@@ -4,6 +4,7 @@ import com.ipt.ged.charge.CorpusOcr.Langue;
 import com.ipt.ged.charge.CorpusOcr.Page;
 import com.ipt.ged.charge.CorpusOcr.Qualite;
 import com.ipt.ged.ocr.moteur.ExtracteurDocumentOcr;
+import com.ipt.ged.ocr.moteur.ModelesEntiers;
 import com.ipt.ged.ocr.moteur.MoteurTesseract;
 import com.ipt.ged.ocr.moteur.TexteDocument;
 import org.apache.pdfbox.Loader;
@@ -362,6 +363,241 @@ class BancTesseractIT {
                     pool.shutdownNow();
                 }
             }
+        }
+    }
+
+    /* ---------- P-14 / R30 (tour 6) : réglages du débit, en temps CPU par page ---------- */
+
+    /** Cellules du banc réduit de qa (T-028) et le français dégradé : seuils du §4.3.2 sur les trois premières. */
+    private static final List<String> CELLULES_DEBIT = List.of("FR.PROPRE", "AR.PROPRE", "AR.DEGRADE", "FR.DEGRADE",
+            "MIXTE.NB");
+
+    /**
+     * Un réglage de la chaîne : répertoire de modèles, langues, segmentation,
+     * résolution du rendu, options du moteur, binarisation de la page avant
+     * Tesseract.
+     */
+    private record Reglage(String nom, Path tessdata, String langue, int psm, int dpi, List<String> options,
+                           boolean binariser) {
+    }
+
+    /** Répertoire de modèles composé : fra et ara pris chacun dans un répertoire source. */
+    private static Path composer(String nom, Path fra, Path ara) throws IOException {
+        Path d = Path.of("target", "charge", "tessdata_" + nom).toAbsolutePath();
+        Files.createDirectories(d);
+        Files.copy(fra.resolve("fra.traineddata"), d.resolve("fra.traineddata"),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(ara.resolve("ara.traineddata"), d.resolve("ara.traineddata"),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        return d;
+    }
+
+    /**
+     * Modèles {@code best} compactés en entiers ({@code combine_tessdata -c},
+     * livré avec Tesseract) : même réseau que {@code best}, calcul en entiers
+     * 8 bits comme {@code tessdata_fast}.
+     */
+    private static Path bestEntiers() throws Exception {
+        // Par la classe de l'application (ged.ocr.modeles=entiers), sur une copie de fra et ara.
+        Path d = Path.of("target", "charge", "tessdata_best_int").toAbsolutePath();
+        ModelesEntiers.Preparation p = ModelesEntiers.preparer(composer("best_src", BEST, BEST), d,
+                ModelesEntiers.combineParDefaut(TESSERACT));
+        assumeTrue(p.convertis().containsAll(List.of("fra", "ara")), "combine_tessdata -c indisponible");
+        return p.tessdata();
+    }
+
+    /**
+     * Seuil d'Otsu puis image 1 bit : Tesseract reçoit une page déjà binarisée.
+     * Mesure si la binarisation faite en Java (au lieu de celle de Tesseract)
+     * fait gagner du temps.
+     */
+    static BufferedImage binariser(BufferedImage src) {
+        int w = src.getWidth(), h = src.getHeight();
+        BufferedImage gris = src;
+        if (src.getType() != BufferedImage.TYPE_BYTE_GRAY) {
+            gris = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
+            var g = gris.createGraphics();
+            g.drawImage(src, 0, 0, null);
+            g.dispose();
+        }
+        var r = gris.getRaster();
+        int[] hist = new int[256];
+        int[] ligne = new int[w];
+        for (int y = 0; y < h; y++) {
+            r.getSamples(0, y, w, 1, 0, ligne);
+            for (int v : ligne) hist[v]++;
+        }
+        long total = (long) w * h, somme = 0;
+        for (int i = 0; i < 256; i++) somme += (long) i * hist[i];
+        long sommeB = 0, poidsB = 0;
+        double meilleur = -1;
+        int seuil = 128;
+        for (int t = 0; t < 256; t++) {
+            poidsB += hist[t];
+            if (poidsB == 0) continue;
+            long poidsF = total - poidsB;
+            if (poidsF == 0) break;
+            sommeB += (long) t * hist[t];
+            double mB = (double) sommeB / poidsB, mF = (double) (somme - sommeB) / poidsF;
+            double entre = (double) poidsB * poidsF * (mB - mF) * (mB - mF);
+            if (entre > meilleur) {
+                meilleur = entre;
+                seuil = t;
+            }
+        }
+        BufferedImage nb = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_BINARY);
+        var o = nb.getRaster();
+        for (int y = 0; y < h; y++) {
+            r.getSamples(0, y, w, 1, 0, ligne);
+            for (int x = 0; x < w; x++) ligne[x] = ligne[x] > seuil ? 1 : 0;
+            o.setSamples(0, y, w, 1, 0, ligne);
+        }
+        return nb;
+    }
+
+    /** Moteur qui binarise la page (décodée du PNG) avant de la passer à Tesseract. */
+    private static com.ipt.ged.ocr.moteur.OcrEngine binarisant(com.ipt.ged.ocr.moteur.OcrEngine m) {
+        return new com.ipt.ged.ocr.moteur.OcrEngine() {
+            @Override public String nom() { return m.nom() + " + binarisation"; }
+            @Override public boolean disponible() { return m.disponible(); }
+            @Override public java.util.Set<String> languesInstallees() { return m.languesInstallees(); }
+            @Override public String reconnaitre(byte[] image, String langue, Duration delai)
+                    throws com.ipt.ged.ocr.moteur.EchecOcrException {
+                try {
+                    return m.reconnaitre(png(binariser(ImageIO.read(new ByteArrayInputStream(image)))), langue, delai);
+                } catch (IOException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        };
+    }
+
+    private static Map<String, Reglage> reglages() throws Exception {
+        Path bestInt = bestEntiers();
+        Path fraFastAraBest = composer("fra_fast_ara_best", FAST, BEST);
+        Path fraFastAraInt = composer("fra_fast_ara_int", FAST, bestInt);
+        Path fraIntAraFast = composer("fra_int_ara_fast", bestInt, FAST);
+        List<String> sansInv = List.of("-c", "tessedit_do_invert=0");
+        Map<String, Reglage> r = new LinkedHashMap<>();
+        for (Reglage x : List.of(
+                new Reglage("best", BEST, "ara+fra", 3, 300, List.of(), false),
+                new Reglage("fast", FAST, "ara+fra", 3, 300, List.of(), false),
+                new Reglage("best_int", bestInt, "ara+fra", 3, 300, List.of(), false),
+                new Reglage("fra_fast_ara_best", fraFastAraBest, "ara+fra", 3, 300, List.of(), false),
+                new Reglage("fra_fast_ara_int", fraFastAraInt, "ara+fra", 3, 300, List.of(), false),
+                new Reglage("fra_int_ara_fast", fraIntAraFast, "ara+fra", 3, 300, List.of(), false),
+                new Reglage("best_250", BEST, "ara+fra", 3, 250, List.of(), false),
+                new Reglage("best_200", BEST, "ara+fra", 3, 200, List.of(), false),
+                new Reglage("best_psm4", BEST, "ara+fra", 4, 300, List.of(), false),
+                new Reglage("best_sans_inversion", BEST, "ara+fra", 3, 300, sansInv, false),
+                new Reglage("best_binarise", BEST, "ara+fra", 3, 300, List.of(), true),
+                new Reglage("best_int_250", bestInt, "ara+fra", 3, 250, List.of(), false),
+                new Reglage("best_int_200", bestInt, "ara+fra", 3, 200, List.of(), false),
+                new Reglage("best_int_sans_inversion", bestInt, "ara+fra", 3, 300, sansInv, false),
+                new Reglage("best_int_250_sans_inversion", bestInt, "ara+fra", 3, 250, sansInv, false),
+                new Reglage("best_int_200_sans_inversion", bestInt, "ara+fra", 3, 200, sansInv, false),
+                new Reglage("fast_sans_inversion", FAST, "ara+fra", 3, 300, sansInv, false),
+                new Reglage("fast_250_sans_inversion", FAST, "ara+fra", 3, 250, sansInv, false),
+                new Reglage("fast_200", FAST, "ara+fra", 3, 200, List.of(), false),
+                new Reglage("fra_fast_ara_int_200", fraFastAraInt, "ara+fra", 3, 200, List.of(), false),
+                new Reglage("best_int_150", bestInt, "ara+fra", 3, 150, List.of(), false))) {
+            r.put(x.nom(), x);
+        }
+        return r;
+    }
+
+    /**
+     * P-14 / R30 : temps CPU de Tesseract par page (processus enfants attendus,
+     * {@link Mesures#cpuEnfantsMs()}), temps CPU Java de la chaîne (rendu, PNG,
+     * binarisation éventuelle) et CER, réglage par réglage, pages traitées l'une
+     * après l'autre sur un fil (un cœur), chaque réglage sur les mêmes pages.
+     * Réglages choisis par {@code GED_BANC_REGLAGES} (noms séparés par des
+     * virgules ; tous par défaut). Le débit par cœur se juge sur le temps CPU :
+     * sur un poste partagé, le temps écoulé mesure aussi la contention.
+     */
+    @Test
+    void reglagesDebit() throws Exception {
+        assumeTrue(Mesures.cpuEnfantsMs() >= 0, "temps CPU des enfants illisible (Linux seulement)");
+        Map<String, Reglage> tous = reglages();
+        String choix = System.getenv().getOrDefault("GED_BANC_REGLAGES", "");
+        List<String> noms = choix.isBlank() ? List.copyOf(tous.keySet()) : List.of(choix.split(","));
+        var fil = java.lang.management.ManagementFactory.getThreadMXBean();
+        extracteur(BEST, 3, 300).extraire(new ByteArrayInputStream(CORPUS.get("FR.PROPRE").get(0).pdf()), PDF,
+                "ara+fra", ExtracteurDocumentOcr.SuiviPages.AUCUN); // chauffe : JIT, cache disque des modèles
+        Mesures.noterPoste("banc.debit");
+        StringBuilder synthese = new StringBuilder();
+        for (String nom : noms) {
+            Reglage rg = tous.get(nom.strip());
+            if (rg == null) throw new IllegalArgumentException("réglage inconnu : " + nom);
+            var moteur = new MoteurTesseract(TESSERACT, rg.tessdata().toString(), "1", String.valueOf(rg.psm()),
+                    rg.options());
+            ExtracteurDocumentOcr ex = new ExtracteurDocumentOcr(rg.binariser() ? binarisant(moteur) : moteur, null,
+                    rg.dpi(), 25, Duration.ofMinutes(3));
+            ex.extraire(new ByteArrayInputStream(CORPUS.get("AR.PROPRE").get(0).pdf()), PDF, rg.langue(),
+                    ExtracteurDocumentOcr.SuiviPages.AUCUN); // chauffe des modèles de ce réglage
+            long cpuTess = 0, cpuJava = 0, ecoule = 0;
+            int pages = 0;
+            StringBuilder cers = new StringBuilder();
+            for (String cle : CELLULES_DEBIT) {
+                double cer = 0;
+                long cpuCellule = 0;
+                List<Page> lot = CORPUS.get(cle);
+                for (Page p : lot) {
+                    long e0 = Mesures.cpuEnfantsMs(), j0 = fil.getCurrentThreadCpuTime(), t0 = System.nanoTime();
+                    TexteDocument t = ex.extraire(new ByteArrayInputStream(p.pdf()), PDF, rg.langue(),
+                            ExtracteurDocumentOcr.SuiviPages.AUCUN);
+                    ecoule += (System.nanoTime() - t0) / 1_000_000;
+                    cpuJava += (fil.getCurrentThreadCpuTime() - j0) / 1_000_000;
+                    long c = Mesures.cpuEnfantsMs() - e0;
+                    cpuTess += c;
+                    cpuCellule += c;
+                    cer += CorpusOcr.cer(p.verite(), t.texte());
+                }
+                pages += lot.size();
+                String k = "banc.debit." + nom + "." + cle;
+                Mesures.noter(k + ".cer_pct", Mesures.f(100 * cer / lot.size()));
+                Mesures.noter(k + ".s_cpu_tesseract_par_page", Mesures.f(cpuCellule / 1000.0 / lot.size()));
+                cers.append(' ').append(cle).append('=').append(Mesures.f(100 * cer / lot.size()));
+            }
+            double sTess = cpuTess / 1000.0 / pages, sJava = cpuJava / 1000.0 / pages;
+            String ligne = nom + " | " + rg.tessdata().getFileName() + " " + rg.langue() + " psm" + rg.psm() + " "
+                    + rg.dpi() + "dpi" + (rg.options().isEmpty() ? "" : " " + String.join(" ", rg.options()))
+                    + (rg.binariser() ? " binarisé" : "") + " | CPU Tesseract " + Mesures.f(sTess) + " s/page ("
+                    + Mesures.f(60 / sTess) + " p/min/cœur) | CPU Java " + Mesures.f(sJava) + " s/page | total "
+                    + Mesures.f(sTess + sJava) + " s/page (" + Mesures.f(60 / (sTess + sJava)) + " p/min/cœur) | écoulé "
+                    + Mesures.f(ecoule / 1000.0 / pages) + " s/page | CER %" + cers + " | " + pages + " pages";
+            Mesures.noter("banc.debit." + nom, ligne);
+            synthese.append(System.lineSeparator()).append(ligne);
+        }
+        Mesures.noterPoste("banc.debit.fin");
+        Mesures.noter("banc.debit.synthese", synthese);
+    }
+
+    /**
+     * OpenMP : même page, même modèle, un processus Tesseract limité à un fil
+     * ({@code OMP_THREAD_LIMIT=1}, réglage de {@link MoteurTesseract}) ou libre
+     * d'ouvrir un fil par cœur. Temps CPU et temps écoulé par page.
+     */
+    @Test
+    void openMpTempsCpu() throws Exception {
+        assumeTrue(Mesures.cpuEnfantsMs() >= 0, "temps CPU des enfants illisible (Linux seulement)");
+        List<byte[]> images = new ArrayList<>();
+        for (String cle : CELLULES_DEBIT) {
+            for (Page p : CORPUS.get(cle)) {
+                try (PDDocument doc = Loader.loadPDF(p.pdf())) {
+                    images.add(png(new PDFRenderer(doc).renderImageWithDPI(0, 300, ImageType.GRAY)));
+                }
+            }
+        }
+        ocrDirect(images.get(0), BEST, "ara+fra", 3, "1");
+        Mesures.noterPoste("banc.openmp");
+        for (String omp : new String[] {"1", null}) {
+            long e0 = Mesures.cpuEnfantsMs(), t0 = System.nanoTime();
+            for (byte[] img : images) ocrDirect(img, BEST, "ara+fra", 3, omp);
+            double cpu = (Mesures.cpuEnfantsMs() - e0) / 1000.0 / images.size();
+            double ec = (System.nanoTime() - t0) / 1e9 / images.size();
+            Mesures.noter("banc.openmp." + (omp == null ? "libre" : "omp1"), "CPU Tesseract " + Mesures.f(cpu)
+                    + " s/page, écoulé " + Mesures.f(ec) + " s/page, " + images.size() + " pages");
         }
     }
 
