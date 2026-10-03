@@ -2,7 +2,6 @@ package com.ipt.ged.notification;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -17,9 +16,9 @@ import java.util.UUID;
  *   <li>courriel : {@code cache_annuaire.courriel}, lu dans l'annuaire à la
  *       connexion (attribut {@code mail}, décision D3) — jamais une requête
  *       LDAP par notification ;</li>
- *   <li>membres d'un groupe GED : {@code groupe_membre} (employés), traduits en
- *       identités GED par {@code utilisateur.employe_id} ; un membre qui ne
- *       s'est jamais connecté n'a pas d'identité et n'est pas notifié ;</li>
+ *   <li>membres d'un groupe GED : {@code groupe_membre}, qui désigne des
+ *       identités GED ; une appartenance en attente (personne qui ne s'est
+ *       jamais connectée) n'est pas notifiée ;</li>
  *   <li>espaces d'un groupe : nœuds vivants sur lesquels le groupe porte une
  *       habilitation avec rôle ;</li>
  *   <li>porteurs d'un rôle : habilitations de portée globale, directes ou par
@@ -45,17 +44,9 @@ public class AnnuaireDestinatairesIdentite implements AnnuaireDestinataires {
     @Override
     public Set<UUID> membresDuGroupe(UUID groupeId) {
         return new LinkedHashSet<>(jdbc.queryForList("""
-                SELECT u.id FROM groupe_membre gm
+                SELECT gm.utilisateur_id FROM groupe_membre gm
                 JOIN groupe_ged g ON g.id = gm.groupe_ged_id AND NOT g.supprime
-                JOIN utilisateur u ON u.employe_id = gm.employe_id
                 WHERE gm.groupe_ged_id = ?""", UUID.class, groupeId));
-    }
-
-    @Override
-    public Set<UUID> identitesDesEmployes(Collection<UUID> employeIds) {
-        if (employeIds.isEmpty()) return Set.of();
-        return new LinkedHashSet<>(jdbc.queryForList("SELECT id FROM utilisateur WHERE employe_id = ANY (?)",
-                UUID.class, (Object) employeIds.toArray(UUID[]::new)));
     }
 
     @Override
@@ -77,10 +68,9 @@ public class AnnuaireDestinatairesIdentite implements AnnuaireDestinataires {
                 WHERE r.code = ? AND h.utilisateur_id IS NOT NULL
                   AND h.noeud_id IS NULL AND h.document_id IS NULL
                 UNION
-                SELECT u.id FROM habilitation h JOIN role r ON r.id = h.role_id
+                SELECT gm.utilisateur_id FROM habilitation h JOIN role r ON r.id = h.role_id
                 JOIN groupe_ged g ON g.id = h.groupe_ged_id AND NOT g.supprime
                 JOIN groupe_membre gm ON gm.groupe_ged_id = g.id
-                JOIN utilisateur u ON u.employe_id = gm.employe_id
                 WHERE r.code = ? AND h.noeud_id IS NULL AND h.document_id IS NULL""",
                 UUID.class, codeRole, codeRole));
     }

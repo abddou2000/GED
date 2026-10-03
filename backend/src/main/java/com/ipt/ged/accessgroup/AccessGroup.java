@@ -3,6 +3,7 @@ package com.ipt.ged.accessgroup;
 import com.ipt.ged.common.IdentifiantUuid;
 import com.ipt.ged.common.Supprimable;
 import com.ipt.ged.employe.Employe;
+import com.ipt.ged.identite.Utilisateur;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -39,15 +40,27 @@ public class AccessGroup extends Supprimable {
     private String name;
 
     /**
-     * Membres du groupe (table {@code groupe_membre}). Le membre est la personne
-     * (employé), à laquelle l'identité d'annuaire est rattachée une à une.
+     * Membres du groupe (table {@code groupe_membre}) : des identités GED
+     * (§12.1, §12.2.1 ; T-025, décision du client du 03/10).
      */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "groupe_membre",
             joinColumns = @JoinColumn(name = "groupe_ged_id"),
-            inverseJoinColumns = @JoinColumn(name = "employe_id"))
-    private Set<Employe> users = new LinkedHashSet<>();
+            inverseJoinColumns = @JoinColumn(name = "utilisateur_id"))
+    private Set<Utilisateur> membres = new LinkedHashSet<>();
 
+    /**
+     * Appartenances préparées pour des personnes qui n'ont pas encore d'identité
+     * GED (table {@code groupe_membre_attente}) : membres repris de l'ancienne
+     * application, ou désignés avant leur première connexion. Elles n'apportent
+     * aucun droit et deviennent des {@link #membres} à la première connexion
+     * ({@code ServiceIdentites}), sans action de l'Administrateur.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "groupe_membre_attente",
+            joinColumns = @JoinColumn(name = "groupe_ged_id"),
+            inverseJoinColumns = @JoinColumn(name = "employe_id"))
+    private Set<Employe> membresEnAttente = new LinkedHashSet<>();
 
     public AccessGroup(String code, String name) {
         this.code = code;

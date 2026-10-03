@@ -95,14 +95,16 @@ public class EcouteurDeclencheurs {
 
     /**
      * Membres ajoutés à un groupe : ils reçoivent l'accès aux espaces du groupe.
-     * Les membres d'un groupe GED sont des employés ; l'avis va à leur identité.
+     * Les membres d'un groupe GED sont des identités GED (T-025) : l'avis leur va
+     * directement. Une appartenance en attente (personne jamais connectée) ne
+     * figure pas dans {@code membres} et n'est pas notifiée.
      */
     private void membresAjoutes(UUID groupe, Map<String, Object> avant, Map<String, Object> apres, UUID auteur) {
         if (Boolean.TRUE.equals(apres.get("supprime"))) return;
         Set<UUID> ajoutes = uuids(apres.get("membres"));
         ajoutes.removeAll(avant == null ? Set.of() : uuids(avant.get("membres")));
         if (groupe == null || ajoutes.isEmpty()) return;
-        Set<UUID> destinataires = new LinkedHashSet<>(annuaire.identitesDesEmployes(ajoutes));
+        Set<UUID> destinataires = new LinkedHashSet<>(ajoutes);
         destinataires.remove(auteur);
         if (destinataires.isEmpty()) return;
         for (Map.Entry<UUID, String> espace : annuaire.espacesDuGroupe(groupe).entrySet()) {

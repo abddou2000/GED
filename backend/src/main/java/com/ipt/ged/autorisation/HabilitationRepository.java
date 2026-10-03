@@ -11,16 +11,16 @@ import java.util.UUID;
 public interface HabilitationRepository extends JpaRepository<Habilitation, UUID> {
 
     /**
-     * Habilitations applicables à une personne : les siennes et celles des
-     * groupes GED vivants dont elle est membre (§12.2.2, cumul en union).
+     * Habilitations applicables à une identité GED : les siennes et celles des
+     * groupes GED vivants dont elle est membre (§12.2.2, cumul en union). Une
+     * appartenance en attente (personne sans identité) n'apporte rien.
      */
     @Query("""
            select h from Habilitation h
             where h.utilisateurId = :utilisateurId
-               or h.groupeGedId in (select g.id from AccessGroup g join g.users m
-                                     where m.id = :employeId and g.supprime = false)""")
-    List<Habilitation> applicablesA(@Param("utilisateurId") UUID utilisateurId,
-                                    @Param("employeId") UUID employeId);
+               or h.groupeGedId in (select g.id from AccessGroup g join g.membres m
+                                     where m.id = :utilisateurId and g.supprime = false)""")
+    List<Habilitation> applicablesA(@Param("utilisateurId") UUID utilisateurId);
 
     List<Habilitation> findByApplicationId(UUID applicationId);
 

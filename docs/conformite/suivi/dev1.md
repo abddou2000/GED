@@ -84,6 +84,35 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
+### Mise en conformité, tour 6 (branche `ct/dev1-r6`, depuis `claude/inspiring-lovelace-10bg1c` @ `a8346ce`)
+
+| Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
+|---|---|---|---|
+| T-025 écart 2 (§12.1, §12.2.1 ; décision du client du 03/10 : alignement strict) | **Corrigé (`173593b`)** — écart 2 levé | Cause : `groupe_membre.employe_id` désignait la fiche employé, alors que le §12.1 fait du groupe GED un ensemble d'**identités** (`utilisateur`). Correctif, *expand* et *contract* dans ce même tour, un fichier par évolution : `202610061000_groupe_membre_utilisateur.xml` ajoute `groupe_membre.utilisateur_id` (`fk_groupe_membre_utilisateur`, cascade comme `habilitation`), rempli par `utilisateur.employe_id` (unique, non nul : résolution déterministe) ; les appartenances d'employés **sans identité** passent, avec le même identifiant de ligne, dans la nouvelle table `groupe_membre_attente (id, groupe_ged_id, employe_id)` (`uk_groupe_membre_attente_groupe_ged_id_employe_id`, `idx_groupe_membre_attente_employe_id`) ; `202610061010_groupe_membre_retrait_employe.xml` retire `employe_id`, rend `utilisateur_id` obligatoire, `uk_groupe_membre_groupe_ged_id_utilisateur_id` et `idx_groupe_membre_utilisateur_id`. Retours arrière explicites sans perte : le *contract* reconstitue `employe_id` (valeurs, contrainte, index et clé étrangère sous leurs noms d'origine, attendus par les retours arrière de `202609281020` et `202609271040`), l'*expand* réintègre l'attente dans `groupe_membre` avec ses identifiants ; la table d'attente ne porte rien de plus que la ligne d'origine (pas d'horodatage), l'aller-retour est exact. Conversion automatique à la première connexion : `ServiceIdentites.creer` (connexion interactive, `@WithUserDetails`, délégation `X-On-Behalf-Of`) écrit l'identité puis appelle `AppartenancesEnAttente.convertir` (même transaction ; le déclencheur de `groupe_membre` fait avancer `version_habilitations`), sans action de l'Administrateur. Code basculé : `AccessGroup` (`membres` : `Set<Utilisateur>`, `membresEnAttente` : `Set<Employe>`), `HabilitationRepository.applicablesA(utilisateurId)` (plus d'`employeId`), `SourceHabilitationsUtilisateurs`, `AnnuaireDestinatairesIdentite` (membres et porteurs de rôle lus par `utilisateur_id` ; `identitesDesEmployes` retiré, devenu inutile), `EcouteurDeclencheurs` (les `membres` de l'événement sont des identités), `AgentsArchiveCompetents`, `ServiceCircuits.porteurs`, tuile « groupes » du tableau de bord, profil, tri par nombre de membres, jeu de démonstration. Reprise : `02_reprise.sql` écrit les appartenances dans `groupe_membre_attente` (aucune identité à la reprise), contrôle 8 = membres + attente. API des groupes **compatible**, écran Angular inchangé : `userIds` accepte toujours la fiche employé (traduite en identité, ou en attente) et désormais aussi l'identifiant d'identité ; `users[].id` reste la fiche employé (l'écran renvoie ce qu'il a reçu, l'attente est conservée) ; champ ajouté `pendingUserIds` (fiches en attente), documenté dans `champs.yml` (OpenAPI). | `SchemaLiquibaseTest.groupeMembreParIdentite` : base peuplée avant `202610061000` (Sara avec identité, Karim sans), montée (Sara membre par `utilisateur_id`, deux lignes de Karim en attente avec leurs identifiants, colonnes et contraintes vérifiées, insertion sans `utilisateur_id` refusée), activité après montée, retour arrière des deux changesets (les 5 lignes avec `employe_id` et leurs identifiants, noms d'origine), remontée **sans différence**. `RepriseDonneesTest` : 3 appartenances reprises en attente, 0 dans `groupe_membre`, puis première connexion de Sara (code de `AppartenancesEnAttente`) : son appartenance devient réelle avec le même identifiant, les deux autres attendent. `AppartenanceIdentiteApiTest` (2) : `droitsAppliquesALaPremiereConnexion` (groupe créé par l'API pour une fiche jamais connectée : en attente, puis `ServiceIdentites.provisionner` : membre, rôle Utilisateur standard du groupe, Consulter sur l'espace couvert, `GET /workspaces/{id}` 200) — échoue sans la conversion (vérifié) ; `identifiantsTraduits` (fiche avec identité → membre, identité → membre, PUT à l'identique conserve l'attente, retrait). Adaptés : `AccessGroupApiTest.referencesInconnuesRefusees` (ANO-F-009 : l'identifiant d'identité est désormais accepté, seuls les inconnus sont refusés), `NotificationsTest` (membres = identités), `CheminsAccesApiTest`. |
+
+Documentation : `DEPLOIEMENT.md` (§7 reprise : appartenances en attente ; §8 : les deux changesets, requêtes externes à
+adapter, contrôle après montée, retour arrière des deux ensemble), `SEQUENCES.md` (conversion au provisionnement délégué),
+`SCHEMA-BASE.md` et `CLASSES.md` régénérés (`CLASSES.md` rattrape aussi des classes d'autres membres absentes de la
+dernière génération).
+
+**Points pour pm** :
+
+1. T-025 : les trois écarts de P2 sont corrigés ; la réserve « écart 2 attend la décision de MMED » est levée par la
+   décision du 03/10 et ce correctif. À faire rejouer par qa : montée réelle de `ged_qa` (contrôle :
+   `groupe_membre` + `groupe_membre_attente` = lignes de `groupe_membre` avant), retour arrière des deux changesets
+   puis remontée sans différence, et première connexion d'un membre préparé (droit du groupe appliqué).
+2. Contrat d'API : additif (`pendingUserIds`) et élargi (`userIds` accepte l'identité GED). ANO-F-009 (recette
+   « identifiant d'utilisateur au lieu d'employé ») : ce cas n'est plus un refus mais une traduction, conforme au
+   modèle V3 ; un identifiant qui ne désigne ni fiche ni identité reste refusé en 422 `MEMBRES_INCONNUS`. À
+   signaler à qa2 si la recette fonctionnelle rejoue F-009.
+3. L'écran des groupes n'affiche pas encore l'état « en attente de première connexion » (`pendingUserIds` est servi) :
+   confort pour dev4/dev5 si pm le juge utile, non exigé.
+4. La conversion à la première connexion est journalisée (INFO applicatif) mais ne publie pas d'événement d'audit
+   distinct : l'appartenance a été tracée quand l'Administrateur l'a posée (`GROUPE_MODIFIE`), la conversion n'est
+   que sa prise d'effet. À trancher par pm si un événement dédié est voulu.
+
+Tests : suite back complète (`173593b`, `GED_MANAGEMENT_PORT` et `SERVER_PORT` retirés) — **696 tests, 0 échec, 0 erreur, 0 ignoré (117 classes)** ; aucun nouvel échec (3 tests nouveaux : `SchemaLiquibaseTest.groupeMembreParIdentite`, `AppartenanceIdentiteApiTest` × 2 ; `RepriseDonneesTest` étendu). Front non touché (contrat compatible) : ni build ni tests Angular à relancer. Note d'environnement : le serveur PostgreSQL partagé était arrêté au début du tour (conteneur redémarré, fichier pid périmé) ; je l'ai démarré (`pg_ctlcluster 16 main start`), sans toucher à sa configuration ni à son authentification.
+
 ### Mise en conformité, tour 4 (branche `ct/dev1-r4`, depuis `ct/qa-r3` @ `8e38249`, base `ff20f21`)
 
 | Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
@@ -226,6 +255,8 @@ pm et à MMED :
    `AnnuaireDestinatairesIdentite`, `AgentsArchiveCompetents`, `ServiceCircuits`).
 4. *Coût* : contrat d'API des groupes (`userIds` = identifiants d'employé) et écran Angular de
    dev4 à changer ; toutes les requêtes d'appartenance à reprendre.
+
+> **Tour 6 : écart 2 levé** (décision du client du 03/10, `173593b`) — voir la section du tour 6.
 
 Si pm ou MMED maintient la correction, plan prêt : *expand* (`groupe_membre.utilisateur_id`
 nullable, rempli depuis `utilisateur.employe_id`, appartenances sans identité consignées dans un

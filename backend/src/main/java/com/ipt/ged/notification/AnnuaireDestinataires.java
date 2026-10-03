@@ -1,6 +1,5 @@
 package com.ipt.ged.notification;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -23,9 +22,6 @@ public interface AnnuaireDestinataires {
 
     /** Membres actuels d'un groupe GED (sujet {@code GROUPE} d'une habilitation). */
     Set<UUID> membresDuGroupe(UUID groupeId);
-
-    /** Identités GED des employés donnés (membres d'un groupe GED) ; un employé sans identité est ignoré. */
-    Set<UUID> identitesDesEmployes(Collection<UUID> employeIds);
 
     /**
      * Espaces (identifiant, nom) sur lesquels un groupe porte un accès : un

@@ -158,15 +158,19 @@ class AccessGroupApiTest {
     @DisplayName("ANO-F-009 : membre ou espace inconnu refusé en 422, identifiants listés, rien d'écrit")
     void referencesInconnuesRefusees() throws Exception {
         // Scénario de la recette : un identifiant d'utilisateur GED au lieu d'un identifiant d'employé.
+        // Depuis T-025 (écart 2), le membre est l'identité GED : cet identifiant est accepté et
+        // traduit ; seul l'identifiant qui ne désigne ni fiche ni identité est refusé.
         UUID utilisateur = utilisateurs.findByIdentifiant(Comptes.ADMIN).orElseThrow().getId();
         UUID inconnu = UUID.randomUUID();
-        String membres = "[\"" + Comptes.idAdmin(employeRepository) + "\",\"" + utilisateur + "\",\"" + inconnu + "\"]";
+        UUID inconnu2 = UUID.randomUUID();
+        String membres = "[\"" + Comptes.idAdmin(employeRepository) + "\",\"" + utilisateur + "\",\"" + inconnu
+                + "\",\"" + inconnu2 + "\"]";
         mvc.perform(post(BASE).contentType(APPLICATION_JSON).content(body("AG-INC", "Inconnus", "[]", membres)))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.code").value(CodesErreurGroupe.MEMBRES_INCONNUS))
                 .andExpect(jsonPath("$.identifiantsInconnus.length()").value(2))
-                .andExpect(jsonPath("$.identifiantsInconnus", containsInAnyOrder(utilisateur.toString(), inconnu.toString())));
+                .andExpect(jsonPath("$.identifiantsInconnus", containsInAnyOrder(inconnu.toString(), inconnu2.toString())));
         mvc.perform(get(BASE).param("search", "Inconnus")).andExpect(jsonPath("$.content.length()").value(0));
 
         mvc.perform(post(BASE).contentType(APPLICATION_JSON)

@@ -5,6 +5,7 @@ import com.ipt.ged.autorisation.admin.ServiceHabilitations;
 import com.ipt.ged.autorisation.admin.dto.DemandeHabilitation;
 import com.ipt.ged.identite.Role;
 import com.ipt.ged.identite.RoleRepository;
+import com.ipt.ged.identite.UtilisateurRepository;
 import com.ipt.ged.employe.Employe;
 import com.ipt.ged.employe.EmployeRepository;
 import com.ipt.ged.workspace.WorkSpace;
@@ -34,9 +35,12 @@ public class AccessGroupSeeder implements CommandLineRunner {
     private final EmployeRepository employes;
     private final ServiceHabilitations habilitations;
     private final RoleRepository roles;
+    private final UtilisateurRepository utilisateurs;
 
     public AccessGroupSeeder(AccessGroupRepository repo, WorkSpaceRepository workspaces,
-                             EmployeRepository employes, ServiceHabilitations habilitations, RoleRepository roles) {
+                             EmployeRepository employes, ServiceHabilitations habilitations, RoleRepository roles,
+                             UtilisateurRepository utilisateurs) {
+        this.utilisateurs = utilisateurs;
         this.roles = roles;
         this.repo = repo;
         this.workspaces = workspaces;
@@ -57,7 +61,7 @@ public class AccessGroupSeeder implements CommandLineRunner {
 
         // Administrateurs GED : tous les espaces
         AccessGroup admin = new AccessGroup("AG-ADMIN", "Administrateurs GED");
-        admin.getUsers().add(users.get(0));
+        ajouterMembre(admin, users.get(0));
         repo.save(admin);
         // Rôle Administrateur sur chaque espace racine (hérité en dessous) : une
         // attribution plus spécifique REMPLACE l'héritage (§12.2.2) ; avec le
@@ -69,8 +73,14 @@ public class AccessGroupSeeder implements CommandLineRunner {
 
         // Lecteurs Comptabilité : premier espace
         AccessGroup lecteurs = new AccessGroup("AG-LECT", "Lecteurs Comptabilité");
-        lecteurs.getUsers().add(users.get(users.size() > 1 ? 1 : 0));
+        ajouterMembre(lecteurs, users.get(users.size() > 1 ? 1 : 0));
         repo.save(lecteurs);
         habilitations.couvrirEspaces(lecteurs.getId(), List.of(allWs.get(0).getId()));
+    }
+
+    /** Membre : son identité GED s'il en a une, sinon appartenance en attente de sa première connexion. */
+    private void ajouterMembre(AccessGroup g, Employe e) {
+        utilisateurs.findByEmployeId(e.getId()).ifPresentOrElse(g.getMembres()::add,
+                () -> g.getMembresEnAttente().add(e));
     }
 }

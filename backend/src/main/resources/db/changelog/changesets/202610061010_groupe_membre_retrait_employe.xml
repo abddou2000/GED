@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd"
+        logicalFilePath="db/changelog/changesets/202610061010_groupe_membre_retrait_employe.xml">
+
+    <!--
+        T-025, écart 2, phase « contract » (même livraison que l'expand
+        202610061000 : l'application ne lit ni n'écrit plus employe_id dans
+        groupe_membre depuis ce lot). La colonne est retirée, utilisateur_id
+        devient obligatoire et unique par groupe.
+
+        Sans perte : à ce stade chaque ligne de groupe_membre a une identité,
+        et utilisateur.employe_id est unique et non nul ; le retour arrière
+        reconstitue donc employe_id exactement, avec ses contraintes et son
+        index d'origine (noms attendus par les retours arrière plus anciens,
+        202609281020 et 202609271040). Les appartenances en attente restent
+        dans groupe_membre_attente : le retour arrière de 202610061000, qui
+        suit, les réintègre.
+    -->
+    <changeSet id="202610061010-1" author="ged">
+        <comment>Groupes GED : retrait de groupe_membre.employe_id, utilisateur_id obligatoire.</comment>
+        <dropUniqueConstraint tableName="groupe_membre" constraintName="uk_groupe_membre_groupe_ged_id_employe_id"/>
+        <dropIndex tableName="groupe_membre" indexName="idx_groupe_membre_employe_id"/>
+        <dropForeignKeyConstraint baseTableName="groupe_membre" constraintName="fk_groupe_membre_employe"/>
+        <dropColumn tableName="groupe_membre" columnName="employe_id"/>
+        <addNotNullConstraint tableName="groupe_membre" columnName="utilisateur_id" columnDataType="UUID"/>
+        <addUniqueConstraint constraintName="uk_groupe_membre_groupe_ged_id_utilisateur_id" tableName="groupe_membre"
+                             columnNames="groupe_ged_id, utilisateur_id"/>
+        <createIndex indexName="idx_groupe_membre_utilisateur_id" tableName="groupe_membre">
+            <column name="utilisateur_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="groupe_membre" indexName="idx_groupe_membre_utilisateur_id"/>
+            <dropUniqueConstraint tableName="groupe_membre" constraintName="uk_groupe_membre_groupe_ged_id_utilisateur_id"/>
+            <dropNotNullConstraint tableName="groupe_membre" columnName="utilisateur_id" columnDataType="UUID"/>
+            <addColumn tableName="groupe_membre">
+                <column name="employe_id" type="UUID"/>
+            </addColumn>
+            <sql>UPDATE ${database.defaultSchemaName}.groupe_membre gm
+                    SET employe_id = u.employe_id
+                   FROM ${database.defaultSchemaName}.utilisateur u
+                  WHERE u.id = gm.utilisateur_id</sql>
+            <addNotNullConstraint tableName="groupe_membre" columnName="employe_id" columnDataType="UUID"/>
+            <addForeignKeyConstraint constraintName="fk_groupe_membre_employe" baseTableName="groupe_membre" baseColumnNames="employe_id"
+                                     referencedTableName="employe" referencedColumnNames="id" onDelete="CASCADE"/>
+            <addUniqueConstraint constraintName="uk_groupe_membre_groupe_ged_id_employe_id" tableName="groupe_membre"
+                                 columnNames="groupe_ged_id, employe_id"/>
+            <createIndex indexName="idx_groupe_membre_employe_id" tableName="groupe_membre">
+                <column name="employe_id"/>
+            </createIndex>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

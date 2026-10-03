@@ -32,7 +32,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -348,14 +347,11 @@ class NotificationsTest {
                 .isEqualTo("Un accès à l'espace « Archives 2019 » vous a été attribué par votre ajout au groupe « Comptables ».");
 
         // Ajout du collègue au groupe : un accès par espace du groupe, pour lui seul.
-        // Les membres d'un groupe GED sont des employés, traduits en identités.
-        UUID employeMoi = UUID.randomUUID();
-        UUID employeCollegue = UUID.randomUUID();
-        doReturn(Set.of(collegue)).when(annuaire).identitesDesEmployes(Set.of(employeCollegue));
+        // Les membres d'un groupe GED sont des identités GED (T-025) : l'avis leur va directement.
         Map<String, Object> av = Map.of("nom", "Comptables", "supprime", false,
-                "membres", List.of(employeMoi.toString()));
+                "membres", List.of(moi().toString()));
         Map<String, Object> ap = Map.of("nom", "Comptables", "supprime", false,
-                "membres", List.of(employeMoi.toString(), employeCollegue.toString()));
+                "membres", List.of(moi().toString(), collegue.toString()));
         publier(habilitation("GROUPE_GED", "MODIFICATION", groupe, av, ap, null));
         assertThat(lignesPourObjet(espaceA)).singleElement().satisfies(r -> {
             assertThat(r).containsEntry("destinataire_id", collegue);

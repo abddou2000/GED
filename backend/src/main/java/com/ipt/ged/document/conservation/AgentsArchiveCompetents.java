@@ -50,7 +50,7 @@ public class AgentsArchiveCompetents {
                   JOIN role r ON r.id = h.role_id
                   JOIN groupe_ged g ON g.id = h.groupe_ged_id AND NOT g.supprime
                   JOIN groupe_membre gm ON gm.groupe_ged_id = g.id
-                  JOIN utilisateur u ON u.employe_id = gm.employe_id
+                  JOIN utilisateur u ON u.id = gm.utilisateur_id
                  WHERE r.code = ?""",
                 (rs, i) -> new Sujet(TypeSujet.UTILISATEUR, rs.getObject(1, UUID.class),
                         rs.getObject(2, UUID.class), null),

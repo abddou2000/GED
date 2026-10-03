@@ -81,7 +81,7 @@ const tables = json(`
 /* ------------------------------------------------------------------ §12.1 */
 const GROUPES = [
   ['Identités et accès', ['utilisateur', 'cache_annuaire', 'session', 'application', 'cle_api', 'cle_api_portee', 'employe']],
-  ['Habilitations', ['role', 'permission', 'role_permission', 'groupe_ged', 'groupe_membre', 'habilitation', 'version_habilitations']],
+  ['Habilitations', ['role', 'permission', 'role_permission', 'groupe_ged', 'groupe_membre', 'groupe_membre_attente', 'habilitation', 'version_habilitations']],
   ['Organisation documentaire', ['noeud', 'document', 'document_rattachement', 'document_confidentiel_designe', 'etiquette', 'document_etiquette']],
   ['Typologie', ['type_document', 'index_def', 'plan_indexation', 'plan_index', 'document_index_valeur']],
   ['Versions et contenu', ['version_document', 'cle_fichier', 'document_texte', 'ocr_job', 'copie_conservation']],

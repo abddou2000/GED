@@ -166,4 +166,9 @@
     <!-- ANO-E7-007 (T-104, §12.7) : meta_date sans bloc EXCEPTION, meta_nombre sans débordement : sûres en plan parallèle. -->
     <include file="changesets/202610051000_meta_date_sans_sous_transaction.xml" relativeToChangelogFile="true"/>
 
+    <!-- T-025, écart 2 (décision du client du 03/10) : groupe_membre désigne l'identité GED (utilisateur_id) ;
+         appartenances d'employés sans identité en attente jusqu'à la première connexion. Expand puis contract. -->
+    <include file="changesets/202610061000_groupe_membre_utilisateur.xml" relativeToChangelogFile="true"/>
+    <include file="changesets/202610061010_groupe_membre_retrait_employe.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>
