@@ -166,6 +166,58 @@ public class PartieC extends RecetteFonctionnelle {
             Rep depVide = J(V1, "POST", "/api/v1/recherches", Map.of("texte", "zarkolinet", "deposeDu", "2020-01-01", "deposeAu", "2020-12-31", "taille", 100));
             boolean depOk = dep.code() == 200 && dep.json().path("total").asLong() > 0 && depVide.code() == 200 && depVide.json().path("total").asLong() == 0;
             (depOk ? ok : ko).add("date de dépôt");
+            // ANO-F-028 (tour 4) : la date de dépôt est aussi un critère de la recherche sur
+            // métadonnées (dateDepotDu / dateDepotAu), sans terme, combinable avec la date du document.
+            Map<String, Object> qdd = new LinkedHashMap<>();
+            qdd.put("typeDocumentId", T_FACT);
+            qdd.put("dateDepotDu", auj);
+            qdd.put("dateDepotAu", auj);
+            qdd.put("size", 200);
+            Rep ddJour = J(V1, "POST", "/api/v1/documents/recherche", qdd);
+            Map<String, Object> qddDoc = new LinkedHashMap<>(qdd);
+            qddDoc.put("dateDocumentDu", "2026-09-01");
+            qddDoc.put("dateDocumentAu", "2026-09-30");
+            qddDoc.put("texte", M);
+            Rep ddEtDoc = J(V1, "POST", "/api/v1/documents/recherche", qddDoc);
+            Map<String, Object> qddVide = new LinkedHashMap<>(qdd);
+            qddVide.put("dateDepotDu", "2020-01-01");
+            qddVide.put("dateDepotAu", "2020-12-31");
+            Rep ddVide = J(V1, "POST", "/api/v1/documents/recherche", qddVide);
+            Map<String, Object> qddInv = new LinkedHashMap<>(qdd);
+            qddInv.put("dateDepotDu", auj);
+            qddInv.put("dateDepotAu", "2020-12-31");
+            Rep ddInv = J(V1, "POST", "/api/v1/documents/recherche", qddInv);
+            boolean ddOk = ddJour.code() == 200 && ids(ddJour.json()).containsAll(List.of(c1, c2, c3))
+                    && ddEtDoc.code() == 200 && ids(ddEtDoc.json()).equals(Set.of(c3))
+                    && ddVide.code() == 200 && ids(ddVide.json()).isEmpty() && ddInv.code() == 400
+                    && ddJour.entetes().firstValue("GED-Champs-Ignores").isEmpty();
+            (ddOk ? ok : ko).add("date de dépôt (recherche par index)");
+            // P-08 (tour 4, ANO-F-011) : un champ ou paramètre inconnu est ignoré (même résultat)
+            // et signalé par l'en-tête GED-Champs-Ignores, sur les trois API de recherche.
+            Map<String, Object> qi = new LinkedHashMap<>();
+            qi.put("typeDocumentId", T_FACT);
+            qi.put("texte", M);
+            Set<String> sansInconnu = ids(rechercher(V1, qi));
+            qi.put("champInconnuQa2", "x");
+            Rep riMeta = J(V1, "POST", "/api/v1/documents/recherche", qi);
+            Rep riRech = J(V1, "POST", "/api/v1/recherches", Map.of("texte", "zarkolinet", "taille", 5, "filtreInconnuQa2", "x"));
+            Rep riRechSans = J(V1, "POST", "/api/v1/recherches", Map.of("texte", "zarkolinet", "taille", 5));
+            Rep riPt = G(V1, "/api/v1/recherche/plein-texte?q=zarkolinet&taille=5&parametreInconnuQa2=1");
+            Rep riPtSans = G(V1, "/api/v1/recherche/plein-texte?q=zarkolinet&taille=5");
+            String hMeta = riMeta.entetes().firstValue("GED-Champs-Ignores").orElse("");
+            String hRech = riRech.entetes().firstValue("GED-Champs-Ignores").orElse("");
+            String hPt = riPt.entetes().firstValue("GED-Champs-Ignores").orElse("");
+            boolean inconnuOk = riMeta.code() == 200 && ids(riMeta.json()).equals(sansInconnu) && hMeta.contains("champInconnuQa2")
+                    && riRech.code() == 200 && hRech.contains("filtreInconnuQa2")
+                    && riRech.json().path("total").asLong() == riRechSans.json().path("total").asLong()
+                    && riPt.code() == 200 && hPt.contains("parametreInconnuQa2")
+                    && riPt.json().path("total").asLong() == riPtSans.json().path("total").asLong();
+            info("F-40 date de dépôt (recherche par index) : jour " + court(ddJour) + " " + (ddJour.code() == 200 ? ids(ddJour.json()).size() : -1)
+                    + ", ET date du document " + (ddEtDoc.code() == 200 ? ids(ddEtDoc.json()).size() : -1) + ", 2020 "
+                    + (ddVide.code() == 200 ? ids(ddVide.json()).size() : -1) + ", plage inversée " + court(ddInv)
+                    + " ; champs inconnus : métadonnées " + court(riMeta) + " [" + hMeta + "], /recherches " + court(riRech) + " [" + hRech
+                    + "], plein texte " + court(riPt) + " [" + hPt + "]");
+            (inconnuOk ? ok : ko).add("champ inconnu ignoré et signalé (P-08)");
             // Critères sans paramètre documenté : on vérifie qu'ils filtrent (sinon ils sont ignorés).
             StringBuilder ignores = new StringBuilder();
             Object[][] essais = {

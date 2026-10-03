@@ -302,10 +302,44 @@ public class PartieB extends RecetteFonctionnelle {
             if (uV1.equals(l.path("acteurUtilisateurId").asText()))
                 refus.append(l.path("objetId").asText()).append(' ').append(l.path("motif").asText()).append('\n');
         boolean refusS1 = refus.toString().contains(s1), refusS2 = refus.toString().contains(s2);
-        verif("F-35", renomme.code() == 403 && deplace.code() == 403 && supprime.code() == 403 && refusS1 && refusS2,
+        // ANO-F-026 (tour 4) : modifier un espace (nom, propriétaire, règle, usage) est réservé à
+        // GERER_ESPACES ; le standard nidrissi, qui porte Modifier sur QA2 Projets, ne peut ni le
+        // modifier à l'identique ni le basculer en espace d'échange pour s'y ouvrir la création
+        // de dossiers. La fiche ne lui annonce plus MODIFIER ; l'Administrateur garde la main.
+        JsonNode fPrj = G(AUTRE, "/api/v1/workspaces/" + PRJ).json();
+        Map<String, Object> mPrj = new LinkedHashMap<>();
+        mPrj.put("name", fPrj.path("name").asText());
+        mPrj.put("code", fPrj.path("code").asText());
+        mPrj.put("description", fPrj.path("description").isNull() ? null : fPrj.path("description").asText());
+        mPrj.put("status", fPrj.path("status").asText("ACTIF"));
+        mPrj.put("employeId", fPrj.path("owner").path("id").asText());
+        if (fPrj.path("workflow").hasNonNull("id")) mPrj.put("workflowId", fPrj.path("workflow").path("id").asText());
+        mPrj.put("usageEspace", "METIER");
+        Rep prjIdem = J(AUTRE, "PUT", "/api/v1/workspaces/" + PRJ, mPrj);
+        Map<String, Object> mEch = new LinkedHashMap<>(mPrj);
+        mEch.put("usageEspace", "ECHANGE");
+        Rep prjEch = J(AUTRE, "PUT", "/api/v1/workspaces/" + PRJ, mEch);
+        Rep prjDossier = J(AUTRE, "POST", "/api/v1/noeuds/" + PRJ + "/dossiers", Map.of("nom", "QA2 dossier interdit " + M));
+        String usageApres = G(ADM, "/api/v1/workspaces/" + PRJ).json().path("usageEspace").asText();
+        boolean modifStd = fPrj.path("permissions").toString().contains("MODIFIER");
+        boolean modifAdm = G(ADM, "/api/v1/workspaces/" + PRJ).json().path("permissions").toString().contains("MODIFIER");
+        Rep prjAdm = J(ADM, "PUT", "/api/v1/workspaces/" + PRJ, mPrj);
+        attendre(500);
+        String uAutre = uid(AUTRE);
+        boolean refusPrj = false;
+        for (JsonNode l : audit("resultat=REFUS"))
+            if (uAutre.equals(l.path("acteurUtilisateurId").asText())
+                    && (l.path("objetId").asText().equals(PRJ) || l.path("motif").asText().contains(PRJ))) refusPrj = true;
+        boolean espaceOk = prjIdem.code() == 403 && prjEch.code() == 403 && prjDossier.code() == 403
+                && "METIER".equals(usageApres) && !modifStd && modifAdm && prjAdm.code() == 200 && refusPrj;
+        verif("F-35", renomme.code() == 403 && deplace.code() == 403 && supprime.code() == 403 && refusS1 && refusS2 && espaceOk,
                 "Toute modification non autorisée de la structure est bloquée et journalisée (refus au journal d'audit)",
                 "renommage (et changement de propriétaire) par un standard " + court(renomme) + ", déplacement " + court(deplace)
-                        + ", suppression " + court(supprime) + ", refus tracés : dossier renommé " + refusS1 + ", dossier déplacé/supprimé " + refusS2);
+                        + ", suppression " + court(supprime) + ", refus tracés : dossier renommé " + refusS1 + ", dossier déplacé/supprimé " + refusS2
+                        + " ; espace QA2 Projets par nidrissi (standard) : modification à l'identique " + court(prjIdem)
+                        + ", usage METIER→ECHANGE " + court(prjEch) + ", dossier " + court(prjDossier) + ", usage après " + usageApres
+                        + ", refus tracé " + refusPrj + ", MODIFIER annoncé au standard " + modifStd + " / à l'Administrateur " + modifAdm
+                        + ", modification par l'Administrateur " + court(prjAdm));
 
         // F-36 (§4.3.5) : déplacement d'un fichier ou d'un dossier.
         String tDep = type("QA2-DEPL", "QA2 Pièce à déplacer", FIN26, null, List.of("pdf"), 10, null, "PUBLIC");

@@ -27,7 +27,8 @@ de démonstration et à désigner par `GED_IDENTITE_ANNUAIRE_EMBARQUE_LDIF=file:
 | yalaoui | Utilisateur standard cantonné à un dossier | QA2 Finance / Exercice 2026 |
 | nidrissi | Utilisateur standard d'un autre périmètre | QA2 Projets |
 | kelfassi | Membre du groupe « QA2 Auditeurs internes » | par le groupe : lecteur sur QA2 Finance |
-| qa2neuf1, qa2neuf2 | Identités AD jamais connectées | F-11, F-14 |
+| qa2neuf1, qa2neuf2 | Identités AD jamais connectées | F-11 (repli), F-14 |
+| qa2n&lt;marqueur&gt; | Compte neuf ajouté à l'annuaire simulé à chaque exécution (`LdapSimule.ajouter`, en mémoire jusqu'au redémarrage) | F-11 : 1re connexion rejouable (qa2neuf1 est connu depuis la 1re exécution) |
 | qa2parti | Agent désactivé dans l'AD en cours de circuit | F-12 (désactivation par `LdapSimule`) |
 
 Instance de recette : profil dev, API 18088, management 18098, annuaire simulé 33399, SMTP simulé
