@@ -6,6 +6,7 @@ import com.ipt.ged.ocr.ExtracteurBureautique;
 import com.ipt.ged.ocr.moteur.EchecOcrException;
 import com.ipt.ged.ocr.moteur.ExtracteurDocumentOcr;
 import com.ipt.ged.ocr.moteur.LanguesOcr;
+import com.ipt.ged.ocr.moteur.ModelesEntiers;
 import com.ipt.ged.ocr.moteur.MoteurTesseract;
 import com.ipt.ged.ocr.moteur.OcrEngine;
 import com.ipt.ged.recherche.PredicatDroits;
@@ -24,6 +25,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.lang.management.ManagementFactory;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.util.concurrent.Executors;
 
@@ -43,8 +45,38 @@ public class ConfigurationChaineOcr {
     public OcrEngine ocrEngine(@Value("${ged.ocr.commande:tesseract}") String commande,
                                @Value("${ged.ocr.tessdata:}") String tessdata,
                                @Value("${ged.ocr.oem:1}") String oem,
-                               @Value("${ged.ocr.psm:3}") String psm) {
-        return new MoteurTesseract(commande, tessdata, oem, psm);
+                               @Value("${ged.ocr.psm:3}") String psm,
+                               @Value("${ged.ocr.modeles:entiers}") String modeles,
+                               @Value("${ged.ocr.modeles-entiers.repertoire:${java.io.tmpdir}/ged-tessdata-entiers}")
+                               String repertoireEntiers,
+                               @Value("${ged.ocr.modeles-entiers.combine-tessdata:}") String combine) {
+        return moteur(commande, tessdata, oem, psm, modeles, repertoireEntiers, combine);
+    }
+
+    /**
+     * Moteur Tesseract sur les modèles livrés ({@code ged.ocr.modeles=precis})
+     * ou sur leur copie compactée en entiers ({@code entiers}, défaut : P-14,
+     * R30 ; {@link ModelesEntiers}). Une autre valeur empêche le démarrage.
+     */
+    static MoteurTesseract moteur(String commande, String tessdata, String oem, String psm, String modeles,
+                                  String repertoireEntiers, String combine) {
+        // Vide (variable d'environnement exportée sans valeur) : le défaut.
+        String choix = modeles == null || modeles.isBlank() ? "entiers"
+                : modeles.strip().toLowerCase(java.util.Locale.ROOT);
+        if (!choix.equals("entiers") && !choix.equals("precis")) {
+            throw new IllegalArgumentException("ged.ocr.modeles : « entiers » ou « precis » attendu, reçu « "
+                    + modeles + " »");
+        }
+        String repertoire = tessdata == null ? "" : tessdata.strip();
+        // Répertoire vide = modèles de l'installation de Tesseract : rien à dériver.
+        if (choix.equals("entiers") && !repertoire.isEmpty()) {
+            String outil = combine == null || combine.isBlank() ? ModelesEntiers.combineParDefaut(commande) : combine;
+            Path cible = repertoireEntiers == null || repertoireEntiers.isBlank()
+                    ? Path.of(System.getProperty("java.io.tmpdir"), "ged-tessdata-entiers") : Path.of(repertoireEntiers);
+            repertoire = ModelesEntiers.preparer(Path.of(repertoire).toAbsolutePath(), cible, outil).tessdata()
+                    .toString();
+        }
+        return new MoteurTesseract(commande, repertoire, oem, psm);
     }
 
     @Bean

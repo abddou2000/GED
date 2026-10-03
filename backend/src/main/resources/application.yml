@@ -192,7 +192,17 @@ ged:
     commande: ${GED_TESSERACT:C:/Program Files/Tesseract-OCR/tesseract.exe}
     tessdata: ${GED_TESSDATA:./tessdata}
     oem: 1                     # 1 = moteur LSTM seul, le plus précis
-    psm: 3                     # 3 = page entière, segmentation automatique
+    psm: 3                     # 3 = page entière, segmentation automatique (6 : CER × 3 à 5 sur page inclinée)
+    # Modèles (P-14, R30 ; docs/exploitation/ESSAIS-DE-CHARGE.md § 2.4) :
+    #  - entiers : copie des modèles livrés (tessdata_best) compactée en entiers 8 bits
+    #    par combine_tessdata -c (livré avec Tesseract), faite au démarrage et refaite si
+    #    un modèle change ; même réseau que best, -40 % de temps CPU par page, CER dans
+    #    les seuils du § 4.3.2. Sans combine_tessdata : repli sur les modèles livrés ;
+    #  - precis : modèles livrés tels quels.
+    modeles: ${GED_OCR_MODELES:entiers}
+    modeles-entiers:
+      repertoire: ${GED_OCR_MODELES_ENTIERS_REPERTOIRE:${java.io.tmpdir}/ged-tessdata-entiers}
+      combine-tessdata: ${GED_OCR_COMBINE_TESSDATA:}   # vide : à côté du binaire Tesseract (ged.ocr.commande)
     chaine:
       actif: true                      # enfilage au dépôt (HTTP 202), workers, API recherche et supervision
       workers: 2                       # workers OCR de cette instance
@@ -200,7 +210,11 @@ ged:
       bail: 10m                        # prolongé à chaque page
       delai-par-page: 60s
       delais-reprise: 1m,5m,30m        # 3 reprises, puis OCR_ECHEC
-      dpi: 300
+      # Résolution du rendu des pages PDF scannées (P-14, R30 ; ESSAIS-DE-CHARGE.md § 2.4) :
+      # 200 dpi = -9 % de temps CPU par page (rendu compris), CER dans les seuils du § 4.3.2
+      # sur le corpus (corps 11 pt) ; revenir à 300 si l'échantillon de MMED montre des corps
+      # de 8 pt ou moins mal lus. Les images (TIFF, PNG, JPEG) gardent leur résolution.
+      dpi: ${GED_OCR_DPI:200}
       seuil-caracteres-par-page: 25    # sous ce seuil, la page PDF passe à l'OCR
       objectif-disponibilite: ${ged.supervision.ocr.objectif-disponibilite:${GED_OCR_OBJECTIF_DISPONIBILITE:24h}}  # D6 ; même source que la supervision
       # ara+fra et non fra+ara : mêmes modèles, mais la première langue est la
