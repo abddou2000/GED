@@ -82,7 +82,9 @@ class AppelsSortantsTest {
                     "aucune : InetAddress sur une adresse IP littérale (contrôlée), jamais de résolution DNS"),
             Map.entry("com/ipt/ged/notification/ExpediteurCourriels.java", "relais SMTP : GED_SMTP_HOTE/PORT"),
             Map.entry("com/ipt/ged/fichier/previsualisation/ConvertisseurLibreOffice.java", "processus soffice : GED_LIBREOFFICE"),
-            Map.entry("com/ipt/ged/ocr/moteur/MoteurTesseract.java", "processus tesseract : GED_TESSERACT"));
+            Map.entry("com/ipt/ged/ocr/moteur/MoteurTesseract.java", "processus tesseract : GED_TESSERACT"),
+            Map.entry("com/ipt/ged/ocr/moteur/ModelesEntiers.java",
+                    "processus combine_tessdata -c au démarrage (P-14) : GED_OCR_COMBINE_TESSDATA ou à côté de GED_TESSERACT"));
 
     private static Map<String, String> sources() throws IOException {
         Map<String, String> m = new TreeMap<>();
