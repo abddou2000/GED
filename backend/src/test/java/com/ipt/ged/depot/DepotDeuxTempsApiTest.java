@@ -62,8 +62,8 @@ class DepotDeuxTempsApiTest {
     @Autowired private PlanIndexationRepository planRepository;
     @Autowired private IndexRepository indexRepository;
 
-    private UUID typeAvecPlan, typeSansPlan;
-    private String cFournisseur, cMontant, cDate, cNote;
+    private UUID typeAvecPlan, typeSansPlan, typePlanManuel;
+    private String cFournisseur, cMontant, cDate, cNote, cRef;
 
     @BeforeEach
     void preparer() {
@@ -89,6 +89,14 @@ class DepotDeuxTempsApiTest {
         workspaceRepository.save(w);
         typeAvecPlan = type("TD-D2T-P-" + s, w, plan);
         typeSansPlan = type("TD-D2T-S-" + s, w, null);
+
+        // Charte manuelle (ANO-E6-002) : un seul index texte obligatoire.
+        cRef = "D2T-REF-" + s;
+        PlanIndexation manuel = new PlanIndexation("PL-D2T-M-" + s, "Plan manuel " + s);
+        manuel.setManuel(true);
+        manuel.getIndices().add(index(cRef, "Référence", IndexFieldType.TEXTE, true));
+        planRepository.save(manuel);
+        typePlanManuel = type("TD-D2T-M-" + s, w, manuel);
     }
 
     private IndexField index(String code, String nom, IndexFieldType nature, boolean obligatoire) {
@@ -223,6 +231,42 @@ class DepotDeuxTempsApiTest {
                 .andExpect(status().isOk());
         JsonNode apres = json(mvc.perform(get("/api/v1/documents/" + id)).andExpect(status().isOk()));
         assertEquals("INDEXE", apres.get("statutIndexation").asText());
+    }
+
+    @Test
+    @DisplayName("ANO-E6-002 — plan manuel, valeur de 300 caractères : A_INDEXER avec un motif métier, sans texte SQL ; "
+            + "même refus par l'écran d'indexation ; 200 caractères → INDEXE")
+    void planManuelValeurTropLongue() throws Exception {
+        String longue = "R".repeat(300);
+        JsonNode r = json(deposer(typePlanManuel, "{\"" + cRef + "\": \"" + longue + "\"}")
+                .andExpect(status().isCreated()));
+        assertEquals("A_INDEXER", r.get("statutIndexation").asText());
+        String motif = r.get("motifIndexation").asText();
+        assertTrue(motif.contains("référence composée du document") && motif.contains("255")
+                && motif.contains("300"), motif);
+        for (String technique : List.of("SQL", "update document", "could not execute", "varying")) {
+            assertFalse(motif.contains(technique), motif);
+        }
+        UUID id = UUID.fromString(r.get("id").asText());
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM document_index_valeur WHERE document_id = ?",
+                Integer.class, id));
+
+        // Même valeur par l'écran d'indexation : même refus, 400 DONNEE_REFUSEE (code inchangé).
+        String corps = om.writeValueAsString(java.util.Map.of("valeurs", List.of(
+                java.util.Map.of("indexFieldId", idDe(cRef), "valeur", longue))));
+        JsonNode refus = json(mvc.perform(put("/api/v1/indexation/documents/" + id)
+                .contentType(APPLICATION_JSON).content(corps)).andExpect(status().isBadRequest()));
+        assertEquals("DONNEE_REFUSEE", refus.get("code").asText());
+        assertTrue(refus.get("detail").asText().contains("référence composée du document"), refus.toString());
+
+        // Reprise avec une valeur qui tient : INDEXE, nom saisi intact (charte manuelle).
+        String court = om.writeValueAsString(java.util.Map.of("valeurs", List.of(
+                java.util.Map.of("indexFieldId", idDe(cRef), "valeur", "R".repeat(200)))));
+        mvc.perform(put("/api/v1/indexation/documents/" + id).contentType(APPLICATION_JSON).content(court))
+                .andExpect(status().isOk());
+        JsonNode apres = json(mvc.perform(get("/api/v1/documents/" + id)).andExpect(status().isOk()));
+        assertEquals("INDEXE", apres.get("statutIndexation").asText());
+        assertEquals("facture", apres.get("name").asText());
     }
 
     private UUID idDe(String code) {

@@ -1,11 +1,14 @@
 package com.ipt.ged.depot;
 
 import com.ipt.ged.autorisation.Confidentialite;
+import com.ipt.ged.common.GlobalExceptionHandler;
+import com.ipt.ged.common.erreur.ExceptionMetier;
 import com.ipt.ged.document.DocumentService;
 import com.ipt.ged.document.dto.DocumentResponse;
 import com.ipt.ged.indexation.dto.ValeurRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
@@ -97,11 +100,34 @@ public class DepotService {
             if (englobante) indexation.indexerDansLaTransaction(recu.id(), valeurs.get());
             else indexation.indexer(recu.id(), valeurs.get());
         } catch (RuntimeException e) {
-            log.warn("Dépôt {} reçu, indexation à reprendre (A_INDEXER) : {}", recu.id(), e.getMessage());
+            String motif = motif(e);
+            // Détail technique (pile, texte SQL) au journal seulement ; le client
+            // ne reçoit que le motif fonctionnel.
+            log.warn("Dépôt {} reçu, indexation à reprendre (A_INDEXER) : {}", recu.id(), motif, e);
             return new ResultatDepot(recu.avecIndexation(IssueIndexation.A_INDEXER.name(),
-                    "Métadonnées non enregistrées : " + e.getMessage()), ocrEnAttente);
+                    "Métadonnées non enregistrées : " + motif), ocrEnAttente);
         }
         // Relu après le temps 2 : l'indexation a pu composer le nom (charte).
         return new ResultatDepot(documents.relire(recu.id()), ocrEnAttente);
+    }
+
+    /**
+     * Motif d'échec du temps 2 montré au client ({@code motifIndexation}).
+     *
+     * <p>Seuls les refus métier — ceux que la saisie par l'écran d'indexation
+     * renvoie tels quels — sont recopiés. Une exception technique ne l'est
+     * jamais (ANO-E6-002) : son message pouvait contenir la requête SQL et les
+     * colonnes de la table {@code document}. Un refus du schéma reçoit le même
+     * libellé que par l'API ({@code DONNEE_REFUSEE}) ; toute autre panne, un
+     * libellé générique.
+     */
+    static String motif(RuntimeException e) {
+        if (e instanceof ExceptionMetier || e instanceof IllegalArgumentException) {
+            return e.getMessage();
+        }
+        if (e instanceof DataIntegrityViolationException d) {
+            return "donnée refusée par la base : " + GlobalExceptionHandler.causeLisible(d);
+        }
+        return "incident technique lors de l'enregistrement ; reprenez l'indexation depuis l'écran d'indexation.";
     }
 }
