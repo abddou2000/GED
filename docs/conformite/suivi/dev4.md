@@ -113,3 +113,36 @@ budget préexistants, dont `profil.scss`). Suite back complète (`mvn -B -q test
 - **Pastille des notifications et état des modules** : sans rôle, plus aucun appel ; si un rôle
   est attribué pendant la session, ils reviennent à la reconnexion (le message de l'accueil vide
   demande justement de se reconnecter).
+
+## Tour 5
+
+Branche `ct/dev4-r5`, partie de `claude/inspiring-lovelace-10bg1c` (`4090da3`). Front (dépendances)
+et documentation ; aucun fichier du back ni de Liquibase modifié.
+
+| Id | Cause | Correctif | Preuve (test qui échoue sans le correctif) | État |
+|---|---|---|---|---|
+| ANO-E0-004 (T-070, avec dev2) | `@angular/router` 22.0.8 visé par l'avis haut GHSA-ff3f-86qr-9cv3 (corrigé en 22.2.0) : `npm audit --omit=dev --audit-level=high` en code 1 (7 vulnérabilités, 6 moyennes, 1 haute), étape « Audit des dépendances livrées » du job front rouge depuis le 01/10 | Tous les paquets `@angular/*` en `^22.2.1` (animations, cdk, common, compiler, compiler-cli, core, forms, material, platform-browser, router, build, cli) ; `package-lock.json` régénéré par npm (`npm uninstall` puis `npm install` des paquets Angular : `npm install` et `npm update` refusaient la montée incrémentale à cause des pairs exacts d'Angular) ; aucun code applicatif modifié | `outils/tests/versions-angular.test.mjs` (lancé par `node --test outils/tests/*.test.mjs`, job « Registre des dépendances et licences ») : 2 échecs sur le verrouillage d'avant (« @angular/router 22.0.8 est visé par GHSA-ff3f-86qr-9cv3 », « package.json demande ^22.0.0 ») ; contrôle réel : `npm audit --omit=dev --audit-level=high` → code 0, « found 0 vulnerabilities » (rapports avant / après dans `docs/securite/rapports/`) | Corrigée (`620408b`, documentation `83e91e6`) |
+
+Vérifications (Node 24.21.0) : `npm ci` sans erreur ; `npx ng test --watch=false` : 44 fichiers,
+196 tests verts ; `npx ng build` vert (avertissements de budget préexistants, plus une dépréciation
+Sass sur l'`@import` que la CLI 22.2 génère elle-même pour les styles globaux). `npm run sbom` et
+`mvn package -DskipTests` puis `node outils/registre-dependances.mjs` : `docs/DEPENDANCES.md` mis à
+jour (Angular 22.2.1, transitive `entities` 8.1.0 BSD-2-Clause ajoutée, `zod` 4.6.5) ; le SBOM
+lui-même n'est pas versionné (artefact `sbom-frontend` de la CI). `docs/securite/VULNERABILITES-DEPENDANCES.md`
+§3 et §4 mis à jour. Suite back complète (`mvn -B -q test`, base `ged_dev4_test`,
+`GED_MANAGEMENT_PORT` et `SERVER_PORT` retirés, aucun fichier du back modifié) : 687 tests, 0 échec,
+0 erreur. Outillage : `node --test outils/tests/*.test.mjs` 12 tests verts (9 + 3 nouveaux). Le `node_modules` du front a été installé dans la copie de travail (pas de lien
+vers celui de `/home/user/GED/frontend`, resté en 22.0.8, pour ne pas le modifier).
+
+### Points pour pm (tour 5)
+
+- **CI GitHub** : rien n'a été poussé ; le retour au vert du job front (et la reprise de l'archivage
+  de `frontend-paquet` et `sbom-frontend`) est à constater à la première exécution après fusion.
+- **Outillage de test (non livré)** : `npm audit` sans `--omit=dev` signale toujours `undici` 7.28.0
+  (haute, via `jsdom`) et `vitest` / `@vitest/mocker` 4.1.10 (moyenne). Inchangés par la montée, hors
+  seuil de la CI (paquets livrés seulement) ; à traiter à la montée planifiée de l'outillage de test.
+- **Postes de l'équipe** : le `node_modules` partagé de `/home/user/GED/frontend` est encore en
+  Angular 22.0.8 ; après fusion, y relancer `npm ci` (Node 24) pour que les autres membres testent
+  sur les mêmes versions.
+- **dev2 (T-070)** : document de vulnérabilités mis à jour ici ; à relire par dev2, propriétaire de
+  la ligne.
