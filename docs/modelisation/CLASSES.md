@@ -190,6 +190,7 @@ classDiagram
     HabilitationRepository habilitations
     ServiceHabilitations serviceHabilitations
     AppartenancesEnAttente appartenancesEnAttente
+    ApplicationEventPublisher evenements
   }
   class ServiceSessions {
     SessionRepository sessions
@@ -563,6 +564,18 @@ classDiagram
   class AccessGroupTriParTaille {
     EntityManager em
   }
+  class AppartenanceActivee {
+    <<record>>
+    UUID appartenanceId
+    UUID groupeId
+    String groupe
+    boolean groupeSupprime
+    UUID utilisateurId
+    String identifiant
+    UUID employeId
+    String motif
+    Instant instant
+  }
   class AppartenancesEnAttente {
     JdbcTemplate jdbc
   }
@@ -572,6 +585,7 @@ classDiagram
   AccessGroupSeeder --> AccessGroupRepository
   AccessGroupService --> AccessGroupRepository
   AccessGroupService --> AccessGroupTriParTaille
+  EvenementAudit <|.. AppartenanceActivee
 ```
 
 DTO : `AccessGroupResponse`.

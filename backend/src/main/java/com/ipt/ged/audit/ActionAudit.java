@@ -116,6 +116,8 @@ public enum ActionAudit {
     GROUPE_MODIFIE,
     GROUPE_SUPPRIME,
     GROUPE_RESTAURE,
+    /** Appartenance en attente devenue réelle à la première connexion, acteur système (T-025, ANO-F-030). */
+    GROUPE_MEMBRE_ACTIVE,
     EMPLOYE_CREE,
     EMPLOYE_MODIFIE,
     EMPLOYE_SUPPRIME,

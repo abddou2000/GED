@@ -130,6 +130,86 @@ class AppartenanceIdentiteApiTest {
                 .andExpect(jsonPath("$.pendingUserIds").isEmpty());
     }
 
+    /**
+     * Première connexion telle que la vit l'application : la requête de connexion
+     * n'est pas authentifiée (aucun acteur dans le contexte de sécurité).
+     */
+    private Utilisateur premiereConnexion(Employe fiche, boolean connexion) {
+        org.springframework.security.core.context.SecurityContext avant =
+                org.springframework.security.core.context.SecurityContextHolder.getContext();
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        try {
+            return identites.provisionner(new FicheAnnuaire(UUID.randomUUID(), "i" + fiche.getLastName().toLowerCase(),
+                    "Ilyas", fiche.getLastName(), null, "ilyas." + fiche.getLastName().toLowerCase() + "@"
+                    + proprietes.getDomaineCourriel(), null), connexion).utilisateur();
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.setContext(avant);
+        }
+    }
+
+    @Test
+    @DisplayName("ANO-F-030 : chaque appartenance devenue réelle à la 1re connexion est tracée (GROUPE_MEMBRE_ACTIVE, acteur système) et notifiée comme un ajout au groupe")
+    void conversionTraceeEtNotifiee() throws Exception {
+        UUID espace1 = jeu.noeud("Espace préparé A", null);
+        UUID espace2 = jeu.noeud("Espace préparé B", null);
+        UUID espaceCorbeille = jeu.noeud("Espace d'un groupe en corbeille", null);
+        Employe fiche = ficheSansIdentite();
+        String s = fiche.getId().toString().substring(28);
+        UUID deuxEspaces = UUID.fromString(creer("AG-2E-" + s, List.of(espace1, espace2), List.of(fiche.getId()))
+                .get("id").asText());
+        UUID sansEspace = UUID.fromString(creer("AG-0E-" + s, List.of(), List.of(fiche.getId())).get("id").asText());
+        UUID enCorbeille = UUID.fromString(creer("AG-CB-" + s, List.of(espaceCorbeille), List.of(fiche.getId()))
+                .get("id").asText());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(BASE + "/" + enCorbeille))
+                .andExpect(status().is2xxSuccessful());
+        em.flush();
+
+        Utilisateur u = premiereConnexion(fiche, true);
+        em.flush();   // les avis sont écrits par JPA dans la transaction (ici celle du test), lus ici en SQL
+
+        // Audit : une trace par appartenance convertie, sur le groupe, acteur système.
+        List<java.util.Map<String, Object>> traces = jdbc.queryForList("""
+                SELECT objet_type, objet_id, motif, acteur_nom, acteur_utilisateur_id, resultat,
+                       apres->>'groupe' AS groupe, apres->>'utilisateurId' AS utilisateur,
+                       apres->>'identifiant' AS identifiant, apres->>'employeId' AS employe,
+                       avant->>'membreEnAttente' AS attente
+                  FROM journal_audit WHERE action = 'GROUPE_MEMBRE_ACTIVE' AND apres->>'employeId' = ?
+                 ORDER BY apres->>'groupe'""", fiche.getId().toString());
+        assertThat(traces).extracting(t -> t.get("objet_id")).containsExactly(sansEspace, deuxEspaces, enCorbeille);
+        for (java.util.Map<String, Object> t : traces) {
+            assertThat(t).containsEntry("objet_type", "GROUPE").containsEntry("motif", "Première connexion")
+                    .containsEntry("acteur_nom", "Système").containsEntry("resultat", "SUCCES")
+                    .containsEntry("utilisateur", u.getId().toString())
+                    .containsEntry("identifiant", u.getIdentifiant())
+                    .containsEntry("employe", fiche.getId().toString())
+                    .containsEntry("attente", fiche.getId().toString());
+            assertThat(t.get("acteur_utilisateur_id")).isNull();
+        }
+        assertThat(traces.get(1).get("groupe")).isEqualTo("Groupe AG-2E-" + s);
+
+        // Notification : le même avis qu'un ajout au groupe, un par espace ; rien pour le groupe en corbeille.
+        List<java.util.Map<String, Object>> avis = jdbc.queryForList("""
+                SELECT objet_type, objet_id, message, lien FROM notification
+                 WHERE destinataire_id = ? AND type = 'ACCES_ESPACE_ATTRIBUE' ORDER BY titre""", u.getId());
+        assertThat(avis).extracting(a -> a.get("objet_id")).containsExactly(espace1, espace2);
+        assertThat(avis.get(0)).containsEntry("objet_type", "ESPACE")
+                .containsEntry("lien", "espaces-de-travail/" + espace1);
+        assertThat((String) avis.get(0).get("message")).contains("« Espace préparé A »")
+                .contains("par votre ajout au groupe « Groupe AG-2E-" + s + " »");
+
+        // Provisionnement par délégation d'une application : motif distinct.
+        Employe autre = ficheSansIdentite();
+        UUID g = UUID.fromString(creer("AG-DL-" + autre.getId().toString().substring(28), List.of(espace1),
+                List.of(autre.getId())).get("id").asText());
+        Utilisateur delegue = premiereConnexion(autre, false);
+        em.flush();
+        assertThat(jdbc.queryForObject("SELECT motif FROM journal_audit WHERE action = 'GROUPE_MEMBRE_ACTIVE'"
+                + " AND objet_id = ? AND apres->>'utilisateurId' = ?", String.class, g, delegue.getId().toString()))
+                .isEqualTo("Première connexion par délégation d'une application");
+        assertThat(compter("SELECT count(*) FROM notification WHERE destinataire_id = ? AND objet_id = ?"
+                + " AND type = 'ACCES_ESPACE_ATTRIBUE'", delegue.getId(), espace1)).isEqualTo(1);
+    }
+
     @Test
     @DisplayName("userIds accepte la fiche employé (contrat d'origine) ou l'identité GED ; un membre connecté n'est jamais en attente")
     void identifiantsTraduits() throws Exception {
