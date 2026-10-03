@@ -218,4 +218,31 @@ describe('RechercheIndex', () => {
     serveur.expectNone(r => r.url === `${API_BASE}/documents/recherche`);
     expect(f.nativeElement.querySelector('.erreur')?.textContent).toContain('Montant');
   });
+
+  it('ANO-F-034 : une nouvelle recherche amène les résultats à l\'écran, en-tête de colonnes fixe', async () => {
+    const vus: Element[] = [];
+    const avant = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) { vus.push(this); };
+    try {
+      const f = await ouvrir();
+      lancer(f);
+      serveur.expectOne(r => r.url === `${API_BASE}/documents/recherche`)
+        .flush({ content: [DOC], total: 45, page: 0, size: 50, totalPages: 1 });
+      f.detectChanges();
+      await f.whenStable();
+      expect(vus.map(e => e.className)).toEqual(['total']);
+      // L'en-tête reste visible quand le tableau défile en interne.
+      expect(f.nativeElement.querySelector('tr.mat-mdc-header-row th')?.className).toContain('mat-mdc-table-sticky');
+
+      // Changer de page ne déplace pas la vue : l'utilisateur est déjà sur le tableau.
+      f.componentInstance.pagination({ pageIndex: 0, pageSize: 25, length: 45 });
+      serveur.expectOne(r => r.url === `${API_BASE}/documents/recherche`)
+        .flush({ content: [DOC], total: 45, page: 0, size: 25, totalPages: 2 });
+      f.detectChanges();
+      await f.whenStable();
+      expect(vus.length).toBe(1);
+    } finally {
+      Element.prototype.scrollIntoView = avant;
+    }
+  });
 });

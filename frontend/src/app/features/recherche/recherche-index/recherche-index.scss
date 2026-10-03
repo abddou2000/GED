@@ -34,6 +34,19 @@
 .erreur { margin: 4px 16px; color: var(--danger); font-size: 13px; }
 
 .table-wrap { overflow-x: auto; }
+
+/* ANO-F-034 : la carte porte un paginateur ; la règle commune
+   (`.card:has(> .mat-mdc-paginator)`, _ui.scss) la bornait à la hauteur de
+   l'écran et le tableau, dernier servi après les critères, tombait à quelques
+   pixels (28 px en 1440×900). Ici les critères occupent le haut de la carte :
+   elle garde sa hauteur naturelle et c'est la zone de l'écran (`.page`) qui
+   défile. Le tableau défile en interne au-delà d'une hauteur qui laisse
+   l'en-tête de colonnes et le paginateur visibles ensemble. */
+.page > .card { flex: 1 0 auto; }
+.table-wrap {
+  flex: 0 0 auto; overflow-y: auto;
+  max-height: max(320px, calc(100vh - 300px));
+}
 .res-table { width: 100%; }
 .nom { font-weight: 600; color: var(--navy); text-decoration: none; }
 .nom:hover { text-decoration: underline; }

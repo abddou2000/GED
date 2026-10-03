@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, ElementRef, Injector, OnInit, afterNextRender, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -77,6 +77,8 @@ export class RechercheIndex implements OnInit {
   private espaces = inject(WorkspaceService);
   private employes = inject(EmployeService);
   private notify = inject(NotifyService);
+  private hote = inject<ElementRef<HTMLElement>>(ElementRef);
+  private injecteur = inject(Injector);
 
   readonly niveaux = NIVEAUX_CONFIDENTIALITE;
   readonly colonnes = ['name', 'type', 'emplacement', 'dateDocument', 'createdAt', 'createdBy'];
@@ -123,7 +125,7 @@ export class RechercheIndex implements OnInit {
 
   lancer(): void {
     this.page = 0;
-    this.charger();
+    this.charger(true);
   }
 
   effacer(): void {
@@ -194,7 +196,8 @@ export class RechercheIndex implements OnInit {
     };
   }
 
-  private charger(): void {
+  /** @param amener vrai pour une nouvelle recherche : les résultats sont amenés à l'écran. */
+  private charger(amener = false): void {
     const r = this.requete();
     if (!r) return;
     this.chargement.set(true);
@@ -203,6 +206,7 @@ export class RechercheIndex implements OnInit {
         this.resultat.set(r.corps);
         this.champsIgnores.set(r.champsIgnores);
         this.chargement.set(false);
+        if (amener) this.amenerResultats();
       },
       error: e => {
         this.chargement.set(false);
@@ -212,5 +216,17 @@ export class RechercheIndex implements OnInit {
         this.notify.error(msg);
       },
     });
+  }
+
+  /**
+   * ANO-F-034 : les critères occupent le haut de l'écran ; sur un portable
+   * (1366×768) les résultats commençaient sous le pli. Après une nouvelle
+   * recherche, la zone de l'écran défile jusqu'au total et au tableau.
+   */
+  private amenerResultats(): void {
+    afterNextRender(() => {
+      const cible = this.hote.nativeElement.querySelector<HTMLElement>('.total');
+      cible?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+    }, { injector: this.injecteur });
   }
 }
