@@ -2,6 +2,17 @@
 
 ## Lot en cours
 
+Tour 7 (`ct/qa-r7` depuis `5ceb08c`) : P-14 / R30, réglage de débit OCR de dev3 (modèles compactés en entiers,
+200 dpi). Mesure indépendante (banc réduit adapté : résolution, temps CPU exact, compactage hors application ; graine
+de qa, 30 pages par réglage, deux passes) : **5,20 → 2,86 s par page et par cœur** (11,5 → 21 p/min/cœur), CER français
+0,74 %, arabe 3,02 %, arabe dégradé 8,17 % (6,94 % avant) ; `BancTesseractIT#reglagesDebit` rejoué : 5,16 → 2,88 s,
+CER identiques au § 2.4 de dev3. Application démarrée (`recette/e10/recette-p14-ocr.sh`, espion de Tesseract) :
+conversion au démarrage et réutilisation, dépôt réel d'un PDF scanné jusqu'à la recherche (français et arabe), repli
+sans `combine_tessdata`, répertoire inutilisable, retour `precis` + 300 dpi, valeur refusée : 27 OK, 1 ÉCHEC.
+**ANO-E6-003** ouverte (mineure, dev3 : outil rétabli, la conversion n'est jamais refaite). Suite back : 705 tests,
+0 échec, 3 ignorés (cas Tesseract réel 27/27 à part). Avis : P-14 reste « Vérifié » (ANO-E6-003), puis « Identique
+(réserve UAT) » une fois vérifiée ; T-028 reste « Vérifié » (Q09, QR8). `RESULTATS-VAGUE-11.md` §14.
+
 Tour 6 (`ct/qa-r6` depuis `f3ee44d`) : T-025, écart 2 (`173593b`, dev1 : `groupe_membre.utilisateur_id`, attente
 `groupe_membre_attente`). Sur `ged_qa` peuplée (sauvegardée avant) : montée réelle des changesets `202610061000` et
 `202610061010` (7 appartenances avant → 3 membres + 4 en attente, mêmes identifiants) ; retour arrière des deux puis
@@ -62,9 +73,10 @@ contrat §5.3.1, E10/E11 sur papier.
 | Ligne de base | `docs/conformite/recette/LIGNE-DE-BASE.md` | 143 tests (H2, avant les vagues) |
 | Plan de recette E0–E11 | `docs/conformite/recette/PLAN-DE-RECETTE.md` | D1–D14 intégrées |
 | Résultats | `RESULTATS-VAGUE-1.md` à `RESULTATS-VAGUE-11.md` | vague 11 : 687 tests, 0 échec, 0 erreur, 0 ignoré (114 classes, 2 min 43 s), front 196/196 ; 257 → 360 → 443 → 534 → 552 → 586 → 594 tests verts ; vague 8 : 597 tests, 4 échecs de référence + 1 d'environnement ; vague 9 : 630 tests, 0 échec ; vague 10 : 661 tests, 0 échec, 0 erreur, 0 ignoré (109 classes, 4 min 30 s) |
-| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | vague 11 : 44 vérifiées (ANO-E7-007, ANO-E10-009) ; ouvertes : ANO-E6-002 (mineure, dev3), ANO-E0-004 (majeure, dev4/dev2) — avant : 42 vérifiées (vague 10 : ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006, ANO-E7-006) ; ouvertes : ANO-E7-007 (majeure, dev1), ANO-E10-009 (mineure, dev2) |
+| Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | tour 7 : ANO-E6-003 ouverte (mineure, dev3) ; ANO-E6-002 et ANO-E0-004 vérifiées au tour 5 — vague 11 : 44 vérifiées (ANO-E7-007, ANO-E10-009) ; ouvertes : ANO-E6-002 (mineure, dev3), ANO-E0-004 (majeure, dev4/dev2) — avant : 42 vérifiées (vague 10 : ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006, ANO-E7-006) ; ouvertes : ANO-E7-007 (majeure, dev1), ANO-E10-009 (mineure, dev2) |
 | E10 exploitation (vague 8) | `recette/e10/` : `verifier-nginx-reel.sh` (NGINX réel, 10/11), `verifier-front-nginx.sh` (23/23), `verifier-annuaire-bascule.sh` + `AnnuaireAutonome.java` (P-02, P-04), `verifier-modules.sh` (T-088, 5/6), `RecetteExploitation.java` (10/11), `RecetteComplementsV8.java` (7 OK, 1 AVERT), `RecetteRotationJournaux.java` (11/11), `sbom-et-licences-hors-ligne.sh`, `banc-ocr-reduit.sh` | voir `RESULTATS-VAGUE-8.md` |
 | E10 sauvegarde et déploiement | `recette/e10-sauvegarde/` : `recette-t073-p13.sh` (33 OK / 3 ÉCHEC), `recette-t092.sh` (tour 2 : 12/12), `recette-ano-e8-004.sh` (tour 2 : 4/4, retour arrière sur copie peuplée), sur PostgreSQL jetable | portables Linux et Git Bash |
+| Tour 7 (vague 11 §14) | `recette/e10/recette-p14-ocr.sh` + `ScanTemoin.java` (P-14 sur l'application démarrée, espion de Tesseract) ; `banc-ocr-reduit.sh` + `BancOcrReduit.java` adaptés (DPI, `GED_BANC_MODELES=entiers`, temps CPU exact) | 27 OK, 1 ÉCHEC (ANO-E6-003) ; banc : 5,20 → 2,86 s par page et par cœur |
 | Tour 6 (vague 11 §13) | `recette/e1/recette-t025-ecart2.sh` (T-025 écart 2 : montée, aller-retour, première connexion, retour après mise en service) | 19 OK, 1 AVERT (ordre physique d'une colonne après retour arrière) |
 | Tour 4 (vague 11) | `recette/e10/verifier-index-expression.sh` complété (I09 plan parallèle forcé, I10 sémantique : 9 OK, 1 AVERT), `recette/e10/RecetteTour4.java` (T-050, P-08 : 11/11), `recette/e10/ecran/recette-p04-ecran.spec.ts` (P-04 à l'écran : 1/1) ; rejoués : `verifier-nginx-reel.sh` 13/13, `demontrer-deploiement.sh` 43/43, `RecetteExploitation` 10/11, banc OCR réduit | voir `RESULTATS-VAGUE-11.md` |
 | Tour 3 (vague 10) | `recette/e10/verifier-index-expression.sh` (T-104, nouveau : 5 OK, 2 ÉCHEC = ANO-E7-007, 1 AVERT) ; scripts adaptés : `sbom-et-licences-hors-ligne.sh` (10/10), `verifier-nginx-reel.sh` (13/13), `verifier-annuaire-bascule.sh` (6/6), `recette-t073-p13.sh` (40 OK, 2 AVERT) | voir `RESULTATS-VAGUE-10.md` |
@@ -112,6 +124,9 @@ Non conforme : 4.2.2 montée sur base peuplée (ANO-E1-006), D8 création de rè
 
 ## Ce qui reste
 
+- Tour 7 : vérifier ANO-E6-003 dès sa correction (`recette/e10/recette-p14-ocr.sh`, phases B puis B3) ; en UAT,
+  rejouer `banc-ocr-reduit.sh 6 ara+fra 200` (`GED_BANC_MODELES=entiers`) et `recette-p14-ocr.sh` sur le serveur de
+  MMED, puis sur l'échantillon de la Phase 7 (Q09 : arabe dégradé et corps de 8 pt à 200 dpi).
 - Fait au tour 5 : ANO-E6-002 et ANO-E0-004 vérifiées, CI back revenue au vert (`af8ca2f`). Reste :
   `VULNERABILITES-DEPENDANCES.md` §4 à mettre à jour par dev2 (O1 du §12) ; ANO-F-011 (volet « paramètre
   inconnu ») à rejouer par qa2 avec le comportement P-08.
