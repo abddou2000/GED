@@ -192,6 +192,26 @@ contrôle n'est pas affaibli. Pour reproduire ce comportement sur un poste :
 `CI=true mvn -o package`. `-Dged.sbom.completer.skip=true` désactive l'étape
 entièrement (SBOM sans Tesseract ni modèles, sans avertissement).
 
+### 3.2 OCR : modèles et résolution (débit, P-14)
+
+Réglage par défaut retenu après mesure (`docs/exploitation/ESSAIS-DE-CHARGE.md` § 2.4 :
+5,35 → 2,90 s de CPU par page et par cœur, CER dans les seuils du DAT §4.3.2) :
+
+| Propriété | Variable | Défaut | Rôle |
+|---|---|---|---|
+| `ged.ocr.modeles` | `GED_OCR_MODELES` | `entiers` | `entiers` : au démarrage, copie des modèles de `GED_TESSDATA` compactée en entiers par `combine_tessdata -c` (même réseau que `tessdata_best`, ~40 % de CPU en moins) ; refaite si un modèle change (empreinte SHA-256). `precis` : modèles livrés tels quels. Toute autre valeur empêche le démarrage. |
+| `ged.ocr.modeles-entiers.repertoire` | `GED_OCR_MODELES_ENTIERS_REPERTOIRE` | `${java.io.tmpdir}/ged-tessdata-entiers` | Répertoire de la copie compactée (quelques Mo ; doit être inscriptible par le compte `ged` : sous `/var/lib/ged`, ou le tmpfs, où elle est refaite à chaque redémarrage du serveur). |
+| `ged.ocr.modeles-entiers.combine-tessdata` | `GED_OCR_COMBINE_TESSDATA` | à côté de `GED_TESSERACT` (`/usr/bin/combine_tessdata`) | Outil de conversion, livré par le paquet `tesseract-ocr` (Debian, Ubuntu) avec `tesseract`. |
+| `ged.ocr.chaine.dpi` | `GED_OCR_DPI` | `200` | Résolution du rendu des pages PDF scannées (300 auparavant). Revenir à `300` si l'échantillon de MMED montre des corps de 8 pt ou moins mal lus (+14 % de CPU). |
+
+Vérification au démarrage, dans le journal : « Modèles OCR compactés en entiers dans … :
+[ara, eng, fra] ». **Sans `combine_tessdata`** (ou répertoire non inscriptible), l'application
+démarre quand même avec les modèles précis et l'écrit en avertissement (« Aucun modèle OCR
+compacté en entiers … débit réduit ») : l'OCR fonctionne, au débit d'avant (~5,4 s par page).
+Les modèles inscrits au registre des dépendances et au SBOM restent ceux de `backend/tessdata`
+(la copie en est dérivée, rien n'est ajouté au paquet). Inchangés : `--psm 3`, `--oem 1`,
+langue `ara+fra`, `OMP_THREAD_LIMIT=1`, un worker OCR par cœur (`GED_OCR_CHAINE_WORKERS`).
+
 ---
 
 ## 4. Frontend
