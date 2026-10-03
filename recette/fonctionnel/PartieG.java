@@ -19,7 +19,8 @@ import com.fasterxml.jackson.databind.JsonNode;
  * <p>Rejoue, sur un espace propre (« QA2 Groupes T-025 ») et des comptes neufs de l'annuaire
  * simulé (un par exécution), les exigences qui passent par un groupe : F-06 (rattachement par
  * groupe, ANO-F-009), F-14 et F-15 (effet immédiat d'un ajout, d'un retrait, de la corbeille),
- * F-11 (identité à la 1re connexion : appartenance préparée appliquée sans action), F-65
+ * F-11 (identité à la 1re connexion : appartenance préparée appliquée sans action, notifiée et
+ * tracée depuis le tour 7, ANO-F-030 ; aucun avis pour un groupe en corbeille), F-65
  * (accès attribué notifié aux membres), F-54 et F-51 (validateur par rôle porté par un groupe,
  * notification), F-52 (diffusion à un groupe), F-58 (alerte d'échéance à un Agent d'archive par
  * groupe).
@@ -184,16 +185,49 @@ public class PartieG extends RecetteFonctionnelle {
             JsonNode profil = G(P1, "/api/v1/employes/profil").json();
             boolean profilGroupe = ids(profil.path("groupesAcces"), "id").contains(GP);
             attendre(1500);
-            boolean notifie = PartieC.notifie(P1, "ACCES_ESPACE_ATTRIBUE", EG);
-            boolean journal = auditContient("objetId=" + GP, l -> true);
+            // ANO-F-030 (tour 7) : la conversion est notifiée (un avis par espace) et tracée (acteur « Système »).
+            int avisP1 = 0;
+            for (JsonNode n : PartieC.notifications(P1))
+                if ("ACCES_ESPACE_ATTRIBUE".equals(n.path("type").asText()) && EG.equals(n.path("objetId").asText())) avisP1++;
+            JsonNode trace = null;
+            for (JsonNode l : audit("action=GROUPE_MEMBRE_ACTIVE&objetId=" + GP)) trace = l;
+            String uidP1 = uid(P1);
+            boolean journal = trace != null && "Système".equals(trace.path("acteurNom").asText()) && trace.path("acteurUtilisateurId").isNull()
+                    && uidP1.equals(trace.path("apres").path("utilisateurId").asText()) && P1EMP.equals(trace.path("apres").path("employeId").asText())
+                    && P1EMP.equals(trace.path("avant").path("membreEnAttente").asText());
+            // Groupe en corbeille au moment de la 1re connexion : appartenance convertie, sans droit ni avis.
+            String nomC = "C" + M, empC = UUID.randomUUID().toString();
+            try (Connection c = base(); PreparedStatement p = c.prepareStatement(
+                    "INSERT INTO employe (id, first_name, last_name, has_user, created_at, updated_at) VALUES (?, 'Corbeille', ?, false, now(), now())")) {
+                p.setObject(1, UUID.fromString(empC));
+                p.setString(2, nomC);
+                p.executeUpdate();
+            }
+            Rep creeC = J(ADM, "POST", "/api/v1/access-groups", groupe("QA2-GC-" + m1, "QA2 Groupe corbeille " + M, List.of(EG), List.of(empC)));
+            String gc = idDe(creeC, "groupe en corbeille");
+            Rep supprC = X(ADM, "DELETE", "/api/v1/access-groups/" + gc);
+            String pc = "qa2c" + M;
+            LdapSimule.ajouter(pc, "Corbeille", nomC, "corbeille." + nomC.toLowerCase() + "@marchica.ma");
+            boolean rattacheC = empC.equals(me(pc).path("employeId").asText());
+            attendre(1500);
+            boolean avisC = PartieC.notifie(pc, "ACCES_ESPACE_ATTRIBUE", null);
+            boolean voitC = voit(pc, DOC_EG);
+            JsonNode traceC = null;
+            for (JsonNode l : audit("action=GROUPE_MEMBRE_ACTIVE&objetId=" + gc)) traceC = l;
             res("F-11g", cree.code() == 201 && enAttente && attenteBase == 1 && membresBase == 0 && conservee && rattache && converti && attenteApres == 0 && voitP1
-                            && stats.path("accessGroups").asInt() >= 1 && profilGroupe ? "OK" : "ECHEC",
-                    "Membre préparé pour une personne jamais connectée : en attente sans droit, appartenance appliquée à la 1re connexion sans action de l'Administrateur",
+                            && stats.path("accessGroups").asInt() >= 1 && profilGroupe && avisP1 == 1 && journal
+                            && creeC.code() == 201 && supprC.code() / 100 == 2 && rattacheC && !avisC && !voitC ? "OK" : "ECHEC",
+                    "Membre préparé pour une personne jamais connectée : en attente sans droit, appartenance appliquée à la 1re connexion sans action de l'Administrateur, notifiée et journalisée (ANO-F-030) ; aucun avis pour un groupe en corbeille",
                     "fiche reprise " + P1EMP + " (sans identité) ; POST " + court(cree) + " (" + resume(g) + ") ; base : attente " + attenteBase + ", membres " + membresBase
                             + " ; PUT avec users[].id renvoyés " + court(renvoi) + " → attente conservée " + conservee + " ; 1re connexion de " + P1
                             + " : identité rattachée à la fiche " + rattache + ", groupe → " + resume(apres) + ", attente en base " + attenteApres
                             + ", document de l'espace lu " + voitP1 + ", tuile Groupes " + stats.path("accessGroups") + ", « mes groupes » du profil " + profilGroupe
-                            + " ; [observation] accès notifié à la conversion " + notifie + ", journal du groupe " + journal);
+                            + " ; avis ACCES_ESPACE_ATTRIBUE sur l'espace " + avisP1 + " ; journal GROUPE_MEMBRE_ACTIVE conforme " + journal
+                            + (trace == null ? " (aucune ligne)" : " (acteur « " + trace.path("acteurNom").asText() + " », motif « " + trace.path("motif").asText()
+                            + " », après " + trace.path("apres") + ")")
+                            + " ; groupe en corbeille " + court(creeC) + "/" + court(supprC) + " puis 1re connexion de " + pc + " (rattaché " + rattacheC
+                            + ") : avis ACCES_ESPACE_ATTRIBUE " + avisC + ", document lu " + voitC + ", [observation] trace GROUPE_MEMBRE_ACTIVE "
+                            + (traceC != null));
         });
 
         // ---- F-65 : membre ajouté à un groupe couvrant un espace → avis d'accès
