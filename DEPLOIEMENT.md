@@ -166,6 +166,32 @@ curl -s -o /dev/null -w "%{http_code}\n" http://<hote>:8080/v3/api-docs   # 401 
 Le **401 sur `/v3/api-docs` est le bon résultat** : la documentation de l'API
 est fermée en production.
 
+### 3.1 Construction hors ligne et SBOM
+
+`mvn package` produit le SBOM CycloneDX (`target/bom.json`, `target/bom.xml`)
+puis `outils/completer-sbom.mjs` y ajoute Tesseract et les modèles de
+`backend/tessdata` (T-085) ; Node est requis. Le greffon CycloneDX exige le mode
+en ligne : en **construction hors ligne** (`mvn -o package`, poste isolé, forge
+sans accès), il ne produit aucun SBOM. La construction **réussit** alors avec
+l'avertissement :
+
+```
+[AVERTISSEMENT] SBOM INCOMPLET : …/target/bom.json absent, Maven hors ligne (…) ;
+le JAR est construit SANS SBOM, à ne pas livrer tel quel : …
+```
+
+Un tel JAR sert aux essais ; le JAR livré à MMED est accompagné de son SBOM :
+reconstruire en ligne (`mvn package`) ou prendre le JAR et le SBOM produits par
+la CI. Si un `target/bom.json` d'une construction précédente est présent, il est
+complété mais **non régénéré** (avertissement « n'a pas été régénéré ») :
+`mvn clean` avant une construction de livraison.
+
+**En CI** (variable `CI` positionnée, comme sur GitHub Actions), un SBOM absent
+reste une **erreur** (code 2, construction en échec), même hors ligne : le
+contrôle n'est pas affaibli. Pour reproduire ce comportement sur un poste :
+`CI=true mvn -o package`. `-Dged.sbom.completer.skip=true` désactive l'étape
+entièrement (SBOM sans Tesseract ni modèles, sans avertissement).
+
 ---
 
 ## 4. Frontend

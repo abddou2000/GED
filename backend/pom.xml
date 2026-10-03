@@ -319,7 +319,10 @@
                  modèles de backend/tessdata ajoutés au SBOM juste après sa
                  production (même phase, plugin déclaré après). Node requis,
                  comme pour le front ; -Dged.sbom.completer.skip=true pour s'en
-                 passer (SBOM alors incomplet). -->
+                 passer (SBOM alors incomplet). Hors ligne (mvn -o), CycloneDX
+                 ne produit rien : l'outil avertit (« SBOM INCOMPLET ») sans
+                 faire échouer la construction, sauf en CI (variable CI) où
+                 l'absence du SBOM reste une erreur (DEPLOIEMENT.md §3.1). -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -340,6 +343,7 @@
                                 <argument>${project.build.directory}/bom.xml</argument>
                                 <argument>--tessdata</argument>
                                 <argument>${project.basedir}/tessdata</argument>
+                                <argument>--maven-hors-ligne=${settings.offline}</argument>
                             </arguments>
                         </configuration>
                     </execution>
