@@ -147,3 +147,85 @@ place, comme aux vagues précédentes. Aucun processus d'un autre membre n'a ét
 - **Lignes « Livré »** : T-028 peut passer « Vérifié » (corpus généré ; Q09, QR8 ouverts) ; T-070 reste « Livré »
   (secret NVD, ANO-E0-004) ; T-089 reste « Livré (procédure) » (Q19).
 - **À lire sur GitHub** : cause de l'échec du job back-end de la CI à `a7343b8` (O1).
+
+## 12. Tour 5 : vérification courte (03/10/2026)
+
+Exécutée par qa sur `ct/qa-r5`, créée depuis `claude/inspiring-lovelace-10bg1c` (**af8ca2f** : tour 5 intégré —
+`c1126de` fusion de ct/dev3-r5 (`cf1261f`, ANO-E6-002), `69cfe41` fusion de ct/dev4-r5 (`620408b`, ANO-E0-004),
+`c48dbfb` fusion de ct/dev2-r5 (`c0c51f9`, `fc97877`, CI back), `af8ca2f` suivi de pm). Aucun code applicatif modifié.
+
+Environnement : JAR construit par `mvn -o package` sur `af8ca2f` (avertissement « SBOM INCOMPLET » attendu hors
+ligne) ; instance **A** sur `ged_qa` (profil dev, 18084/18094, aucun changeset à appliquer), clamd 1.5.4 réel
+(13394), Tesseract réel, annuaire UnboundID embarqué (simulé) ; Node 24.21.0 / npm 11.19.0 de l'équipe pour le
+front ; CI GitHub lue par `gh api` et par l'outil MCP GitHub (journal du job back).
+
+### 12.1 Revérification des anomalies « Corrigée »
+
+| Anomalie | Correctif | Recette rejouée | Constat | Verdict |
+|---|---|---|---|---|
+| ANO-E6-002 (T-115) | cf1261f (dev3) | `qa/r5/ref-longue.sh` (script du tour 4 rejoué tel quel sur l'instance A) ; `qa/r5/ref-limite.sh` (nouveau : bornes 255 / 256 sous plan manuel) ; journal de l'instance ; lecture de `document.reference` en base | **Plan manuel, 300 caractères** : dépôt **202** `A_INDEXER`, `motifIndexation` = « Métadonnées non enregistrées : Le champ « référence composée du document » ne peut pas dépasser 255 caractères (reçu : 300) : raccourcissez les valeurs d'index qui la composent. » — **plus aucun texte SQL** (au tour 4 : requête `update document set …` complète) ; `PUT /indexation/documents/{id}` même valeur → **400 `DONNEE_REFUSEE`**, même message ; 200 caractères → 200, `INDEXE`. **Plan automatique** inchangé : 202 `A_INDEXER`, motif « nom composé du document … (reçu : 300) », PUT → 400 `REQUETE_INVALIDE`, 200 caractères → `INDEXE`. **Bornes** (plan manuel) : 255 caractères → 202 `INDEXE`, `length(reference) = 255` en base ; 256 → 202 `A_INDEXER`, motif métier « (reçu : 256) ». Journal : **0** `SqlExceptionHelper`, **0** « value too long » ; un WARN `DepotService` par dépôt refusé, au motif métier (pile de l'exception métier jointe, aucun SQL) | **Vérifiée (cf1261f)** |
+| ANO-E0-004 (T-070) | 620408b (dev4) | `npm audit --omit=dev --audit-level=high` (registre réel) ; `ng version`, `ng build`, `ng test --watch=false` ; `node --test outils/tests/versions-angular.test.mjs` ; CI GitHub (`gh api …/actions/runs?branch=claude/inspiring-lovelace-10bg1c`, jobs, étapes, artefacts) | Audit : **code 0, « found 0 vulnerabilities »** (au tour 4 : code 1, 1 haute + 6 moyennes). `ng version` : CLI, core et router **22.2.1**. `ng build` vert (avertissements de budget connus) ; `ng test` **196/196** (44 fichiers) ; garde de versions 3/3. Audit complet (outillage compris) : 1 haute, 2 moyennes, toutes hors paquet livré (`undici` via `jsdom`, `vitest`) — conforme à `VULNERABILITES-DEPENDANCES.md` §3. CI : exécution **37128015054** (`af8ca2f`), job « Front-end (tests, paquet, SBOM, audit) » **vert**, étape 9 « Audit des dépendances livrées » `success`, étapes d'archivage `success` ; artefacts `frontend-paquet`, `sbom-frontend`, `rapport-npm-audit` présents ; déjà vert sur 37127411511 (`69cfe41`) | **Vérifiée (620408b)** |
+
+### 12.2 CI GitHub sur la tête (`af8ca2f`)
+
+| Exécution | Commit | Back-end | Front-end | Registre et licences | OWASP |
+|---|---|---|---|---|---|
+| 37128015054 | `af8ca2f` (tête, contient `c0c51f9` et `fc97877`) | **vert** (étape « Compiler, tester, construire le JAR et le SBOM » `success` ; artefacts `backend-jar`, `sbom-backend`, `rapports-tests-backend`) | vert | **vert** | rouge, échec volontaire : annotation « Ni variable NVD_DATAFEED_URL ni secret NVD_API_KEY » ; étape « Contrôler la chaîne d'analyse (miroir synthétique) » `success` |
+| 37127411511 | `69cfe41` (avant les correctifs de dev2) | rouge | vert | sauté | rouge (idem) |
+| 37124893548 … 37126645378 | `a7343b8` … `4090da3` | rouge | rouge | sauté | rouge |
+
+Le job back est **revenu au vert** à la première exécution qui contient les correctifs de dev2 : aucune anomalie
+ouverte. Journal du job (outil MCP `get_job_logs`, fin du journal) : les seules `ERROR` sont celles du journal du
+service PostgreSQL provoquées volontairement par les tests (gardes de retour arrière, journal d'audit en ajout seul,
+version en lecture seule, contrainte `ck_notification_type`) ; aucune « remaining connection slots are reserved »
+dans les 150 dernières lignes lues (pas de lecture intégrale possible). Le décompte des tests de la CI n'est pas lisible ici (journal complet et artefacts servis par un
+hôte que le client `gh` du poste refuse).
+
+### 12.3 Suite automatisée
+
+`mvn -B -q -o test` sur `ged_qa_test`, instance A arrêtée, pool Hikari de 3 : **693 tests, 0 échec, 0 erreur, 0 ignoré (116 classes, 3 min 04 s)**. Référence du tour 4 :
+687 tests verts ; les nouveaux viennent du tour 5 (`DepotDeuxTempsApiTest.planManuelValeurTropLongue`,
+`DepotServiceMotifTest`).
+Front : voir 12.1 (`ng build` vert, `ng test` 196/196).
+
+### 12.4 Observations (sans anomalie)
+
+- **O1** — `docs/securite/VULNERABILITES-DEPENDANCES.md` §4 décrit encore le job back « rouge depuis `a7343b8` …
+  à confirmer par la prochaine exécution » et le job front « retour au vert à constater » : l'exécution 37128015054
+  (`af8ca2f`) les confirme tous deux. À mettre à jour par dev2 (T-070, document).
+- **O2** — Une même valeur trop longue est refusée en **400** sous les deux chartes, mais avec deux codes :
+  `DONNEE_REFUSEE` (plan manuel, « référence composée ») et `REQUETE_INVALIDE` (plan automatique, « nom composé »).
+  Message métier clair dans les deux cas ; à harmoniser éventuellement au contrat (pas d'exigence du V3 en cause).
+- **O3** — Depuis `cf1261f`, chaque dépôt dont le temps 2 est refusé pour une raison **métier** écrit au journal un
+  WARN avec la pile complète de l'exception (une vingtaine de lignes) : utile pour les pannes techniques, bruyant
+  pour un refus de saisie attendu. Sans effet fonctionnel.
+
+### 12.5 Avis sur les lignes du suivi
+
+- **T-115 peut remonter « Identique »** : seule ANO-E6-002 l'avait fait redescendre (vague 11) ; elle est vérifiée,
+  et la ligne avait été relue conforme au §12.11 par pm (temps 1 et 2 séparés, issues `INDEXE`, `SANS_PLAN`,
+  `A_INDEXER` et reprise, 202, rejeu sans effet) avec des composants réels (clamd, Tesseract, PostgreSQL 16).
+- **T-070 peut passer « Vérifié »** (pas au-delà) : ANO-E0-004 est vérifiée ; le contrôle npm tourne réellement à
+  chaque construction et bloque à « haute » (prouvé en rouge du 01/10 au 03/10, en vert depuis `69cfe41`), son
+  rapport est archivé (`rapport-npm-audit`) ; la chaîne Dependency-Check (seuil CVSS ≥ 7, rapports, suppression
+  datée) est éprouvée sur miroir synthétique (vague 9) et rejouée à chaque exécution de la CI (étape verte) ; le
+  délai de correction est documenté (`VULNERABILITES-DEPENDANCES.md`). **Partie non exercée** : l'analyse réelle des
+  dépendances Java n'a jamais tourné (secret `NVD_API_KEY` absent : MMED / administrateur du dépôt) — elle laisse la
+  ligne à « Vérifié » ; « Identique » après une exécution réelle du job OWASP en CI.
+
+### 12.6 Scripts de recette (bloc-notes de qa, `qa/r5/`)
+
+`ref-longue.sh` (tour 4, chemins mis à jour), `ref-limite.sh` (nouveau), `lancer-instance.sh`, `instance.sh`,
+`arreter.sh`, `jeton.sh`, `front.sh` (`ng version`, `ng build`, `ng test`, audit complet), `mvn-test.sh` ; sorties
+`ref-longue.txt`, `ref-limite.txt`, `npm-audit.txt`, `npm-audit-complet.json`, `ng-build.log`, `ng-test.log`,
+`mvn-test.log`.
+
+### 12.7 Fin du tour
+
+Instance A et clamd arrêtés par qa ; aucun processus d'un autre membre touché ; PostgreSQL partagé jamais arrêté.
+Données ajoutées à `ged_qa` (espaces, index, plans et types `QA-R5…` / `R5L…`, documents `qa-R5…`) laissées en place,
+comme aux vagues précédentes.
+
+**Synthèse** : ANO-E6-002 et ANO-E0-004 **vérifiées** ; aucune anomalie nouvelle ; CI GitHub verte sur `af8ca2f`
+pour le back, le front et le registre (OWASP en échec volontaire, secret NVD) ; T-115 → « Identique » ; T-070 →
+« Vérifié ».

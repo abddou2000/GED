@@ -2,6 +2,13 @@
 
 ## Lot en cours
 
+Tour 5 (`ct/qa-r5` depuis `af8ca2f`) : vérification courte. ANO-E6-002 (`cf1261f`) **vérifiée** (plan manuel,
+300 caractères → 202 `A_INDEXER` avec motif métier, aucun texte SQL ; bornes 255 acceptée / 256 refusée ; 0 erreur
+SQL au journal) ; ANO-E0-004 (`620408b`) **vérifiée** (Angular 22.2.1, `npm audit --omit=dev --audit-level=high`
+code 0, `ng test` 196/196, job front de la CI vert). CI GitHub verte sur `af8ca2f` pour le back (correctifs de dev2),
+le front et le registre ; OWASP en échec volontaire (secret NVD). Suite back locale : 693 tests, 0 échec. Avis : T-115 →
+« Identique », T-070 → « Vérifié ». Aucune anomalie nouvelle ; trois observations (`RESULTATS-VAGUE-11.md` §12).
+
 Vague 11 (tour 4, `ct/qa-r4` depuis `a7343b8`) : vérification finale. ANO-E7-007 (`e16eb01`) et ANO-E10-009
 (`1068003`) **vérifiées** (plans parallèles forcés sur 100 000 documents, bout en bout 14/14 en 200 ; script NGINX
 en code 0 sans IPv6). Lignes rejouées : T-104, T-050, P-08, P-05 → « Identique » proposé ; T-006, T-088
@@ -94,9 +101,8 @@ Non conforme : 4.2.2 montée sur base peuplée (ANO-E1-006), D8 création de rè
 
 ## Ce qui reste
 
-- Tour suivant : revérifier ANO-E6-002 (`qa/r4/ref-longue.sh` : plan manuel, valeur de 300 caractères → motif
-  métier, aucun texte SQL) et ANO-E0-004 (`npm audit --omit=dev --audit-level=high` code 0, job front de la CI vert) ;
-  lire la cause de l'échec du job back-end de la CI à `a7343b8` (O1 de la vague 11) ; ANO-F-011 (volet « paramètre
+- Fait au tour 5 : ANO-E6-002 et ANO-E0-004 vérifiées, CI back revenue au vert (`af8ca2f`). Reste :
+  `VULNERABILITES-DEPENDANCES.md` §4 à mettre à jour par dev2 (O1 du §12) ; ANO-F-011 (volet « paramètre
   inconnu ») à rejouer par qa2 avec le comportement P-08.
 - T-035 : reprise réelle depuis MySQL (volume ~150 000 documents) à la reprise à blanc de la Phase 7 ; le
   mécanisme est éprouvé sur 80 versions (vague 10).
