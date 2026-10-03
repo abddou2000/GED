@@ -229,3 +229,113 @@ comme aux vagues précédentes.
 **Synthèse** : ANO-E6-002 et ANO-E0-004 **vérifiées** ; aucune anomalie nouvelle ; CI GitHub verte sur `af8ca2f`
 pour le back, le front et le registre (OWASP en échec volontaire, secret NVD) ; T-115 → « Identique » ; T-070 →
 « Vérifié ».
+
+## 13. Tour 6 : T-025, écart 2 (03/10/2026)
+
+Exécuté par qa sur `ct/qa-r6`, créée depuis `claude/inspiring-lovelace-10bg1c` (**f3ee44d** : fusion de ct/dev1-r6 —
+`173593b` changesets `202610061000` / `202610061010` et code, `28e2489` documentation, `736a47e` journal de dev1).
+Aucun code applicatif modifié ; script de recette ajouté (§13.4). Le réglage de débit OCR de dev3 (`ct/dev3-r6`)
+n'est **pas** fusionné dans la branche d'intégration à `f3ee44d` : non recetté (pm le confiera séparément).
+
+Environnement : base **`ged_qa`** elle-même (base de qa, peuplée : 140 documents, 6 identités, 3 groupes), sauvegardée
+par `pg_dump` avant l'essai (bloc-notes de qa, `qa-r6/ged_qa-avant-r6.dump`) ; montée et retours arrière par l'outil de
+recette `recette/lib/LiquibaseRecette.java` (liquibase-core et pilote du backend livré, hors ligne) en `ged_owner` ;
+JAR construit par `mvn -o package` sur `f3ee44d` (avertissement « SBOM INCOMPLET » attendu hors ligne), profil dev,
+API 18084 / management 18094, base en `ged_app`, annuaire UnboundID embarqué (simulé, port 33394) avec
+`annuaire-dev.ldif` + `recette/donnees/annuaire-recette.ldif` (compte `qanouveau3`, jamais connecté jusqu'ici).
+
+### 13.1 Données préparées dans l'ancien schéma (`groupe_membre.employe_id`)
+
+Phase `preparer` du script, avant la montée (`ged_qa` au changeset `202610051000-1`, 109 changesets) : fiche employé
+« QA Nouveau3 » (sans identité ; son courriel dérivé `qa.nouveau3@marchica.ma` est celui de `qanouveau3` dans
+l'annuaire simulé, donc rattachable à la première connexion), fiche « QAT025 Attente » (sans compte d'annuaire) ;
+appartenances ajoutées : QA Nouveau3, QAT025 Attente et Omar Tazi (fiche reprise sans identité, compte désactivé)
+dans « Lecteurs Comptabilité » (groupe habilité `UTILISATEUR_STANDARD` sur l'espace « Comptabilité »), QAT025 Attente
+aussi dans « Administrateurs GED ». **`groupe_membre` avant : 7 lignes, dont 4 de fiches sans identité.**
+
+### 13.2 Résultats
+
+| Id | Contrôle | Résultat | Constat |
+|---|---|---|---|
+| T025-A1 | (a) montée **réelle** de `ged_qa` | OK | `status` avant : exactement `202610061000-1` et `202610061010-1` en attente ; `update` : 109 → 111 changesets |
+| T025-A2 | (a) `groupe_membre` + `groupe_membre_attente` = lignes d'avant | OK | **3 + 4 = 7** ; l'attente contient exactement les 4 appartenances de fiches sans identité (c'est le contrôle après montée de `DEPLOIEMENT.md` §8) |
+| T025-A3 | (a) chaque appartenance retrouvée | OK | projection (id, groupe, fiche employé) identique avant / après : identité ↔ fiche par `utilisateur.employe_id`, attente avec le **même identifiant de ligne** ; rien de perdu, déplacé ni dédoublé |
+| T025-A4 | (a) schéma après montée | OK | `employe_id` absent de `groupe_membre`, `utilisateur_id` NOT NULL, `uk_groupe_membre_groupe_ged_id_utilisateur_id`, `fk_groupe_membre_utilisateur`, `idx_groupe_membre_utilisateur_id` ; table `groupe_membre_attente` avec `uk_…_groupe_ged_id_employe_id`, `fk_…_groupe_ged`, `fk_…_employe`, `idx_…_employe_id` ; insertion sans `utilisateur_id` refusée (not-null) ; droits de `ged_app` (DML) et `ged_readonly` (SELECT) posés sur la nouvelle table par les privilèges par défaut |
+| T025-A5 | (a) aucune autre table touchée | OK | empreinte md5 du contenu des 62 autres tables identique ; seul `version_habilitations` avance (163 → 165 : déclencheur de `groupe_membre`, effet voulu) |
+| T025-B1 | (b) retour arrière des deux changesets | OK | `rollbackCount 2` (contract puis expand) : 111 → 109 |
+| T025-B2 | (b) contenu après retour arrière | OK | **contenu des 63 tables identique à l'état d'avant la montée** (md5 par table, `groupe_membre` comparé par colonnes nommées) : les 7 appartenances reviennent avec `employe_id` et leur identifiant d'origine ; table d'attente et `utilisateur_id` supprimés |
+| T025-B3 | (b) DDL après retour arrière | AVERT | DDL identique **à l'ordre physique des colonnes près** : `employe_id`, recréé par le retour arrière, devient la dernière colonne de `groupe_membre` (avant : `groupe_ged_id, employe_id, id` ; après : `groupe_ged_id, id, employe_id`). Contraintes, index, clés étrangères et noms identiques ; sans effet (aucune requête ne dépend de la position). Observation O1 |
+| T025-B4 | (b) remontée : contenu | OK | 109 → 111 ; **contenu des 64 tables identique** à l'état d'après la première montée (membres et attente, mêmes identifiants) |
+| T025-B5 | (b) remontée : DDL | OK | `pg_dump -s` normalisé identique à celui d'après la première montée |
+| T025-B6 | (b) la comparaison sait échouer | OK | même comparateur, état d'avant contre état d'après montée : 3 lignes d'empreinte différentes (`groupe_membre`, `groupe_membre_attente`) |
+| T025-C1 | (c) avant la connexion | OK | fiche « QA Nouveau3 » sans identité ; son appartenance à « Lecteurs Comptabilité » en attente (ligne `01a10259-1a90-…`) ; vue de l'Administrateur (`GET /access-groups/{id}`) : la fiche figure dans `pendingUserIds` |
+| T025-C2 | (c) première connexion par l'annuaire simulé | OK | `POST /auth/login` `qanouveau3` → **200** (search-then-bind, profil dev) |
+| T025-C3 | (c) conversion | OK | identité créée **rattachée à la fiche préparée** (courriel dérivé) ; **la même ligne** (`01a10259-1a90-…`) est dans `groupe_membre` avec `utilisateur_id` = la nouvelle identité ; plus rien en attente pour cette fiche ; total membres + attente inchangé (7) ; les 3 autres appartenances attendent toujours ; `version_habilitations` 173 → 174 (cache des droits invalidé). Aucune action de l'Administrateur |
+| T025-C4 | (c) droit du groupe appliqué : accès réel à un document | OK | `/auth/me` : `roles: ["UTILISATEUR_STANDARD"]` (rôle du groupe) ; `GET /documents/01a0f222-479d-…` (« QAE3…-D1-public », espace « Comptabilité ») → **200** |
+| T025-C5 | (c) témoins | OK | même compte, document **PRIVÉ** d'autrui du même espace → 404 (périmètre §12.3 respecté) ; identité sans groupe (`nidrissi`) sur le document public → 404 (l'accès vient bien du groupe) |
+| T025-C6 | (c) droits effectifs (P-22) | OK | `GET /admin/droits-effectifs?utilisateurId=…&documentId=…` → 200 : `UTILISATEUR_STANDARD`, `via: GROUPE`, `viaLibelle: "Lecteurs Comptabilité"`, attribution sur « Comptabilité » ; permissions CONSULTER, DEPOSER, DIFFUSER, MODIFIER, VALIDER |
+| T025-C7 | (c) vue de l'Administrateur après connexion | OK | la fiche quitte `pendingUserIds` et reste dans `users` (identifiant de fiche inchangé : l'écran Angular, non modifié, renvoie ce qu'il a reçu) |
+| T025-D1 | retour arrière **après mise en service** (application arrêtée, une appartenance convertie) | OK | `rollbackCount 2` : les 7 appartenances (1 convertie, 3 réelles d'origine, 3 en attente) reviennent dans `groupe_membre`, projection (id, groupe, fiche) identique ; la convertie désigne la fiche « QA Nouveau3 » |
+| T025-D2 | remontée après mise en service | OK | contenu des 64 tables et DDL identiques à l'état d'avant ce retour arrière |
+
+Bilan du script : monter **5/5**, aller-retour **5 OK, 1 AVERT** (B3), connexion **7/7**, retour-apres-service
+**2/2**. L'application a démarré sur la base montée sans erreur (validation Hibernate du schéma, aucun changeset en
+attente). Le contrôle C6 a été resserré après l'exécution (recherche exacte de `via: GROUPE` et du nom du groupe) et
+validé sur la réponse réelle, conservée (`qa-r6/travail/c6.json`).
+
+### 13.3 Suite automatisée
+
+Tests du lot relus et rejoués sur `ged_qa_test` : `SchemaLiquibaseTest` (11, dont `groupeMembreParIdentite`),
+`AppartenanceIdentiteApiTest` (2), `RepriseDonneesTest` (1), `AccessGroupApiTest` (7), `NotificationsTest` (11),
+`CheminsAccesApiTest` (26) : 58/58. **Suite back complète** (`mvn -o -B test`) : **696 tests, 0 échec, 0 erreur,
+0 ignoré** (117 classes, 2 min 54 s ; 693 au tour 5, + 3 tests du lot). Front non touché par le lot (non rejoué).
+
+### 13.4 Script de recette ajouté
+
+`recette/e1/recette-t025-ecart2.sh` (bash + psql + outil Liquibase de la recette ; aucun Python, D5) : phases
+`preparer`, `monter`, `aller-retour`, `connexion`, `retour-apres-service` ; garde-fou sur le nom de base (préfixe
+`ged_qa`) et refus de la production ; sorties `RESULTAT|…`. Rejouable en UAT sur une copie restaurée de la base
+(`T025_BASE`, compte jamais connecté de l'AD de test dans `T025_COMPTE`, fiche correspondante dans `T025_PRENOM` /
+`T025_NOM`).
+
+### 13.5 Anomalies nouvelles et observations
+
+**Aucune anomalie nouvelle.**
+
+- **O1** (T025-B3) — Après retour arrière, `groupe_membre.employe_id` revient en dernière position physique. Écart de
+  pure présentation du DDL (même schéma, mêmes noms, mêmes contraintes) ; l'aller-retour « update → rollback →
+  update » donne un DDL identique (B5). Rien à corriger.
+- **O2** — `GET /access-groups/{id}` compte dans `users` et `usersCount` les fiches **en attente** (distinguées par
+  `pendingUserIds`) ; l'écran Angular, inchangé, ne les signale pas. Comportement antérieur conservé (avant le lot,
+  ces fiches figuraient déjà comme membres sans pouvoir se connecter) et sans effet sur les droits (C5). Une mention
+  « en attente de première connexion » à l'écran serait plus claire : à apprécier par qa2 / dev4 (aucune exigence du
+  V3 en cause).
+- **O3** — La conversion repose sur le rattachement de l'identité à la fiche reprise par courriel dérivé
+  (`prénom.nom@domaine`, mécanisme antérieur au lot). Si l'AD de MMED donne une autre adresse, ou en cas
+  d'homonymes, une nouvelle fiche est créée et l'appartenance de l'ancienne reste en attente (visible dans
+  `pendingUserIds` ; l'Administrateur peut ajouter la personne à la main). À surveiller à la reprise à blanc (Phase 7).
+- **O4** — Le retour arrière de `202610061000` réintègre l'attente avec `ON CONFLICT DO NOTHING` : une ligne en
+  attente qui doublerait une appartenance réelle de la même fiche dans le même groupe serait écartée sans bruit.
+  Situation non atteignable par l'application (une fiche qui a une identité n'est jamais mise en attente :
+  traduction par `AccessGroupService` ; conversion dans `ServiceIdentites.creer`, unique chemin de création
+  d'identité) et qui ne perdrait aucun droit. Signalée pour mémoire.
+
+### 13.6 Avis sur la ligne du suivi
+
+**T-025 peut passer « Identique ».** Les trois écarts de P2 sont levés : écarts 1 et 3 vérifiés en vague 9 ;
+écart 2 levé par la décision du client du 03/10 et le correctif `173593b`, éprouvé ici sur une base peuplée réelle :
+montée sans perte (membres + attente = lignes d'avant, identifiants conservés), retour arrière des deux changesets et
+remontée sans différence de contenu (y compris après mise en service), conversion automatique à la première
+connexion par l'annuaire simulé avec le droit du groupe réellement appliqué (document lu, témoins refusés, origine
+« groupe » dans les droits effectifs). Schéma documenté régénéré (`SCHEMA-BASE.md` : `groupe_membre.utilisateur_id`,
+`groupe_membre_attente`, contraintes conformes au constat A4). Réserve habituelle, non bloquante : première connexion
+avec un compte de l'AD réel de MMED et rattachement par son courriel (O3), en UAT ou à la reprise à blanc.
+
+### 13.7 Fin du tour
+
+Instance qa arrêtée ; aucun processus d'un autre membre touché ; PostgreSQL partagé jamais arrêté. `ged_qa` laissée
+**à 111 changesets** (lot appliqué), avec les données de recette (`QA Nouveau3`, `QAT025 Attente`, appartenances,
+identité `qanouveau3` désormais consommée) ; sauvegarde d'avant l'essai conservée dans le bloc-notes de qa.
+
+**Synthèse** : T-025 écart 2 vérifié (19 OK, 1 AVERT de présentation) ; suite back 696 tests, 0 échec ; aucune
+anomalie nouvelle ; quatre observations ; avis T-025 → « Identique ».
