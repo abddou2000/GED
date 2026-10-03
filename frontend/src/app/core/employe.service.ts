@@ -10,6 +10,12 @@ export interface Employe {
   fullName: string;
   /** Identité GED de la personne ; absente si elle n'a pas de compte. */
   utilisateurId?: string | null;
+  /**
+   * Identifiant de connexion ; rendu seulement à qui peut consulter le journal
+   * d'audit (CONSULTER_AUDIT : Administrateur, Direction Générale), absent
+   * sinon (ANO-F-036).
+   */
+  identifiant?: string | null;
 }
 
 /**
@@ -20,6 +26,8 @@ export interface Employe {
 export interface Personne {
   utilisateurId: string;
   nom: string;
+  /** Identifiant de connexion, quand le serveur le rend (journal d'audit, ANO-F-036). */
+  identifiant?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -42,13 +50,14 @@ export class EmployeService {
   }
 
   /**
-   * Personnes ayant une identité GED, triées par nom. Un échec rend une liste
-   * vide (les noms retombent alors sur « — »), jamais une erreur.
+   * Personnes ayant une identité GED, triées par nom, avec leur identifiant
+   * de connexion quand le serveur le rend. Un échec rend une liste vide (les
+   * noms retombent alors sur « — »), jamais une erreur.
    */
   personnes(): Observable<Personne[]> {
     return this.listApprovers().pipe(
       map(l => l.filter(e => !!e.utilisateurId)
-        .map(e => ({ utilisateurId: e.utilisateurId!, nom: e.fullName }))
+        .map(e => ({ utilisateurId: e.utilisateurId!, nom: e.fullName, ...(e.identifiant ? { identifiant: e.identifiant } : {}) }))
         .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))),
       catchError(() => of([] as Personne[])),
     );

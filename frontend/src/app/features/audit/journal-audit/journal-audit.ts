@@ -6,14 +6,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
-import { AuthService } from '../../../core/auth.service';
 import { EmployeService } from '../../../core/employe.service';
 import { NotifyService } from '../../../core/notify.service';
 import { messageErreur } from '../../../core/probleme';
 import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
-import { DroitsService, IdentiteAdmin } from '../../administration/droits.service';
 import { AuditService, FiltreAudit, LigneAudit } from '../audit.service';
 
 /** Personne proposée par le filtre « Utilisateur » : son identité GED (UUID), son nom, son identifiant de connexion s'il est connu. */
@@ -50,8 +46,6 @@ export class JournalAudit implements OnInit {
   private service = inject(AuditService);
   private notify = inject(NotifyService);
   private employes = inject(EmployeService);
-  private droits = inject(DroitsService);
-  private auth = inject(AuthService);
 
   readonly RESULTATS = [
     { valeur: '', libelle: 'Tous' },
@@ -95,23 +89,15 @@ export class JournalAudit implements OnInit {
   }
 
   /**
-   * Personnes dotées d'une identité GED (`GET /employes?has_user=1`, ouvert à
-   * tout utilisateur : nom et UUID) ; pour l'Administrateur, l'identifiant de
-   * connexion s'y ajoute (`GET /admin/utilisateurs`, réservé à ce rôle). Un
-   * échec rend la liste plus courte, jamais une erreur.
+   * Personnes dotées d'une identité GED (`GET /employes?has_user=1` : nom et
+   * UUID). Le serveur y ajoute l'identifiant de connexion pour qui peut
+   * consulter le journal (CONSULTER_AUDIT : Administrateur et Direction
+   * Générale, ANO-F-036) : c'est lui que la colonne « Acteur » affiche. Un
+   * échec rend la liste vide, jamais une erreur.
    */
   private chargerUtilisateurs(): void {
-    const identites = this.auth.administrateur()
-      ? this.droits.identites().pipe(catchError(() => of([] as IdentiteAdmin[])))
-      : of([] as IdentiteAdmin[]);
-    forkJoin([this.employes.personnes(), identites]).subscribe(([personnes, comptes]) => {
-      const parId = new Map<string, UtilisateurAudit>();
-      for (const p of personnes) parId.set(p.utilisateurId, { id: p.utilisateurId, nom: p.nom, identifiant: null });
-      for (const c of comptes) {
-        parId.set(c.id, { id: c.id, nom: parId.get(c.id)?.nom ?? c.fullName, identifiant: c.identifiant });
-      }
-      this.utilisateurs.set([...parId.values()].sort((a, b) => a.nom.localeCompare(b.nom, 'fr')));
-    });
+    this.employes.personnes().subscribe(personnes => this.utilisateurs.set(personnes.map(p =>
+      ({ id: p.utilisateurId, nom: p.nom, identifiant: p.identifiant ?? null }))));
   }
 
   /**

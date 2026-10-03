@@ -536,6 +536,7 @@ champs:
   depuis: {description: "Depuis quand l'anomalie est constatée.", exemple: "2026-09-01T00:00:00Z"}
 
 surcharges:
+  EmployeResponse.identifiant: {description: "Identifiant de connexion (sAMAccountName) de la personne, pour filtrer le journal d'audit par acteur. Rendu seulement à qui a la permission CONSULTER_AUDIT (Administrateur, Direction Générale) ; absent sinon, et pour une personne sans compte (ANO-F-036).", exemple: "sbennani"}
   BilanDocument.conforme: {description: "Vrai si tous les fichiers du document sont conformes à leur empreinte.", exemple: true}
   BilanDocument.fichiers: {description: "Résultat par fichier : versions chiffrées, puis copies de conservation.", exemple: null}
   VerificationALaDemandeLigne.statut: {description: "CONFORME, EMPREINTE_DIVERGENTE, ALTERE, ABSENT ou ILLISIBLE ; toute divergence est tracée (INTEGRITE_ANOMALIE).", exemple: CONFORME}
