@@ -84,6 +84,39 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
+### Mise en conformité, tour 10 (branche `ct/dev1-r10`, depuis `claude/inspiring-lovelace-10bg1c` @ `d2bd7dd`)
+
+| Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
+|---|---|---|---|
+| ANO-F-002 (Mineure ; F-09 ; §3.2 p. 7) | **Corrigée (`c0e0d32`, `87d6820`)** | Décision du client du 03/10 : la DG « Consulter et Déposer sur l'intégralité des espaces, sans les permissions de structuration ». Cause : `202609281015-2` livrait `DIRECTION_GENERALE` avec Déplacer, Archiver et Supprimer ; l'accès global (`role.acces_global`) étend à tout nœud les permissions élémentaires du rôle (`ResolveurDroits`), la composition suffit donc. **Back** (`c0e0d32`) : changeset `202610071000_composition_direction_generale.xml` (`data-initial`) : `DELETE` des trois lignes (rôle `…0003`, permissions `…06/07/08`) ; retour arrière explicite qui les remet (`ON CONFLICT … DO NOTHING` : une ligne remise depuis l'écran des rôles est gardée) ; `version_habilitations` incrémenté par le déclencheur, effet immédiat. Les autres permissions de structuration n'étaient pas portées : créer un dossier dans un espace métier, modifier un nœud, déplacer à la racine exigent `GERER_ESPACES` (Administrateur). Composition livrée : Consulter, Déposer, Modifier, Valider, Diffuser, Voir privé, Voir confidentiel, Consulter l'audit (journal et tableaux de bord inchangés). Documentation : matrice des quatre rôles système dans `DEPLOIEMENT.md` §5, note de montée et contrôle SQL, liste des retours arrière sans perte ; `accesGlobal` précisé dans `champs.yml` (OpenAPI) ; javadoc de `Role`. **Front** (`87d6820`) : la liste des documents affichait Supprimer (ligne et sélection), Restaurer et Purger à tous ; ils suivent maintenant `auth.peut('SUPPRIMER')` / `peut('PURGER')`, comme la liste des espaces. La fiche du document (Archiver, emplacements), la fiche du nœud et la liste des espaces lisaient déjà les permissions rendues par le serveur (`/auth/me`, `permissions` des fiches) : rien d'autre à changer. Jeu de démonstration : aucun compte DG (le `demo.interceptor` ne simule que l'Administrateur) ; le persona `qa2dg` de la recette reçoit le rôle par habilitation, sa composition vient du changeset. | `PermissionsLivreesTest.compositionDesRolesSysteme` (composition exacte) — sans le correctif : `expected: <[CONSULTER, DEPOSER, MODIFIER, VALIDER, DIFFUSER, CONSULTER_AUDIT, VOIR_PRIVE, VOIR_CONFIDENTIEL]> but was: <[…, DEPLACER, ARCHIVER, SUPPRIMER, …]>`, vérifié. `CheminsAccesApiTest.directionGeneraleSansStructuration` : consultation 200 et dépôt 201 (accès global), `/auth/me` et fiches document et nœud sans Déplacer/Archiver/Supprimer, 403 sur `PATCH /documents/{id}/emplacement`, `POST /documents/{id}/archivage`, `DELETE /documents/{id}` (y compris un document qu'elle a déposé), `PATCH /workspaces/{id}/parent`, `PATCH /workspaces/{id}/archive`, `DELETE /workspaces/{id}`, `POST /workspaces` sous un espace métier — sans le correctif : `DEPLACER ==> expected: <false> but was: <true>`, vérifié. `SchemaLiquibaseTest.compositionDirectionGenerale` (schéma jetable : 11 → 8 permissions, version des habilitations incrémentée, Agent d'archive intact, retour arrière → 11, remontée → 8) — sans le changeset : erreur (changeset introuvable), vérifié. `ResolveurDroitsTest` : constante DG alignée. Front : `document-list.spec.ts`, 2 tests « ANO-F-002 » (DG : pas de « Supprimer » sur la ligne ni sur la sélection ; avec SUPPRIMER : présents) — sans le correctif : `expected [ 'Téléverser un document', …(12) ] to not include 'Supprimer'`, vérifié. |
+
+Tests : suite back complète à `c0e0d32` (`GED_MANAGEMENT_PORT` et `SERVER_PORT` retirés, base `ged_dev1_test`) —
+**716 tests, 0 échec, 0 erreur, 3 ignorés (119 classes)**, code de sortie 0 ; aucun nouvel échec (2 tests back
+nouveaux). `SchemaLiquibaseTest.groupeMembreParIdentite` supposait que ses deux changesets étaient les derniers
+(`rollback` de « tout ce qui suit », attendu 2) : il ne monte plus que ces deux-là (`update(2)`), sans rien changer
+à ce qu'il vérifie. Front (Node 24) : `ng test --watch=false` **221 tests verts (49 fichiers)** dont 2 nouveaux ;
+`ng build` vert (avertissements de budget déjà présents).
+
+Incident de poste : au début du tour, le serveur PostgreSQL partagé (5432) était **arrêté** (fichier pid périmé,
+dernier message du journal à 20:27, aucun arrêt journalisé : vraisemblablement un redémarrage du conteneur). Je l'ai
+redémarré (`pg_ctlcluster 16 main start`) sans toucher à sa configuration ni à l'authentification.
+
+**Points pour pm** :
+
+1. Arbitrage appliqué au plus près du texte : seules Déplacer, Archiver et Supprimer sont retirées. La DG garde
+   **Modifier, Valider et Diffuser** (« lecture et écriture » du tableau p. 6 ; Valider la fait figurer comme
+   validatrice de circuit, recette F-53 ; ce ne sont pas des permissions de structuration). Si MMED lit « Consulter
+   et Déposer » comme limitatif, un changeset de même forme les retirerait : à confirmer.
+2. Conséquences à annoncer : la DG ne peut plus restaurer depuis la corbeille (Supprimer), ni archiver ou désarchiver
+   un document ou un dossier, ni ranger un document ailleurs qu'entre dossiers d'un même espace d'échange (où Déposer
+   suffit, D12).
+3. Retour arrière : il remet la composition livrée ; si un Administrateur avait lui-même retiré l'une de ces trois
+   permissions avant la montée, le retour arrière la remet aussi (rien n'en garde la trace) — limite assumée, sans
+   perte de données.
+4. À faire rejouer par qa2 : F-09c doit passer de AVERT à OK (`GET /admin/roles` : DG sans structuration, accès global,
+   aucune administration) ; sous qa2dg, la liste des documents n'offre plus « Supprimer », la fiche d'un document
+   n'offre plus « Archiver », les emplacements n'offrent plus le déplacement hors espace d'échange.
+
 ### Mise en conformité, tour 9 (branche `ct/dev1-r9`, depuis `claude/inspiring-lovelace-10bg1c` @ `8b8eb12`)
 
 | Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
