@@ -83,6 +83,17 @@ ged:
       administrateurs: sbennani
 
 spring:
+  # Pools de connexions : Spring garde en cache un contexte par configuration de test
+  # distincte, chacun avec son pool ouvert. Petits pools qui rendent leurs connexions
+  # inactives, et au plus 12 contextes en cache (spring.properties des tests) : la
+  # suite tient dans les 97 connexions du service postgres:16 de la CI
+  # (BudgetConnexionsSuiteTest). Les postes de l'équipe peuvent réduire encore la
+  # taille par SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE (serveur partagé).
+  datasource:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 10000
   # SMTP simulé des tests (GreenMail, sans TLS) : GED_SMTP_PORT_TEST, 3025 par défaut
   # (un port par membre quand plusieurs suites tournent en même temps).
   mail:

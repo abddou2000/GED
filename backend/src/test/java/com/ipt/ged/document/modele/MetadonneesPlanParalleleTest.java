@@ -143,20 +143,46 @@ class MetadonneesPlanParalleleTest {
                 s.execute("SET LOCAL max_parallel_maintenance_workers = 2");
                 s.execute("SET LOCAL maintenance_work_mem = '256MB'");
                 for (String r : PLAN_PARALLELE) s.execute(r);
+                // Fonds d'un millier de documents sans métadonnée (annulés avec la transaction) :
+                // la table a la taille qu'elle a en CI selon l'ordre des classes, quel que soit
+                // ce qui y reste des tests précédents.
+                s.execute("INSERT INTO document (id, name, noeud_principal_id, type_document_id)"
+                        + " SELECT gen_random_uuid(), 'ano-e7-007-fonds-' || g, d.noeud_principal_id, d.type_document_id"
+                        + " FROM (SELECT * FROM document WHERE type_document_id = '" + type + "' LIMIT 1) d,"
+                        + " generate_series(1, 1000) g");
                 // Tels que DEPLOIEMENT.md §8 les écrit (le code du champ en constante).
                 s.execute("CREATE INDEX idx_document_meta_date_ano_e7_007 ON document (meta_date(metadonnees, '"
                         + codeDate + "'))");
                 s.execute("CREATE INDEX idx_document_meta_nombre_ano_e7_007 ON document (meta_nombre(metadonnees, '"
                         + codeNombre + "'))");
                 s.execute("ANALYZE document");
+                // Plan parallèle quelle que soit la taille de la table. Les coûts de parallélisme
+                // à zéro ne suffisent pas : dès quelques pages, l'accès par l'index d'expression
+                // ne coûte presque que des lectures de pages, que le parallélisme ne divise pas,
+                // et à coûts voisins (moins de 1 %) le planificateur garde le plan série
+                // « Index Scan », sans Gather (CI rouge du 03/10). debug_parallel_query fait
+                // exécuter le plan par un worker parallèle sous un Gather, et enable_seqscan = off
+                // fait lire les index d'expression : meta_date et meta_nombre sont bien évaluées
+                // en mode parallèle, ce que l'ancien meta_date (bloc EXCEPTION) refusait.
+                s.execute("SET LOCAL debug_parallel_query = on");
+                s.execute("SET LOCAL enable_seqscan = off");
                 String large = "SELECT count(*) FROM document d WHERE d.type_document_id = '" + type
                         + "' AND meta_date(d.metadonnees, '" + codeDate + "') >= DATE '2022-01-01'";
-                assertTrue(lignes(s, "EXPLAIN " + large).contains("Gather"));
+                String etroite = "SELECT count(*) FROM document d WHERE meta_date(d.metadonnees, '"
+                        + codeDate + "') BETWEEN DATE '2024-02-01' AND DATE '2024-03-01'";
+                String nombre = "SELECT count(*) FROM document d WHERE meta_nombre(d.metadonnees, '"
+                        + codeNombre + "') >= 0";
+                String planLarge = lignes(s, "EXPLAIN " + large);
+                assertTrue(planLarge.contains("Gather"), "plan parallèle attendu :\n" + planLarge);
+                String planEtroite = lignes(s, "EXPLAIN " + etroite);
+                assertTrue(planEtroite.contains("Gather") && planEtroite.contains("idx_document_meta_date_ano_e7_007"),
+                        "index de date lu en plan parallèle :\n" + planEtroite);
+                String planNombre = lignes(s, "EXPLAIN " + nombre);
+                assertTrue(planNombre.contains("Gather") && planNombre.contains("idx_document_meta_nombre_ano_e7_007"),
+                        "index de nombre lu en plan parallèle :\n" + planNombre);
                 assertEquals("5", lignes(s, large));
-                assertEquals("1", lignes(s, "SELECT count(*) FROM document d WHERE meta_date(d.metadonnees, '"
-                        + codeDate + "') BETWEEN DATE '2024-02-01' AND DATE '2024-03-01'"));
-                assertEquals("3", lignes(s, "SELECT count(*) FROM document d WHERE meta_nombre(d.metadonnees, '"
-                        + codeNombre + "') >= 0"));
+                assertEquals("1", lignes(s, etroite));
+                assertEquals("3", lignes(s, nombre));
             } finally {
                 c.rollback();
             }
