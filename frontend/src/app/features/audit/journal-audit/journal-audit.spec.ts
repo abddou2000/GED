@@ -18,6 +18,10 @@ const PAGE_VIDE = { content: [], total: 0, page: 0, size: 50, totalPages: 0 };
  * ANO-F-033 : le filtre « Utilisateur » du journal envoyait le texte saisi au
  * serveur, qui attend l'UUID de l'identité GED (400 « attend un UUID »). On
  * saisit le nom ou l'identifiant de connexion, l'écran envoie l'UUID.
+ *
+ * ANO-F-036 : l'identifiant de connexion vient de `GET /employes`, qui le rend
+ * à qui détient CONSULTER_AUDIT (Administrateur comme Direction Générale) ;
+ * l'écran n'appelle plus `/admin/utilisateurs`, réservé à l'Administrateur.
  */
 describe('JournalAudit — filtre Utilisateur (ANO-F-033)', () => {
   let serveur: HttpTestingController;
@@ -42,23 +46,21 @@ describe('JournalAudit — filtre Utilisateur (ANO-F-033)', () => {
     serveur = TestBed.inject(HttpTestingController);
   }
 
-  /** Écran ouvert, contrôles du formulaire enregistrés (NgForm les ajoute au tour suivant). */
-  async function ouvrir(admin: boolean): Promise<ComponentFixture<JournalAudit>> {
+  /**
+   * Écran ouvert, contrôles du formulaire enregistrés (NgForm les ajoute au
+   * tour suivant). `identifiants` : le serveur rend l'identifiant de connexion
+   * dans `/employes` (appelant titulaire de CONSULTER_AUDIT).
+   */
+  async function ouvrir(identifiants: boolean): Promise<ComponentFixture<JournalAudit>> {
     const f = TestBed.createComponent(JournalAudit);
     f.detectChanges();
+    const ident = (login: string) => (identifiants ? { identifiant: login } : {});
     serveur.expectOne(r => r.url === `${API_BASE}/employes`).flush([
-      { id: 'e1', firstName: 'Sara', lastName: 'Bennani', fullName: 'Sara Bennani', utilisateurId: SARA },
-      { id: 'e2', firstName: 'Karim', lastName: 'El Fassi', fullName: 'Karim El Fassi', utilisateurId: KARIM },
+      { id: 'e1', firstName: 'Sara', lastName: 'Bennani', fullName: 'Sara Bennani', utilisateurId: SARA, ...ident('sbennani') },
+      { id: 'e2', firstName: 'Karim', lastName: 'El Fassi', fullName: 'Karim El Fassi', utilisateurId: KARIM, ...ident('kelfassi') },
       { id: 'e3', firstName: 'Sans', lastName: 'Compte', fullName: 'Sans Compte', utilisateurId: null },
     ]);
-    if (admin) {
-      serveur.expectOne(`${API_BASE}/admin/utilisateurs`).flush([
-        { id: SARA, identifiant: 'sbennani', fullName: 'Sara Bennani', email: null, direction: null, roles: [] },
-        { id: KARIM, identifiant: 'kelfassi', fullName: 'Karim El Fassi', email: null, direction: null, roles: [] },
-      ]);
-    } else {
-      serveur.expectNone(`${API_BASE}/admin/utilisateurs`);
-    }
+    serveur.expectNone(`${API_BASE}/admin/utilisateurs`);
     serveur.expectOne(r => r.url === `${API_BASE}/audit/evenements`).flush(PAGE_VIDE);
     f.detectChanges();
     await f.whenStable();
@@ -117,7 +119,18 @@ describe('JournalAudit — filtre Utilisateur (ANO-F-033)', () => {
     expect(rechercher(f, '')?.params.has('utilisateur')).toBe(false);
   });
 
-  it('Direction Générale (sans /admin) : recherche par le nom, sans appel réservé à l\'Administrateur', async () => {
+  it('ANO-F-036 — Direction Générale : l\'identifiant de connexion lu dans le journal part sous forme d\'UUID', async () => {
+    preparer(['DIRECTION_GENERALE'], ['CONSULTER_AUDIT']);
+    const f = await ouvrir(true);
+    const c = f.componentInstance;
+    c.saisieUtilisateur.set('benn');
+    expect(c.suggestions().map(u => c.libelleUtilisateur(u))).toEqual(['Sara Bennani (sbennani)']);
+    expect(rechercher(f, 'sbennani')?.params.get('utilisateur')).toBe(SARA);
+    expect(rechercher(f, 'KElfassi')?.params.get('utilisateur')).toBe(KARIM);
+    expect(erreurs).toEqual([]);
+  });
+
+  it('sans identifiant rendu par le serveur : recherche par le nom, sans appel réservé à l\'Administrateur', async () => {
     preparer(['DIRECTION_GENERALE'], ['CONSULTER_AUDIT']);
     const f = await ouvrir(false);
     expect(f.componentInstance.utilisateurs().map(u => u.nom)).toEqual(['Karim El Fassi', 'Sara Bennani']);
