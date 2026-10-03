@@ -2,6 +2,16 @@
 
 ## Lot en cours
 
+Tour 8 (`ct/qa-r8` depuis `18d2034`) : vérification d'ANO-E6-003 (`4fc5b95`) et du réglage OCR exposé (`46171b8`).
+`recette/e10/recette-p14-ocr.sh` étendu (ligne « Réglage OCR » et champs `modeles` / `dpi` de `/api/v1/ocr/etat` à
+chaque phase, marques des copies, B3 complétée par dépôt, espion et débit, B4 troisième démarrage, B5 anciennes marques
+`copie`) : essais 1 et 3 **48 OK / 0 ÉCHEC**, essai 2 47 / 1 (contrôle de débit de l'outil sur un appel unique, durci
+ensuite). B3 : conversion refaite dans le même répertoire, sans avertissement, CPU Tesseract de la page 0,89 → 0,61 s
+(= défaut) ; B4 : rien de refait. **ANO-E6-003 vérifiée** ; aucune anomalie nouvelle ; O1 (outil défectueux puis
+réparé : répertoire à vider, non documenté), O2. Suite back : 711 tests, 0 échec, 3 ignorés (cas Tesseract réel
+40/40 à part). Avis : P-14 → « Identique (réserve UAT) » (Q09, débit sur le serveur de MMED).
+`RESULTATS-VAGUE-11.md` §15.
+
 Tour 7 (`ct/qa-r7` depuis `5ceb08c`) : P-14 / R30, réglage de débit OCR de dev3 (modèles compactés en entiers,
 200 dpi). Mesure indépendante (banc réduit adapté : résolution, temps CPU exact, compactage hors application ; graine
 de qa, 30 pages par réglage, deux passes) : **5,20 → 2,86 s par page et par cœur** (11,5 → 21 p/min/cœur), CER français
@@ -76,6 +86,7 @@ contrat §5.3.1, E10/E11 sur papier.
 | Registre des anomalies | `docs/conformite/recette/ANOMALIES.md` | tour 7 : ANO-E6-003 ouverte (mineure, dev3) ; ANO-E6-002 et ANO-E0-004 vérifiées au tour 5 — vague 11 : 44 vérifiées (ANO-E7-007, ANO-E10-009) ; ouvertes : ANO-E6-002 (mineure, dev3), ANO-E0-004 (majeure, dev4/dev2) — avant : 42 vérifiées (vague 10 : ANO-E2-002, ANO-E5-004, ANO-E6-001, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006, ANO-E7-006) ; ouvertes : ANO-E7-007 (majeure, dev1), ANO-E10-009 (mineure, dev2) |
 | E10 exploitation (vague 8) | `recette/e10/` : `verifier-nginx-reel.sh` (NGINX réel, 10/11), `verifier-front-nginx.sh` (23/23), `verifier-annuaire-bascule.sh` + `AnnuaireAutonome.java` (P-02, P-04), `verifier-modules.sh` (T-088, 5/6), `RecetteExploitation.java` (10/11), `RecetteComplementsV8.java` (7 OK, 1 AVERT), `RecetteRotationJournaux.java` (11/11), `sbom-et-licences-hors-ligne.sh`, `banc-ocr-reduit.sh` | voir `RESULTATS-VAGUE-8.md` |
 | E10 sauvegarde et déploiement | `recette/e10-sauvegarde/` : `recette-t073-p13.sh` (33 OK / 3 ÉCHEC), `recette-t092.sh` (tour 2 : 12/12), `recette-ano-e8-004.sh` (tour 2 : 4/4, retour arrière sur copie peuplée), sur PostgreSQL jetable | portables Linux et Git Bash |
+| Tour 8 (vague 11 §15) | `recette/e10/recette-p14-ocr.sh` étendu (réglage OCR au journal et dans `/ocr/etat`, marques, phases B3 complète, B4, B5, débit par rejeux de l'espion) | 48 OK, 0 ÉCHEC (ANO-E6-003 vérifiée) |
 | Tour 7 (vague 11 §14) | `recette/e10/recette-p14-ocr.sh` + `ScanTemoin.java` (P-14 sur l'application démarrée, espion de Tesseract) ; `banc-ocr-reduit.sh` + `BancOcrReduit.java` adaptés (DPI, `GED_BANC_MODELES=entiers`, temps CPU exact) | 27 OK, 1 ÉCHEC (ANO-E6-003) ; banc : 5,20 → 2,86 s par page et par cœur |
 | Tour 6 (vague 11 §13) | `recette/e1/recette-t025-ecart2.sh` (T-025 écart 2 : montée, aller-retour, première connexion, retour après mise en service) | 19 OK, 1 AVERT (ordre physique d'une colonne après retour arrière) |
 | Tour 4 (vague 11) | `recette/e10/verifier-index-expression.sh` complété (I09 plan parallèle forcé, I10 sémantique : 9 OK, 1 AVERT), `recette/e10/RecetteTour4.java` (T-050, P-08 : 11/11), `recette/e10/ecran/recette-p04-ecran.spec.ts` (P-04 à l'écran : 1/1) ; rejoués : `verifier-nginx-reel.sh` 13/13, `demontrer-deploiement.sh` 43/43, `RecetteExploitation` 10/11, banc OCR réduit | voir `RESULTATS-VAGUE-11.md` |
@@ -124,7 +135,7 @@ Non conforme : 4.2.2 montée sur base peuplée (ANO-E1-006), D8 création de rè
 
 ## Ce qui reste
 
-- Tour 7 : vérifier ANO-E6-003 dès sa correction (`recette/e10/recette-p14-ocr.sh`, phases B puis B3) ; en UAT,
+- ANO-E6-003 vérifiée au tour 8. En UAT,
   rejouer `banc-ocr-reduit.sh 6 ara+fra 200` (`GED_BANC_MODELES=entiers`) et `recette-p14-ocr.sh` sur le serveur de
   MMED, puis sur l'échantillon de la Phase 7 (Q09 : arabe dégradé et corps de 8 pt à 200 dpi).
 - Fait au tour 5 : ANO-E6-002 et ANO-E0-004 vérifiées, CI back revenue au vert (`af8ca2f`). Reste :

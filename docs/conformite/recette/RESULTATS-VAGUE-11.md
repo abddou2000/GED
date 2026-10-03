@@ -496,3 +496,123 @@ Mesures brutes dans le bloc-notes de qa (`qa-r7/banc-reduit.txt`, `banc-it.log`,
 qualité tenus ; dans l'application : conversion, repli, retour arrière, dépôt réel recherchable) ; **ANO-E6-003**
 ouverte (mineure, dev3) ; P-14 reste « Vérifié » jusqu'à sa vérification, puis « Identique (réserve UAT) » ; T-028
 reste « Vérifié » (Q09, QR8).
+
+## 15. Tour 8 : vérification d'ANO-E6-003 et du réglage OCR exposé (03/10/2026)
+
+Exécuté par qa sur `ct/qa-r8`, créée depuis `claude/inspiring-lovelace-10bg1c` (**18d2034** : fusion de ct/dev3-r7 —
+`4fc5b95` conversion refaite après repli, `46171b8` réglage OCR journalisé et rendu par `/api/v1/ocr/etat`). Aucun code
+applicatif modifié ; JAR reconstruit à `18d2034` (`mvn -o package`) ; même poste, même instance qa qu'au §14.3 (profil
+dev, base `ged_qa`, API 18084 / management 18094, annuaire simulé 33394, antivirus désactivé), une instance par phase.
+
+### 15.1 Script de recette étendu
+
+`recette/e10/recette-p14-ocr.sh` (cf. §15.5) contrôle désormais, à chaque phase démarrée, la ligne de journal
+« Réglage OCR : modèles … (…), pages PDF rendues à … dpi » (comparée **à l'identique**) et les champs `modeles` et `dpi`
+de `GET /api/v1/ocr/etat`. Phases ajoutées ou complétées :
+
+- **B** : avertissement « (… indisponible) » attendu, marques des copies `repli` ;
+- **B3** (outil rétabli, **même** répertoire de travail que B) : conversion au démarrage sans avertissement, marques
+  `entiers`, copies identiques octet pour octet à une conversion indépendante (`combine_tessdata -c`), dépôt réel → OCR →
+  recherche, espion sur la copie refaite, **débit retrouvé** (CPU de Tesseract sur la page témoin, B / B3 ≥ 1,3) ;
+- **B4** (troisième démarrage, même répertoire) : copies et marques aux dates inchangées, rien de refait ;
+- **B5** : répertoire préparé avec les marques `copie` des versions précédentes (cas d'un répertoire persistant déjà
+  touché par l'ancien JAR) : conversion refaite.
+
+L'espion note le temps CPU exact de chaque appel (`times` du shell : utilisateur + système de Tesseract) et garde l'image
+et les arguments reçus de l'application ; le contrôle de débit prend le **minimum de 5 rejeux** de ces appels (même
+image, mêmes arguments, donc mêmes modèles) pour B, B3 et A, mesurés côte à côte en fin de phase B3.
+
+### 15.2 Résultats
+
+Trois essais complets (16:51-17:01, charge de fond ≈ 2) :
+
+| Essai | Bilan | Constat |
+|---|---|---|
+| 1 | **48 OK, 0 ÉCHEC** | débit mesuré sur l'appel de l'application : B 0,91 s → B3 0,63 s (×1,44) ; A 0,62 s |
+| 2 | 47 OK, **1 ÉCHEC** (outil de recette) | `P14.B3.debit` : B 0,91 s → B3 **0,71 s** (×1,28, seuil 1,3) sur un **appel unique** : la charge d'un autre membre suffit à décaler une mesure de 0,6 s ; toutes les autres lignes OK. Pas un défaut de l'application : `--tessdata-dir` était bien la copie refaite (espion OK), marques `entiers`. Contrôle durci (minimum de 5 rejeux) avant l'essai 3 |
+| 3 | **48 OK, 0 ÉCHEC** | minimum de 5 rejeux : **B 0,89 s → B3 0,61 s (×1,46), A 0,60 s** ; appels de l'application : B 0,90, B3 0,64, A 0,63 s |
+
+Détail de l'essai 3 (les essais 1 et 2 donnent les mêmes constats, hors la ligne de débit de l'essai 2) :
+
+| Id | Contrôle | Résultat | Constat |
+|---|---|---|---|
+| P14.A.journal / reglage / modeles / etat | défaut | OK | « Modèles OCR compactés en entiers dans `<java.io.tmpdir>/ged-tessdata-entiers` : [ara, eng, fra] » puis « Réglage OCR : modèles entiers (`…/ged-tessdata-entiers`), pages PDF rendues à 200 dpi » ; copies identiques à la référence (`ara` `e7d6494e2ef2…`, `fra` `bf83833fa957…`) ; marques `ara`, `eng`, `fra` = `entiers`, `osd` = `non-convertible` ; état `{"modeles":"entiers","dpi":200}` |
+| P14.A.depot / ocr / recherche / espion | dépôt réel | OK | 202 `EN_ATTENTE_OCR`, texte en 5 s, témoins français et arabe trouvés ; copie compactée, `OMP_THREAD_LIMIT=1`, 1653 × 2338 (200 dpi) |
+| P14.A2.reutilisation / reglage | redémarrage | OK | copie non refaite ; réglage `entiers` |
+| P14.B.journal | outil absent | OK | WARN « Aucun modèle OCR compacté en entiers (/inexistant/combine_tessdata indisponible) : modèles précis employés, débit réduit (…) ; conversion refaite au premier démarrage où l'outil sera présent » (le « ? » du tour 7 a disparu) |
+| P14.B.reglage / marques / etat | repli | OK | « Réglage OCR : modèles repli (`…/backend/tessdata`), pages PDF rendues à 200 dpi » ; marques `ara`, `eng`, `fra`, `osd` = `repli` ; état `repli` / 200 |
+| P14.B.depot / ocr / recherche / espion | OCR en repli | OK | texte extrait, témoins trouvés ; modèles livrés, 200 dpi |
+| **P14.B3.reprise** | outil rétabli, même répertoire | **OK** | « Modèles OCR compactés en entiers dans `…/entiers-B` : [ara, eng, fra] », **aucun** avertissement (ÉCHEC au tour 7 : ANO-E6-003) |
+| **P14.B3.modeles** | copies refaites | **OK** | marques `entiers` (`osd` : `non-convertible`), `ara` et `fra` identiques à la conversion indépendante |
+| P14.B3.reglage / etat | réglage exposé | OK | « Réglage OCR : modèles entiers (`…/entiers-B`), pages PDF rendues à 200 dpi » ; état `entiers` / 200 |
+| P14.B3.depot / ocr / recherche / espion | dépôt réel après reprise | OK | texte en 6 s, témoins français et arabe trouvés ; `--tessdata-dir` = `…/entiers-B` (copie refaite), 200 dpi |
+| **P14.B3.debit** | débit retrouvé | **OK** | 0,89 → 0,61 s de CPU Tesseract pour la page (×1,46), égal au réglage par défaut (0,60 s). Rapport plus faible que les ×1,82 du banc (§14.1) : la page témoin est courte (664 caractères), le chargement des modèles y pèse davantage ; la mesure compare des réglages, ce n'est pas un débit par page |
+| **P14.B4.reutilisation** | 3e démarrage, même répertoire | **OK** | 8 fichiers (copies et marques) aux dates inchangées, `osd` non réessayé ; réglage `entiers`, état `entiers` / 200 |
+| **P14.B5.ancienne-marque** | marques `copie` d'avant le correctif | **OK** | conversion refaite (`ara`, `eng`, `fra` = `entiers`, `osd` = `non-convertible`), copies identiques à la référence ; réglage `entiers` |
+| P14.B2.journal / reglage / etat | répertoire inutilisable (`/proc/…`) | OK | WARN « Répertoire des modèles compactés … inutilisable … : modèles précis employés » ; réglage `repli` (modèles livrés), état `repli` / 200 |
+| P14.C.journal / reglage / etat | `precis`, 300 dpi | OK | aucune conversion ; « Réglage OCR : modèles precis (`…/backend/tessdata`), pages PDF rendues à 300 dpi » ; état `precis` / 300 |
+| P14.C.depot / ocr / recherche / espion | retour arrière | OK | texte en 7 s, témoins trouvés ; modèles livrés, 2480 × 3507 (300 dpi) |
+| P14.D.refus | `GED_OCR_MODELES=rapide` | OK | démarrage refusé en 12 s, motif explicite |
+| P14.livres | modèles livrés | OK | 4 empreintes inchangées |
+
+Démarrage : 14 à 15 s par phase, conversion comprise (B3, B5), comme sans conversion. `ged_qa` reçoit 12 documents de
+recette (`qa-p14-*`, 4 par essai).
+
+### 15.3 Suite automatisée
+
+**Suite back complète** à `18d2034` (`mvn -o -B test` sur `ged_qa_test`, sans `GED_MANAGEMENT_PORT` ni `SERVER_PORT`,
+sans `GED_TESSERACT`, après l'arrêt des instances de recette) : **711 tests, 0 échec, 0 erreur, 3 ignorés** (2 min 58 s ;
+705 au tour 7, comme annoncé par dev3). Les 3 ignorés sont les cas à Tesseract réel de `ReglageDebitOcrTest` (1) et
+`ModelesEntiersTest` (2), rejoués à part avec `GED_TESSERACT=/usr/bin/tesseract` : `ReglageDebitOcrTest` 7/7,
+`ModelesEntiersTest` 7/7 (dont `outilRetabli`, `ancienneMarqueCopie`, `disponibilite`), `MoteurTesseractTest` 8/8,
+`ExtracteurDocumentOcrTest` 10/10, `OcrApiTest` 8/8 (champs `modeles` et `dpi`) : **40/40**. Front non touché par le
+lot (non rejoué).
+
+### 15.4 Cas résiduel exercé à part (observation)
+
+dev3 signale (suivi, point 2) qu'un `combine_tessdata` présent mais **défectueux** (il démarre, puis refuse tout) marque
+les modèles `non-convertible`, sans nouvel essai. Exercé directement sur `ModelesEntiers.preparer` (classes de
+`18d2034`, `qa-r8/OutilDefectueux.java`) : `/bin/false` → « Aucun modèle OCR convertible en entiers par /bin/false »,
+marques `non-convertible` ; puis, même répertoire, le vrai `/usr/bin/combine_tessdata` (deux fois) → toujours `repli`,
+« Aucun modèle OCR convertible en entiers par /usr/bin/combine_tessdata » alors que cet outil convertit ces modèles.
+Une saturation du disque, autre cause plausible, ne mène **pas** à ce cas (essai sur un tmpfs de 14 Mo,
+`qa-r8/disque-plein.sh`) : la copie d'un modèle échoue avant l'outil, l'application passe par « Répertoire des modèles
+compactés … inutilisable » et emploie les modèles livrés ; aucune marque n'est écrite pour le modèle en cause.
+
+- **O1** — Le cas « outil défectueux puis réparé » reste figé (contournement : vider le répertoire de travail), alors que
+  `DEPLOIEMENT.md` § 3.2 dit « inutile de vider le répertoire de travail » (vrai pour l'outil absent, le seul cas
+  courant). Une phrase dans `EXPLOITATION.md` § 2 (« si l'avertissement dit "Aucun modèle OCR convertible" après
+  réparation de l'outil : vider le répertoire de travail et redémarrer ») suffirait. Pas d'anomalie : cas improbable
+  (binaire du paquet `tesseract-ocr`), message qui nomme l'outil, OCR assuré au débit d'avant R30 ; déjà déclaré par
+  dev3.
+- **O2** — Un contrôle de débit sur une page est sensible à la charge du poste s'il porte sur un appel unique
+  (essai 2) : en UAT, s'en tenir au minimum des rejeux, ou au banc réduit pour un débit par page.
+
+### 15.5 Script de recette
+
+`recette/e10/recette-p14-ocr.sh` (étendu) : contrôles « Réglage OCR » et `modeles` / `dpi` à chaque phase, marques des
+copies, phases B4 et B5, phase B3 complétée (copies, dépôt, espion, débit), temps CPU et rejeux de l'espion. Toujours
+rejouable en UAT (mêmes variables). Bilan attendu : 48 lignes OK.
+
+### 15.6 Avis sur les lignes du suivi
+
+- **ANO-E6-003** — **Vérifiée** (`4fc5b95`, `46171b8`) : l'outil rétabli, la conversion est refaite au redémarrage
+  suivant dans le même répertoire, sans avertissement, et le débit des modèles compactés est retrouvé ; troisième
+  démarrage sans reconversion ; anciennes marques `copie` reprises ; réglage employé lisible au journal et par l'API.
+- **P-14** — Plus aucune anomalie ouverte sur ce réglage ; les mesures du §14 (2,86 s par page et par cœur, seuils du
+  §4.3.2 tenus) et le bout en bout sur l'application démarrée restent acquis à `18d2034` (aucune régression sur trois
+  essais). **P-14 peut passer « Identique (réserve UAT) »**, réserve : échantillon de la Phase 7 (Q09 : CER réel, arabe
+  dégradé, tampons, manuscrit, corps de 8 pt à 200 dpi) et débit remesuré sur le serveur de MMED
+  (`banc-ocr-reduit.sh 6 ara+fra 200` avec `GED_BANC_MODELES=entiers`, puis `recette-p14-ocr.sh`). O1 ne s'y oppose pas
+  (observation de documentation).
+- **T-028** — inchangée : « Vérifié », bloquée par Q09 et QR8.
+
+### 15.7 Fin du tour
+
+Instances qa arrêtées (une par phase, chacune arrêtée en fin de phase) ; aucune instance d'un autre membre touchée
+(l'instance de démonstration, 18085 / 4385, n'a pas été approchée) ; PostgreSQL partagé jamais arrêté ; tmpfs d'essai
+démonté. Mesures brutes dans le bloc-notes de qa (`qa-r8/p14-app-1.txt` à `-3.txt`, `p14-1/` à `p14-3/`,
+`defectueux.txt`, `suite.log`, `cibles.log`).
+
+**Synthèse** : ANO-E6-003 **vérifiée** ; réglage OCR exposé (journal, `/api/v1/ocr/etat`) conforme à l'annonce de dev3
+dans toutes les phases ; aucune anomalie nouvelle, deux observations ; P-14 → « Identique (réserve UAT) » proposé.

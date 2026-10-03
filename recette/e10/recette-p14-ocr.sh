@@ -12,8 +12,13 @@
 #   A  défaut         (aucune variable GED_OCR_*) : conversion au démarrage, modèles entiers, 200 dpi
 #   A2 redémarrage    copie compactée réutilisée (non refaite)
 #   B  repli          GED_OCR_COMBINE_TESSDATA vers un chemin inexistant : avertissement, OCR fonctionnel
-#   B3 outil rétabli  même répertoire de travail que B, outil par défaut : la conversion doit se faire
+#   B3 outil rétabli  même répertoire de travail que B, outil par défaut : la conversion doit se faire,
+#                     dépôt, débit retrouvé (CPU Tesseract d'une page, B / B3 ≥ 1,3) (ANO-E6-003)
+#   B4 3e démarrage   même répertoire : rien de refait (dates et marques inchangées)
+#   B5 ancienne marque marques « copie » d'avant 4fc5b95 : conversion refaite, outil présent
 #   B2 répertoire     répertoire de la copie impossible à créer : avertissement, modèles livrés
+# Tour 8 : à chaque phase démarrée, ligne « Réglage OCR : modèles … (…), pages PDF rendues à … dpi » du journal
+# et champs modeles / dpi de GET /api/v1/ocr/etat (46171b8) ; l'espion note aussi le temps CPU de Tesseract.
 #   C  retour         GED_OCR_DPI=300 et GED_OCR_MODELES=precis : modèles livrés, 300 dpi
 #   D  valeur refusée GED_OCR_MODELES=rapide : démarrage refusé
 #
@@ -52,8 +57,12 @@ if [[ "\$1" == stdin ]]; then
   f="\$(mktemp "$W/tmp/espion.XXXXXX")"; cat > "\$f"
   d="\$(file -b "\$f" | grep -o '[0-9]* x [0-9]*' | head -1)"
   td=""; prev=""; for x in "\$@"; do [[ "\$prev" == --tessdata-dir ]] && td="\$x"; prev="\$x"; done
-  echo "\$(date +%s)|\${ESPION_PHASE:-?}|tessdata=\$td|omp=\${OMP_THREAD_LIMIT:-}|image=\$d|args=\$*" >> "$W/espion.log"
-  "$TESS" "\$@" < "\$f"; rc=\$?; rm -f "\$f"; exit \$rc
+  "$TESS" "\$@" < "\$f"; rc=\$?
+  # Temps CPU exact de Tesseract (utilisateur + système des processus fils attendus) : builtin times.
+  times > "\$f.t"; cpu="\$(tail -1 "\$f.t" | awk '{s=0; for(i=1;i<=2;i++){split(\$i,a,"m"); sub("s","",a[2]); s+=a[1]*60+a[2]} printf "%.2f", s}')"
+  echo "\$(date +%s)|\${ESPION_PHASE:-?}|tessdata=\$td|omp=\${OMP_THREAD_LIMIT:-}|image=\$d|cpu=\$cpu|args=\$*" >> "$W/espion.log"
+  cp "\$f" "$W/image-\${ESPION_PHASE:-x}"; printf '%s\n' "\$*" > "$W/args-\${ESPION_PHASE:-x}"   # pour rejouer (débit)
+  rm -f "\$f" "\$f.t"; exit \$rc
 fi
 exec "$TESS" "\$@"
 EOF
@@ -63,7 +72,7 @@ ln -sf "$CT" "$W/bin/combine_tessdata"
 # ---- PDF scannés témoins (classpath du back-end, hors ligne)
 (cd "$B" && mvn -o -B -q dependency:build-classpath -Dmdep.outputFile="$W/cp.txt" -Dmdep.includeScope=runtime) \
   || fatal "classpath du backend introuvable hors ligne"
-for p in a b c; do
+for p in a b c d; do
   java -Dfile.encoding=UTF-8 -cp "$(cat "$W/cp.txt")" "$RECETTE_RACINE/e10/ScanTemoin.java" "$W/scan-$p.pdf" \
     "septokarin${p}${MARQUE}" 2>/dev/null || fatal "génération du scan $p"
 done
@@ -163,13 +172,48 @@ espion() {
   fi
 }
 
-etat_ocr() {  # etat_ocr <phase>
+etat_ocr() {  # etat_ocr <phase> <modeles attendus> <dpi attendu> (champs modeles et dpi : tour 8, 46171b8)
   local r; connecter >/dev/null; r="$(get /api/v1/ocr/etat)"
-  if [[ "$(jq -r .moteurDisponible <<<"$r")" == true ]] && jq -e '.languesInstallees | index("ara") and index("fra")' <<<"$r" >/dev/null; then
-    resultat "P14.$1.etat" OK "/api/v1/ocr/etat : moteur disponible, ara et fra installées" "$(jq -c '{moteurDisponible,languesInstallees,langueDefaut}' <<<"$r")"
+  if [[ "$(jq -r .moteurDisponible <<<"$r")" == true ]] && jq -e '.languesInstallees | index("ara") and index("fra")' <<<"$r" >/dev/null \
+     && [[ "$(jq -r .modeles <<<"$r")" == "$2" && "$(jq -r .dpi <<<"$r")" == "$3" ]]; then
+    resultat "P14.$1.etat" OK "/api/v1/ocr/etat : moteur disponible, ara et fra installées, modeles=$2, dpi=$3" "$(jq -c '{moteurDisponible,languesInstallees,langueDefaut,modeles,dpi}' <<<"$r")"
   else
-    resultat "P14.$1.etat" ECHEC "/api/v1/ocr/etat" "$r"
+    resultat "P14.$1.etat" ECHEC "/api/v1/ocr/etat : modeles=$2, dpi=$3 attendus" "$r"
   fi
+}
+
+reglage() {  # reglage <phase> <modeles> <répertoire> <dpi> : ligne « Réglage OCR » du journal de démarrage (46171b8)
+  local l att="Réglage OCR : modèles $2 ($3), pages PDF rendues à $4 dpi"
+  l="$(grep -a -o 'Réglage OCR : .*' "$W/app-$1.log" | head -1)"
+  if [[ "$l" == "$att" ]]; then resultat "P14.$1.reglage" OK "journal : réglage OCR employé" "$l"
+  else resultat "P14.$1.reglage" ECHEC "journal : « $att » attendu" "${l:-ligne absente}"; fi
+}
+
+marques() {  # marques <répertoire> : « ara=entiers fra=entiers … » (modes écrits à côté des copies)
+  local f d=""
+  for f in "$1"/*.traineddata.source-sha256; do [[ -f "$f" ]] && d+="$(basename "$f" .traineddata.source-sha256)=$(cut -d' ' -f2 "$f") "; done
+  echo "${d% }"
+}
+
+cpu() {  # cpu <phase> : temps CPU de Tesseract (s) au dernier appel OCR de la phase
+  grep "|$1|" "$W/espion.log" 2>/dev/null | tail -1 | grep -o 'cpu=[0-9.]*' | cut -d= -f2
+}
+
+rejouer() {  # rejouer <phase> : CPU minimal (s) de 5 appels de Tesseract avec l'image et les arguments reçus de l'application
+  local i c best="" args
+  [[ -f "$W/image-$1" && -f "$W/args-$1" ]] || return 0
+  read -r -a args < "$W/args-$1"
+  for i in 1 2 3 4 5; do
+    c="$( ( OMP_THREAD_LIMIT=1 "$TESS" "${args[@]}" < "$W/image-$1" > /dev/null 2>&1; times ) | tail -1 \
+         | awk '{s=0; for(i=1;i<=2;i++){split($i,a,"m"); sub("s","",a[2]); s+=a[1]*60+a[2]} printf "%.2f", s}')"
+    [[ -z "$best" ]] || awk -v c="$c" -v b="$best" 'BEGIN{exit !(c < b)}' && best="$c"
+  done
+  echo "$best"
+}
+
+empreintes_ok() {  # empreintes_ok <répertoire> : ara et fra identiques à la conversion indépendante
+  local m
+  for m in ara fra; do cmp -s "$1/$m.traineddata" "$W/reference/$m.traineddata" || return 1; done
 }
 
 ENT="$W/tmp/ged-tessdata-entiers"
@@ -182,6 +226,7 @@ if demarrer A; then
   else
     resultat P14.A.journal ECHEC "démarrage : conversion des modèles au journal" "${l:-ligne absente}"
   fi
+  reglage A entiers "$ENT" 200
   ok=1; d=""
   for m in ara fra; do
     s1="$(sha256sum < "$ENT/$m.traineddata" | cut -c1-64)"; s2="$(sha256sum < "$W/reference/$m.traineddata" | cut -c1-64)"
@@ -189,9 +234,9 @@ if demarrer A; then
     [[ "$s1" == "$s2" && "$e" == "$so entiers" ]] || ok=0
     d+="$m $(wc -c < "$TD/$m.traineddata") -> $(wc -c < "$ENT/$m.traineddata") o, empreinte ${s1:0:12}… (référence ${s2:0:12}…) ; "
   done
-  [[ $ok == 1 ]] && resultat P14.A.modeles OK "copie compactée identique à une conversion indépendante (combine_tessdata -c), empreinte de la source notée" "$d" \
-                 || resultat P14.A.modeles ECHEC "copie compactée identique à une conversion indépendante" "$d"
-  etat_ocr A
+  [[ $ok == 1 ]] && resultat P14.A.modeles OK "copie compactée identique à une conversion indépendante (combine_tessdata -c), empreinte de la source notée" "$d marques : $(marques "$ENT")" \
+                 || resultat P14.A.modeles ECHEC "copie compactée identique à une conversion indépendante" "$d marques : $(marques "$ENT")"
+  etat_ocr A entiers 200
   deposer_et_chercher A "$W/scan-a.pdf" "septokarina$MARQUE"
   espion A "$ENT" 200
   stat -c '%Y' "$ENT/fra.traineddata" "$ENT/ara.traineddata" > "$W/mtime-A"
@@ -208,21 +253,26 @@ if demarrer A2; then
   else
     resultat P14.A2.reutilisation ECHEC "redémarrage : copie compactée réutilisée" "$(paste -sd' ' "$W/mtime-A") / $(paste -sd' ' "$W/mtime-A2")"
   fi
+  reglage A2 entiers "$ENT" 200
 fi
 arreter
 sleep 2
 # ================= B : repli sans combine_tessdata
-if demarrer B GED_OCR_COMBINE_TESSDATA=/inexistant/combine_tessdata GED_OCR_MODELES_ENTIERS_REPERTOIRE="$W/entiers-B"; then
+EB="$W/entiers-B"
+if demarrer B GED_OCR_COMBINE_TESSDATA=/inexistant/combine_tessdata GED_OCR_MODELES_ENTIERS_REPERTOIRE="$EB"; then
   l="$(grep -a 'Aucun modèle OCR compacté' "$W/app-B.log" | head -1)"
-  if [[ "$l" == *WARN* ]]; then
-    resultat P14.B.journal OK "combine_tessdata absent : avertissement au journal, démarrage poursuivi" "$(grep -o 'Aucun modèle.*' <<<"$l" | cut -c1-200)"
+  if [[ "$l" == *WARN* && "$l" == *"/inexistant/combine_tessdata indisponible)"* ]]; then
+    resultat P14.B.journal OK "combine_tessdata absent : avertissement « outil indisponible » au journal, démarrage poursuivi" "$(grep -o 'Aucun modèle.*' <<<"$l" | cut -c1-260)"
   else
-    resultat P14.B.journal ECHEC "combine_tessdata absent : avertissement au journal" "${l:-ligne absente}"
+    resultat P14.B.journal ECHEC "combine_tessdata absent : avertissement « … indisponible) » au journal" "${l:-ligne absente}"
   fi
-  etat_ocr B
+  reglage B repli "$TD" 200
+  mq="$(marques "$EB")"
+  [[ "$mq" == *ara=repli* && "$mq" == *fra=repli* ]] && resultat P14.B.marques OK "copies marquées « repli » (outil indisponible, à refaire)" "$mq" \
+                                                     || resultat P14.B.marques ECHEC "copies marquées « repli »" "$mq"
+  etat_ocr B repli 200
   deposer_et_chercher B "$W/scan-b.pdf" "septokarinb$MARQUE"
   espion B "$TD" 200
-  info "B : contenu du répertoire de travail : $(ls "$W/entiers-B" 2>/dev/null | tr '\n' ' ')"
 else
   resultat P14.B.demarrage ECHEC "démarrage sans combine_tessdata" "$(grep -a -m3 -i 'error\|exception' "$W/app-B.log" | cut -c1-200)"
 fi
@@ -230,13 +280,68 @@ arreter
 sleep 2
 # ================= B3 : outil rétabli (même répertoire de travail que B, combine_tessdata par défaut)
 # Remède documenté (DEPLOIEMENT.md § 3.2, EXPLOITATION.md § 2) : installer combine_tessdata et redémarrer.
-if demarrer B3 GED_OCR_MODELES_ENTIERS_REPERTOIRE="$W/entiers-B"; then
+if demarrer B3 GED_OCR_MODELES_ENTIERS_REPERTOIRE="$EB"; then
   l="$(grep -a 'Modèles OCR compactés en entiers\|Aucun modèle OCR compacté' "$W/app-B3.log" | head -1)"
-  if [[ "$l" == *"Modèles OCR compactés en entiers"*ara*fra* ]]; then
-    resultat P14.B3.reprise OK "outil rétabli : conversion faite au redémarrage suivant" "$(grep -o 'Modèles OCR.*' <<<"$l" | cut -c1-160)"
+  if [[ "$l" == *"Modèles OCR compactés en entiers"*ara*fra* ]] && ! grep -aq 'Aucun modèle OCR' "$W/app-B3.log"; then
+    resultat P14.B3.reprise OK "outil rétabli : conversion faite au redémarrage suivant, sans avertissement" "$(grep -o 'Modèles OCR.*' <<<"$l" | cut -c1-160)"
   else
-    resultat P14.B3.reprise ECHEC "outil rétabli : conversion faite au redémarrage suivant" "$(grep -o 'Modèles OCR.*\|Aucun modèle.*' <<<"$l" | cut -c1-160) ; marques : $(cat "$W"/entiers-B/ara.traineddata.source-sha256 "$W"/entiers-B/fra.traineddata.source-sha256 2>/dev/null | cut -d' ' -f2 | paste -sd' ')"
+    resultat P14.B3.reprise ECHEC "outil rétabli : conversion faite au redémarrage suivant" "$(grep -o 'Modèles OCR.*\|Aucun modèle.*' <<<"$l" | cut -c1-160) ; marques : $(marques "$EB")"
   fi
+  mq="$(marques "$EB")"
+  if [[ "$mq" == *ara=entiers* && "$mq" == *fra=entiers* ]] && empreintes_ok "$EB"; then
+    resultat P14.B3.modeles OK "copies refaites, identiques à la conversion indépendante, marques « entiers »" "$mq"
+  else
+    resultat P14.B3.modeles ECHEC "copies refaites et identiques à la conversion indépendante" "$mq"
+  fi
+  reglage B3 entiers "$EB" 200
+  etat_ocr B3 entiers 200
+  deposer_et_chercher B3 "$W/scan-d.pdf" "septokarind$MARQUE"
+  espion B3 "$EB" 200
+  # Débit : CPU de Tesseract lors de l'appel fait par l'application (une mesure, sensible à la charge du poste),
+  # puis minimum de 5 rejeux du même appel (même image, mêmes arguments, donc mêmes modèles) pour B, B3 et A.
+  cb="$(cpu B)"; c3="$(cpu B3)"; ca="$(cpu A)"
+  rb="$(rejouer B)"; r3="$(rejouer B3)"; ra="$(rejouer A)"
+  if [[ -n "$rb" && -n "$r3" ]] && awk -v b="$rb" -v t="$r3" 'BEGIN{exit !(t > 0 && b / t >= 1.3)}'; then
+    resultat P14.B3.debit OK "débit retrouvé : CPU Tesseract de la page en B3 (entiers) nettement sous celui de B (repli)" "minimum de 5 rejeux : B $rb s -> B3 $r3 s (×$(awk -v b="$rb" -v t="$r3" 'BEGIN{printf "%.2f", b/t}')), A (défaut) $ra s ; appel de l'application : B $cb s, B3 $c3 s, A $ca s"
+  else
+    resultat P14.B3.debit ECHEC "débit retrouvé (rapport B / B3 ≥ 1,3 attendu)" "minimum de 5 rejeux : B ${rb:-?} s, B3 ${r3:-?} s, A ${ra:-?} s ; appel de l'application : B ${cb:-?} s, B3 ${c3:-?} s, A ${ca:-?} s"
+  fi
+  stat -c '%n %Y' "$EB"/*.traineddata "$EB"/*.source-sha256 > "$W/mtime-B3"
+else
+  resultat P14.B3.demarrage ECHEC "démarrage, outil rétabli" "$(grep -a -m3 -i 'error\|exception' "$W/app-B3.log" | cut -c1-200)"
+fi
+arreter
+sleep 2
+# ================= B4 : troisième démarrage, même répertoire, sans reconversion
+if demarrer B4 GED_OCR_MODELES_ENTIERS_REPERTOIRE="$EB"; then
+  stat -c '%n %Y' "$EB"/*.traineddata "$EB"/*.source-sha256 > "$W/mtime-B4"
+  if cmp -s "$W/mtime-B3" "$W/mtime-B4" && grep -aq 'Modèles OCR compactés en entiers' "$W/app-B4.log" && ! grep -aq 'Aucun modèle OCR' "$W/app-B4.log"; then
+    resultat P14.B4.reutilisation OK "troisième démarrage : copies et marques réutilisées, rien de refait (osd non convertible compris)" "$(wc -l < "$W/mtime-B4") fichiers, dates inchangées ; $(marques "$EB")"
+  else
+    resultat P14.B4.reutilisation ECHEC "troisième démarrage : rien de refait" "$(diff "$W/mtime-B3" "$W/mtime-B4" | tr '\n' ' ' | cut -c1-200)"
+  fi
+  reglage B4 entiers "$EB" 200
+  etat_ocr B4 entiers 200
+else
+  resultat P14.B4.demarrage ECHEC "troisième démarrage" "$(grep -a -m3 -i 'error\|exception' "$W/app-B4.log" | cut -c1-200)"
+fi
+arreter
+sleep 2
+# ================= B5 : marque « copie » des versions précédentes (répertoire persistant d'une installation antérieure)
+E5="$W/entiers-B5"; mkdir -p "$E5"
+for f in "$TD"/*.traineddata; do
+  cp "$f" "$E5/"; echo "$(sha256sum < "$f" | cut -c1-64) copie" > "$E5/$(basename "$f").source-sha256"
+done
+if demarrer B5 GED_OCR_MODELES_ENTIERS_REPERTOIRE="$E5"; then
+  mq="$(marques "$E5")"
+  if grep -aq 'Modèles OCR compactés en entiers.*ara.*fra' "$W/app-B5.log" && [[ "$mq" == *ara=entiers* && "$mq" == *fra=entiers* ]] && empreintes_ok "$E5"; then
+    resultat P14.B5.ancienne-marque OK "marque « copie » d'avant la correction : conversion refaite, outil présent" "$mq"
+  else
+    resultat P14.B5.ancienne-marque ECHEC "marque « copie » : conversion refaite" "$(grep -ao 'Modèles OCR.*\|Aucun modèle.*' "$W/app-B5.log" | head -1 | cut -c1-160) ; $mq"
+  fi
+  reglage B5 entiers "$E5" 200
+else
+  resultat P14.B5.demarrage ECHEC "démarrage sur d'anciennes marques" "$(grep -a -m3 -i 'error\|exception' "$W/app-B5.log" | cut -c1-200)"
 fi
 arreter
 sleep 2
@@ -248,7 +353,8 @@ if demarrer B2 GED_OCR_MODELES_ENTIERS_REPERTOIRE=/proc/ged-tessdata-entiers; th
   else
     resultat P14.B2.journal ECHEC "répertoire de la copie inutilisable : avertissement" "${l:-ligne absente}"
   fi
-  etat_ocr B2
+  reglage B2 repli "$TD" 200
+  etat_ocr B2 repli 200
 else
   resultat P14.B2.demarrage ECHEC "démarrage avec un répertoire de copie inutilisable" "$(grep -a -m3 -i 'error\|exception' "$W/app-B2.log" | cut -c1-200)"
 fi
@@ -261,7 +367,8 @@ if demarrer C GED_OCR_DPI=300 GED_OCR_MODELES=precis GED_OCR_MODELES_ENTIERS_REP
   else
     resultat P14.C.journal ECHEC "precis : aucune conversion" "$(grep -a 'Modèles OCR' "$W/app-C.log" | head -1 | cut -c1-200)"
   fi
-  etat_ocr C
+  reglage C precis "$TD" 300
+  etat_ocr C precis 300
   deposer_et_chercher C "$W/scan-c.pdf" "septokarinc$MARQUE"
   espion C "$TD" 300
 else
