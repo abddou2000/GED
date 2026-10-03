@@ -49,6 +49,85 @@ class ModelesEntiersTest {
         assertTrue(p.convertis().isEmpty());
     }
 
+    /**
+     * {@code combine_tessdata} simulé (script POSIX) : compacte tout modèle sauf
+     * {@code osd} (refusé comme le vrai outil, faute de réseau LSTM) et note
+     * chaque conversion demandée dans {@code journal}.
+     */
+    private static String combineSimule(Path dir, Path journal) throws IOException {
+        Path outil = dir.resolve("combine_tessdata");
+        Files.writeString(outil, """
+                #!/bin/sh
+                [ "$1" = "-c" ] || exit 1
+                nom=$(basename "$2")
+                echo "${nom%%%%.*}" >> '%s'
+                case "$nom" in osd.*) exit 1 ;; esac
+                printf 'compacte' > "$2"
+                """.formatted(journal));
+        assertTrue(outil.toFile().setExecutable(true));
+        return outil.toString();
+    }
+
+    private static String marque(Path cible, String langue) throws IOException {
+        return Files.readString(cible.resolve(langue + ".traineddata.source-sha256")).strip().split(" ")[1];
+    }
+
+    @Test
+    @DisplayName("ANO-E6-003 : premier démarrage sans combine_tessdata, outil rétabli ensuite : conversion refaite")
+    void outilRetabli(@TempDir Path dir) throws IOException {
+        assumeTrue(!System.getProperty("os.name").toLowerCase().contains("win"), "outil simulé par un script POSIX");
+        Path s = source(dir, "fra", "osd");
+        Path cible = dir.resolve("entiers");
+        Path journal = dir.resolve("conversions.txt");
+        String combine = combineSimule(dir, journal);
+
+        // Démarrage 1 : outil absent, repli sur les modèles livrés, marques « repli ».
+        ModelesEntiers.Preparation p = ModelesEntiers.preparer(s, cible, dir.resolve("absent").toString());
+        assertEquals(s, p.tessdata());
+        assertEquals("repli", p.mode());
+        assertEquals("repli", marque(cible, "fra"));
+
+        // Démarrage 2, même répertoire, outil rétabli : fra est converti, osd reconnu non convertible.
+        p = ModelesEntiers.preparer(s, cible, combine);
+        assertEquals(cible, p.tessdata());
+        assertEquals(List.of("fra"), p.convertis());
+        assertEquals("entiers", p.mode());
+        assertEquals("compacte", Files.readString(cible.resolve("fra.traineddata")));
+        assertEquals("entiers", marque(cible, "fra"));
+        assertEquals("non-convertible", marque(cible, "osd"));
+        assertEquals(List.of("fra", "osd"), Files.readAllLines(journal).stream().sorted().toList());
+
+        // Démarrage 3 : rien n'est refait, osd n'est pas réessayé.
+        Files.delete(journal);
+        assertEquals(List.of("fra"), ModelesEntiers.preparer(s, cible, combine).convertis());
+        assertFalse(Files.exists(journal), "aucune conversion refaite");
+
+        // Démarrage 4, outil de nouveau absent : la copie compactée reste employée.
+        assertEquals(cible, ModelesEntiers.preparer(s, cible, dir.resolve("absent").toString()).tessdata());
+    }
+
+    @Test
+    @DisplayName("ANO-E6-003 : marque « copie » d'une version précédente refaite quand l'outil est présent")
+    void ancienneMarqueCopie(@TempDir Path dir) throws IOException {
+        assumeTrue(!System.getProperty("os.name").toLowerCase().contains("win"), "outil simulé par un script POSIX");
+        Path s = source(dir, "fra");
+        Path cible = Files.createDirectories(dir.resolve("entiers"));
+        Files.copy(s.resolve("fra.traineddata"), cible.resolve("fra.traineddata"));
+        Files.writeString(cible.resolve("fra.traineddata.source-sha256"),
+                ModelesEntiers.sha256(s.resolve("fra.traineddata")) + " copie\n");
+        ModelesEntiers.Preparation p = ModelesEntiers.preparer(s, cible, combineSimule(dir, dir.resolve("j.txt")));
+        assertEquals(List.of("fra"), p.convertis());
+        assertEquals("entiers", marque(cible, "fra"));
+    }
+
+    @Test
+    @DisplayName("Disponibilité de l'outil : absent, ou présent (mode d'emploi, code 1)")
+    void disponibilite(@TempDir Path dir) throws IOException {
+        assertFalse(ModelesEntiers.outilDisponible(dir.resolve("absent").toString()));
+        assumeTrue(!System.getProperty("os.name").toLowerCase().contains("win"), "outil simulé par un script POSIX");
+        assertTrue(ModelesEntiers.outilDisponible(combineSimule(dir, dir.resolve("j.txt"))));
+    }
+
     @Test
     @DisplayName("Répertoire source illisible : repli sur la source, sans exception")
     void sourceAbsente(@TempDir Path dir) {
