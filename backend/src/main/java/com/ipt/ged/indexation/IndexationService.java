@@ -285,6 +285,7 @@ public class IndexationService {
         List<String> jetons = jetonsDuPlan(plan);
 
         String reference = composerDepuisCharte(plan, jetons, valeurs);
+        if (plan.isManuel()) controlerReferenceManuelle(reference);
         doc.setReference(reference);
 
         // Charte automatique : le nom du document EST la référence composée,
@@ -299,6 +300,25 @@ public class IndexationService {
             doc.setName(reference);
         }
         documentRepository.save(doc);
+    }
+
+    /**
+     * Charte manuelle : le nom saisi reste intact, mais la référence composée
+     * est tout de même enregistrée, dans une colonne de {@value Limites#TEXTE}
+     * caractères. Sans ce contrôle (ANO-E6-002), une valeur d'index longue
+     * n'était refusée que par la base : au dépôt, le texte brut de l'erreur SQL
+     * remontait dans {@code motifIndexation}. Le refus garde le code que la
+     * saisie par l'écran d'indexation renvoyait déjà ({@code DONNEE_REFUSEE},
+     * 400), avec un message qui nomme le champ et sa limite.
+     */
+    private static void controlerReferenceManuelle(String reference) {
+        if (reference != null && reference.length() > Limites.TEXTE) {
+            throw new com.ipt.ged.common.erreur.RequeteInvalideException(
+                    com.ipt.ged.common.erreur.CodesErreur.DONNEE_REFUSEE,
+                    "Le champ « référence composée du document » ne peut pas dépasser " + Limites.TEXTE
+                            + " caractères (reçu : " + reference.length()
+                            + ") : raccourcissez les valeurs d'index qui la composent.");
+        }
     }
 
     /** Identifiant d'index porté par un jeton, ou null si ce n'en est pas un. */

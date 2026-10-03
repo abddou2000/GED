@@ -333,9 +333,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     /**
      * Cause racine ramenée à une phrase. On ne recopie pas le message SQL brut :
-     * il expose le schéma (nom de table, de contrainte) à l'appelant.
+     * il expose le schéma (nom de table, de contrainte) à l'appelant. Partagé
+     * avec le motif d'échec du dépôt en deux temps ({@code DepotService}), pour
+     * qu'un même refus se lise de la même façon par les deux portes.
      */
-    private static String causeLisible(DataIntegrityViolationException ex) {
+    public static String causeLisible(DataIntegrityViolationException ex) {
         Throwable racine = ex.getMostSpecificCause();
         String message = racine.getMessage() != null ? racine.getMessage() : "";
         String bas = message.toLowerCase();
