@@ -14,7 +14,7 @@ import { ColumnPicker } from '../../../core/column-picker/column-picker';
 import { ColonneDef } from '../../../core/column-prefs.service';
 import { AccessGroupService } from '../access-group.service';
 import { AccessGroup } from '../access-group.model';
-import { AccessGroupForm } from '../access-group-form/access-group-form';
+import { AccessGroupForm, LIBELLE_ATTENTE } from '../access-group-form/access-group-form';
 import { ConfirmService } from '../../../core/confirm.service';
 import { NotifyService } from '../../../core/notify.service';
 import { SkeletonTable } from '../../../core/skeleton-table/skeleton-table';
@@ -186,6 +186,11 @@ export class AccessGroupList implements OnInit {
     const a = parts[0]?.[0] ?? '';
     const b = parts.length > 1 ? parts[parts.length - 1][0] : '';
     return (a + b).toUpperCase() || '?';
+  }
+  /** Membre en attente de première connexion (T-025, ANO-F-029) : signalé au survol. */
+  readonly libelleAttente = LIBELLE_ATTENTE;
+  enAttente(g: AccessGroup, id: string): boolean {
+    return (g.pendingUserIds ?? []).includes(id);
   }
   /* Teinte et encre viennent de `core/avatar` : la palette etait recopiee dans
      chaque ecran, et corriger l'un laissait les autres derriere. */

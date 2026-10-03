@@ -1,3 +1,6 @@
 /* Spécifique — Groupes d’accès.
    Page, carte, tableau, barre d’outils et état vide proviennent de
    src/app/core/_ui.scss. */
+
+/* Membre en attente de première connexion (T-025, ANO-F-029) : contour pointillé. */
+.oav.oav-attente { outline: 1.5px dashed var(--ambre); outline-offset: 1px; opacity: .75; }

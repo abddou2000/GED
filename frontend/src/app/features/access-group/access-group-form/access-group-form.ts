@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -15,10 +15,30 @@ interface DialogData {
   group: AccessGroup | null;
 }
 
+/** Personne proposée dans le sélecteur des membres. */
+export interface OptionMembre {
+  /** Identifiant de la fiche employé : c'est lui que porte `userIds`. */
+  id: string;
+  nom: string;
+  /** Pas d'identité GED : membre en attente de première connexion (T-025). */
+  enAttente: boolean;
+}
+
+/** Libellé commun à l'écran pour un membre sans identité GED. */
+export const LIBELLE_ATTENTE = 'en attente de première connexion';
+
 /**
  * Formulaire créer / éditer un groupe d'accès — 2 sections : Identification,
- * Utilisateurs et espaces de travail. Le groupe ne décrit qu'un rattachement : il n'ouvre
- * ni ne ferme aucun droit, l'application n'ayant qu'un seul utilisateur.
+ * Utilisateurs et espaces de travail.
+ *
+ * <p>Membres (T-025, ANO-F-029) : le sélecteur propose toutes les fiches
+ * employé, y compris celles des personnes qui ne se sont encore jamais
+ * connectées ; l'API en fait des membres en attente, convertis à la première
+ * connexion. Un `mat-select` multiple ne renvoie que les valeurs qui ont une
+ * option : un membre absent des options était donc effacé dès que
+ * l'Administrateur cochait ou décochait quelqu'un. Chaque membre actuel du
+ * groupe a donc toujours son option, même si la liste des fiches ne le
+ * contient pas.
  */
 @Component({
   selector: 'app-access-group-form',
@@ -37,10 +57,32 @@ export class AccessGroupForm implements OnInit {
   private ref = inject(MatDialogRef<AccessGroupForm>);
   data = inject<DialogData>(MAT_DIALOG_DATA);
 
+  readonly libelleAttente = LIBELLE_ATTENTE;
   workspaces = signal<SelectOption[]>([]);
   employes = signal<Employe[]>([]);
   loading = signal(false);
   serverError = signal<string | null>(null);
+  /** Membres sélectionnés (identifiants de fiche), suivis pour la liste des membres en attente. */
+  private selection = signal<string[]>([]);
+
+  /** Fiches employé, puis membres actuels du groupe qu'elles ne contiendraient pas. */
+  readonly options = computed<OptionMembre[]>(() => {
+    const liste: OptionMembre[] = this.employes()
+      .map(e => ({ id: e.id, nom: e.fullName, enAttente: !e.utilisateurId }));
+    const connus = new Set(liste.map(o => o.id));
+    const g = this.data.group;
+    const attente = new Set(g?.pendingUserIds ?? []);
+    for (const u of g?.users ?? []) {
+      if (!connus.has(u.id)) liste.push({ id: u.id, nom: u.label, enAttente: attente.has(u.id) });
+    }
+    return liste.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  });
+
+  /** Membres en attente actuellement sélectionnés, avec leur nom. */
+  readonly membresEnAttente = computed<OptionMembre[]>(() => {
+    const choisis = new Set(this.selection());
+    return this.options().filter(o => o.enAttente && choisis.has(o.id));
+  });
 
   form: FormGroup = this.fb.group({
     code: ['', Validators.required],
@@ -54,8 +96,9 @@ export class AccessGroupForm implements OnInit {
   }
 
   ngOnInit(): void {
+    this.form.get('userIds')!.valueChanges.subscribe(v => this.selection.set(v ?? []));
     this.workspaceService.forSelect().subscribe(l => this.workspaces.set(l));
-    this.employeService.listApprovers().subscribe(l => this.employes.set(l));
+    this.employeService.tous().subscribe(l => this.employes.set(l));
 
     if (this.data.group) {
       const g = this.data.group;
@@ -65,6 +108,13 @@ export class AccessGroupForm implements OnInit {
         userIds: g.users.map(u => u.id),
       });
     }
+  }
+
+  /** Retire un membre (en attente) du groupe ; pris en compte à l'enregistrement. */
+  retirer(id: string): void {
+    const ctl = this.form.get('userIds')!;
+    ctl.setValue((ctl.value as string[] ?? []).filter(x => x !== id));
+    ctl.markAsDirty();
   }
 
   submit(): void {
