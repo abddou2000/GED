@@ -40,10 +40,13 @@ ligne), `ct/qa2-r4` (fusion `65b1002` : recette fonctionnelle **74/77**, ANO-F-0
 `ct/qa-r4` (fusion `7511e9b` : vague 11, `recette/RESULTATS-VAGUE-11.md`, 687 tests back verts, front 196/196).
 Relecture pm du tour 4 : « Identique » T-104, T-050, P-08, P-05 ; « Identique (réserve UAT) » T-006, T-088, P-04 ;
 T-028 « Vérifié » ; T-115 redescendue en « Vérifié » (ANO-E6-002 ouverte) ; P-14 reste « Vérifié » (écart R30).
-Anomalies techniques ouvertes : **ANO-E6-002** (dev3, Mineure : valeur d'index > 255 caractères sous plan manuel,
-motif SQL brut renvoyé, T-115), **ANO-E0-004** (dev4/dev2, Majeure : `@angular/router` 22.0.8 vulnérable, job front
-de la CI rouge depuis le 01/10, T-070). CI GitHub : job back rouge (connexions PostgreSQL épuisées sur le service CI),
-à corriger au tour 5. Vérifiées en vague 11 : ANO-E7-007, ANO-E10-009 ; en vague 10 : ANO-E2-002, ANO-E5-004,
+Tour 5 : `ct/dev3-r5` (fusion `c1126de` : ANO-E6-002), `ct/dev4-r5` (fusion `69cfe41` : Angular 22.2.1, audit npm à 0,
+ANO-E0-004 ; job front de la CI GitHub revenu au vert sur `69cfe41`), `ct/dev2-r5` (fusion `c48dbfb` : job back de la
+CI rouge depuis `a7343b8` à cause d'un seul test, `MetadonneesPlanParalleleTest.indexDeDeploiementSeCree`, dépendant
+de la taille de la table `document` — rendu stable ; défaut latent corrigé aussi : pools Hikari bornés pour tenir dans
+les 97 connexions du service CI ; job OWASP en échec volontaire faute de secret `NVD_API_KEY`, T-070).
+Anomalies techniques corrigées au tour 5, à revérifier par qa : **ANO-E6-002** (dev3, `cf1261f`, Mineure, T-115),
+**ANO-E0-004** (dev4, `620408b`, Majeure, T-070). Vérifiées en vague 11 : ANO-E7-007, ANO-E10-009 ; en vague 10 : ANO-E2-002, ANO-E5-004,
 ANO-E6-001, ANO-E10-007, ANO-E10-008, ANO-E0-002, ANO-E0-003, ANO-E5-005, ANO-E10-002, ANO-E10-006, ANO-E7-006.
 Anomalies fonctionnelles : ANO-F-002 ouverte (arbitrage de pm avec MMED) ; ANO-F-025 à ANO-F-028 vérifiées (tour 4,
 qa2) ; ANO-F-011 rejouée avec P-08, reste vérifiée ; ANO-F-010 à ANO-F-024 vérifiées (tour 3) ; ANO-F-011 reste vérifiée, mais son volet « paramètre
