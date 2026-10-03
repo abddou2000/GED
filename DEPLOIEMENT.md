@@ -218,6 +218,21 @@ Les modèles inscrits au registre des dépendances et au SBOM restent ceux de `b
 (la copie en est dérivée, rien n'est ajouté au paquet). Inchangés : `--psm 3`, `--oem 1`,
 langue `ara+fra`, `OMP_THREAD_LIMIT=1`, un worker OCR par cœur (`GED_OCR_CHAINE_WORKERS`).
 
+### 3.3 Fuseau horaire des dates métier
+
+Les dates **métier** sont celles de Casablanca (`Africa/Casablanca`, heure légale du Maroc),
+fixé dans le code (`Echeances.ZONE`) : date du document par défaut au dépôt (donc point de
+départ de la conservation et critère « date du document » de la recherche), échéances de
+conservation et filtre « échéance dépassée », alertes d'échéance (6 h, heure de Casablanca),
+jetons « date », « heure »… de la charte de nommage, courbe des dépôts par jour du tableau
+de bord. **Le fuseau du serveur (`TZ`, `-Duser.timezone`) n'a plus d'effet sur ces dates**
+(ANO-F-037) : inutile de le régler pour la GED, un serveur en UTC convient. Les instants
+(création, modification, journal d'audit) sont enregistrés en UTC (`timestamptz`) et affichés
+en heure locale par l'interface. Seules les tâches techniques planifiées sans fuseau explicite
+(scellement et vérification du journal d'audit, purge d'idempotence, contrôle d'intégrité et
+rotation des clés des fichiers) suivent l'heure du serveur ; les partitions mensuelles du
+journal d'audit sont découpées en UTC.
+
 ---
 
 ## 4. Frontend

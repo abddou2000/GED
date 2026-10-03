@@ -147,10 +147,11 @@ public class UploadDocument extends Supprimable {
     /**
      * Date du document (socle commun, §12.7) : clé de tri prioritaire de la
      * recherche et point de départ par défaut de la conservation. Date de dépôt
-     * quand elle n'est pas fournie.
+     * quand elle n'est pas fournie : jour de Casablanca, pas celui du fuseau
+     * du serveur (ANO-F-037).
      */
     @Column(name = "date_document", nullable = false)
-    private LocalDate dateDocument = LocalDate.now();
+    private LocalDate dateDocument = com.ipt.ged.document.conservation.Echeances.aujourdhui();
 
     /** Pose le verrou : auteur, date et motif (§12.8). */
     public void verrouiller(UUID auteur, String motif) {

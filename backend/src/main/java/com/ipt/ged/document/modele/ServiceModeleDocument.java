@@ -5,6 +5,7 @@ import com.ipt.ged.common.ActeurCourant;
 import com.ipt.ged.common.Limites;
 import com.ipt.ged.document.DocumentRattachementRepository;
 import com.ipt.ged.document.UploadDocument;
+import com.ipt.ged.document.conservation.Echeances;
 import com.ipt.ged.planindexation.metamodele.DefinitionPlan;
 import com.ipt.ged.planindexation.metamodele.PlanIndexationVersion;
 import com.ipt.ged.planindexation.metamodele.ServiceVersionsPlan;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -49,6 +51,13 @@ public class ServiceModeleDocument {
         this.evenements = evenements;
     }
 
+    /** Horloge du jour par défaut ; fixée par les tests. */
+    private Clock horloge = Clock.systemUTC();
+
+    void setHorloge(Clock horloge) {
+        this.horloge = horloge != null ? horloge : Clock.systemUTC();
+    }
+
     /**
      * Au dépôt : version du plan en vigueur, métadonnées validées contre elle,
      * objet et date du document (date de dépôt si absente).
@@ -66,7 +75,9 @@ public class ServiceModeleDocument {
         d.setMetadonnees(new HashMap<>(ValidateurMetadonnees.valider(plan, metadonnees, fournies)));
         d.setPlanIndexationVersionId(version.map(PlanIndexationVersion::getId).orElse(null));
         d.setObjet(objet(objet));
-        d.setDateDocument(dateDocument != null ? dateDocument : LocalDate.now());
+        // Jour de Casablanca, pas celui du fuseau du serveur (ANO-F-037) : il
+        // fixe aussi le point de départ de la conservation.
+        d.setDateDocument(dateDocument != null ? dateDocument : Echeances.aujourdhui(horloge));
     }
 
     /**

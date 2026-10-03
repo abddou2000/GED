@@ -343,6 +343,30 @@ class ModeleDocumentApiTest {
         assertNull(echeance(doc));
     }
 
+    @Autowired private ServiceModeleDocument modele;
+
+    @Test
+    @DisplayName("ANO-F-037 : sans date saisie, la date du document est le jour de Casablanca, pas celui du serveur")
+    void dateParDefautDeCasablanca() throws Exception {
+        // 03/10/2026 à 23 h 30 UTC = 04/10/2026 à 0 h 30 à Casablanca (UTC+1).
+        ServiceModeleDocument cible = org.springframework.test.util.AopTestUtils.getTargetObject(modele);
+        cible.setHorloge(java.time.Clock.fixed(java.time.Instant.parse("2026-10-03T23:30:00Z"),
+                java.time.ZoneOffset.UTC));
+        try {
+            jdbc.update("UPDATE type_document SET duree_conservation_mois = 12, point_depart = 'DATE_DOCUMENT',"
+                    + " point_depart_index_code = NULL WHERE id = ?", type);
+            UUID doc = deposer("Déposé à minuit et demie", null, null);
+
+            assertEquals("2026-10-04", json(mvc.perform(get(DOCS + "/" + doc)).andExpect(status().isOk()))
+                    .get("dateDocument").asText());
+            assertEquals(LocalDate.of(2026, 10, 4), jdbc.queryForObject(
+                    "SELECT date_document FROM document WHERE id = ?", LocalDate.class, doc));
+            assertEquals(LocalDate.of(2027, 10, 4), echeance(doc), "échéance comptée depuis le jour de Casablanca");
+        } finally {
+            cible.setHorloge(null);
+        }
+    }
+
     @Test
     @DisplayName("Type : point de départ contrôlé ; type utilisé non supprimable (409) mais désactivable ; désactivé = plus de dépôt")
     void typeDocument() throws Exception {

@@ -254,4 +254,25 @@ class IndexationControlesApiTest {
                 "un « ? » littéral s'est glissé dans le nom du document : " + nom);
         org.junit.jupiter.api.Assertions.assertTrue(nom.endsWith("ACME_100"), nom);
     }
+
+    @Autowired private IndexationService indexation;
+
+    @Test
+    @DisplayName("ANO-F-037 : les jetons « date » et « heure » de la charte sont ceux de Casablanca, pas du serveur")
+    void jetonsALHeureDeCasablanca() throws Exception {
+        // 03/10/2026 à 23 h 30 UTC = 04/10/2026 à 0 h 30 à Casablanca (UTC+1).
+        IndexationService cible = org.springframework.test.util.AopTestUtils.getTargetObject(indexation);
+        cible.setHorloge(java.time.Clock.fixed(java.time.Instant.parse("2026-10-03T23:30:00Z"),
+                java.time.ZoneOffset.UTC));
+        try {
+            mvc.perform(multipart(BASE + "/apercu")
+                            .file(new MockMultipartFile("file", "ACME_100.pdf", "application/pdf",
+                                    com.ipt.ged.support.Pdfs.pdf()))
+                            .param("typeDocumentId", String.valueOf(typeId)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.nomPropose", is("261004_003000_ACME_100")));
+        } finally {
+            cible.setHorloge(null);
+        }
+    }
 }
