@@ -147,6 +147,25 @@ final class Mesures {
         }
     }
 
+    /**
+     * Temps CPU (utilisateur + système, en ms) des processus enfants terminés et
+     * attendus par la JVM : champs {@code cutime} et {@code cstime} de
+     * {@code /proc/self/stat} (Linux, 100 tops par seconde), -1 ailleurs. Exact
+     * pour les processus Tesseract d'une page, contrairement à un relevé
+     * périodique qui manque leurs derniers instants. Sur un poste partagé, c'est
+     * le coût réel d'une page pour un cœur ; le temps écoulé mesure la contention.
+     */
+    static long cpuEnfantsMs() {
+        try {
+            String s = Files.readString(Path.of("/proc/self/stat"), StandardCharsets.US_ASCII);
+            String[] champs = s.substring(s.lastIndexOf(')') + 2).split(" ");
+            // Après « (comm) » : champ 3 (état) à l'indice 0 ; cutime = champ 16, cstime = champ 17.
+            return (Long.parseLong(champs[13]) + Long.parseLong(champs[14])) * 10;
+        } catch (IOException | RuntimeException e) {
+            return -1;
+        }
+    }
+
     /** Charge de fond et performance du processeur, à noter avant chaque phase mesurée. */
     static void noterPoste(String cle) {
         noter(cle + ".poste", "charge CPU de fond " + f(chargeCpuSysteme()) + " %, performance CPU "
