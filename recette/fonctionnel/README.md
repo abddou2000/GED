@@ -13,6 +13,14 @@ rejoue les scénarios. Sortie `RESULTAT|F-xx|OK/ECHEC/AVERT/NA|libellé|détail`
 | B | F-21 à F-38 : OCR, métadonnées, classement, arborescence |
 | C | F-39 à F-54 : recherche, confidentialité, circuits de validation, diffusion |
 | D | F-55 à F-77 : cycle de vie, archivage, audit, intégration, sécurité |
+| G | Tour 6, sur demande (hors du rejeu par défaut A à D) : groupes GED par identité (T-025) — F-06g, F-14g, F-11g, F-65g, F-54g, F-52g, F-58g |
+
+Partie G : espace propre « QA2 Groupes T-025 » et deux comptes neufs de l'annuaire simulé par
+exécution (`qa2g<marqueur>` membre par identité, `qa2p<marqueur>` membre préparé). F-11g insère
+une fiche employé sans identité (comme la reprise) par JDBC : `GED_RECETTE_JDBC_URL`,
+`GED_RECETTE_JDBC_UTILISATEUR`, `GED_RECETTE_JDBC_MDP` (rôle `ged_app` suffit ; sans elles, NA).
+Ne pas enchaîner A et C dans une même exécution : le document de F-20 (échéance au 31/10/2026)
+partage alors le marqueur de F-39 et tombe dans sa plage de dates ; lancer `A B` puis `C D`.
 
 Personas (annuaire **simulé** du profil dev + `annuaire-fonctionnel.ldif`, à concaténer au LDIF
 de démonstration et à désigner par `GED_IDENTITE_ANNUAIRE_EMBARQUE_LDIF=file:…`) :
