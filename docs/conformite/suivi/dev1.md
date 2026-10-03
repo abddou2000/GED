@@ -84,6 +84,29 @@ nœud, le document et leurs colonnes sont au lot modèle (dev1). Contrats
 
 ## Lot en cours
 
+### Mise en conformité, tour 9 (branche `ct/dev1-r9`, depuis `claude/inspiring-lovelace-10bg1c` @ `8b8eb12`)
+
+| Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
+|---|---|---|---|
+| ANO-F-036 (Mineure ; F-69 ; §4.9.3, §4.9.4) | **Corrigée (`eaf4cc0`, `dccdbe7`)** | Cause : aucune API ouverte à la Direction Générale ne rendait l'identifiant de connexion (`GET /employes` : nom et UUID ; `GET /admin/utilisateurs` : Administrateur seul). Le filtre « Utilisateur » du journal ne pouvait donc résoudre « sbennani » (tel que l'affiche la colonne Acteur) que pour l'Administrateur. Arbitrage pm appliqué. **Back** (`eaf4cc0`) : `EmployeController.list` ajoute à `EmployeResponse` le champ `identifiant` (sAMAccountName de l'identité GED) **seulement si l'appelant détient `CONSULTER_AUDIT`** — même permission et même décision que la garde de `/audit/evenements` (`GardeConsultationAudit` : `AccessPredicate.droits(auth).administre(CONSULTER_AUDIT)`, ici via `ControleAcces.administre`) ; Administrateur et Direction Générale l'ont par le modèle de droits livré. Pour tout autre appelant, et pour une personne sans compte, le champ est **absent** de la réponse (`@JsonInclude(NON_NULL)` sur ce seul composant ; `utilisateurId` garde son `null` explicite). OpenAPI : surcharge `EmployeResponse.identifiant` dans `documentationapi/champs.yml` (le nom générique `identifiant` y désigne la clé d'API). **Front** (`dccdbe7`) : `EmployeService.personnes()` reprend `identifiant` quand il est rendu ; `JournalAudit.chargerUtilisateurs` ne lit plus que `/employes` (l'appel à `/admin/utilisateurs`, `forkJoin`, `AuthService` et `DroitsService` retirés du composant) : DG et Administrateur résolvent l'identifiant de la même façon. Aucun changeset (pas de changement de schéma). | Back : `EmployeApiTest.identifiantRenduALaDirectionGenerale` (nidrissi habilité `DIRECTION_GENERALE` → `identifiant` = `kelfassi`) et `identifiantRenduALAdministrateur` — sans le correctif : `expected: <kelfassi> but was: <null>` (lignes 71 et 78), vérifié ; `identifiantAbsentSansConsulterAudit` (Utilisateur standard sur un nœud : `utilisateurId` présent, `identifiant` absent) garde la non-fuite. `SpecificationOpenApiTest` vert (10). Front : `journal-audit.spec.ts`, nouveau test « ANO-F-036 — Direction Générale » (`/employes` avec identifiants, rôle DG : « benn » → « Sara Bennani (sbennani) », `sbennani` et `KElfassi` → UUID, aucune erreur) — sans le correctif : `expected [ 'Sara Bennani' ] to deeply equal [ 'Sara Bennani (sbennani)' ]`, vérifié ; les 5 tests existants passent sur `/employes` seul et vérifient l'absence d'appel à `/admin/utilisateurs` pour tous les rôles. |
+
+Tests : suite back complète à `dccdbe7` (`GED_MANAGEMENT_PORT` et `SERVER_PORT` retirés, base `ged_dev1_test`) —
+**714 tests, 0 échec, 0 erreur, 3 ignorés (119 classes)**, `mvn test` code de sortie 0 ; aucun nouvel échec
+(3 tests back nouveaux dans `EmployeApiTest`). Front (Node 24) : `ng test --watch=false` **219 tests verts (49 fichiers)**,
+dont 1 nouveau dans `journal-audit.spec.ts` ; `ng build` vert (avertissements de budget déjà présents, sans rapport).
+
+**Points pour pm** :
+
+1. ANO-F-036 : à faire rejouer par qa2 avec qa2dg (Direction Générale) : `#/journal-audit`, Utilisateur =
+   `sbennani` → « Rechercher » → `GET /audit/evenements?utilisateur=<UUID de sbennani>` ; la liste propose
+   « Sara Bennani (sbennani) ». Contrôle de non-fuite : `GET /api/v1/employes?has_user=1` avec un Utilisateur
+   standard ne contient aucun champ `identifiant`.
+2. Une application (clé d'API) agissant pour le compte d'une personne (`X-On-Behalf-Of`) qui détient
+   `CONSULTER_AUDIT` reçoit aussi l'identifiant : c'est la même décision que pour lire le journal lui-même.
+3. Hors périmètre, relevé en passant : dans `champs.yml`, `IdentiteAdmin.identifiant` (et tout schéma qui porte
+   un champ `identifiant` sans surcharge) hérite de la description « Identifiant public de la clé (16 caractères
+   hexadécimaux) » ; non corrigé ici.
+
 ### Mise en conformité, tour 7 (branche `ct/dev1-r7`, depuis `claude/inspiring-lovelace-10bg1c` @ `dd89445`)
 
 | Tâche | État | Cause et correction | Preuve (test qui échoue sans le correctif) |
