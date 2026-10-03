@@ -753,3 +753,27 @@ ignorés sont les cas à Tesseract réel (joués à part avec `GED_TESSERACT=/us
 `ModelesEntiersTest` 7/7, `ReglageDebitOcrTest` 7/7, `MoteurTesseractTest` 8/8,
 `ExtracteurDocumentOcrTest` 10/10). Nouveaux : `ModelesEntiersTest` ×3, `ReglageDebitOcrTest` ×2,
 `OcrApiTest.etat` étendu. Front non modifié (pas de build).
+
+## Tour 10 de la mise en conformité (`ct/dev3-r10`, depuis `claude/inspiring-lovelace-10bg1c` @ `8ab6e19`)
+
+| Id | État | Commits | Cause, correctif, preuve |
+|---|---|---|---|
+| ANO-F-037 (Mineure, F-58) | **Corrigée** | `f11a347`, `2e5ec77` | **Cause** : la date du document par défaut (`ServiceModeleDocument.appliquerAuDepot`, valeur initiale d'`UploadDocument.dateDocument`) était `LocalDate.now()`, donc le jour du **fuseau de la JVM**, alors que les échéances, le filtre « échéance dépassée » et l'alerte de 6 h prennent le jour de Casablanca (`Echeances.ZONE`). Revue de tous les `LocalDate.now(`, `LocalDateTime.now(`, `Year(Month).now(`, `ZoneId.systemDefault()` du code applicatif : deux autres usages métier dépendaient du même fuseau — les jetons « date », « heure », « mois », « jour », « année » de la charte de nommage (`IndexationService.composerDepuisCharte`, nom du document et aperçu) et la courbe « dépôts par jour » du tableau de bord (`StatsController.depots`, `ZoneId.systemDefault()`). Restent volontairement hors champ (techniques) : partitions mensuelles du journal d'audit en UTC (`TachesAudit`, `AuditService`), date de création XMP du PDF/A (`FabriquePdfA`, instant avec décalage, juste quel que soit le fuseau), instants `Instant.now()`. **Correctif** : `Echeances` devient la seule source de l'« aujourd'hui » métier (`aujourdhui(Clock)`, nouveau `maintenant(Clock)` = date et heure à Casablanca) ; pas d'horloge injectable commune dans le code (chaque classe prend `Clock.systemUTC()` et un réglage de test, cf. `AlertesEcheanceConservation.setHorloge`) : même schéma pour `ServiceModeleDocument` et `IndexationService` (`setHorloge`, paquet). `DEPLOIEMENT.md` § 3.3 : fuseau métier fixé dans le code, le fuseau du serveur (`TZ`, `-Duser.timezone`) n'a plus d'effet sur les dates métier ; seules les tâches techniques planifiées sans fuseau explicite suivent l'heure du serveur. **Tests** (horloge fixée au 03/10/2026 23 h 30 UTC = 04/10 0 h 30 à Casablanca) : `ModeleDocumentApiTest.dateParDefautDeCasablanca` (dépôt sans date : `GET /documents/{id}` → `dateDocument` 2026-10-04, base `date_document` 2026-10-04, `echeance_conservation` 2027-10-04 pour 12 mois depuis `DATE_DOCUMENT`) ; `IndexationControlesApiTest.jetonsALHeureDeCasablanca` (`POST /indexation/apercu` → `nomPropose` « 261004_003000_ACME_100 ») ; `JourMetierTest` (unitaire, JVM basculée sur `Etc/GMT+12` puis `Pacific/Kiritimati`, qui encadrent Casablanca : à tout instant l'un des deux est à une autre date qu'elle) : date initiale d'une fiche neuve et dernier jour de la courbe des dépôts = jour de Casablanca. **Rouges sans le correctif** (calculs remis à l'identique, réglages d'horloge conservés pour compiler) : 4/4 — « expected: <2026-10-04> but was: <2026-10-03> », `nomPropose` « 261003_234842_ACME_100 », « … sous Etc/GMT+12 : 2026-10-03 au lieu du jour de Casablanca 2026-10-04 » (×2). |
+
+### Points pour pm
+
+1. **qa2** : ANO-F-037 à vérifier sur l'instance de recette (JVM en UTC, `TZ` non positionné) : dépôt sans date du
+   document entre 0 h et 1 h à Casablanca (23 h – 0 h UTC) → « Date du document » = « Date de création », échéance
+   comptée depuis ce jour (QA2-NOTE 12 mois : 04/10/2026 → 04/10/2027).
+2. Les documents déjà déposés avec la date de la veille ne sont **pas** corrigés (on ne sait pas distinguer une date
+   saisie d'une date par défaut) ; sur l'instance de recette, seul le dépôt de l'essai de qa2 est concerné.
+3. La copie `livraison-documentation/GED-Marchica-Med/DEPLOIEMENT.md` (figée depuis le premier commit) n'a pas été
+   touchée ; seule `DEPLOIEMENT.md` à la racine est tenue à jour.
+
+### Tests du tour 10
+
+Suite back complète (`2e5ec77`, `mvn -B -q -o test` sur `ged_dev3_test`, sans `GED_MANAGEMENT_PORT` ni
+`SERVER_PORT`, sans `GED_TESSERACT`) : **720 tests, 0 échec, 0 erreur, 3 ignorés (120 classes)** ; les 3
+ignorés sont les cas à Tesseract réel (inchangés). Nouveaux : `JourMetierTest` ×2,
+`ModeleDocumentApiTest.dateParDefautDeCasablanca`, `IndexationControlesApiTest.jetonsALHeureDeCasablanca`.
+Front non modifié (pas de build).
