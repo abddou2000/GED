@@ -40,15 +40,25 @@ public class EmployeController {
      * compte) : c'est elle que désignent la désignation d'un document
      * confidentiel, le critère « déposant » et l'auteur d'une version
      * (ANO-F-012, ANO-F-013).
+     *
+     * <p>L'identifiant de connexion ({@code identifiant}) n'est rendu qu'à qui
+     * peut consulter le journal d'audit ({@code CONSULTER_AUDIT} : Administrateur,
+     * Direction Générale), pour y filtrer par l'acteur tel que le journal
+     * l'affiche ; pour les autres, le champ est absent (ANO-F-036).
      */
     @GetMapping
     public List<EmployeResponse> list(@RequestParam(name = "has_user", required = false) Integer hasUser) {
         List<Employe> employes = (hasUser != null && hasUser == 1)
                 ? repository.findByHasUserTrue()
                 : repository.findAll();
-        java.util.Map<UUID, UUID> identites = new java.util.HashMap<>();
-        utilisateurs.findAll().forEach(u -> identites.put(u.getEmploye().getId(), u.getId()));
-        return employes.stream().map(e -> EmployeResponse.from(e, identites.get(e.getId()))).toList();
+        boolean voitIdentifiant = controle.administre(com.ipt.ged.autorisation.CodePermission.CONSULTER_AUDIT);
+        java.util.Map<UUID, com.ipt.ged.identite.Utilisateur> identites = new java.util.HashMap<>();
+        utilisateurs.findAll().forEach(u -> identites.put(u.getEmploye().getId(), u));
+        return employes.stream().map(e -> {
+            com.ipt.ged.identite.Utilisateur u = identites.get(e.getId());
+            return EmployeResponse.from(e, u == null ? null : u.getId(),
+                    u != null && voitIdentifiant ? u.getIdentifiant() : null);
+        }).toList();
     }
 
     /**
@@ -83,10 +93,16 @@ public class EmployeController {
      * DTO de sortie : ce que le frontend affiche dans les sélecteurs.
      *
      * @param utilisateurId identité GED de la personne ; {@code null} si elle n'a pas de compte
+     * @param identifiant   identifiant de connexion ; absent de la réponse sans compte
+     *                      ou sans la permission {@code CONSULTER_AUDIT} (ANO-F-036)
      */
-    public record EmployeResponse(UUID id, String firstName, String lastName, String fullName, UUID utilisateurId) {
-        static EmployeResponse from(Employe e, UUID utilisateurId) {
-            return new EmployeResponse(e.getId(), e.getFirstName(), e.getLastName(), e.getFullName(), utilisateurId);
+    public record EmployeResponse(UUID id, String firstName, String lastName, String fullName, UUID utilisateurId,
+                                  @com.fasterxml.jackson.annotation.JsonInclude(
+                                          com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+                                  String identifiant) {
+        static EmployeResponse from(Employe e, UUID utilisateurId, String identifiant) {
+            return new EmployeResponse(e.getId(), e.getFirstName(), e.getLastName(), e.getFullName(),
+                    utilisateurId, identifiant);
         }
     }
 }
